@@ -1,0 +1,15 @@
+[Oo]bj/
+[Bb]in/
+.vs/
+*.user
+*.suo
+*.ide
+*.log
+*.tmp
+*.bak
+*.swp
+node_modules/
+.DS_Store
+Thumbs.db
+*.pdb
+*.cache

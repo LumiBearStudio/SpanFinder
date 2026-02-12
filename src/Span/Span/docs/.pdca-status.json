@@ -1,0 +1,47 @@
+{
+  "version": "2.0",
+  "lastUpdated": "2026-02-12T04:08:03.691Z",
+  "activeFeatures": [
+    "Helpers"
+  ],
+  "primaryFeature": "Helpers",
+  "features": {
+    "Helpers": {
+      "phase": "do",
+      "phaseNumber": 3,
+      "matchRate": null,
+      "iterationCount": 0,
+      "requirements": [],
+      "documents": {},
+      "timestamps": {
+        "started": "2026-02-12T04:07:57.904Z",
+        "lastUpdated": "2026-02-12T04:08:03.690Z"
+      },
+      "lastFile": "D:\\11.AI\\Span\\src\\Span\\Span\\Helpers\\RemixIconHelper.cs"
+    }
+  },
+  "pipeline": {
+    "currentPhase": 1,
+    "level": "Dynamic",
+    "phaseHistory": []
+  },
+  "session": {
+    "startedAt": "2026-02-12T03:55:00.404Z",
+    "onboardingCompleted": false,
+    "lastActivity": "2026-02-12T04:08:03.691Z"
+  },
+  "history": [
+    {
+      "timestamp": "2026-02-12T04:07:57.904Z",
+      "feature": "Helpers",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-12T04:08:03.690Z",
+      "feature": "Helpers",
+      "phase": "do",
+      "action": "updated"
+    }
+  ]
+}

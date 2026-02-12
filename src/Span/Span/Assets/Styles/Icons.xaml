@@ -1,0 +1,36 @@
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Remix Icons (Unicode) -->
+
+    <!-- Folders -->
+    <!-- Folders -->
+    <x:String x:Key="Icon_Folder">&#xED53;</x:String> <!-- ri-folder-3-fill -->
+    <x:String x:Key="Icon_FolderOpen">&#xED6F;</x:String> <!-- ri-folder-open-fill -->
+
+    <!-- Drives -->
+    <x:String x:Key="Icon_Drive">&#xEC65;</x:String> <!-- ri-drive-fill (Verified) -->
+
+    <!-- UI Elements -->
+    <x:String x:Key="Icon_ChevronRight">&#xEA6E;</x:String> <!-- ri-arrow-right-s-line -->
+
+    <!-- File Type Icons -->
+    <x:String x:Key="Icon_File_Default">&#xECE0;</x:String> <!-- ri-file-fill -->
+    <x:String x:Key="Icon_File_Text">&#xED0E;</x:String> <!-- ri-file-text-fill -->
+    <x:String x:Key="Icon_File_Code">&#xECD0;</x:String> <!-- ri-file-code-fill -->
+    <x:String x:Key="Icon_File_Image">&#xEE4A;</x:String> <!-- ri-image-fill -->
+    <x:String x:Key="Icon_File_Video">&#xEF80;</x:String> <!-- ri-movie-fill -->
+    <x:String x:Key="Icon_File_Audio">&#xEF84;</x:String> <!-- ri-music-fill -->
+    <x:String x:Key="Icon_File_Archive">&#xED1E;</x:String> <!-- ri-file-zip-fill -->
+    <x:String x:Key="Icon_File_PDF">&#xECFC;</x:String> <!-- ri-file-pdf-fill -->
+    <x:String x:Key="Icon_File_Config">&#xF0E5;</x:String> <!-- ri-settings-3-fill (Verified) -->
+    <x:String x:Key="Icon_File_Database">&#xEC15;</x:String> <!-- ri-database-2-fill (Verified) -->
+    <x:String x:Key="Icon_File_Font">&#xEF44;</x:String> <!-- ri-font-size -->
+    <x:String x:Key="Icon_File_Executable">&#xEF57;</x:String> <!-- ri-microsoft-fill (Windows Logo - Verified) -->
+    <x:String x:Key="Icon_File_Web">&#xEDD4;</x:String> <!-- ri-global-line -->
+    <x:String x:Key="Icon_File_Document">&#xED0E;</x:String> <!-- ri-file-text-fill -->
+    <x:String x:Key="Icon_File_Spreadsheet">&#xECDE;</x:String> <!-- ri-file-excel-fill -->
+    <x:String x:Key="Icon_File_Presentation">&#xED00;</x:String> <!-- ri-file-ppt-fill -->
+
+</ResourceDictionary>

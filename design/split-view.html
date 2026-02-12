@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Span — Split View Design</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="split-view.css">
+    <link href="https://fonts.googleapis.com/css2?family=Segoe+UI+Variable:wght@300;400;600;700&display=swap"
+        rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.1.0/fonts/remixicon.css" rel="stylesheet">
+</head>
+
+<body>
+    <div class="window-shell">
+
+        <!-- Title Bar + Tabs -->
+        <header class="title-bar">
+            <div class="title-bar-left">
+                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24'%3E%3Cpath fill='%2360cdff' d='M3 4h7v7H3V4zm11 0h7v7h-7V4zM3 15h7v6H3v-6zm11 0h7v6h-7v-6z'/%3E%3C/svg%3E"
+                    alt="Span" class="app-icon">
+                <span class="app-title">Span</span>
+            </div>
+
+            <nav class="tab-bar" id="tabBar">
+                <div class="tab active" data-tab="0">
+                    <i class="ri-folder-3-fill tab-icon"></i>
+                    <span class="tab-label">프로젝트 Span</span>
+                    <button class="tab-close" title="닫기"><i class="ri-close-line"></i></button>
+                </div>
+                <div class="tab" data-tab="1">
+                    <i class="ri-folder-3-fill tab-icon"></i>
+                    <span class="tab-label">문서</span>
+                    <button class="tab-close" title="닫기"><i class="ri-close-line"></i></button>
+                </div>
+                <button class="tab-new" title="새 탭 (Ctrl+T)"><i class="ri-add-line"></i></button>
+            </nav>
+
+            <div class="title-bar-right">
+                <button class="win-btn" title="최소화"><i class="ri-subtract-line"></i></button>
+                <button class="win-btn" title="최대화"><i class="ri-checkbox-blank-line"></i></button>
+                <button class="win-btn win-close" title="닫기"><i class="ri-close-line"></i></button>
+            </div>
+        </header>
+
+        <!-- Unified Bar (Compact: Command + Address merged) -->
+        <div class="unified-bar" id="unifiedBar">
+            <div class="unified-left">
+                <div class="nav-btns">
+                    <button class="nav-btn"><i class="ri-arrow-left-s-line"></i></button>
+                    <button class="nav-btn"><i class="ri-arrow-right-s-line"></i></button>
+                    <button class="nav-btn"><i class="ri-arrow-up-s-line"></i></button>
+                </div>
+                <!-- Single Dynamic Address Bar -->
+                <div class="address-bar" id="addressBar">
+                    <div class="breadcrumb" id="breadcrumb">
+                        <span class="crumb"><i class="ri-hard-drive-3-line"></i> C:</span>
+                        <i class="ri-arrow-right-s-line crumb-sep"></i>
+                        <span class="crumb">Users</span>
+                        <i class="ri-arrow-right-s-line crumb-sep"></i>
+                        <span class="crumb">Dev</span>
+                        <i class="ri-arrow-right-s-line crumb-sep"></i>
+                        <span class="crumb active">Span</span>
+                        <i class="ri-arrow-right-s-line crumb-sep"></i>
+                        <span class="crumb active">Source</span>
+                    </div>
+                </div>
+                <!-- Panel Indicators -->
+                <div class="panel-indicators">
+                    <button class="panel-ind active" id="panelIndA" title="패널 A (좌측)">A</button>
+                    <button class="panel-ind" id="panelIndB" title="패널 B (우측)">B</button>
+                </div>
+            </div>
+            <div class="unified-right">
+                <button class="cmd-btn" title="새로 만들기"><i class="ri-add-circle-line"></i></button>
+                <div class="cmd-separator"></div>
+                <button class="cmd-btn" title="잘라내기"><i class="ri-scissors-cut-line"></i></button>
+                <button class="cmd-btn" title="복사"><i class="ri-file-copy-line"></i></button>
+                <button class="cmd-btn" title="붙여넣기"><i class="ri-clipboard-line"></i></button>
+                <button class="cmd-btn" title="이름 바꾸기"><i class="ri-pencil-line"></i></button>
+                <button class="cmd-btn" title="삭제"><i class="ri-delete-bin-6-line"></i></button>
+                <div class="cmd-separator"></div>
+                <button class="cmd-btn" title="정렬"><i class="ri-sort-asc"></i><i
+                        class="ri-arrow-down-s-line"></i></button>
+                <button class="cmd-btn view-toggle" title="보기 전환"><i class="ri-layout-column-line"></i><i
+                        class="ri-arrow-down-s-line"></i></button>
+                <div class="cmd-separator"></div>
+                <button class="cmd-btn preview-toggle-btn" id="previewToggle" title="미리보기 (Ctrl+Shift+P)">
+                    <i class="ri-side-bar-line"></i>
+                </button>
+                <div class="cmd-separator"></div>
+                <button class="cmd-btn split-btn active" title="분할 뷰"><i class="ri-layout-column-fill"></i></button>
+                <div class="cmd-separator"></div>
+                <div class="search-box">
+                    <i class="ri-search-line"></i>
+                    <input type="text" placeholder="검색 (Ctrl+F)" />
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="main-area">
+
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <div class="sidebar-section">
+                    <div class="sidebar-header">즐겨찾기</div>
+                    <div class="sidebar-item active"><i class="ri-star-fill sb-icon fav"></i>프로젝트 Span</div>
+                    <div class="sidebar-item"><i class="ri-download-2-line sb-icon"></i>다운로드</div>
+                    <div class="sidebar-item"><i class="ri-file-text-line sb-icon"></i>문서</div>
+                    <div class="sidebar-item"><i class="ri-image-line sb-icon"></i>사진</div>
+                </div>
+                <div class="sidebar-section">
+                    <div class="sidebar-header">내 PC</div>
+                    <div class="sidebar-item"><i class="ri-computer-line sb-icon"></i>바탕 화면</div>
+                    <div class="sidebar-item"><i class="ri-hard-drive-3-line sb-icon drive"></i>로컬 디스크 (C:)</div>
+                    <div class="sidebar-item"><i class="ri-hard-drive-3-line sb-icon drive"></i>데이터 (D:)</div>
+                </div>
+                <div class="sidebar-section">
+                    <div class="sidebar-item"><i class="ri-delete-bin-5-line sb-icon trash"></i>휴지통</div>
+                </div>
+            </aside>
+
+            <!-- Split Content Area -->
+            <div class="content-area">
+
+                <!-- ===== SPLIT PANE A (Left — Active) ===== -->
+                <div class="split-pane active-pane" id="splitA">
+                    <div class="split-pane-header">
+                        <span class="pane-indicator active-indicator"></span>
+                    </div>
+
+                    <div class="miller-columns">
+                        <!-- Column 1 -->
+                        <div class="miller-column" data-depth="0">
+                            <div class="column-items">
+                                <div class="miller-item folder"><i
+                                        class="ri-folder-fill item-icon folder-icon"></i><span>.git</span></div>
+                                <div class="miller-item folder"><i
+                                        class="ri-folder-fill item-icon folder-icon"></i><span>Assets</span></div>
+                                <div class="miller-item folder selected"><i
+                                        class="ri-folder-fill item-icon folder-icon"></i><span>Source</span><i
+                                        class="ri-arrow-right-s-line item-arrow"></i></div>
+                                <div class="miller-item folder"><i
+                                        class="ri-folder-fill item-icon folder-icon"></i><span>Tests</span></div>
+                                <div class="miller-item file"><i
+                                        class="ri-file-text-fill item-icon file-sln"></i><span>Span.sln</span></div>
+                                <div class="miller-item file"><i
+                                        class="ri-markdown-fill item-icon file-md"></i><span>README.md</span></div>
+                            </div>
+                        </div>
+                        <!-- Column 2 -->
+                        <div class="miller-column" data-depth="1">
+                            <div class="column-items">
+                                <div class="miller-item folder"><i
+                                        class="ri-folder-fill item-icon folder-icon"></i><span>Converters</span></div>
+                                <div class="miller-item folder"><i
+                                        class="ri-folder-fill item-icon folder-icon"></i><span>Helpers</span></div>
+                                <div class="miller-item folder selected"><i
+                                        class="ri-folder-fill item-icon folder-icon"></i><span>Models</span><i
+                                        class="ri-arrow-right-s-line item-arrow"></i></div>
+                                <div class="miller-item folder"><i
+                                        class="ri-folder-fill item-icon folder-icon"></i><span>Services</span></div>
+                                <div class="miller-item folder"><i
+                                        class="ri-folder-fill item-icon folder-icon"></i><span>ViewModels</span></div>
+                                <div class="miller-item folder"><i
+                                        class="ri-folder-fill item-icon folder-icon"></i><span>Views</span></div>
+                            </div>
+                        </div>
+                        <!-- Column 3 -->
+                        <div class="miller-column" data-depth="2">
+                            <div class="column-items">
+                                <div class="miller-item file highlight-drag"><i
+                                        class="ri-code-s-slash-fill item-icon file-cs"></i><span>FileItem.cs</span>
+                                </div>
+                                <div class="miller-item file highlight-drag"><i
+                                        class="ri-code-s-slash-fill item-icon file-cs"></i><span>FolderItem.cs</span>
+                                </div>
+                                <div class="miller-item file"><i
+                                        class="ri-code-s-slash-fill item-icon file-cs"></i><span>DriveItem.cs</span>
+                                </div>
+                                <div class="miller-item file"><i
+                                        class="ri-code-s-slash-fill item-icon file-cs"></i><span>TabModel.cs</span>
+                                </div>
+                                <div class="miller-item file"><i
+                                        class="ri-code-s-slash-fill item-icon file-cs"></i><span>NavigationHistory.cs</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Preview Pane (toggled, hidden by default) -->
+                    <div class="split-preview-pane" id="splitPreviewA" style="display:none;">
+                        <div class="split-preview-header">
+                            <div class="split-preview-title">
+                                <i class="ri-code-s-slash-fill preview-icon file-cs"></i>
+                                <span>FileItem.cs</span>
+                            </div>
+                            <button class="split-preview-close" title="미리보기 닫기">
+                                <i class="ri-close-line"></i>
+                            </button>
+                        </div>
+                        <div class="preview-meta">
+                            <div class="meta-row"><span class="meta-label">형식</span><span class="meta-value">C# 소스
+                                    파일</span></div>
+                            <div class="meta-row"><span class="meta-label">크기</span><span class="meta-value">2.4
+                                    KB</span></div>
+                            <div class="meta-row"><span class="meta-label">수정한 날짜</span><span
+                                    class="meta-value">2026.02.10</span></div>
+                        </div>
+                        <div class="split-preview-content">
+                            <pre><code><span class="kw">namespace</span> Span.Models;
+
+<span class="kw">public class</span> <span class="type">FileItem</span>
+{
+    <span class="kw">public</span> <span class="type">string</span> Name { <span class="kw">get</span>; <span class="kw">set</span>; }
+    <span class="kw">public</span> <span class="type">string</span> Path { <span class="kw">get</span>; <span class="kw">set</span>; }
+    <span class="kw">public</span> <span class="type">long</span> Size { <span class="kw">get</span>; <span class="kw">set</span>; }
+}</code></pre>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===== SPLIT DIVIDER ===== -->
+                <div class="split-divider" id="splitDivider">
+                    <div class="divider-handle">
+                        <i class="ri-drag-move-2-line"></i>
+                    </div>
+                </div>
+
+                <!-- ===== SPLIT PANE B (Right) ===== -->
+                <div class="split-pane" id="splitB">
+                    <div class="split-pane-header">
+                        <span class="pane-indicator"></span>
+                    </div>
+
+                    <div class="miller-columns">
+                        <!-- Column 1 -->
+                        <div class="miller-column" data-depth="0">
+                            <div class="column-items">
+                                <div class="miller-item folder"><i
+                                        class="ri-folder-fill item-icon folder-icon"></i><span>2025</span></div>
+                                <div class="miller-item folder selected"><i
+                                        class="ri-folder-fill item-icon folder-icon"></i><span>2026</span><i
+                                        class="ri-arrow-right-s-line item-arrow"></i></div>
+                                <div class="miller-item folder"><i
+                                        class="ri-folder-fill item-icon folder-icon"></i><span>Archive</span></div>
+                                <div class="miller-item file"><i
+                                        class="ri-file-text-fill item-icon file-md"></i><span>README.md</span></div>
+                            </div>
+                        </div>
+                        <!-- Column 2 -->
+                        <div class="miller-column" data-depth="1">
+                            <div class="column-items">
+                                <div class="miller-item folder drop-target"><i
+                                        class="ri-folder-fill item-icon folder-icon"></i><span>01-January</span></div>
+                                <div class="miller-item folder drop-target"><i
+                                        class="ri-folder-fill item-icon folder-icon"></i><span>02-February</span></div>
+                                <div class="miller-item folder"><i
+                                        class="ri-folder-fill item-icon folder-icon"></i><span>03-March</span></div>
+                                <div class="miller-item folder"><i
+                                        class="ri-folder-fill item-icon folder-icon"></i><span>04-April</span></div>
+                                <div class="miller-item folder"><i
+                                        class="ri-folder-fill item-icon folder-icon"></i><span>05-May</span></div>
+                                <div class="miller-item folder"><i
+                                        class="ri-folder-fill item-icon folder-icon"></i><span>06-June</span></div>
+                                <div class="miller-item folder"><i
+                                        class="ri-folder-fill item-icon folder-icon"></i><span>07-July</span></div>
+                                <div class="miller-item folder"><i
+                                        class="ri-folder-fill item-icon folder-icon"></i><span>08-August</span></div>
+                                <div class="miller-item folder"><i
+                                        class="ri-folder-fill item-icon folder-icon"></i><span>09-September</span></div>
+                                <div class="miller-item folder"><i
+                                        class="ri-folder-fill item-icon folder-icon"></i><span>10-October</span></div>
+                                <div class="miller-item folder"><i
+                                        class="ri-folder-fill item-icon folder-icon"></i><span>11-November</span></div>
+                                <div class="miller-item folder"><i
+                                        class="ri-folder-fill item-icon folder-icon"></i><span>12-December</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Preview Pane B (toggled, hidden by default) -->
+                    <div class="split-preview-pane" id="splitPreviewB" style="display:none;">
+                        <div class="split-preview-header">
+                            <div class="split-preview-title">
+                                <i class="ri-folder-fill preview-icon folder-icon"></i>
+                                <span>02-February</span>
+                            </div>
+                            <button class="split-preview-close" title="미리보기 닫기">
+                                <i class="ri-close-line"></i>
+                            </button>
+                        </div>
+                        <div class="preview-meta">
+                            <div class="meta-row"><span class="meta-label">형식</span><span class="meta-value">폴더</span>
+                            </div>
+                            <div class="meta-row"><span class="meta-label">포함</span><span class="meta-value">23개 파일, 4개
+                                    폴더</span></div>
+                            <div class="meta-row"><span class="meta-label">크기</span><span class="meta-value">154.2
+                                    MB</span></div>
+                        </div>
+                        <div class="split-preview-content folder-preview">
+                            <div class="folder-preview-grid">
+                                <div class="folder-preview-item"><i class="ri-image-fill"></i><span>photo_01.jpg</span>
+                                </div>
+                                <div class="folder-preview-item"><i class="ri-image-fill"></i><span>photo_02.jpg</span>
+                                </div>
+                                <div class="folder-preview-item"><i
+                                        class="ri-file-pdf-2-fill"></i><span>report.pdf</span></div>
+                                <div class="folder-preview-item"><i class="ri-file-word-fill"></i><span>memo.docx</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Drag Ghost (visual indicator — supports copy/move) -->
+        <div class="drag-ghost" id="dragGhost">
+            <i class="ri-file-copy-2-fill"></i>
+            <span class="drag-label">2개 항목 이동</span>
+            <span class="drag-copy-badge" style="display:none;"><i class="ri-add-line"></i></span>
+        </div>
+
+        <!-- Drag Arrow Overlay -->
+        <svg class="drag-arrow-svg" id="dragArrowSvg">
+            <defs>
+                <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                    <polygon points="0 0, 8 3, 0 6" fill="#60cdff" />
+                </marker>
+            </defs>
+            <path class="drag-arrow-path" id="dragArrowPath" d="" marker-end="url(#arrowhead)" />
+        </svg>
+
+        <!-- Drop Zone Hint -->
+        <div class="drop-zone-hint" id="dropZoneHint" style="display:none;">
+            <i class="ri-arrow-right-line"></i>
+            <span>여기에 이동</span>
+        </div>
+
+        <!-- Status Bar -->
+        <footer class="status-bar">
+            <div class="status-left">
+                <span class="status-item"><i class="ri-layout-column-fill"></i> 분할 뷰</span>
+                <span class="status-sep">|</span>
+                <span class="status-item"><span class="pane-dot a-dot"></span>좌측: 5개 항목</span>
+                <span class="status-sep">|</span>
+                <span class="status-item"><span class="pane-dot b-dot"></span>우측: 12개 항목</span>
+                <span class="status-sep">|</span>
+                <span class="status-item drag-mode-hint">2개 선택됨 — 드래그하여 이동 (Ctrl 누르면 복사)</span>
+            </div>
+            <div class="status-right">
+                <span class="status-item view-mode-indicator">
+                    <i class="ri-layout-column-line"></i> 밀러 컬럼
+                </span>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // ===== State =====
+            let previewVisible = false;
+            let activePanel = 'A'; // 'A' or 'B'
+            const previewToggleBtn = document.getElementById('previewToggle');
+            const splitA = document.getElementById('splitA');
+            const splitB = document.getElementById('splitB');
+            const breadcrumb = document.getElementById('breadcrumb');
+            const panelIndA = document.getElementById('panelIndA');
+            const panelIndB = document.getElementById('panelIndB');
+            const dragGhost = document.getElementById('dragGhost');
+
+            // Path data for each panel
+            const panelPaths = {
+                A: ['C:', 'Users', 'Dev', 'Span', 'Source'],
+                B: ['D:', 'Backup', 'Project Files']
+            };
+
+            // ===== Single Dynamic Address Bar =====
+            function updateAddressBar() {
+                const parts = panelPaths[activePanel];
+                let html = '';
+                parts.forEach((part, i) => {
+                    if (i === 0) {
+                        html += `<span class="crumb"><i class="ri-hard-drive-3-line"></i> ${part}</span>`;
+                    } else {
+                        const isActive = i >= parts.length - 2;
+                        html += `<i class="ri-arrow-right-s-line crumb-sep"></i>`;
+                        html += `<span class="crumb${isActive ? ' active' : ''}">${part}</span>`;
+                    }
+                });
+                breadcrumb.innerHTML = html;
+            }
+
+            // ===== Panel Switching =====
+            function switchPanel(panel) {
+                activePanel = panel;
+                // Update pane active states
+                splitA.classList.toggle('active-pane', panel === 'A');
+                splitB.classList.toggle('active-pane', panel === 'B');
+                // Update indicators
+                panelIndA.classList.toggle('active', panel === 'A');
+                panelIndB.classList.toggle('active', panel === 'B');
+                // Update pane-indicator dots
+                document.querySelectorAll('.pane-indicator').forEach(i => i.classList.remove('active-indicator'));
+                const activePane = panel === 'A' ? splitA : splitB;
+                activePane.querySelector('.pane-indicator')?.classList.add('active-indicator');
+                // Update address bar
+                updateAddressBar();
+                // Move preview
+                updatePreviewVisibility();
+            }
+
+            panelIndA.addEventListener('click', () => switchPanel('A'));
+            panelIndB.addEventListener('click', () => switchPanel('B'));
+
+            // Click on pane to activate it
+            document.querySelectorAll('.split-pane').forEach(pane => {
+                pane.addEventListener('click', () => {
+                    const panel = pane === splitA ? 'A' : 'B';
+                    switchPanel(panel);
+                });
+            });
+
+            // ===== Preview Toggle =====
+            function togglePreview() {
+                previewVisible = !previewVisible;
+                previewToggleBtn.classList.toggle('active', previewVisible);
+                updatePreviewVisibility();
+            }
+
+            function updatePreviewVisibility() {
+                const activePane = document.querySelector('.split-pane.active-pane');
+                document.querySelectorAll('.split-preview-pane').forEach(p => {
+                    p.style.display = 'none';
+                });
+                if (previewVisible && activePane) {
+                    const preview = activePane.querySelector('.split-preview-pane');
+                    if (preview) {
+                        preview.style.display = 'flex';
+                        preview.style.animation = 'inspectSlideIn 200ms cubic-bezier(0.16,1,0.3,1)';
+                    }
+                }
+            }
+
+            previewToggleBtn.addEventListener('click', togglePreview);
+
+            document.querySelectorAll('.split-preview-close').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    previewVisible = false;
+                    previewToggleBtn.classList.remove('active');
+                    updatePreviewVisibility();
+                });
+            });
+
+            // ===== Ctrl key detection for drag copy/move =====
+            document.addEventListener('keydown', (e) => {
+                if (e.ctrlKey && e.shiftKey && e.key === 'P') {
+                    e.preventDefault();
+                    togglePreview();
+                }
+                // Ctrl held: switch drag ghost to copy mode
+                if (e.key === 'Control') {
+                    dragGhost.classList.add('copy-mode');
+                    dragGhost.querySelector('.drag-label').textContent = '2개 항목 복사';
+                    dragGhost.querySelector('.drag-copy-badge').style.display = 'flex';
+                }
+            });
+
+            document.addEventListener('keyup', (e) => {
+                if (e.key === 'Control') {
+                    dragGhost.classList.remove('copy-mode');
+                    dragGhost.querySelector('.drag-label').textContent = '2개 항목 이동';
+                    dragGhost.querySelector('.drag-copy-badge').style.display = 'none';
+                }
+            });
+
+            // ===== Draw animated drag arrow =====
+            function drawDragArrow() {
+                const sources = document.querySelectorAll('.highlight-drag');
+                const target = document.querySelector('.drop-target');
+                const path = document.getElementById('dragArrowPath');
+                if (!sources.length || !target || !path) return;
+
+                const srcRect = sources[0].getBoundingClientRect();
+                const srcX = srcRect.right + 4;
+                const srcY = srcRect.top + srcRect.height / 2;
+
+                const tgtRect = target.getBoundingClientRect();
+                const tgtX = tgtRect.left - 4;
+                const tgtY = tgtRect.top + tgtRect.height / 2;
+
+                const cpx1 = srcX + (tgtX - srcX) * 0.4;
+                const cpx2 = srcX + (tgtX - srcX) * 0.6;
+                path.setAttribute('d', `M${srcX},${srcY} C${cpx1},${srcY} ${cpx2},${tgtY} ${tgtX},${tgtY}`);
+            }
+
+            drawDragArrow();
+            window.addEventListener('resize', drawDragArrow);
+
+            // ===== Split divider resize =====
+            const divider = document.getElementById('splitDivider');
+            let isDragging = false;
+
+            divider.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                document.body.style.cursor = 'col-resize';
+                document.body.style.userSelect = 'none';
+                e.preventDefault();
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                const container = splitA.parentElement;
+                const rect = container.getBoundingClientRect();
+                const offset = e.clientX - rect.left;
+                const total = rect.width - 6;
+                const pct = Math.max(20, Math.min(80, (offset / total) * 100));
+                splitA.style.flex = `0 0 ${pct}%`;
+                splitB.style.flex = `0 0 ${100 - pct}%`;
+                drawDragArrow();
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (!isDragging) return;
+                isDragging = false;
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+            });
+
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Span — 설정</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="settings.css">
+    <link href="https://fonts.googleapis.com/css2?family=Segoe+UI+Variable:wght@300;400;600;700&display=swap"
+        rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.1.0/fonts/remixicon.css" rel="stylesheet">
+</head>
+
+<body>
+    <div class="window-shell settings-window">
+
+        <!-- Title Bar -->
+        <header class="title-bar">
+            <div class="title-bar-left">
+                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24'%3E%3Cpath fill='%2360cdff' d='M3 4h7v7H3V4zm11 0h7v7h-7V4zM3 15h7v6H3v-6zm11 0h7v6h-7v-6z'/%3E%3C/svg%3E"
+                    alt="Span" class="app-icon">
+                <span class="app-title">Span 설정</span>
+            </div>
+            <div class="title-bar-right">
+                <button class="win-btn" title="최소화"><i class="ri-subtract-line"></i></button>
+                <button class="win-btn" title="최대화"><i class="ri-checkbox-blank-line"></i></button>
+                <button class="win-btn win-close" title="닫기"><i class="ri-close-line"></i></button>
+            </div>
+        </header>
+
+        <!-- Settings Layout -->
+        <div class="settings-layout">
+
+            <!-- Left Sidebar -->
+            <nav class="settings-nav">
+                <div class="settings-search">
+                    <i class="ri-search-line"></i>
+                    <input type="text" placeholder="설정 검색..." id="settingsSearch">
+                </div>
+
+                <div class="nav-items">
+                    <a class="nav-link active" data-section="general">
+                        <i class="ri-settings-3-line"></i><span>일반</span>
+                    </a>
+                    <a class="nav-link" data-section="appearance">
+                        <i class="ri-palette-line"></i><span>모양</span>
+                    </a>
+                    <a class="nav-link" data-section="browsing">
+                        <i class="ri-compass-3-line"></i><span>탐색</span>
+                    </a>
+                    <a class="nav-link" data-section="tools">
+                        <i class="ri-terminal-box-line"></i><span>도구</span>
+                    </a>
+
+                    <div class="nav-divider"></div>
+
+                    <a class="nav-link" data-section="about">
+                        <i class="ri-information-line"></i><span>라이선스 및 정보</span>
+                    </a>
+                </div>
+            </nav>
+
+            <!-- Right Content Panel -->
+            <main class="settings-content" id="settingsContent">
+
+                <!-- ===== A. 일반 (General) ===== -->
+                <section class="settings-section active" id="sec-general">
+                    <h2 class="section-title">일반</h2>
+
+                    <!-- 언어 -->
+                    <div class="settings-card">
+                        <div class="card-row">
+                            <div class="card-icon"><i class="ri-global-line"></i></div>
+                            <div class="card-info">
+                                <div class="card-label">언어 (Language)</div>
+                                <div class="card-desc">앱 인터페이스 표시 언어</div>
+                            </div>
+                            <div class="card-control">
+                                <div class="combo-box" id="langCombo">
+                                    <span class="combo-value">System Default (권장)</span>
+                                    <i class="ri-arrow-down-s-line"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-notice" id="langNotice" style="display:none;">
+                            <i class="ri-error-warning-line"></i>
+                            <span>앱을 재시작해야 완벽하게 적용됩니다.</span>
+                        </div>
+                    </div>
+
+                    <!-- 시작 시 동작 -->
+                    <div class="settings-card">
+                        <div class="card-row">
+                            <div class="card-icon"><i class="ri-rocket-line"></i></div>
+                            <div class="card-info">
+                                <div class="card-label">시작 시 동작</div>
+                                <div class="card-desc">앱을 실행할 때 보여줄 화면</div>
+                            </div>
+                        </div>
+                        <div class="card-expand">
+                            <label class="radio-row">
+                                <input type="radio" name="startup" checked>
+                                <span class="radio-mark"></span>
+                                <div class="radio-info">
+                                    <span class="radio-label">마지막 세션 복원</span>
+                                    <span class="radio-desc">이전에 열어둔 탭과 경로를 유지합니다</span>
+                                </div>
+                            </label>
+                            <label class="radio-row">
+                                <input type="radio" name="startup">
+                                <span class="radio-mark"></span>
+                                <div class="radio-info">
+                                    <span class="radio-label">내 PC (홈) 열기</span>
+                                </div>
+                            </label>
+                            <label class="radio-row">
+                                <input type="radio" name="startup">
+                                <span class="radio-mark"></span>
+                                <div class="radio-info">
+                                    <span class="radio-label">특정 폴더 열기...</span>
+                                    <span class="radio-desc">사용자 지정 경로</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 시스템 트레이 -->
+                    <div class="settings-card">
+                        <div class="card-row">
+                            <div class="card-icon"><i class="ri-window-line"></i></div>
+                            <div class="card-info">
+                                <div class="card-label">시스템 트레이</div>
+                                <div class="card-desc">닫기 버튼을 누르면 트레이로 최소화</div>
+                            </div>
+                            <div class="card-control">
+                                <label class="toggle-switch">
+                                    <input type="checkbox">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ===== B. 모양 (Appearance) ===== -->
+                <section class="settings-section" id="sec-appearance">
+                    <h2 class="section-title">모양</h2>
+
+                    <!-- 테마 -->
+                    <div class="settings-card">
+                        <div class="card-row">
+                            <div class="card-icon"><i class="ri-contrast-2-line"></i></div>
+                            <div class="card-info">
+                                <div class="card-label">앱 테마</div>
+                                <div class="card-desc">앱의 전체 색상 테마 설정</div>
+                            </div>
+                            <div class="card-control">
+                                <div class="theme-picker">
+                                    <button class="theme-btn" title="시스템"><i class="ri-computer-line"></i></button>
+                                    <button class="theme-btn" title="라이트"><i class="ri-sun-line"></i></button>
+                                    <button class="theme-btn active" title="다크"><i class="ri-moon-line"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pro 전용 테마 -->
+                    <div class="settings-card pro-card">
+                        <div class="card-row">
+                            <div class="card-icon pro-icon"><i class="ri-vip-crown-2-fill"></i></div>
+                            <div class="card-info">
+                                <div class="card-label">
+                                    Pro 전용 테마
+                                    <span class="pro-badge">PRO</span>
+                                </div>
+                                <div class="card-desc">개발자를 위한 프리미엄 테마 잠금 해제</div>
+                            </div>
+                        </div>
+                        <div class="card-expand">
+                            <div class="theme-grid">
+                                <div class="theme-preview locked">
+                                    <div class="theme-swatch midnight-gold"></div>
+                                    <span class="theme-name"><i class="ri-lock-line"></i> Midnight Gold</span>
+                                    <span class="theme-sub">블랙 & 골드 포인트</span>
+                                </div>
+                                <div class="theme-preview locked">
+                                    <div class="theme-swatch cyberpunk"></div>
+                                    <span class="theme-name"><i class="ri-lock-line"></i> Cyberpunk</span>
+                                    <span class="theme-sub">네온 퍼플 & 사이언</span>
+                                </div>
+                                <div class="theme-preview locked">
+                                    <div class="theme-swatch nordic"></div>
+                                    <span class="theme-name"><i class="ri-lock-line"></i> Nordic</span>
+                                    <span class="theme-sub">차분한 블루 그레이</span>
+                                </div>
+                            </div>
+                            <button class="unlock-btn">
+                                <i class="ri-lock-unlock-line"></i>
+                                <span>Pro로 업그레이드하고 잠금 해제</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 레이아웃 밀도 -->
+                    <div class="settings-card">
+                        <div class="card-row">
+                            <div class="card-icon"><i class="ri-ruler-line"></i></div>
+                            <div class="card-info">
+                                <div class="card-label">레이아웃 밀도</div>
+                                <div class="card-desc">목록 항목 간격 조절</div>
+                            </div>
+                        </div>
+                        <div class="card-expand">
+                            <div class="density-picker">
+                                <button class="density-btn" data-density="compact">
+                                    <div class="density-preview compact-preview">
+                                        <span></span><span></span><span></span><span></span><span></span>
+                                    </div>
+                                    <span>Compact</span>
+                                </button>
+                                <button class="density-btn active" data-density="comfortable">
+                                    <div class="density-preview comfortable-preview">
+                                        <span></span><span></span><span></span><span></span>
+                                    </div>
+                                    <span>Comfortable</span>
+                                </button>
+                                <button class="density-btn" data-density="spacious">
+                                    <div class="density-preview spacious-preview">
+                                        <span></span><span></span><span></span>
+                                    </div>
+                                    <span>Spacious</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 폰트 -->
+                    <div class="settings-card">
+                        <div class="card-row">
+                            <div class="card-icon"><i class="ri-font-size-2"></i></div>
+                            <div class="card-info">
+                                <div class="card-label">폰트</div>
+                                <div class="card-desc">파일 이름 표시에 사용할 폰트</div>
+                            </div>
+                            <div class="card-control">
+                                <div class="combo-box">
+                                    <span class="combo-value">Segoe UI Variable</span>
+                                    <i class="ri-arrow-down-s-line"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ===== C. 탐색 (Browsing) ===== -->
+                <section class="settings-section" id="sec-browsing">
+                    <h2 class="section-title">탐색</h2>
+
+                    <!-- 보기 옵션 -->
+                    <div class="settings-card">
+                        <div class="card-row">
+                            <div class="card-icon"><i class="ri-eye-line"></i></div>
+                            <div class="card-info">
+                                <div class="card-label">보기 옵션</div>
+                                <div class="card-desc">파일 표시 관련 설정</div>
+                            </div>
+                        </div>
+                        <div class="card-expand">
+                            <div class="toggle-row">
+                                <div class="toggle-info">
+                                    <span class="toggle-label">숨김 항목 표시</span>
+                                    <span class="toggle-shortcut">Ctrl+H</span>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div class="toggle-row">
+                                <div class="toggle-info">
+                                    <span class="toggle-label">파일 확장자 표시</span>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div class="toggle-row">
+                                <div class="toggle-info">
+                                    <span class="toggle-label">체크박스 사용하여 항목 선택</span>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 밀러 컬럼 동작 -->
+                    <div class="settings-card">
+                        <div class="card-row">
+                            <div class="card-icon"><i class="ri-layout-column-line"></i></div>
+                            <div class="card-info">
+                                <div class="card-label">밀러 컬럼 동작</div>
+                                <div class="card-desc">폴더 열기 방식</div>
+                            </div>
+                            <div class="card-control">
+                                <div class="combo-box">
+                                    <span class="combo-value">한 번 클릭</span>
+                                    <i class="ri-arrow-down-s-line"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 썸네일 -->
+                    <div class="settings-card">
+                        <div class="card-row">
+                            <div class="card-icon"><i class="ri-image-line"></i></div>
+                            <div class="card-info">
+                                <div class="card-label">이미지 미리보기 (썸네일)</div>
+                                <div class="card-desc">성능을 위해 네트워크 드라이브에서는 썸네일을 끕니다</div>
+                            </div>
+                            <div class="card-control">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Look (Space) -->
+                    <div class="settings-card">
+                        <div class="card-row">
+                            <div class="card-icon"><i class="ri-search-eye-line"></i></div>
+                            <div class="card-info">
+                                <div class="card-label">Quick Look (빠른 미리보기)</div>
+                                <div class="card-desc">Space 키로 파일을 빠르게 미리봅니다</div>
+                            </div>
+                            <div class="card-control">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 삭제 확인 대화상자 -->
+                    <div class="settings-card">
+                        <div class="card-row">
+                            <div class="card-icon"><i class="ri-delete-bin-line"></i></div>
+                            <div class="card-info">
+                                <div class="card-label">삭제 확인 대화상자</div>
+                                <div class="card-desc">파일 삭제 전 확인을 요청합니다</div>
+                            </div>
+                            <div class="card-control">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 실행 취소 기록 보관 -->
+                    <div class="settings-card">
+                        <div class="card-row">
+                            <div class="card-icon"><i class="ri-history-line"></i></div>
+                            <div class="card-info">
+                                <div class="card-label">실행 취소 (Undo) 기록 보관</div>
+                                <div class="card-desc">보관할 실행 취소 작업 수 (0 = 비활성)</div>
+                            </div>
+                            <div class="card-control">
+                                <div class="combo-box">
+                                    <span class="combo-value">50개</span>
+                                    <i class="ri-arrow-down-s-line"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ===== D. 도구 (Tools) ===== -->
+                <section class="settings-section" id="sec-tools">
+                    <h2 class="section-title">
+                        도구
+                        <span class="section-badge dev">💻 개발자</span>
+                    </h2>
+
+                    <!-- 터미널 통합 -->
+                    <div class="settings-card">
+                        <div class="card-row">
+                            <div class="card-icon"><i class="ri-terminal-box-fill"></i></div>
+                            <div class="card-info">
+                                <div class="card-label">기본 터미널 앱</div>
+                                <div class="card-desc">Ctrl+` 또는 우클릭 '터미널 열기' 시 실행</div>
+                            </div>
+                            <div class="card-control">
+                                <div class="combo-box">
+                                    <span class="combo-value">Windows Terminal</span>
+                                    <i class="ri-arrow-down-s-line"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Smart Run -->
+                    <div class="settings-card">
+                        <div class="card-row">
+                            <div class="card-icon"><i class="ri-flashlight-line"></i></div>
+                            <div class="card-info">
+                                <div class="card-label">Smart Run (빠른 명령 실행)</div>
+                                <div class="card-desc">자주 쓰는 명령어 단축키 관리</div>
+                            </div>
+                            <div class="card-control">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="card-expand">
+                            <div class="shortcut-list">
+                                <div class="shortcut-row">
+                                    <code class="shortcut-alias">gp</code>
+                                    <i class="ri-arrow-right-line shortcut-arrow"></i>
+                                    <code class="shortcut-cmd">git pull</code>
+                                    <button class="shortcut-del" title="삭제"><i class="ri-close-line"></i></button>
+                                </div>
+                                <div class="shortcut-row">
+                                    <code class="shortcut-alias">gs</code>
+                                    <i class="ri-arrow-right-line shortcut-arrow"></i>
+                                    <code class="shortcut-cmd">git status</code>
+                                    <button class="shortcut-del" title="삭제"><i class="ri-close-line"></i></button>
+                                </div>
+                                <div class="shortcut-row">
+                                    <code class="shortcut-alias">code</code>
+                                    <i class="ri-arrow-right-line shortcut-arrow"></i>
+                                    <code class="shortcut-cmd">code .</code>
+                                    <button class="shortcut-del" title="삭제"><i class="ri-close-line"></i></button>
+                                </div>
+                            </div>
+                            <button class="add-shortcut-btn">
+                                <i class="ri-add-line"></i><span>단축키 추가</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 컨텍스트 메뉴 -->
+                    <div class="settings-card">
+                        <div class="card-row">
+                            <div class="card-icon"><i class="ri-menu-add-line"></i></div>
+                            <div class="card-info">
+                                <div class="card-label">컨텍스트 메뉴</div>
+                                <div class="card-desc">윈도우 우클릭 메뉴에 'Open in Span' 추가</div>
+                            </div>
+                            <div class="card-control">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ===== E. 라이선스 및 정보 (About) ===== -->
+                <section class="settings-section" id="sec-about">
+                    <h2 class="section-title">라이선스 및 정보</h2>
+
+                    <!-- 앱 정보 -->
+                    <div class="settings-card about-hero">
+                        <div class="about-app-info">
+                            <div class="about-logo">
+                                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 24 24'%3E%3Cpath fill='%2360cdff' d='M3 4h7v7H3V4zm11 0h7v7h-7V4zM3 15h7v6H3v-6zm11 0h7v6h-7v-6z'/%3E%3C/svg%3E"
+                                    alt="Span">
+                            </div>
+                            <div class="about-text">
+                                <h3 class="about-name">Span</h3>
+                                <span class="about-version">v1.0.0 (Build 20260211)</span>
+                                <span class="about-license free">Evaluation Copy (Unregistered)</span>
+                            </div>
+                        </div>
+                        <button class="update-btn" id="updateBtn">
+                            <i class="ri-refresh-line"></i><span>업데이트 확인</span>
+                        </button>
+                    </div>
+
+                    <!-- Pro 업그레이드 -->
+                    <div class="settings-card upgrade-card">
+                        <div class="upgrade-content">
+                            <div class="upgrade-icon">💎</div>
+                            <div class="upgrade-text">
+                                <h3>Upgrade to Pro</h3>
+                                <p>Pro 배지를 획득하고 개발자를 응원해주세요.</p>
+                                <ul class="upgrade-features">
+                                    <li><i class="ri-check-line"></i>프리미엄 테마 잠금 해제</li>
+                                    <li><i class="ri-check-line"></i>Smart Run 무제한 단축키</li>
+                                    <li><i class="ri-check-line"></i>향후 모든 프리미엄 기능</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <button class="pro-buy-btn">
+                            <i class="ri-vip-crown-2-fill"></i>
+                            <span>Upgrade to Pro — $14.99</span>
+                        </button>
+                    </div>
+
+                    <!-- 후원 -->
+                    <div class="settings-card">
+                        <div class="card-row">
+                            <div class="card-icon"><i class="ri-cup-line"></i></div>
+                            <div class="card-info">
+                                <div class="card-label">Buy me a coffee</div>
+                                <div class="card-desc">Pro 구매가 부담스럽다면, 커피 한 잔으로 응원해 주세요!</div>
+                            </div>
+                        </div>
+                        <div class="card-expand">
+                            <div class="donation-grid">
+                                <button class="donation-btn">☕<span>$3</span></button>
+                                <button class="donation-btn">🍰<span>$5</span></button>
+                                <button class="donation-btn">🍕<span>$10</span></button>
+                                <button class="donation-btn featured">🚀<span>$50</span></button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 관련 링크 -->
+                    <div class="settings-card">
+                        <div class="card-row">
+                            <div class="card-icon"><i class="ri-links-line"></i></div>
+                            <div class="card-info">
+                                <div class="card-label">관련 링크</div>
+                            </div>
+                        </div>
+                        <div class="card-expand">
+                            <a class="link-row" href="#">
+                                <i class="ri-github-fill"></i><span>GitHub 저장소</span>
+                                <i class="ri-external-link-line link-external"></i>
+                            </a>
+                            <a class="link-row" href="#">
+                                <i class="ri-bug-line"></i><span>버그 제보</span>
+                                <i class="ri-external-link-line link-external"></i>
+                            </a>
+                            <a class="link-row" href="#">
+                                <i class="ri-shield-check-line"></i><span>개인정보 처리방침</span>
+                                <i class="ri-external-link-line link-external"></i>
+                            </a>
+                        </div>
+                    </div>
+                </section>
+
+            </main>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // ===== Navigation =====
+            const navLinks = document.querySelectorAll('.nav-link');
+            const sections = document.querySelectorAll('.settings-section');
+
+            navLinks.forEach(link => {
+                link.addEventListener('click', () => {
+                    const target = link.dataset.section;
+
+                    navLinks.forEach(l => l.classList.remove('active'));
+                    link.classList.add('active');
+
+                    sections.forEach(s => {
+                        s.classList.remove('active');
+                        if (s.id === `sec-${target}`) {
+                            s.classList.add('active');
+                        }
+                    });
+                });
+            });
+
+            // ===== Theme picker =====
+            document.querySelectorAll('.theme-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                });
+            });
+
+            // ===== Density picker =====
+            document.querySelectorAll('.density-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.density-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                });
+            });
+
+            // ===== Update check animation =====
+            const updateBtn = document.getElementById('updateBtn');
+            updateBtn.addEventListener('click', () => {
+                const icon = updateBtn.querySelector('i');
+                icon.classList.add('spin');
+                updateBtn.querySelector('span').textContent = '확인 중...';
+                setTimeout(() => {
+                    icon.classList.remove('spin');
+                    updateBtn.querySelector('span').textContent = '최신 버전입니다 ✓';
+                    setTimeout(() => {
+                        updateBtn.querySelector('span').textContent = '업데이트 확인';
+                    }, 3000);
+                }, 1500);
+            });
+
+            // ===== Language change notice =====
+            const langCombo = document.getElementById('langCombo');
+            langCombo.addEventListener('click', () => {
+                const notice = document.getElementById('langNotice');
+                notice.style.display = notice.style.display === 'none' ? 'flex' : 'none';
+            });
+
+            // ===== Search =====
+            const searchInput = document.getElementById('settingsSearch');
+            searchInput.addEventListener('input', () => {
+                const query = searchInput.value.toLowerCase().trim();
+                if (!query) {
+                    // Restore normal view
+                    sections.forEach(s => s.classList.remove('active', 'search-visible'));
+                    const activeNav = document.querySelector('.nav-link.active');
+                    if (activeNav) {
+                        const sec = document.getElementById(`sec-${activeNav.dataset.section}`);
+                        if (sec) sec.classList.add('active');
+                    }
+                    return;
+                }
+                // Search mode: show all cards matching query
+                sections.forEach(s => {
+                    let hasMatch = false;
+                    s.querySelectorAll('.settings-card').forEach(card => {
+                        const text = card.textContent.toLowerCase();
+                        const match = text.includes(query);
+                        card.style.display = match ? '' : 'none';
+                        if (match) hasMatch = true;
+                    });
+                    s.classList.toggle('active', hasMatch);
+                    s.classList.toggle('search-visible', hasMatch);
+                });
+            });
+        });
+    </script>
+</body>
+
+</html>

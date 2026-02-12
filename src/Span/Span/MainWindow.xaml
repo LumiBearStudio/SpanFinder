@@ -1,0 +1,284 @@
+<Window
+    x:Class="Span.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Span"
+    xmlns:models="using:Span.Models"
+    xmlns:viewmodels="using:Span.ViewModels"
+    xmlns:helpers="using:Span.Helpers"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <Grid x:Name="RootGrid" Background="Transparent">
+        <Grid.Resources>
+            <!-- FileIconConverter removed: icons are now in ViewModels -->
+            <helpers:BoolToBrushConverter x:Key="BoolToBrushConverter" 
+                                          TrueBrush="{StaticResource SpanAccentBrush}" 
+                                          FalseBrush="{StaticResource SpanBorderSubtleBrush}"/>
+            <helpers:BoolToThicknessConverter x:Key="BoolToThicknessConverter" 
+                                              TrueThickness="0,2,0,0" 
+                                              FalseThickness="0,0,1,0"/>
+        </Grid.Resources>
+
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- TitleBar -->
+            <RowDefinition Height="Auto"/> <!-- Unified Bar -->
+            <RowDefinition Height="*"/>    <!-- Main Area -->
+            <RowDefinition Height="Auto"/> <!-- Status Bar -->
+        </Grid.RowDefinitions>
+
+        <!-- 1. Title Bar -->
+        <Grid x:Name="AppTitleBar" Height="{StaticResource TitleBarHeight}" Background="Transparent">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/> <!-- Tabs Placeholder -->
+            </Grid.ColumnDefinitions>
+            
+            <!-- App Icon & Title -->
+            <StackPanel Orientation="Horizontal" Grid.Column="0" VerticalAlignment="Center" Margin="16,0,16,0" Spacing="8">
+                <Image Source="/Assets/Square44x44Logo.png" Height="16" Width="16"/>
+                <TextBlock Text="Span" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{StaticResource SpanTextSecondaryBrush}"/>
+            </StackPanel>
+            
+            <!-- Tabs (Placeholder for now) -->
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="1">
+                <Grid Width="200" Height="34" VerticalAlignment="Bottom" Background="{ThemeResource SpanBgLayer1Brush}" CornerRadius="6,6,0,0">
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Padding="12,0">
+                        <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Folder}" Foreground="{ThemeResource SpanAccentBrush}" Margin="0,0,8,0"/>
+                        <TextBlock Text="{x:Bind ViewModel.Explorer.CurrentFolderName, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource SpanTextPrimaryBrush}"/>
+                    </StackPanel>
+                    <Rectangle Height="2" VerticalAlignment="Bottom" Margin="12,0" Fill="{ThemeResource SpanAccentBrush}"/>
+                </Grid>
+                <Button Style="{StaticResource UnifiedButtonStyle}" Width="34" Height="34" VerticalAlignment="Bottom" Margin="2,0,0,0">
+                    <FontIcon Glyph="&#xE710;" FontSize="12"/>
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <!-- 2. Unified Bar -->
+        <Grid Grid.Row="1" Height="{StaticResource CommandBarHeight}" Background="{ThemeResource SpanBgLayer1Brush}" BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="0,0,0,1" Padding="8,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/> <!-- Nav Buttons -->
+                <ColumnDefinition Width="*"/>    <!-- Address Bar -->
+                <ColumnDefinition Width="Auto"/> <!-- Commands -->
+            </Grid.ColumnDefinitions>
+
+            <!-- Nav Buttons -->
+            <StackPanel Orientation="Horizontal" Spacing="2" Margin="0,0,8,0">
+                <Button Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="뒤로">
+                    <FontIcon Glyph="&#xE72B;" FontSize="14"/>
+                </Button>
+                <Button Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="앞으로">
+                    <FontIcon Glyph="&#xE72A;" FontSize="14"/>
+                </Button>
+                <Button Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="위로">
+                    <FontIcon Glyph="&#xE74A;" FontSize="14"/>
+                </Button>
+            </StackPanel>
+
+            <!-- Address Bar: Breadcrumb 모드 + Edit 모드 전환 -->
+            <Grid x:Name="AddressBarContainer" Grid.Column="1" Height="32"
+                  Background="{ThemeResource SpanBgLayer2Brush}"
+                  CornerRadius="4" VerticalAlignment="Center"
+                  Padding="4,0"
+                  Tapped="OnAddressBarContainerClicked">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- 브레드크럼 모드 -->
+                <ScrollViewer x:Name="BreadcrumbScroller" Grid.Column="0"
+                              HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled"
+                              HorizontalScrollMode="Auto" VerticalScrollMode="Disabled"
+                              Background="Transparent"
+                              Tapped="OnAddressBarContainerClicked">
+                    <ItemsRepeater x:Name="BreadcrumbRepeater"
+                                   ItemsSource="{x:Bind ViewModel.Explorer.PathSegments, Mode=OneWay}">
+                        <ItemsRepeater.Layout>
+                            <StackLayout Orientation="Horizontal" Spacing="0"/>
+                        </ItemsRepeater.Layout>
+                        <ItemsRepeater.ItemTemplate>
+                            <DataTemplate x:DataType="models:PathSegment">
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Content="{x:Bind Name}" Tag="{x:Bind FullPath}"
+                                            Click="OnBreadcrumbSegmentClick"
+                                            Background="Transparent" BorderThickness="0"
+                                            Padding="6,4" MinWidth="0" MinHeight="0"
+                                            CornerRadius="3"
+                                            FontSize="12" VerticalAlignment="Center"
+                                            Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
+                                    <FontIcon Glyph="&#xE76C;" FontSize="8"
+                                              Foreground="{ThemeResource SpanTextTertiaryBrush}"
+                                              VerticalAlignment="Center" Margin="0,1,0,0"
+                                              Visibility="{x:Bind ChevronVisibility}"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsRepeater.ItemTemplate>
+                    </ItemsRepeater>
+                </ScrollViewer>
+
+                <!-- 텍스트 편집 모드 (클릭 시 전환) -->
+                <TextBox x:Name="AddressBarTextBox" Grid.Column="0" Visibility="Collapsed"
+                         VerticalAlignment="Center" Height="28" FontSize="12"
+                         Background="Transparent" BorderThickness="0"
+                         KeyDown="OnAddressBarKeyDown"
+                         LostFocus="OnAddressBarLostFocus"
+                         PlaceholderText="경로 입력..."/>
+
+                <!-- 경로 복사 버튼 -->
+                <Button x:Name="CopyPathButton" Grid.Column="1"
+                        Style="{StaticResource UnifiedButtonStyle}"
+                        ToolTipService.ToolTip="경로 복사"
+                        Click="OnCopyPathClick"
+                        Padding="4,4" MinWidth="0" MinHeight="0"
+                        Margin="4,0,0,0">
+                    <FontIcon Glyph="&#xE8C8;" FontSize="12"/>
+                </Button>
+            </Grid>
+
+            <!-- Commands -->
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="2" Margin="8,0,0,0">
+                <Button Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="새로 만들기">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE710;" FontSize="16"/>
+                        <TextBlock Text="새로 만들기" FontSize="12"/>
+                    </StackPanel>
+                </Button>
+                <Rectangle Width="1" Height="20" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="4,0"/>
+                <Button Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="잘라내기"><FontIcon Glyph="&#xE8C6;"/></Button>
+                <Button Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="복사"><FontIcon Glyph="&#xE8C8;"/></Button>
+                <Button Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="붙여넣기"><FontIcon Glyph="&#xE77F;"/></Button>
+                <Button Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="삭제"><FontIcon Glyph="&#xE74D;"/></Button>
+                <Rectangle Width="1" Height="20" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="4,0"/>
+                <TextBox x:Name="SearchBox" Width="200" Height="28" FontSize="12"
+                         PlaceholderText="검색 (Ctrl+F)"
+                         KeyDown="OnSearchBoxKeyDown"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- 3. Main Area (Sidebar + Content) -->
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="200"/> <!-- Sidebar -->
+                <ColumnDefinition Width="*"/>   <!-- Content -->
+            </Grid.ColumnDefinitions>
+
+            <!-- Sidebar -->
+            <Border Grid.Column="0" Background="{ThemeResource SpanBgLayer1Brush}" BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="0,0,1,0">
+                <StackPanel Padding="0,8">
+                    <!-- Favorites Removed as requested -->
+                    <TextBlock Text="즐겨찾기" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource SpanTextTertiaryBrush}" Margin="16,8,16,4"/>
+                    <!-- Placeholder or specific favorites list -->
+                    
+                    <TextBlock Text="내 PC" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource SpanTextTertiaryBrush}" Margin="16,16,16,4"/>
+                     <ListView ItemsSource="{x:Bind ViewModel.Drives, Mode=OneWay}" SelectionMode="Single" ItemClick="OnDriveItemClick" IsItemClickEnabled="True" ItemContainerStyle="{StaticResource SidebarItemStyle}">
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="models:DriveItem">
+                                <StackPanel Orientation="Horizontal" Spacing="12">
+                                    <FontIcon Glyph="{x:Bind IconGlyph}" FontFamily="{StaticResource RemixIcons}" FontSize="16"/>
+                                    <TextBlock Text="{x:Bind Name}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </StackPanel>
+            </Border>
+
+            <!-- Content (Miller Columns) -->
+            <!-- Background is Transparent to show Mica -->
+            <Grid Grid.Column="1" Background="Transparent" Padding="0,0,0,0">
+                 <!-- Miller Columns ScrollViewer -->
+                 <ScrollViewer x:Name="MillerScrollViewer" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                     <ItemsControl x:Name="MillerColumnsControl" ItemsSource="{x:Bind ViewModel.Explorer.Columns, Mode=OneWay}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        
+                        <!-- DataTemplate for FolderViewModel (Column) -->
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="viewmodels:FolderViewModel">
+                                <Border Width="220" 
+                                        BorderBrush="{Binding IsActive, Converter={StaticResource BoolToBrushConverter}}" 
+                                        BorderThickness="{Binding IsActive, Converter={StaticResource BoolToThicknessConverter}}" 
+                                        Background="{ThemeResource SpanBgMicaBrush}">
+                                    <ListView ItemsSource="{x:Bind Children}" SelectedItem="{x:Bind SelectedChild, Mode=TwoWay}" 
+                                              SelectionMode="Single" IsItemClickEnabled="False"
+                                              GotFocus="OnMillerColumnGotFocus">
+                                        <ListView.ItemTemplateSelector>
+                                            <local:FileSystemItemTemplateSelector>
+                                                <local:FileSystemItemTemplateSelector.FolderTemplate>
+                                                    <DataTemplate x:DataType="viewmodels:FolderViewModel">
+                                                        <Grid Padding="12,8">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Folder}" FontSize="16" Foreground="{x:Bind IconBrush}" Margin="0,0,12,0"/>
+                                                            <TextBlock Grid.Column="1" Text="{x:Bind Name, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                                       Visibility="{x:Bind viewmodels:FileSystemViewModel.NotRenaming(IsRenaming), Mode=OneWay}"/>
+                                                            <TextBox Grid.Column="1" Text="{x:Bind EditableName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                                     Visibility="{x:Bind IsRenaming, Mode=OneWay}"
+                                                                     VerticalAlignment="Center" Padding="2" MinHeight="0" FontSize="13"
+                                                                     LostFocus="OnRenameTextBoxLostFocus" KeyDown="OnRenameTextBoxKeyDown"/>
+                                                            <FontIcon Grid.Column="2" FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_ChevronRight}" FontSize="10" Foreground="{ThemeResource SpanTextTertiaryBrush}" Opacity="0.5"/>
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </local:FileSystemItemTemplateSelector.FolderTemplate>
+                                                <local:FileSystemItemTemplateSelector.FileTemplate>
+                                                    <DataTemplate x:DataType="viewmodels:FileViewModel">
+                                                        <Grid Padding="12,8">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{x:Bind IconGlyph}" FontSize="16" Foreground="{x:Bind IconBrush}" Margin="0,0,12,0"/>
+                                                            <TextBlock Grid.Column="1" Text="{x:Bind Name, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                                       Visibility="{x:Bind viewmodels:FileSystemViewModel.NotRenaming(IsRenaming), Mode=OneWay}"/>
+                                                            <TextBox Grid.Column="1" Text="{x:Bind EditableName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                                     Visibility="{x:Bind IsRenaming, Mode=OneWay}"
+                                                                     VerticalAlignment="Center" Padding="2" MinHeight="0" FontSize="13"
+                                                                     LostFocus="OnRenameTextBoxLostFocus" KeyDown="OnRenameTextBoxKeyDown"/>
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </local:FileSystemItemTemplateSelector.FileTemplate>
+                                            </local:FileSystemItemTemplateSelector>
+                                        </ListView.ItemTemplateSelector>
+                                    </ListView>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                 </ScrollViewer>
+            </Grid>
+
+        </Grid>
+
+        <!-- 4. Status Bar -->
+        <Grid Grid.Row="3" Height="{StaticResource StatusBarHeight}" Background="{ThemeResource SpanBgMicaBrush}" BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="0,1,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            
+            <StackPanel Orientation="Horizontal" Spacing="16" VerticalAlignment="Center" Margin="12,0">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <FontIcon Glyph="&#xE8A5;" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}"/>
+                    <TextBlock Text="5개 항목" FontSize="11" Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
+                </StackPanel>
+                <Rectangle Width="1" Height="12" Fill="{ThemeResource SpanBorderSubtleBrush}"/>
+                <TextBlock Text="1개 선택됨" FontSize="11" Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
+            </StackPanel>
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="0,0,12,0">
+                 <FontIcon Glyph="&#xE8A9;" FontSize="12" Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
+                 <TextBlock Text="밀러 컬럼" FontSize="11" Foreground="{ThemeResource SpanTextSecondaryBrush}" VerticalAlignment="Center"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

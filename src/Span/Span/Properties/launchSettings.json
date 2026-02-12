@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "Span (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "Span (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
