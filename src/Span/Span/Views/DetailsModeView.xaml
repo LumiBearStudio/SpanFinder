@@ -34,6 +34,12 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- Override DataGrid header colors via resources -->
+        <SolidColorBrush x:Key="DataGridColumnHeaderBackgroundBrush" Color="{StaticResource SpanBgLayer2Color}"/>
+        <SolidColorBrush x:Key="DataGridColumnHeaderForegroundBrush" Color="{StaticResource SpanTextSecondaryColor}"/>
+        <SolidColorBrush x:Key="DataGridColumnHeaderHoveredBackgroundBrush" Color="{StaticResource SpanBgLayer3Color}"/>
+        <SolidColorBrush x:Key="DataGridColumnHeaderPressedBackgroundBrush" Color="{StaticResource SpanBgLayer3Color}"/>
     </UserControl.Resources>
 
     <Grid x:Name="RootGrid">
