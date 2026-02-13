@@ -10,7 +10,7 @@ namespace Span.ViewModels
     public partial class ExplorerViewModel : ObservableObject
     {
         // Columns for Miller View
-        public ObservableCollection<FolderViewModel> Columns { get; } = new();
+        public ObservableCollection<FolderViewModel> Columns { get; }
 
         // 브레드크럼 세그먼트 (주소 표시줄)
         public ObservableCollection<PathSegment> PathSegments { get; } = new();
@@ -42,6 +42,15 @@ namespace Span.ViewModels
 
         public ExplorerViewModel(FolderItem rootItem, FileSystemService fileService)
         {
+            Columns = new ObservableCollection<FolderViewModel>();
+
+            // CRITICAL: Notify UI when Columns changes so CurrentFolder/CurrentItems update
+            Columns.CollectionChanged += (s, e) =>
+            {
+                OnPropertyChanged(nameof(CurrentFolder));
+                OnPropertyChanged(nameof(CurrentItems));
+            };
+
             _fileService = fileService;
         }
 
