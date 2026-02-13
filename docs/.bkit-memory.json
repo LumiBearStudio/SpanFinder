@@ -10,9 +10,12 @@
   },
   "pdca": {
     "feature": "view-mode-implementation",
-    "phase": "do",
+    "phase": "check",
     "startedAt": "2026-02-13T06:43:57.892Z",
     "planDoc": "docs/01-plan/features/view-mode-implementation.plan.md",
-    "designDoc": "docs/02-design/features/view-mode-implementation.design.md"
+    "designDoc": "docs/02-design/features/view-mode-implementation.design.md",
+    "analysisDoc": "docs/03-analysis/features/view-mode-implementation.analysis.md",
+    "matchRate": 87,
+    "checkedAt": "2026-02-13T08:45:00.000Z"
   }
 }

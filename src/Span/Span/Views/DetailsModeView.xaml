@@ -16,7 +16,8 @@
             CanDragItems="True"
             AllowDrop="True"
             IsItemClickEnabled="True"
-            ItemClick="OnItemClick">
+            ItemClick="OnItemClick"
+            KeyDown="OnDetailsKeyDown">
 
             <ListView.ItemContainerStyle>
                 <Style TargetType="ListViewItem">

@@ -65,6 +65,67 @@ namespace Span.Views
             }
         }
 
+        private void OnDetailsKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+        {
+            // Check for rename mode
+            var selected = ViewModel?.CurrentFolder?.SelectedChild;
+            if (selected != null && selected.IsRenaming) return;
+
+            // Check for Ctrl/Alt modifiers (let global handlers handle them)
+            var ctrl = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control)
+                       .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+            var alt = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Menu)
+                      .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+            if (ctrl || alt) return;
+
+            switch (e.Key)
+            {
+                case Windows.System.VirtualKey.Enter:
+                    HandleDetailsEnter();
+                    e.Handled = true;
+                    break;
+
+                case Windows.System.VirtualKey.Delete:
+                    // Let global handler handle Delete
+                    break;
+
+                case Windows.System.VirtualKey.F2:
+                    // Let global handler handle F2 (Rename)
+                    break;
+
+                case Windows.System.VirtualKey.Up:
+                case Windows.System.VirtualKey.Down:
+                    // ListView handles Up/Down navigation by default
+                    break;
+            }
+        }
+
+        private void HandleDetailsEnter()
+        {
+            var selected = ViewModel?.CurrentFolder?.SelectedChild;
+            if (selected == null) return;
+
+            if (selected is FolderViewModel folder)
+            {
+                // Navigate into folder
+                ViewModel!.CurrentFolder!.SelectedChild = folder;
+                Helpers.DebugLogger.Log($"[DetailsModeView] Enter: Opening folder {folder.Name}");
+            }
+            else if (selected is FileViewModel file)
+            {
+                // Open file with default application
+                try
+                {
+                    _ = Windows.System.Launcher.LaunchUriAsync(new Uri(file.Path));
+                    Helpers.DebugLogger.Log($"[DetailsModeView] Enter: Opening file {file.Name}");
+                }
+                catch (Exception ex)
+                {
+                    Helpers.DebugLogger.Log($"[DetailsModeView] Error opening file: {ex.Message}");
+                }
+            }
+        }
+
         private void OnSortByName(object sender, RoutedEventArgs e)
         {
             ToggleSort("Name");
@@ -199,6 +260,14 @@ namespace Span.Views
                 // &#xE70D; = ChevronUp, &#xE70E; = ChevronDown
                 activeIcon.Glyph = _isAscending ? "\uE70D" : "\uE70E";
             }
+        }
+
+        /// <summary>
+        /// Focus the Details ListView (called from MainWindow on view switch)
+        /// </summary>
+        public void FocusListView()
+        {
+            DetailsListView?.Focus(FocusState.Programmatic);
         }
     }
 }

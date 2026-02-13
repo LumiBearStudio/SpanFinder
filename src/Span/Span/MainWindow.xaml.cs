@@ -53,6 +53,9 @@ namespace Span
             // Auto-scroll on column change
             ViewModel.Explorer.Columns.CollectionChanged += OnColumnsChanged;
 
+            // Focus management on ViewMode change
+            ViewModel.PropertyChanged += OnViewModelPropertyChanged;
+
             // ★ ItemsControl에서 키보드 이벤트 가로채기 (ScrollViewer에 전달 차단)
             MillerColumnsControl.AddHandler(
                 UIElement.KeyDownEvent,
@@ -112,6 +115,51 @@ namespace Span
             {
                 ScrollToLastColumn();
             }
+        }
+
+        private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(MainViewModel.CurrentViewMode))
+            {
+                FocusActiveView();
+            }
+        }
+
+        private void FocusActiveView()
+        {
+            // Use DispatcherQueue for proper timing (after visibility changes take effect)
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+            {
+                switch (ViewModel.CurrentViewMode)
+                {
+                    case Models.ViewMode.MillerColumns:
+                        // Focus the active Miller column
+                        var columns = ViewModel.Explorer.Columns;
+                        if (columns.Count > 0)
+                        {
+                            int activeIndex = GetActiveColumnIndex();
+                            if (activeIndex < 0) activeIndex = columns.Count - 1;
+                            FocusColumnAsync(activeIndex);
+                        }
+                        Helpers.DebugLogger.Log("[MainWindow] Focus: MillerColumns");
+                        break;
+
+                    case Models.ViewMode.Details:
+                        // Focus the Details ListView
+                        DetailsView?.FocusListView();
+                        Helpers.DebugLogger.Log("[MainWindow] Focus: Details");
+                        break;
+
+                    case Models.ViewMode.IconSmall:
+                    case Models.ViewMode.IconMedium:
+                    case Models.ViewMode.IconLarge:
+                    case Models.ViewMode.IconExtraLarge:
+                        // Focus the Icon GridView
+                        IconView?.FocusGridView();
+                        Helpers.DebugLogger.Log($"[MainWindow] Focus: Icon ({ViewModel.CurrentViewMode})");
+                        break;
+                }
+            });
         }
 
         private void ScrollToLastColumn()

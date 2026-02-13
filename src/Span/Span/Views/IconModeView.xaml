@@ -135,6 +135,7 @@
             AllowDrop="True"
             IsItemClickEnabled="True"
             ItemClick="OnItemClick"
+            KeyDown="OnIconKeyDown"
             Padding="16">
 
             <GridView.ItemsPanel>
