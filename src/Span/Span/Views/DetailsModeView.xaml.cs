@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using Span.ViewModels;
 using System.Linq;
 using System;
@@ -30,6 +31,13 @@ namespace Span.Views
         private bool _isLoaded = false;
         private readonly ApplicationDataContainer _localSettings = ApplicationData.Current.LocalSettings;
 
+        // Column width synchronization
+        private double _iconWidth = 40;
+        private double _nameWidth = 0; // Will be calculated
+        private double _dateWidth = 200;
+        private double _typeWidth = 150;
+        private double _sizeWidth = 100;
+
         public DetailsModeView()
         {
             this.InitializeComponent();
@@ -47,6 +55,12 @@ namespace Span.Views
 
                 // Restore sort settings
                 RestoreSortSettings();
+
+                // Subscribe to header grid size changes for column width synchronization
+                if (HeaderGrid != null)
+                {
+                    HeaderGrid.SizeChanged += OnHeaderGridSizeChanged;
+                }
             };
 
             this.Unloaded += OnUnloaded;
@@ -323,6 +337,91 @@ namespace Span.Views
         }
 
         /// <summary>
+        /// Handle header grid size changes to sync column widths with item template
+        /// </summary>
+        private void OnHeaderGridSizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            // Update stored widths from header columns
+            _iconWidth = IconColumn.ActualWidth;
+            _nameWidth = NameColumn.ActualWidth;
+            _dateWidth = DateColumn.ActualWidth;
+            _typeWidth = TypeColumn.ActualWidth;
+            _sizeWidth = SizeColumn.ActualWidth;
+
+            // Force refresh of all visible item grids
+            UpdateAllItemColumnWidths();
+        }
+
+        /// <summary>
+        /// Update column widths for a specific item grid
+        /// </summary>
+        private void UpdateItemColumnWidths(Grid itemGrid)
+        {
+            if (itemGrid.ColumnDefinitions.Count < 8) return;
+
+            itemGrid.ColumnDefinitions[0].Width = new GridLength(_iconWidth);
+            itemGrid.ColumnDefinitions[1].Width = new GridLength(_nameWidth > 0 ? _nameWidth : 1, GridUnitType.Star);
+            itemGrid.ColumnDefinitions[3].Width = new GridLength(_dateWidth);
+            itemGrid.ColumnDefinitions[5].Width = new GridLength(_typeWidth);
+            itemGrid.ColumnDefinitions[7].Width = new GridLength(_sizeWidth);
+        }
+
+        /// <summary>
+        /// Update all visible item grids (called when header columns resize)
+        /// </summary>
+        private void UpdateAllItemColumnWidths()
+        {
+            if (DetailsListView?.ItemsPanelRoot == null) return;
+
+            // Use DispatcherQueue to ensure visual tree is ready
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+            {
+                try
+                {
+                    // Find all item containers and update their column widths
+                    for (int i = 0; i < DetailsListView.Items.Count; i++)
+                    {
+                        var container = DetailsListView.ContainerFromIndex(i) as ListViewItem;
+                        if (container != null)
+                        {
+                            var itemGrid = FindChild<Grid>(container);
+                            if (itemGrid != null)
+                            {
+                                UpdateItemColumnWidths(itemGrid);
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Helpers.DebugLogger.Log($"[DetailsModeView] Error updating column widths: {ex.Message}");
+                }
+            });
+        }
+
+        /// <summary>
+        /// Find child element in visual tree
+        /// </summary>
+        private T? FindChild<T>(DependencyObject parent) where T : DependencyObject
+        {
+            if (parent == null) return null;
+
+            int childCount = VisualTreeHelper.GetChildrenCount(parent);
+            for (int i = 0; i < childCount; i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is T typedChild)
+                    return typedChild;
+
+                var result = FindChild<T>(child);
+                if (result != null)
+                    return result;
+            }
+
+            return null;
+        }
+
+        /// <summary>
         /// Focus the Details ListView (called from MainWindow on view switch)
         /// </summary>
         public void FocusDataGrid()
@@ -342,6 +441,12 @@ namespace Span.Views
             try
             {
                 Helpers.DebugLogger.Log("[DetailsModeView.Cleanup] Starting early cleanup...");
+
+                // Unsubscribe from header grid size changes
+                if (HeaderGrid != null)
+                {
+                    HeaderGrid.SizeChanged -= OnHeaderGridSizeChanged;
+                }
 
                 if (DetailsListView != null)
                 {

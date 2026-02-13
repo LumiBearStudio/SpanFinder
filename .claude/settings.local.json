@@ -9,7 +9,11 @@
       "WebSearch",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Skill(bkit:pdca)"
+      "Skill(bkit:pdca)",
+      "Bash(dotnet clean:*)",
+      "Skill(bkit:development-pipeline)",
+      "Bash(git checkout:*)",
+      "Bash(Select-String -Pattern \"error|Build succeeded|Build FAILED\" -Context 2)"
     ]
   }
 }

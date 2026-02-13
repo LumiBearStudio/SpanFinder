@@ -5,7 +5,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:vm="using:Span.ViewModels"
-    xmlns:controls="using:CommunityToolkit.WinUI.UI.Controls"
+    xmlns:controls="using:CommunityToolkit.WinUI.Controls"
     mc:Ignorable="d">
 
     <UserControl.Resources>
@@ -20,15 +20,19 @@
 
         <!-- Header Row -->
         <Grid Grid.Row="0" Height="20"
+              x:Name="HeaderGrid"
               Background="{ThemeResource SpanBgLayer2Brush}"
               BorderBrush="{ThemeResource SpanBorderSubtleBrush}"
               BorderThickness="0,0,0,1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="40"/>
-                <ColumnDefinition Width="*" MinWidth="180"/>
-                <ColumnDefinition Width="200" MinWidth="140"/>
-                <ColumnDefinition Width="150" MinWidth="90"/>
-                <ColumnDefinition Width="100" MinWidth="80"/>
+                <ColumnDefinition x:Name="IconColumn" Width="40"/>
+                <ColumnDefinition x:Name="NameColumn" Width="*" MinWidth="180"/>
+                <ColumnDefinition Width="Auto"/> <!-- Splitter -->
+                <ColumnDefinition x:Name="DateColumn" Width="200" MinWidth="140"/>
+                <ColumnDefinition Width="Auto"/> <!-- Splitter -->
+                <ColumnDefinition x:Name="TypeColumn" Width="150" MinWidth="90"/>
+                <ColumnDefinition Width="Auto"/> <!-- Splitter -->
+                <ColumnDefinition x:Name="SizeColumn" Width="100" MinWidth="80"/>
             </Grid.ColumnDefinitions>
 
             <!-- Icon Header (empty) -->
@@ -53,8 +57,15 @@
                 </Button.Resources>
             </Button>
 
+            <!-- Splitter 1 -->
+            <controls:GridSplitter Grid.Column="2"
+                                   Width="4"
+                                   ResizeDirection="Columns"
+                                   HorizontalAlignment="Center"
+                                   Background="{ThemeResource SpanBorderSubtleBrush}"/>
+
             <!-- Date Modified Header -->
-            <Button Grid.Column="2"
+            <Button Grid.Column="3"
                     Content="Date Modified"
                     Click="OnHeaderClick"
                     Tag="DateModified"
@@ -73,8 +84,15 @@
                 </Button.Resources>
             </Button>
 
+            <!-- Splitter 2 -->
+            <controls:GridSplitter Grid.Column="4"
+                                   Width="4"
+                                   ResizeDirection="Columns"
+                                   HorizontalAlignment="Center"
+                                   Background="{ThemeResource SpanBorderSubtleBrush}"/>
+
             <!-- Type Header -->
-            <Button Grid.Column="3"
+            <Button Grid.Column="5"
                     Content="Type"
                     Click="OnHeaderClick"
                     Tag="Type"
@@ -93,8 +111,15 @@
                 </Button.Resources>
             </Button>
 
+            <!-- Splitter 3 -->
+            <controls:GridSplitter Grid.Column="6"
+                                   Width="4"
+                                   ResizeDirection="Columns"
+                                   HorizontalAlignment="Center"
+                                   Background="{ThemeResource SpanBorderSubtleBrush}"/>
+
             <!-- Size Header -->
-            <Button Grid.Column="4"
+            <Button Grid.Column="7"
                     Content="Size"
                     Click="OnHeaderClick"
                     Tag="Size"
@@ -134,13 +159,16 @@
             </ListView.ItemContainerStyle>
             <ListView.ItemTemplate>
                 <DataTemplate x:DataType="vm:FileSystemViewModel">
-                    <Grid Height="18">
+                    <Grid Height="18" x:Name="ItemGrid">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="40"/>
-                            <ColumnDefinition Width="*" MinWidth="180"/>
-                            <ColumnDefinition Width="200" MinWidth="140"/>
-                            <ColumnDefinition Width="150" MinWidth="90"/>
-                            <ColumnDefinition Width="100" MinWidth="80"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="1"/> <!-- Splitter space -->
+                            <ColumnDefinition Width="200"/>
+                            <ColumnDefinition Width="1"/> <!-- Splitter space -->
+                            <ColumnDefinition Width="150"/>
+                            <ColumnDefinition Width="1"/> <!-- Splitter space -->
+                            <ColumnDefinition Width="100"/>
                         </Grid.ColumnDefinitions>
 
                         <!-- Icon -->
@@ -161,21 +189,21 @@
                                    Padding="6,0"/>
 
                         <!-- Date Modified -->
-                        <TextBlock Grid.Column="2"
+                        <TextBlock Grid.Column="3"
                                    Text="{x:Bind DateModified, Mode=OneWay}"
                                    VerticalAlignment="Center"
                                    FontSize="11"
                                    Padding="6,0"/>
 
                         <!-- Type -->
-                        <TextBlock Grid.Column="3"
+                        <TextBlock Grid.Column="5"
                                    Text="{x:Bind FileType, Mode=OneWay}"
                                    VerticalAlignment="Center"
                                    FontSize="11"
                                    Padding="6,0"/>
 
                         <!-- Size -->
-                        <TextBlock Grid.Column="4"
+                        <TextBlock Grid.Column="7"
                                    Text="{x:Bind Size, Mode=OneWay}"
                                    VerticalAlignment="Center"
                                    FontSize="11"
