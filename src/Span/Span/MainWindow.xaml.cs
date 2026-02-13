@@ -90,21 +90,71 @@ namespace Span
         {
             try
             {
-                // Clean up background tasks
-                if (ViewModel?.Explorer?.Columns != null)
+                Helpers.DebugLogger.Log("[MainWindow.OnClosed] Starting cleanup...");
+
+                // CRITICAL: Disconnect view bindings FIRST, before anything else
+                try
                 {
-                    foreach (var column in ViewModel.Explorer.Columns.ToList())
+                    if (DetailsView != null)
                     {
-                        if (column is FolderViewModel folderVm)
-                        {
-                            folderVm.CancelLoading();
-                        }
+                        DetailsView.Cleanup();
                     }
                 }
+                catch (Exception ex)
+                {
+                    Helpers.DebugLogger.Log($"[MainWindow.OnClosed] DetailsView cleanup error: {ex.Message}");
+                }
+
+                try
+                {
+                    if (IconView != null)
+                    {
+                        IconView.Cleanup();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Helpers.DebugLogger.Log($"[MainWindow.OnClosed] IconView cleanup error: {ex.Message}");
+                }
+
+                // Stop and dispose timer
+                if (_typeAheadTimer != null)
+                {
+                    _typeAheadTimer.Stop();
+                    _typeAheadTimer = null;
+                }
+
+                // Unsubscribe from event handlers
+                if (ViewModel?.Explorer != null)
+                {
+                    ViewModel.Explorer.Columns.CollectionChanged -= OnColumnsChanged;
+                }
+
+                if (ViewModel != null)
+                {
+                    ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+                }
+
+                // Remove keyboard handlers
+                if (this.Content != null)
+                {
+                    this.Content.RemoveHandler(UIElement.KeyDownEvent, (KeyEventHandler)OnGlobalKeyDown);
+                }
+
+                if (MillerColumnsControl != null)
+                {
+                    MillerColumnsControl.RemoveHandler(UIElement.KeyDownEvent, (KeyEventHandler)OnMillerKeyDown);
+                }
+
+                // Clean up ExplorerViewModel resources
+                ViewModel?.Explorer?.Cleanup();
+
+                Helpers.DebugLogger.Log("[MainWindow.OnClosed] Cleanup complete");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error during close: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[MainWindow.OnClosed] Error during close: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[MainWindow.OnClosed] Stack trace: {ex.StackTrace}");
             }
         }
 
@@ -193,6 +243,43 @@ namespace Span
             {
                 ViewModel.OpenDrive(drive);
                 FocusColumnAsync(0);
+            }
+        }
+
+        /// <summary>
+        /// Handle drive item tap in new hybrid sidebar.
+        /// </summary>
+        private void OnDriveItemTapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
+        {
+            if (sender is Grid grid && grid.DataContext is DriveItem drive)
+            {
+                ViewModel.OpenDrive(drive);
+                FocusColumnAsync(0);
+                Helpers.DebugLogger.Log($"[Sidebar] Drive tapped: {drive.Name}");
+            }
+        }
+
+        /// <summary>
+        /// Sidebar item hover effect - show subtle background.
+        /// </summary>
+        private void OnSidebarItemPointerEntered(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            if (sender is Grid grid)
+            {
+                grid.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                    Microsoft.UI.Colors.White) { Opacity = 0.05 };
+            }
+        }
+
+        /// <summary>
+        /// Sidebar item hover exit - remove background.
+        /// </summary>
+        private void OnSidebarItemPointerExited(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            if (sender is Grid grid)
+            {
+                grid.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                    Microsoft.UI.Colors.Transparent);
             }
         }
 
@@ -961,6 +1048,30 @@ namespace Span
             }
         }
 
+        /// <summary>
+        /// Handle double-click on Miller Column items (open files).
+        /// </summary>
+        private void OnMillerColumnDoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
+        {
+            if (sender is ListView listView && listView.DataContext is FolderViewModel folderVm)
+            {
+                var selected = folderVm.SelectedChild;
+                if (selected is FileViewModel file)
+                {
+                    // Open file with default application
+                    try
+                    {
+                        _ = Windows.System.Launcher.LaunchUriAsync(new Uri(file.Path));
+                        Helpers.DebugLogger.Log($"[MainWindow] Miller Column DoubleClick: Opening file {file.Name}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Helpers.DebugLogger.Log($"[MainWindow] Error opening file: {ex.Message}");
+                    }
+                }
+                // Folders are already handled by single-click selection, no need to handle here
+            }
+        }
 
         private FileSystemViewModel? GetCurrentSelected()
         {
@@ -1133,6 +1244,15 @@ namespace Span
 
             // 그 외(빈 공간, ScrollViewer 배경 등)를 누르면 편집 모드
             ShowAddressBarEditMode();
+        }
+
+        /// <summary>
+        /// Navigate to parent folder (Up button clicked).
+        /// </summary>
+        private void OnNavigateUpClick(object sender, RoutedEventArgs e)
+        {
+            ViewModel?.Explorer?.NavigateUp();
+            Helpers.DebugLogger.Log("[MainWindow] Up button clicked - navigating to parent folder");
         }
 
         /// <summary>

@@ -271,6 +271,11 @@ namespace Span.ViewModels
                 CurrentViewMode = mode;
             }
 
+            // CRITICAL: Enable auto-navigation only in Miller Columns mode
+            // In Details/Icon modes, disable auto-navigation (use double-click instead)
+            Explorer.EnableAutoNavigation = (mode == ViewMode.MillerColumns);
+            Helpers.DebugLogger.Log($"[MainViewModel] Auto-navigation: {Explorer.EnableAutoNavigation} (mode: {mode})");
+
             SaveViewModePreference();
             Helpers.DebugLogger.Log($"[MainViewModel] ViewMode changed: {Helpers.ViewModeExtensions.GetDisplayName(mode)}");
         }
@@ -312,12 +317,17 @@ namespace Span.ViewModels
                     CurrentIconSize = (ViewMode)(int)size;
                 }
 
+                // Set auto-navigation based on loaded view mode
+                Explorer.EnableAutoNavigation = (CurrentViewMode == ViewMode.MillerColumns);
+                Helpers.DebugLogger.Log($"[MainViewModel] Auto-navigation: {Explorer.EnableAutoNavigation}");
+
                 Helpers.DebugLogger.Log($"[MainViewModel] ViewMode loaded: {Helpers.ViewModeExtensions.GetDisplayName(CurrentViewMode)}");
             }
             catch (System.Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"LoadViewModePreference error: {ex.Message}");
                 CurrentViewMode = ViewMode.MillerColumns; // Fallback
+                Explorer.EnableAutoNavigation = true; // Fallback to Miller mode
             }
         }
     }

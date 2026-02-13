@@ -37,6 +37,40 @@ namespace Span.Views
                     UpdateIconSize(mainVm.CurrentIconSize);
                 }
             };
+
+            this.Unloaded += OnUnloaded;
+        }
+
+        private void OnUnloaded(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                Helpers.DebugLogger.Log("[IconModeView.OnUnloaded] Starting cleanup...");
+
+                // Disconnect GridView events
+                if (IconGridView != null)
+                {
+                    IconGridView.DoubleTapped -= OnItemDoubleClick;
+                    IconGridView.KeyDown -= OnIconKeyDown;
+
+                    // Clear bindings to prevent memory leaks
+                    IconGridView.ItemsSource = null;
+                    IconGridView.SelectedItem = null;
+                }
+
+                // Clear ViewModel reference
+                ViewModel = null;
+
+                // Unsubscribe from events
+                this.Unloaded -= OnUnloaded;
+
+                Helpers.DebugLogger.Log("[IconModeView.OnUnloaded] Cleanup complete");
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[IconModeView.OnUnloaded] Error: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[IconModeView.OnUnloaded] Stack: {ex.StackTrace}");
+            }
         }
 
         public void UpdateIconSize(ViewMode iconSize)
@@ -63,22 +97,28 @@ namespace Span.Views
             }
         }
 
-        private void OnItemClick(object sender, ItemClickEventArgs e)
+        private void OnItemDoubleClick(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
         {
-            if (e.ClickedItem is FolderViewModel folder)
+            var selected = ViewModel?.CurrentFolder?.SelectedChild;
+            if (selected == null) return;
+
+            if (selected is FolderViewModel folder)
             {
-                // Navigate into folder
-                if (ViewModel?.CurrentFolder != null)
-                {
-                    ViewModel.CurrentFolder.SelectedChild = folder;
-                }
+                // Navigate into folder using manual navigation (bypasses auto-navigation check)
+                ViewModel!.NavigateIntoFolder(folder);
+                Helpers.DebugLogger.Log($"[IconModeView] DoubleClick: Opening folder {folder.Name}");
             }
-            else if (e.ClickedItem is FileViewModel file)
+            else if (selected is FileViewModel file)
             {
-                // Open file (TODO: implement file opening)
-                if (ViewModel?.CurrentFolder != null)
+                // Open file with default application
+                try
                 {
-                    ViewModel.CurrentFolder.SelectedChild = file;
+                    _ = Windows.System.Launcher.LaunchUriAsync(new Uri(file.Path));
+                    Helpers.DebugLogger.Log($"[IconModeView] DoubleClick: Opening file {file.Name}");
+                }
+                catch (Exception ex)
+                {
+                    Helpers.DebugLogger.Log($"[IconModeView] Error opening file: {ex.Message}");
                 }
             }
         }
@@ -101,6 +141,13 @@ namespace Span.Views
                 case Windows.System.VirtualKey.Enter:
                     HandleIconEnter();
                     e.Handled = true;
+                    break;
+
+                case Windows.System.VirtualKey.Back:
+                    // Navigate to parent folder
+                    ViewModel?.NavigateUp();
+                    e.Handled = true;
+                    Helpers.DebugLogger.Log("[IconModeView] Backspace: Navigating to parent folder");
                     break;
 
                 case Windows.System.VirtualKey.Delete:
@@ -127,8 +174,8 @@ namespace Span.Views
 
             if (selected is FolderViewModel folder)
             {
-                // Navigate into folder
-                ViewModel!.CurrentFolder!.SelectedChild = folder;
+                // Navigate into folder using manual navigation (bypasses auto-navigation check)
+                ViewModel!.NavigateIntoFolder(folder);
                 Helpers.DebugLogger.Log($"[IconModeView] Enter: Opening folder {folder.Name}");
             }
             else if (selected is FileViewModel file)
@@ -152,6 +199,40 @@ namespace Span.Views
         public void FocusGridView()
         {
             IconGridView?.Focus(FocusState.Programmatic);
+        }
+
+        /// <summary>
+        /// CRITICAL: Cleanup called from MainWindow.OnClosed BEFORE views are unloaded
+        /// This prevents WinUI crash by disconnecting bindings early
+        /// </summary>
+        public void Cleanup()
+        {
+            try
+            {
+                Helpers.DebugLogger.Log("[IconModeView.Cleanup] Starting early cleanup...");
+
+                if (IconGridView != null)
+                {
+                    // Disconnect events FIRST
+                    IconGridView.DoubleTapped -= OnItemDoubleClick;
+                    IconGridView.KeyDown -= OnIconKeyDown;
+
+                    // Clear data bindings to prevent WinUI internal crash
+                    IconGridView.ItemsSource = null;
+                    IconGridView.SelectedItem = null;
+
+                    Helpers.DebugLogger.Log("[IconModeView.Cleanup] GridView disconnected");
+                }
+
+                // Clear ViewModel reference
+                ViewModel = null;
+
+                Helpers.DebugLogger.Log("[IconModeView.Cleanup] Early cleanup complete");
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[IconModeView.Cleanup] Error: {ex.Message}");
+            }
         }
     }
 }

@@ -5,169 +5,121 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:vm="using:Span.ViewModels"
+    xmlns:controls="using:CommunityToolkit.WinUI.UI.Controls"
     mc:Ignorable="d">
 
+    <UserControl.Resources>
+        <!-- DataGrid Row Style -->
+        <Style x:Key="CustomDataGridRowStyle" TargetType="controls:DataGridRow">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="MinHeight" Value="18"/>
+        </Style>
+
+        <!-- DataGrid Cell Style -->
+        <Style x:Key="CustomDataGridCellStyle" TargetType="controls:DataGridCell">
+            <Setter Property="Padding" Value="6,0"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="controls:DataGridCell">
+                        <Grid Background="{TemplateBinding Background}">
+                            <ContentPresenter
+                                Content="{TemplateBinding Content}"
+                                ContentTemplate="{TemplateBinding ContentTemplate}"
+                                Margin="{TemplateBinding Padding}"
+                                VerticalAlignment="Center"
+                                HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
     <Grid x:Name="RootGrid">
-        <ListView
-            x:Name="DetailsListView"
+        <controls:DataGrid
+            x:Name="DetailsDataGrid"
             ItemsSource="{Binding CurrentItems, Mode=OneWay}"
             SelectedItem="{Binding CurrentFolder.SelectedChild, Mode=TwoWay}"
             SelectionMode="Extended"
-            CanDragItems="True"
-            AllowDrop="True"
-            IsItemClickEnabled="True"
-            ItemClick="OnItemClick"
+            AutoGenerateColumns="False"
+            CanUserReorderColumns="True"
+            CanUserResizeColumns="True"
+            CanUserSortColumns="True"
+            GridLinesVisibility="None"
+            HeadersVisibility="Column"
+            RowHeight="18"
+            ColumnHeaderHeight="20"
+            FontSize="11"
+            IsReadOnly="True"
+            Background="Transparent"
+            RowBackground="#0A000000"
+            RowStyle="{StaticResource CustomDataGridRowStyle}"
+            CellStyle="{StaticResource CustomDataGridCellStyle}"
+            AlternatingRowBackground="#12000000"
+            AlternatingRowForeground="{ThemeResource TextFillColorPrimaryBrush}"
+            Sorting="OnDataGridSorting"
+            ColumnReordered="OnColumnReordered"
+            DoubleTapped="OnItemDoubleClick"
             KeyDown="OnDetailsKeyDown">
 
-            <ListView.ItemContainerStyle>
-                <Style TargetType="ListViewItem">
-                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                    <Setter Property="Padding" Value="8,4"/>
-                </Style>
-            </ListView.ItemContainerStyle>
+            <controls:DataGrid.Columns>
+                <!-- Icon Column -->
+                <controls:DataGridTemplateColumn
+                    Header=""
+                    Width="40"
+                    CanUserReorder="False"
+                    CanUserResize="False"
+                    CanUserSort="False"
+                    Tag="Icon">
+                    <controls:DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate x:DataType="vm:FileSystemViewModel">
+                            <FontIcon FontFamily="{StaticResource RemixIcons}"
+                                      Glyph="{x:Bind IconGlyph, Mode=OneWay}"
+                                      Foreground="{x:Bind IconBrush, Mode=OneWay}"
+                                      FontSize="16"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center"/>
+                        </DataTemplate>
+                    </controls:DataGridTemplateColumn.CellTemplate>
+                </controls:DataGridTemplateColumn>
 
-            <ListView.Header>
-                <Grid Background="{ThemeResource LayerFillColorDefaultBrush}"
-                      BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                      BorderThickness="0,0,0,1"
-                      Padding="12,6">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="32"/>
-                        <ColumnDefinition Width="4*" MinWidth="180"/>
-                        <ColumnDefinition Width="3*" MinWidth="140"/>
-                        <ColumnDefinition Width="2*" MinWidth="90"/>
-                        <ColumnDefinition Width="1.5*" MinWidth="80"/>
-                    </Grid.ColumnDefinitions>
+                <!-- Name Column -->
+                <controls:DataGridTextColumn
+                    Header="Name"
+                    Binding="{Binding Name}"
+                    Width="*"
+                    MinWidth="180"
+                    CanUserSort="True"
+                    Tag="Name"/>
 
-                    <!-- Icon Column Header (no sort) -->
-                    <TextBlock Grid.Column="0"
-                               Text=""
-                               FontWeight="SemiBold"
-                               VerticalAlignment="Center"/>
+                <!-- Date Modified Column -->
+                <controls:DataGridTextColumn
+                    Header="Date Modified"
+                    Binding="{Binding DateModified}"
+                    Width="200"
+                    MinWidth="140"
+                    CanUserSort="True"
+                    Tag="DateModified"/>
 
-                    <!-- Name Column Header -->
-                    <Button Grid.Column="1"
-                            Click="OnSortByName"
-                            Background="Transparent"
-                            BorderThickness="0"
-                            HorizontalAlignment="Stretch"
-                            HorizontalContentAlignment="Left"
-                            Padding="0">
-                        <StackPanel Orientation="Horizontal" Spacing="4">
-                            <TextBlock Text="Name" FontWeight="SemiBold" FontSize="12"/>
-                            <FontIcon x:Name="NameSortIcon"
-                                      Glyph="&#xE70D;"
-                                      FontSize="9"
-                                      Visibility="Collapsed"/>
-                        </StackPanel>
-                    </Button>
+                <!-- Type Column -->
+                <controls:DataGridTextColumn
+                    Header="Type"
+                    Binding="{Binding FileType}"
+                    Width="150"
+                    MinWidth="90"
+                    CanUserSort="True"
+                    Tag="Type"/>
 
-                    <!-- Date Modified Column Header -->
-                    <Button Grid.Column="2"
-                            Click="OnSortByDateModified"
-                            Background="Transparent"
-                            BorderThickness="0"
-                            HorizontalAlignment="Stretch"
-                            HorizontalContentAlignment="Left"
-                            Padding="0">
-                        <StackPanel Orientation="Horizontal" Spacing="4">
-                            <TextBlock Text="Date Modified" FontWeight="SemiBold" FontSize="12"/>
-                            <FontIcon x:Name="DateSortIcon"
-                                      Glyph="&#xE70D;"
-                                      FontSize="9"
-                                      Visibility="Collapsed"/>
-                        </StackPanel>
-                    </Button>
-
-                    <!-- Type Column Header -->
-                    <Button Grid.Column="3"
-                            Click="OnSortByType"
-                            Background="Transparent"
-                            BorderThickness="0"
-                            HorizontalAlignment="Stretch"
-                            HorizontalContentAlignment="Left"
-                            Padding="0">
-                        <StackPanel Orientation="Horizontal" Spacing="4">
-                            <TextBlock Text="Type" FontWeight="SemiBold" FontSize="12"/>
-                            <FontIcon x:Name="TypeSortIcon"
-                                      Glyph="&#xE70D;"
-                                      FontSize="9"
-                                      Visibility="Collapsed"/>
-                        </StackPanel>
-                    </Button>
-
-                    <!-- Size Column Header -->
-                    <Button Grid.Column="4"
-                            Click="OnSortBySize"
-                            Background="Transparent"
-                            BorderThickness="0"
-                            HorizontalAlignment="Stretch"
-                            HorizontalContentAlignment="Left"
-                            Padding="0">
-                        <StackPanel Orientation="Horizontal" Spacing="4">
-                            <TextBlock Text="Size" FontWeight="SemiBold" FontSize="12"/>
-                            <FontIcon x:Name="SizeSortIcon"
-                                      Glyph="&#xE70D;"
-                                      FontSize="9"
-                                      Visibility="Collapsed"/>
-                        </StackPanel>
-                    </Button>
-                </Grid>
-            </ListView.Header>
-
-            <ListView.ItemTemplate>
-                <DataTemplate x:DataType="vm:FileSystemViewModel">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="40"/>
-                            <ColumnDefinition Width="3*" MinWidth="200"/>
-                            <ColumnDefinition Width="2*" MinWidth="150"/>
-                            <ColumnDefinition Width="1*" MinWidth="100"/>
-                            <ColumnDefinition Width="1*" MinWidth="100"/>
-                        </Grid.ColumnDefinitions>
-
-                        <!-- Icon -->
-                        <FontIcon Grid.Column="0"
-                                  FontFamily="{StaticResource RemixIcons}"
-                                  Glyph="{x:Bind IconGlyph, Mode=OneWay}"
-                                  Foreground="{x:Bind IconBrush, Mode=OneWay}"
-                                  FontSize="14"
-                                  VerticalAlignment="Center"/>
-
-                        <!-- Name -->
-                        <TextBlock Grid.Column="1"
-                                   Text="{x:Bind Name, Mode=OneWay}"
-                                   VerticalAlignment="Center"
-                                   TextTrimming="CharacterEllipsis"
-                                   FontSize="13"
-                                   Margin="8,0,0,0"/>
-
-                        <!-- Date Modified -->
-                        <TextBlock Grid.Column="2"
-                                   Text="{x:Bind DateModified, Mode=OneWay}"
-                                   VerticalAlignment="Center"
-                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                   TextTrimming="CharacterEllipsis"
-                                   FontSize="12"/>
-
-                        <!-- Type -->
-                        <TextBlock Grid.Column="3"
-                                   Text="{x:Bind FileType, Mode=OneWay}"
-                                   VerticalAlignment="Center"
-                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                   TextTrimming="CharacterEllipsis"
-                                   FontSize="12"/>
-
-                        <!-- Size -->
-                        <TextBlock Grid.Column="4"
-                                   Text="{x:Bind Size, Mode=OneWay}"
-                                   VerticalAlignment="Center"
-                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                   TextTrimming="CharacterEllipsis"
-                                   FontSize="12"/>
-                    </Grid>
-                </DataTemplate>
-            </ListView.ItemTemplate>
-        </ListView>
+                <!-- Size Column -->
+                <controls:DataGridTextColumn
+                    Header="Size"
+                    Binding="{Binding Size}"
+                    Width="100"
+                    MinWidth="80"
+                    CanUserSort="True"
+                    Tag="Size"/>
+            </controls:DataGrid.Columns>
+        </controls:DataGrid>
     </Grid>
 </UserControl>

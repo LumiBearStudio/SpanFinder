@@ -40,6 +40,13 @@ namespace Span.ViewModels
         private CancellationTokenSource? _selectionDebounce;
         private const int SelectionDebounceMs = 150;
 
+        /// <summary>
+        /// Controls automatic navigation on selection change.
+        /// TRUE: Miller Columns mode - navigate on single click
+        /// FALSE: Details/Icon mode - selection only, navigate on double click
+        /// </summary>
+        public bool EnableAutoNavigation { get; set; } = true;
+
         public ExplorerViewModel(FolderItem rootItem, FileSystemService fileService)
         {
             Columns = new ObservableCollection<FolderViewModel>();
@@ -188,6 +195,67 @@ namespace Span.ViewModels
             }
         }
 
+        /// <summary>
+        /// Manually navigate into a folder (called from double-click in Details/Icon views).
+        /// Bypasses EnableAutoNavigation check.
+        /// </summary>
+        public async void NavigateIntoFolder(FolderViewModel folder)
+        {
+            if (folder == null) return;
+
+            Helpers.DebugLogger.Log($"[NavigateIntoFolder] Manual navigation to: {folder.Name}");
+
+            // Load children first
+            await folder.EnsureChildrenLoadedAsync();
+
+            // Find parent column index
+            var parentFolder = CurrentFolder;
+            if (parentFolder == null) return;
+
+            int parentIndex = Columns.IndexOf(parentFolder);
+            if (parentIndex == -1) return;
+
+            int nextIndex = parentIndex + 1;
+
+            // Remove columns after current
+            RemoveColumnsFrom(nextIndex + 1);
+
+            // Replace or add the new column
+            if (nextIndex < Columns.Count)
+            {
+                var oldColumn = Columns[nextIndex];
+                oldColumn.PropertyChanged -= FolderVm_PropertyChanged;
+                oldColumn.ResetState();
+
+                folder.PropertyChanged += FolderVm_PropertyChanged;
+                Columns[nextIndex] = folder;
+            }
+            else
+            {
+                AddColumn(folder);
+            }
+
+            CurrentPath = folder.Path;
+            Helpers.DebugLogger.Log($"[NavigateIntoFolder] Navigation complete to: {folder.Path}");
+        }
+
+        /// <summary>
+        /// Navigate to parent folder (called from Backspace key in Details/Icon views).
+        /// </summary>
+        public void NavigateUp()
+        {
+            if (CurrentFolder == null || string.IsNullOrEmpty(CurrentFolder.Path)) return;
+
+            var parentPath = System.IO.Path.GetDirectoryName(CurrentFolder.Path);
+            if (string.IsNullOrEmpty(parentPath)) return;
+
+            // Check if parent directory exists
+            if (!System.IO.Directory.Exists(parentPath)) return;
+
+            Helpers.DebugLogger.Log($"[NavigateUp] Navigating from '{CurrentFolder.Path}' to '{parentPath}'");
+            NavigateToPath(parentPath);
+        }
+
         private void AddColumn(FolderViewModel folderVm)
         {
             folderVm.PropertyChanged += FolderVm_PropertyChanged;
@@ -234,6 +302,13 @@ namespace Span.ViewModels
             if (parentFolder.IsSorting)
             {
                 Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Ignoring selection change during sorting");
+                return;
+            }
+
+            // CRITICAL: In Details/Icon mode, disable auto-navigation (only allow double-click)
+            if (!EnableAutoNavigation)
+            {
+                Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Auto-navigation disabled - selection only");
                 return;
             }
 
@@ -354,6 +429,32 @@ namespace Span.ViewModels
                     Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] TaskCanceledException caught");
                 }
             }
+        }
+
+        /// <summary>
+        /// Clean up all resources when closing the application.
+        /// </summary>
+        public void Cleanup()
+        {
+            Helpers.DebugLogger.Log("[ExplorerViewModel.Cleanup] Starting cleanup...");
+
+            // Cancel any pending debounce operations
+            _selectionDebounce?.Cancel();
+            _selectionDebounce?.Dispose();
+            _selectionDebounce = null;
+
+            // Clean up all columns
+            if (Columns != null)
+            {
+                foreach (var column in Columns.ToList())
+                {
+                    column.PropertyChanged -= FolderVm_PropertyChanged;
+                    column.CancelLoading();
+                }
+                Columns.Clear();
+            }
+
+            Helpers.DebugLogger.Log("[ExplorerViewModel.Cleanup] Cleanup complete");
         }
     }
 }

@@ -2,6 +2,10 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Span.ViewModels;
 using System.Linq;
+using CommunityToolkit.WinUI.UI.Controls;
+using System;
+using System.Collections.Generic;
+using Windows.Storage;
 
 namespace Span.Views
 {
@@ -19,7 +23,6 @@ namespace Span.Views
                 if (_viewModel != null && _isLoaded)
                 {
                     SortItems("Name", true);
-                    UpdateSortIndicators();
                 }
             }
         }
@@ -27,6 +30,7 @@ namespace Span.Views
         private string _currentSortBy = "Name";
         private bool _isAscending = true;
         private bool _isLoaded = false;
+        private readonly ApplicationDataContainer _localSettings = ApplicationData.Current.LocalSettings;
 
         public DetailsModeView()
         {
@@ -42,25 +46,76 @@ namespace Span.Views
                 {
                     ViewModel = mainVm.Explorer;
                 }
+
+                // Restore column settings
+                RestoreColumnSettings();
             };
+
+            this.Unloaded += OnUnloaded;
         }
 
-        private void OnItemClick(object sender, ItemClickEventArgs e)
+        private void OnUnloaded(object sender, RoutedEventArgs e)
         {
-            if (e.ClickedItem is FolderViewModel folder)
+            try
             {
-                // Navigate into folder
-                if (ViewModel?.CurrentFolder != null)
+                Helpers.DebugLogger.Log("[DetailsModeView.OnUnloaded] Starting cleanup...");
+
+                // Save column settings only if DataGrid is still valid
+                if (DetailsDataGrid != null && DetailsDataGrid.Columns != null)
                 {
-                    ViewModel.CurrentFolder.SelectedChild = folder;
+                    SaveColumnSettings();
                 }
-            }
-            else if (e.ClickedItem is FileViewModel file)
-            {
-                // Open file (TODO: implement file opening)
-                if (ViewModel?.CurrentFolder != null)
+
+                // Disconnect DataGrid events
+                if (DetailsDataGrid != null)
                 {
-                    ViewModel.CurrentFolder.SelectedChild = file;
+                    DetailsDataGrid.Sorting -= OnDataGridSorting;
+                    DetailsDataGrid.ColumnReordered -= OnColumnReordered;
+                    DetailsDataGrid.DoubleTapped -= OnItemDoubleClick;
+                    DetailsDataGrid.KeyDown -= OnDetailsKeyDown;
+
+                    // Clear bindings to prevent memory leaks
+                    DetailsDataGrid.ItemsSource = null;
+                    DetailsDataGrid.SelectedItem = null;
+                }
+
+                // Clear ViewModel reference
+                ViewModel = null;
+
+                // Unsubscribe from events
+                this.Unloaded -= OnUnloaded;
+
+                Helpers.DebugLogger.Log("[DetailsModeView.OnUnloaded] Cleanup complete");
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[DetailsModeView.OnUnloaded] Error: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[DetailsModeView.OnUnloaded] Stack: {ex.StackTrace}");
+            }
+        }
+
+        private void OnItemDoubleClick(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
+        {
+            var selected = ViewModel?.CurrentFolder?.SelectedChild;
+            if (selected == null) return;
+
+            if (selected is FolderViewModel folder)
+            {
+                // Navigate into folder using manual navigation (bypasses auto-navigation check)
+                ViewModel!.NavigateIntoFolder(folder);
+                Helpers.DebugLogger.Log($"[DetailsModeView] DoubleClick: Opening folder {folder.Name}");
+            }
+            else if (selected is FileViewModel file)
+            {
+                // Open file with default application
+                try
+                {
+                    _ = Windows.System.Launcher.LaunchUriAsync(new Uri(file.Path));
+                    Helpers.DebugLogger.Log($"[DetailsModeView] DoubleClick: Opening file {file.Name}");
+                }
+                catch (Exception ex)
+                {
+                    Helpers.DebugLogger.Log($"[DetailsModeView] Error opening file: {ex.Message}");
                 }
             }
         }
@@ -85,6 +140,13 @@ namespace Span.Views
                     e.Handled = true;
                     break;
 
+                case Windows.System.VirtualKey.Back:
+                    // Navigate to parent folder
+                    ViewModel?.NavigateUp();
+                    e.Handled = true;
+                    Helpers.DebugLogger.Log("[DetailsModeView] Backspace: Navigating to parent folder");
+                    break;
+
                 case Windows.System.VirtualKey.Delete:
                     // Let global handler handle Delete
                     break;
@@ -95,7 +157,7 @@ namespace Span.Views
 
                 case Windows.System.VirtualKey.Up:
                 case Windows.System.VirtualKey.Down:
-                    // ListView handles Up/Down navigation by default
+                    // DataGrid handles Up/Down navigation by default
                     break;
             }
         }
@@ -107,8 +169,8 @@ namespace Span.Views
 
             if (selected is FolderViewModel folder)
             {
-                // Navigate into folder
-                ViewModel!.CurrentFolder!.SelectedChild = folder;
+                // Navigate into folder using manual navigation (bypasses auto-navigation check)
+                ViewModel!.NavigateIntoFolder(folder);
                 Helpers.DebugLogger.Log($"[DetailsModeView] Enter: Opening folder {folder.Name}");
             }
             else if (selected is FileViewModel file)
@@ -126,42 +188,46 @@ namespace Span.Views
             }
         }
 
-        private void OnSortByName(object sender, RoutedEventArgs e)
+        private void OnDataGridSorting(object sender, DataGridColumnEventArgs e)
         {
-            ToggleSort("Name");
-        }
+            // Get column tag to determine sort property
+            string sortBy = e.Column.Tag?.ToString() ?? "Name";
 
-        private void OnSortByDateModified(object sender, RoutedEventArgs e)
-        {
-            ToggleSort("DateModified");
-        }
-
-        private void OnSortByType(object sender, RoutedEventArgs e)
-        {
-            ToggleSort("Type");
-        }
-
-        private void OnSortBySize(object sender, RoutedEventArgs e)
-        {
-            ToggleSort("Size");
-        }
-
-        private void ToggleSort(string sortBy)
-        {
+            // Toggle sort direction if same column
             if (_currentSortBy == sortBy)
             {
-                // Toggle direction
                 _isAscending = !_isAscending;
             }
             else
             {
-                // New sort column, default to ascending
                 _currentSortBy = sortBy;
                 _isAscending = true;
             }
 
+            // Apply sort
             SortItems(sortBy, _isAscending);
-            UpdateSortIndicators();
+
+            // Update column sort direction indicator
+            e.Column.SortDirection = _isAscending
+                ? DataGridSortDirection.Ascending
+                : DataGridSortDirection.Descending;
+
+            // Clear other column indicators
+            foreach (var column in DetailsDataGrid.Columns)
+            {
+                if (column != e.Column)
+                {
+                    column.SortDirection = null;
+                }
+            }
+
+            Helpers.DebugLogger.Log($"[DetailsModeView] DataGrid sorted by {sortBy} ({(_isAscending ? "Asc" : "Desc")})");
+        }
+
+        private void OnColumnReordered(object sender, DataGridColumnEventArgs e)
+        {
+            Helpers.DebugLogger.Log($"[DetailsModeView] Column reordered: {e.Column.Header}");
+            SaveColumnSettings();
         }
 
         private void SortItems(string sortBy, bool ascending)
@@ -236,38 +302,147 @@ namespace Span.Views
             }
         }
 
-        private void UpdateSortIndicators()
+        private void SaveColumnSettings()
         {
-            // Hide all indicators
-            NameSortIcon.Visibility = Visibility.Collapsed;
-            DateSortIcon.Visibility = Visibility.Collapsed;
-            TypeSortIcon.Visibility = Visibility.Collapsed;
-            SizeSortIcon.Visibility = Visibility.Collapsed;
-
-            // Show indicator for current sort column
-            FontIcon? activeIcon = _currentSortBy switch
+            try
             {
-                "Name" => NameSortIcon,
-                "DateModified" => DateSortIcon,
-                "Type" => TypeSortIcon,
-                "Size" => SizeSortIcon,
-                _ => null
-            };
+                // Check if DataGrid and its columns are still valid
+                if (DetailsDataGrid == null || DetailsDataGrid.Columns == null || DetailsDataGrid.Columns.Count == 0)
+                {
+                    Helpers.DebugLogger.Log("[DetailsModeView] DataGrid not valid, skipping save");
+                    return;
+                }
 
-            if (activeIcon != null)
+                var composite = new ApplicationDataCompositeValue();
+
+                // Save column widths
+                for (int i = 0; i < DetailsDataGrid.Columns.Count; i++)
+                {
+                    var column = DetailsDataGrid.Columns[i];
+                    if (column != null)
+                    {
+                        composite[$"Column{i}_Width"] = column.ActualWidth;
+                        composite[$"Column{i}_DisplayIndex"] = column.DisplayIndex;
+                    }
+                }
+
+                // Save sort settings
+                composite["SortColumn"] = _currentSortBy;
+                composite["SortAscending"] = _isAscending;
+
+                _localSettings.Values["DetailsViewColumns"] = composite;
+                Helpers.DebugLogger.Log("[DetailsModeView] Column settings saved");
+            }
+            catch (ObjectDisposedException)
             {
-                activeIcon.Visibility = Visibility.Visible;
-                // &#xE70D; = ChevronUp, &#xE70E; = ChevronDown
-                activeIcon.Glyph = _isAscending ? "\uE70D" : "\uE70E";
+                // Ignore if objects are already disposed during shutdown
+                Helpers.DebugLogger.Log("[DetailsModeView] Objects disposed, skipping save");
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[DetailsModeView] Error saving column settings: {ex.Message}");
+            }
+        }
+
+        private void RestoreColumnSettings()
+        {
+            try
+            {
+                if (_localSettings.Values["DetailsViewColumns"] is ApplicationDataCompositeValue composite)
+                {
+                    // Restore column widths
+                    for (int i = 0; i < DetailsDataGrid.Columns.Count; i++)
+                    {
+                        var column = DetailsDataGrid.Columns[i];
+
+                        if (composite.TryGetValue($"Column{i}_Width", out var widthObj) && widthObj is double width)
+                        {
+                            column.Width = new DataGridLength(width);
+                        }
+
+                        if (composite.TryGetValue($"Column{i}_DisplayIndex", out var indexObj) && indexObj is int displayIndex)
+                        {
+                            column.DisplayIndex = displayIndex;
+                        }
+                    }
+
+                    // Restore sort settings
+                    if (composite.TryGetValue("SortColumn", out var sortObj) && sortObj is string sortColumn)
+                    {
+                        _currentSortBy = sortColumn;
+                    }
+
+                    if (composite.TryGetValue("SortAscending", out var ascObj) && ascObj is bool ascending)
+                    {
+                        _isAscending = ascending;
+                    }
+
+                    // Apply restored sort
+                    SortItems(_currentSortBy, _isAscending);
+
+                    // Update visual indicators
+                    var sortedColumn = DetailsDataGrid.Columns.FirstOrDefault(c => c.Tag?.ToString() == _currentSortBy);
+                    if (sortedColumn != null)
+                    {
+                        sortedColumn.SortDirection = _isAscending
+                            ? DataGridSortDirection.Ascending
+                            : DataGridSortDirection.Descending;
+                    }
+
+                    Helpers.DebugLogger.Log("[DetailsModeView] Column settings restored");
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[DetailsModeView] Error restoring column settings: {ex.Message}");
             }
         }
 
         /// <summary>
-        /// Focus the Details ListView (called from MainWindow on view switch)
+        /// Focus the Details DataGrid (called from MainWindow on view switch)
         /// </summary>
-        public void FocusListView()
+        public void FocusDataGrid()
         {
-            DetailsListView?.Focus(FocusState.Programmatic);
+            DetailsDataGrid?.Focus(FocusState.Programmatic);
+        }
+
+        // Keep old method for compatibility
+        public void FocusListView() => FocusDataGrid();
+
+        /// <summary>
+        /// CRITICAL: Cleanup called from MainWindow.OnClosed BEFORE views are unloaded
+        /// This prevents WinUI crash by disconnecting bindings early
+        /// </summary>
+        public void Cleanup()
+        {
+            try
+            {
+                Helpers.DebugLogger.Log("[DetailsModeView.Cleanup] Starting early cleanup...");
+
+                if (DetailsDataGrid != null)
+                {
+                    // Disconnect events FIRST
+                    DetailsDataGrid.Sorting -= OnDataGridSorting;
+                    DetailsDataGrid.ColumnReordered -= OnColumnReordered;
+                    DetailsDataGrid.DoubleTapped -= OnItemDoubleClick;
+                    DetailsDataGrid.KeyDown -= OnDetailsKeyDown;
+
+                    // Clear data bindings to prevent WinUI internal crash
+                    DetailsDataGrid.ItemsSource = null;
+                    DetailsDataGrid.SelectedItem = null;
+
+                    Helpers.DebugLogger.Log("[DetailsModeView.Cleanup] DataGrid disconnected");
+                }
+
+                // Clear ViewModel reference
+                ViewModel = null;
+
+                Helpers.DebugLogger.Log("[DetailsModeView.Cleanup] Early cleanup complete");
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[DetailsModeView.Cleanup] Error: {ex.Message}");
+            }
         }
     }
 }
