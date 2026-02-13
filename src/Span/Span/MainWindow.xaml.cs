@@ -1371,9 +1371,14 @@ namespace Span
         }
 
         // Visibility helper functions for x:Bind
-        public bool IsMillerColumnsMode(Models.ViewMode mode) => mode == Models.ViewMode.MillerColumns;
-        public bool IsDetailsMode(Models.ViewMode mode) => mode == Models.ViewMode.Details;
-        public bool IsIconMode(Models.ViewMode mode) => Helpers.ViewModeExtensions.IsIconMode(mode);
+        public Visibility IsMillerColumnsMode(Models.ViewMode mode)
+            => mode == Models.ViewMode.MillerColumns ? Visibility.Visible : Visibility.Collapsed;
+
+        public Visibility IsDetailsMode(Models.ViewMode mode)
+            => mode == Models.ViewMode.Details ? Visibility.Visible : Visibility.Collapsed;
+
+        public Visibility IsIconMode(Models.ViewMode mode)
+            => Helpers.ViewModeExtensions.IsIconMode(mode) ? Visibility.Visible : Visibility.Collapsed;
 
         // Sort menu opening - update checkmarks and icons
         private void OnSortMenuOpening(object sender, object e)

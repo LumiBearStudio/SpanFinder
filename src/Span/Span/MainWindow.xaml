@@ -5,6 +5,7 @@
     xmlns:local="using:Span"
     xmlns:models="using:Span.Models"
     xmlns:viewmodels="using:Span.ViewModels"
+    xmlns:views="using:Span.Views"
     xmlns:helpers="using:Span.Helpers"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -272,12 +273,16 @@
                 </StackPanel>
             </Border>
 
-            <!-- Content (Miller Columns) -->
+            <!-- Content (View Mode Switcher) -->
             <!-- Background is Transparent to show Mica -->
             <Grid Grid.Column="1" Background="Transparent" Padding="0,0,0,0">
-                 <!-- Miller Columns ScrollViewer -->
-                 <ScrollViewer x:Name="MillerScrollViewer" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
-                     <ItemsControl x:Name="MillerColumnsControl" ItemsSource="{x:Bind ViewModel.Explorer.Columns, Mode=OneWay}">
+
+                <!-- Miller Columns View -->
+                <ScrollViewer x:Name="MillerScrollViewer"
+                              HorizontalScrollBarVisibility="Auto"
+                              VerticalScrollBarVisibility="Disabled"
+                              Visibility="{x:Bind IsMillerColumnsMode(ViewModel.CurrentViewMode), Mode=OneWay}">
+                    <ItemsControl x:Name="MillerColumnsControl" ItemsSource="{x:Bind ViewModel.Explorer.Columns, Mode=OneWay}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <StackPanel Orientation="Horizontal"/>
@@ -340,7 +345,21 @@
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
-                 </ScrollViewer>
+                </ScrollViewer>
+
+                <!-- Details View -->
+                <views:DetailsModeView x:Name="DetailsView"
+                                       Visibility="{x:Bind IsDetailsMode(ViewModel.CurrentViewMode), Mode=OneWay}"/>
+
+                <!-- Icon View (Placeholder for Phase 3) -->
+                <Grid x:Name="IconView"
+                      Visibility="{x:Bind IsIconMode(ViewModel.CurrentViewMode), Mode=OneWay}">
+                    <TextBlock Text="Icon View (Coming Soon)"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                </Grid>
+
             </Grid>
 
         </Grid>

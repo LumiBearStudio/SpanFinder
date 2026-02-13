@@ -22,6 +22,75 @@ namespace Span.ViewModels
         public virtual Microsoft.UI.Xaml.Media.Brush IconBrush => new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White);
         public IFileSystemItem Model => _model;
 
+        // Properties for Details mode
+        public virtual string DateModified
+        {
+            get
+            {
+                if (_model is FileItem fileItem)
+                    return fileItem.DateModified.ToString("yyyy-MM-dd HH:mm");
+                if (_model is FolderItem folderItem)
+                    return folderItem.DateModified.ToString("yyyy-MM-dd HH:mm");
+                return string.Empty;
+            }
+        }
+
+        public virtual System.DateTime DateModifiedValue
+        {
+            get
+            {
+                if (_model is FileItem fileItem)
+                    return fileItem.DateModified;
+                if (_model is FolderItem folderItem)
+                    return folderItem.DateModified;
+                return System.DateTime.MinValue;
+            }
+        }
+
+        public virtual string FileType
+        {
+            get
+            {
+                if (_model is FileItem fileItem)
+                    return string.IsNullOrEmpty(fileItem.FileType) ? "File" : fileItem.FileType.TrimStart('.');
+                return "Folder";
+            }
+        }
+
+        public virtual string Size
+        {
+            get
+            {
+                if (_model is FileItem fileItem)
+                    return FormatFileSize(fileItem.Size);
+                return string.Empty; // Folders don't show size in Details mode
+            }
+        }
+
+        public virtual long SizeValue
+        {
+            get
+            {
+                if (_model is FileItem fileItem)
+                    return fileItem.Size;
+                return 0;
+            }
+        }
+
+        private static string FormatFileSize(long bytes)
+        {
+            if (bytes == 0) return "0 B";
+            string[] sizes = { "B", "KB", "MB", "GB", "TB" };
+            int order = 0;
+            double size = bytes;
+            while (size >= 1024 && order < sizes.Length - 1)
+            {
+                order++;
+                size /= 1024;
+            }
+            return $"{size:0.##} {sizes[order]}";
+        }
+
         public FileSystemViewModel(IFileSystemItem model)
         {
             _model = model;

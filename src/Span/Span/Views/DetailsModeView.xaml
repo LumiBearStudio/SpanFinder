@@ -1,0 +1,167 @@
+<UserControl
+    x:Class="Span.Views.DetailsModeView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:vm="using:Span.ViewModels"
+    mc:Ignorable="d">
+
+    <Grid x:Name="RootGrid">
+        <ListView
+            x:Name="DetailsListView"
+            ItemsSource="{Binding CurrentItems, Mode=OneWay}"
+            SelectedItem="{Binding CurrentFolder.SelectedChild, Mode=TwoWay}"
+            SelectionMode="Extended"
+            CanDragItems="True"
+            AllowDrop="True"
+            IsItemClickEnabled="True"
+            ItemClick="OnItemClick">
+
+            <ListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem">
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                    <Setter Property="Padding" Value="8,4"/>
+                </Style>
+            </ListView.ItemContainerStyle>
+
+            <ListView.Header>
+                <Grid Background="{ThemeResource LayerFillColorDefaultBrush}"
+                      BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                      BorderThickness="0,0,0,1"
+                      Padding="12,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="40"/>
+                        <ColumnDefinition Width="3*" MinWidth="200"/>
+                        <ColumnDefinition Width="2*" MinWidth="150"/>
+                        <ColumnDefinition Width="1*" MinWidth="100"/>
+                        <ColumnDefinition Width="1*" MinWidth="100"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Icon Column Header (no sort) -->
+                    <TextBlock Grid.Column="0"
+                               Text=""
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center"/>
+
+                    <!-- Name Column Header -->
+                    <Button Grid.Column="1"
+                            Click="OnSortByName"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Left"
+                            Padding="0">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="Name" FontWeight="SemiBold"/>
+                            <FontIcon x:Name="NameSortIcon"
+                                      Glyph="&#xE70D;"
+                                      FontSize="10"
+                                      Visibility="Collapsed"/>
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Date Modified Column Header -->
+                    <Button Grid.Column="2"
+                            Click="OnSortByDateModified"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Left"
+                            Padding="0">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="Date Modified" FontWeight="SemiBold"/>
+                            <FontIcon x:Name="DateSortIcon"
+                                      Glyph="&#xE70D;"
+                                      FontSize="10"
+                                      Visibility="Collapsed"/>
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Type Column Header -->
+                    <Button Grid.Column="3"
+                            Click="OnSortByType"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Left"
+                            Padding="0">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="Type" FontWeight="SemiBold"/>
+                            <FontIcon x:Name="TypeSortIcon"
+                                      Glyph="&#xE70D;"
+                                      FontSize="10"
+                                      Visibility="Collapsed"/>
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Size Column Header -->
+                    <Button Grid.Column="4"
+                            Click="OnSortBySize"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Left"
+                            Padding="0">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="Size" FontWeight="SemiBold"/>
+                            <FontIcon x:Name="SizeSortIcon"
+                                      Glyph="&#xE70D;"
+                                      FontSize="10"
+                                      Visibility="Collapsed"/>
+                        </StackPanel>
+                    </Button>
+                </Grid>
+            </ListView.Header>
+
+            <ListView.ItemTemplate>
+                <DataTemplate x:DataType="vm:FileSystemViewModel">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="40"/>
+                            <ColumnDefinition Width="3*" MinWidth="200"/>
+                            <ColumnDefinition Width="2*" MinWidth="150"/>
+                            <ColumnDefinition Width="1*" MinWidth="100"/>
+                            <ColumnDefinition Width="1*" MinWidth="100"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Icon -->
+                        <FontIcon Grid.Column="0"
+                                  Glyph="{x:Bind IconGlyph, Mode=OneWay}"
+                                  Foreground="{x:Bind IconBrush, Mode=OneWay}"
+                                  FontSize="16"
+                                  VerticalAlignment="Center"/>
+
+                        <!-- Name -->
+                        <TextBlock Grid.Column="1"
+                                   Text="{x:Bind Name, Mode=OneWay}"
+                                   VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"
+                                   Margin="8,0,0,0"/>
+
+                        <!-- Date Modified -->
+                        <TextBlock Grid.Column="2"
+                                   Text="{x:Bind DateModified, Mode=OneWay}"
+                                   VerticalAlignment="Center"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   TextTrimming="CharacterEllipsis"/>
+
+                        <!-- Type -->
+                        <TextBlock Grid.Column="3"
+                                   Text="{x:Bind FileType, Mode=OneWay}"
+                                   VerticalAlignment="Center"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   TextTrimming="CharacterEllipsis"/>
+
+                        <!-- Size -->
+                        <TextBlock Grid.Column="4"
+                                   Text="{x:Bind Size, Mode=OneWay}"
+                                   VerticalAlignment="Center"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   TextTrimming="CharacterEllipsis"/>
+                    </Grid>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+    </Grid>
+</UserControl>
