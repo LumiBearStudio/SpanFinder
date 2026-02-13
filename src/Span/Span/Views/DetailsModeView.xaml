@@ -30,13 +30,13 @@
                 <Grid Background="{ThemeResource LayerFillColorDefaultBrush}"
                       BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                       BorderThickness="0,0,0,1"
-                      Padding="12,8">
+                      Padding="12,6">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="40"/>
-                        <ColumnDefinition Width="3*" MinWidth="200"/>
-                        <ColumnDefinition Width="2*" MinWidth="150"/>
-                        <ColumnDefinition Width="1*" MinWidth="100"/>
-                        <ColumnDefinition Width="1*" MinWidth="100"/>
+                        <ColumnDefinition Width="32"/>
+                        <ColumnDefinition Width="4*" MinWidth="180"/>
+                        <ColumnDefinition Width="3*" MinWidth="140"/>
+                        <ColumnDefinition Width="2*" MinWidth="90"/>
+                        <ColumnDefinition Width="1.5*" MinWidth="80"/>
                     </Grid.ColumnDefinitions>
 
                     <!-- Icon Column Header (no sort) -->
@@ -54,10 +54,10 @@
                             HorizontalContentAlignment="Left"
                             Padding="0">
                         <StackPanel Orientation="Horizontal" Spacing="4">
-                            <TextBlock Text="Name" FontWeight="SemiBold"/>
+                            <TextBlock Text="Name" FontWeight="SemiBold" FontSize="12"/>
                             <FontIcon x:Name="NameSortIcon"
                                       Glyph="&#xE70D;"
-                                      FontSize="10"
+                                      FontSize="9"
                                       Visibility="Collapsed"/>
                         </StackPanel>
                     </Button>
@@ -71,10 +71,10 @@
                             HorizontalContentAlignment="Left"
                             Padding="0">
                         <StackPanel Orientation="Horizontal" Spacing="4">
-                            <TextBlock Text="Date Modified" FontWeight="SemiBold"/>
+                            <TextBlock Text="Date Modified" FontWeight="SemiBold" FontSize="12"/>
                             <FontIcon x:Name="DateSortIcon"
                                       Glyph="&#xE70D;"
-                                      FontSize="10"
+                                      FontSize="9"
                                       Visibility="Collapsed"/>
                         </StackPanel>
                     </Button>
@@ -88,10 +88,10 @@
                             HorizontalContentAlignment="Left"
                             Padding="0">
                         <StackPanel Orientation="Horizontal" Spacing="4">
-                            <TextBlock Text="Type" FontWeight="SemiBold"/>
+                            <TextBlock Text="Type" FontWeight="SemiBold" FontSize="12"/>
                             <FontIcon x:Name="TypeSortIcon"
                                       Glyph="&#xE70D;"
-                                      FontSize="10"
+                                      FontSize="9"
                                       Visibility="Collapsed"/>
                         </StackPanel>
                     </Button>
@@ -105,10 +105,10 @@
                             HorizontalContentAlignment="Left"
                             Padding="0">
                         <StackPanel Orientation="Horizontal" Spacing="4">
-                            <TextBlock Text="Size" FontWeight="SemiBold"/>
+                            <TextBlock Text="Size" FontWeight="SemiBold" FontSize="12"/>
                             <FontIcon x:Name="SizeSortIcon"
                                       Glyph="&#xE70D;"
-                                      FontSize="10"
+                                      FontSize="9"
                                       Visibility="Collapsed"/>
                         </StackPanel>
                     </Button>
@@ -128,9 +128,10 @@
 
                         <!-- Icon -->
                         <FontIcon Grid.Column="0"
+                                  FontFamily="{StaticResource RemixIcons}"
                                   Glyph="{x:Bind IconGlyph, Mode=OneWay}"
                                   Foreground="{x:Bind IconBrush, Mode=OneWay}"
-                                  FontSize="16"
+                                  FontSize="14"
                                   VerticalAlignment="Center"/>
 
                         <!-- Name -->
@@ -138,6 +139,7 @@
                                    Text="{x:Bind Name, Mode=OneWay}"
                                    VerticalAlignment="Center"
                                    TextTrimming="CharacterEllipsis"
+                                   FontSize="13"
                                    Margin="8,0,0,0"/>
 
                         <!-- Date Modified -->
@@ -145,21 +147,24 @@
                                    Text="{x:Bind DateModified, Mode=OneWay}"
                                    VerticalAlignment="Center"
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                   TextTrimming="CharacterEllipsis"/>
+                                   TextTrimming="CharacterEllipsis"
+                                   FontSize="12"/>
 
                         <!-- Type -->
                         <TextBlock Grid.Column="3"
                                    Text="{x:Bind FileType, Mode=OneWay}"
                                    VerticalAlignment="Center"
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                   TextTrimming="CharacterEllipsis"/>
+                                   TextTrimming="CharacterEllipsis"
+                                   FontSize="12"/>
 
                         <!-- Size -->
                         <TextBlock Grid.Column="4"
                                    Text="{x:Bind Size, Mode=OneWay}"
                                    VerticalAlignment="Center"
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                   TextTrimming="CharacterEllipsis"/>
+                                   TextTrimming="CharacterEllipsis"
+                                   FontSize="12"/>
                     </Grid>
                 </DataTemplate>
             </ListView.ItemTemplate>
