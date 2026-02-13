@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Span.Models;
 
@@ -9,35 +10,94 @@ namespace Span.Services
 {
     public class FileSystemService
     {
-        public Task<List<DriveItem>> GetDrivesAsync()
-        {
-            return Task.Run(() =>
-            {
-                var drives = DriveInfo.GetDrives()
-                    .Where(d => d.IsReady && (d.DriveType == DriveType.Fixed || d.DriveType == DriveType.Removable))
-                    .Select(d => new DriveItem
-                    {
-                        Name = $"{d.VolumeLabel} ({d.Name.TrimEnd('\\')})", // e.g. "Windows (C:)"
-                        Path = d.Name,
-                        Label = d.VolumeLabel,
-                        TotalSize = d.TotalSize,
-                        AvailableFreeSpace = d.AvailableFreeSpace,
-                        DriveFormat = d.DriveFormat,
-                        DriveType = d.DriveType.ToString()
-                    })
-                    .ToList();
+        private const int DriveLoadTimeoutMs = 500; // 500ms timeout per drive
 
-                // Fallback for empty labels
-                foreach (var drive in drives)
+        /// <summary>
+        /// Get all available drives with parallel loading and timeout protection
+        /// </summary>
+        public async Task<List<DriveItem>> GetDrivesAsync()
+        {
+            var allDrives = DriveInfo.GetDrives()
+                .Where(d => d.DriveType == DriveType.Fixed || d.DriveType == DriveType.Removable);
+
+            // Load each drive in parallel with timeout
+            var tasks = allDrives.Select(drive => LoadDriveWithTimeoutAsync(drive));
+            var results = await Task.WhenAll(tasks);
+
+            // Filter out failed drives (null results)
+            return results.Where(d => d != null).ToList()!;
+        }
+
+        /// <summary>
+        /// Load a single drive with timeout protection
+        /// </summary>
+        private async Task<DriveItem?> LoadDriveWithTimeoutAsync(DriveInfo drive)
+        {
+            try
+            {
+                using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(DriveLoadTimeoutMs));
+                return await Task.Run(() => CreateDriveItem(drive), cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                // Timeout occurred - skip this drive
+                System.Diagnostics.Debug.WriteLine($"[FileSystemService] Drive {drive.Name} timed out after {DriveLoadTimeoutMs}ms");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                // Other errors (access denied, etc.) - skip this drive
+                System.Diagnostics.Debug.WriteLine($"[FileSystemService] Error loading drive {drive.Name}: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Create DriveItem from DriveInfo (blocking operation)
+        /// </summary>
+        private DriveItem? CreateDriveItem(DriveInfo drive)
+        {
+            try
+            {
+                // Check if drive is ready
+                if (!drive.IsReady)
                 {
-                    if (string.IsNullOrEmpty(drive.Label))
-                    {
-                        drive.Name = $"Local Disk ({drive.Path.TrimEnd('\\')})";
-                    }
+                    return null;
                 }
 
-                return drives;
-            });
+                var driveItem = new DriveItem
+                {
+                    Path = drive.Name,
+                    Label = drive.VolumeLabel ?? string.Empty,
+                    DriveFormat = drive.DriveFormat,
+                    DriveType = drive.DriveType.ToString()
+                };
+
+                // Try to get size information (can be slow)
+                try
+                {
+                    driveItem.TotalSize = drive.TotalSize;
+                    driveItem.AvailableFreeSpace = drive.AvailableFreeSpace;
+                }
+                catch
+                {
+                    // Size info not available - continue without it
+                    driveItem.TotalSize = 0;
+                    driveItem.AvailableFreeSpace = 0;
+                }
+
+                // Generate display name
+                driveItem.Name = string.IsNullOrEmpty(driveItem.Label)
+                    ? $"Local Disk ({driveItem.Path.TrimEnd('\\')})"
+                    : $"{driveItem.Label} ({driveItem.Path.TrimEnd('\\')})";
+
+                return driveItem;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[FileSystemService] Error creating DriveItem for {drive.Name}: {ex.Message}");
+                return null;
+            }
         }
 
         public Task<List<IFileSystemItem>> GetItemsAsync(string path)

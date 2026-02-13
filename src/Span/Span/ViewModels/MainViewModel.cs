@@ -83,11 +83,110 @@ namespace Span.ViewModels
 
         private async void LoadDrives()
         {
-            Drives.Clear();
+            // Step 1: Load from cache immediately (fast)
+            var cachedDrives = LoadDrivesFromCache();
+            if (cachedDrives.Count > 0)
+            {
+                Drives.Clear();
+                foreach (var drive in cachedDrives)
+                {
+                    Drives.Add(drive);
+                }
+                Helpers.DebugLogger.Log($"[MainViewModel] Loaded {cachedDrives.Count} drives from cache");
+            }
+
+            // Step 2: Refresh from file system in background (accurate)
             var drives = await _fileService.GetDrivesAsync();
+
+            // Step 3: Update UI and cache
+            Drives.Clear();
             foreach (var drive in drives)
             {
                 Drives.Add(drive);
+            }
+
+            // Step 4: Save updated list to cache
+            SaveDrivesCache(drives);
+            Helpers.DebugLogger.Log($"[MainViewModel] Loaded {drives.Count} drives from file system");
+        }
+
+        /// <summary>
+        /// Load drives from LocalSettings cache (instant)
+        /// </summary>
+        private List<DriveItem> LoadDrivesFromCache()
+        {
+            var drives = new List<DriveItem>();
+
+            try
+            {
+                var settings = Windows.Storage.ApplicationData.Current.LocalSettings;
+                if (settings.Values["DrivesCache"] is Windows.Storage.ApplicationDataCompositeValue composite)
+                {
+                    int count = (int)(composite["Count"] ?? 0);
+
+                    for (int i = 0; i < count; i++)
+                    {
+                        var driveKey = $"Drive{i}";
+                        if (composite[driveKey] is Windows.Storage.ApplicationDataCompositeValue driveData)
+                        {
+                            var drive = new DriveItem
+                            {
+                                Name = driveData["Name"] as string ?? "",
+                                Path = driveData["Path"] as string ?? "",
+                                Label = driveData["Label"] as string ?? "",
+                                TotalSize = (long)(driveData["TotalSize"] ?? 0L),
+                                AvailableFreeSpace = (long)(driveData["AvailableFreeSpace"] ?? 0L),
+                                DriveFormat = driveData["DriveFormat"] as string ?? "",
+                                DriveType = driveData["DriveType"] as string ?? ""
+                            };
+                            drives.Add(drive);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[MainViewModel] Error loading drives from cache: {ex.Message}");
+            }
+
+            return drives;
+        }
+
+        /// <summary>
+        /// Save drives to LocalSettings cache
+        /// </summary>
+        private void SaveDrivesCache(List<DriveItem> drives)
+        {
+            try
+            {
+                var settings = Windows.Storage.ApplicationData.Current.LocalSettings;
+                var composite = new Windows.Storage.ApplicationDataCompositeValue
+                {
+                    ["Count"] = drives.Count
+                };
+
+                for (int i = 0; i < drives.Count; i++)
+                {
+                    var drive = drives[i];
+                    var driveData = new Windows.Storage.ApplicationDataCompositeValue
+                    {
+                        ["Name"] = drive.Name,
+                        ["Path"] = drive.Path,
+                        ["Label"] = drive.Label,
+                        ["TotalSize"] = drive.TotalSize,
+                        ["AvailableFreeSpace"] = drive.AvailableFreeSpace,
+                        ["DriveFormat"] = drive.DriveFormat,
+                        ["DriveType"] = drive.DriveType
+                    };
+                    composite[$"Drive{i}"] = driveData;
+                }
+
+                settings.Values["DrivesCache"] = composite;
+                Helpers.DebugLogger.Log($"[MainViewModel] Saved {drives.Count} drives to cache");
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[MainViewModel] Error saving drives to cache: {ex.Message}");
             }
         }
 
