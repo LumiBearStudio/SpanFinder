@@ -2,9 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Span.ViewModels;
 using System.Linq;
-using CommunityToolkit.WinUI.UI.Controls;
 using System;
-using System.Collections.Generic;
 using Windows.Storage;
 
 namespace Span.Views
@@ -47,8 +45,8 @@ namespace Span.Views
                     ViewModel = mainVm.Explorer;
                 }
 
-                // Restore column settings
-                RestoreColumnSettings();
+                // Restore sort settings
+                RestoreSortSettings();
             };
 
             this.Unloaded += OnUnloaded;
@@ -60,23 +58,18 @@ namespace Span.Views
             {
                 Helpers.DebugLogger.Log("[DetailsModeView.OnUnloaded] Starting cleanup...");
 
-                // Save column settings only if DataGrid is still valid
-                if (DetailsDataGrid != null && DetailsDataGrid.Columns != null)
-                {
-                    SaveColumnSettings();
-                }
+                // Save sort settings
+                SaveSortSettings();
 
-                // Disconnect DataGrid events
-                if (DetailsDataGrid != null)
+                // Disconnect ListView events
+                if (DetailsListView != null)
                 {
-                    DetailsDataGrid.Sorting -= OnDataGridSorting;
-                    DetailsDataGrid.ColumnReordered -= OnColumnReordered;
-                    DetailsDataGrid.DoubleTapped -= OnItemDoubleClick;
-                    DetailsDataGrid.KeyDown -= OnDetailsKeyDown;
+                    DetailsListView.DoubleTapped -= OnItemDoubleClick;
+                    DetailsListView.KeyDown -= OnDetailsKeyDown;
 
                     // Clear bindings to prevent memory leaks
-                    DetailsDataGrid.ItemsSource = null;
-                    DetailsDataGrid.SelectedItem = null;
+                    DetailsListView.ItemsSource = null;
+                    DetailsListView.SelectedItem = null;
                 }
 
                 // Clear ViewModel reference
@@ -157,7 +150,7 @@ namespace Span.Views
 
                 case Windows.System.VirtualKey.Up:
                 case Windows.System.VirtualKey.Down:
-                    // DataGrid handles Up/Down navigation by default
+                    // ListView handles Up/Down navigation by default
                     break;
             }
         }
@@ -188,46 +181,26 @@ namespace Span.Views
             }
         }
 
-        private void OnDataGridSorting(object sender, DataGridColumnEventArgs e)
+        private void OnHeaderClick(object sender, RoutedEventArgs e)
         {
-            // Get column tag to determine sort property
-            string sortBy = e.Column.Tag?.ToString() ?? "Name";
-
-            // Toggle sort direction if same column
-            if (_currentSortBy == sortBy)
+            if (sender is Button button && button.Tag is string sortBy)
             {
-                _isAscending = !_isAscending;
-            }
-            else
-            {
-                _currentSortBy = sortBy;
-                _isAscending = true;
-            }
-
-            // Apply sort
-            SortItems(sortBy, _isAscending);
-
-            // Update column sort direction indicator
-            e.Column.SortDirection = _isAscending
-                ? DataGridSortDirection.Ascending
-                : DataGridSortDirection.Descending;
-
-            // Clear other column indicators
-            foreach (var column in DetailsDataGrid.Columns)
-            {
-                if (column != e.Column)
+                // Toggle sort direction if same column
+                if (_currentSortBy == sortBy)
                 {
-                    column.SortDirection = null;
+                    _isAscending = !_isAscending;
                 }
+                else
+                {
+                    _currentSortBy = sortBy;
+                    _isAscending = true;
+                }
+
+                // Apply sort
+                SortItems(sortBy, _isAscending);
+
+                Helpers.DebugLogger.Log($"[DetailsModeView] Sorted by {sortBy} ({(_isAscending ? "Asc" : "Desc")})");
             }
-
-            Helpers.DebugLogger.Log($"[DetailsModeView] DataGrid sorted by {sortBy} ({(_isAscending ? "Asc" : "Desc")})");
-        }
-
-        private void OnColumnReordered(object sender, DataGridColumnEventArgs e)
-        {
-            Helpers.DebugLogger.Log($"[DetailsModeView] Column reordered: {e.Column.Header}");
-            SaveColumnSettings();
         }
 
         private void SortItems(string sortBy, bool ascending)
@@ -302,71 +275,31 @@ namespace Span.Views
             }
         }
 
-        private void SaveColumnSettings()
+        private void SaveSortSettings()
         {
             try
             {
-                // Check if DataGrid and its columns are still valid
-                if (DetailsDataGrid == null || DetailsDataGrid.Columns == null || DetailsDataGrid.Columns.Count == 0)
+                var composite = new ApplicationDataCompositeValue
                 {
-                    Helpers.DebugLogger.Log("[DetailsModeView] DataGrid not valid, skipping save");
-                    return;
-                }
+                    ["SortColumn"] = _currentSortBy,
+                    ["SortAscending"] = _isAscending
+                };
 
-                var composite = new ApplicationDataCompositeValue();
-
-                // Save column widths
-                for (int i = 0; i < DetailsDataGrid.Columns.Count; i++)
-                {
-                    var column = DetailsDataGrid.Columns[i];
-                    if (column != null)
-                    {
-                        composite[$"Column{i}_Width"] = column.ActualWidth;
-                        composite[$"Column{i}_DisplayIndex"] = column.DisplayIndex;
-                    }
-                }
-
-                // Save sort settings
-                composite["SortColumn"] = _currentSortBy;
-                composite["SortAscending"] = _isAscending;
-
-                _localSettings.Values["DetailsViewColumns"] = composite;
-                Helpers.DebugLogger.Log("[DetailsModeView] Column settings saved");
-            }
-            catch (ObjectDisposedException)
-            {
-                // Ignore if objects are already disposed during shutdown
-                Helpers.DebugLogger.Log("[DetailsModeView] Objects disposed, skipping save");
+                _localSettings.Values["DetailsViewSort"] = composite;
+                Helpers.DebugLogger.Log("[DetailsModeView] Sort settings saved");
             }
             catch (Exception ex)
             {
-                Helpers.DebugLogger.Log($"[DetailsModeView] Error saving column settings: {ex.Message}");
+                Helpers.DebugLogger.Log($"[DetailsModeView] Error saving sort settings: {ex.Message}");
             }
         }
 
-        private void RestoreColumnSettings()
+        private void RestoreSortSettings()
         {
             try
             {
-                if (_localSettings.Values["DetailsViewColumns"] is ApplicationDataCompositeValue composite)
+                if (_localSettings.Values["DetailsViewSort"] is ApplicationDataCompositeValue composite)
                 {
-                    // Restore column widths
-                    for (int i = 0; i < DetailsDataGrid.Columns.Count; i++)
-                    {
-                        var column = DetailsDataGrid.Columns[i];
-
-                        if (composite.TryGetValue($"Column{i}_Width", out var widthObj) && widthObj is double width)
-                        {
-                            column.Width = new DataGridLength(width);
-                        }
-
-                        if (composite.TryGetValue($"Column{i}_DisplayIndex", out var indexObj) && indexObj is int displayIndex)
-                        {
-                            column.DisplayIndex = displayIndex;
-                        }
-                    }
-
-                    // Restore sort settings
                     if (composite.TryGetValue("SortColumn", out var sortObj) && sortObj is string sortColumn)
                     {
                         _currentSortBy = sortColumn;
@@ -380,30 +313,21 @@ namespace Span.Views
                     // Apply restored sort
                     SortItems(_currentSortBy, _isAscending);
 
-                    // Update visual indicators
-                    var sortedColumn = DetailsDataGrid.Columns.FirstOrDefault(c => c.Tag?.ToString() == _currentSortBy);
-                    if (sortedColumn != null)
-                    {
-                        sortedColumn.SortDirection = _isAscending
-                            ? DataGridSortDirection.Ascending
-                            : DataGridSortDirection.Descending;
-                    }
-
-                    Helpers.DebugLogger.Log("[DetailsModeView] Column settings restored");
+                    Helpers.DebugLogger.Log("[DetailsModeView] Sort settings restored");
                 }
             }
             catch (Exception ex)
             {
-                Helpers.DebugLogger.Log($"[DetailsModeView] Error restoring column settings: {ex.Message}");
+                Helpers.DebugLogger.Log($"[DetailsModeView] Error restoring sort settings: {ex.Message}");
             }
         }
 
         /// <summary>
-        /// Focus the Details DataGrid (called from MainWindow on view switch)
+        /// Focus the Details ListView (called from MainWindow on view switch)
         /// </summary>
         public void FocusDataGrid()
         {
-            DetailsDataGrid?.Focus(FocusState.Programmatic);
+            DetailsListView?.Focus(FocusState.Programmatic);
         }
 
         // Keep old method for compatibility
@@ -419,19 +343,17 @@ namespace Span.Views
             {
                 Helpers.DebugLogger.Log("[DetailsModeView.Cleanup] Starting early cleanup...");
 
-                if (DetailsDataGrid != null)
+                if (DetailsListView != null)
                 {
                     // Disconnect events FIRST
-                    DetailsDataGrid.Sorting -= OnDataGridSorting;
-                    DetailsDataGrid.ColumnReordered -= OnColumnReordered;
-                    DetailsDataGrid.DoubleTapped -= OnItemDoubleClick;
-                    DetailsDataGrid.KeyDown -= OnDetailsKeyDown;
+                    DetailsListView.DoubleTapped -= OnItemDoubleClick;
+                    DetailsListView.KeyDown -= OnDetailsKeyDown;
 
                     // Clear data bindings to prevent WinUI internal crash
-                    DetailsDataGrid.ItemsSource = null;
-                    DetailsDataGrid.SelectedItem = null;
+                    DetailsListView.ItemsSource = null;
+                    DetailsListView.SelectedItem = null;
 
-                    Helpers.DebugLogger.Log("[DetailsModeView.Cleanup] DataGrid disconnected");
+                    Helpers.DebugLogger.Log("[DetailsModeView.Cleanup] ListView disconnected");
                 }
 
                 // Clear ViewModel reference
