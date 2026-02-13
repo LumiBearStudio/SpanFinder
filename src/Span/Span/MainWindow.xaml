@@ -351,14 +351,9 @@
                 <views:DetailsModeView x:Name="DetailsView"
                                        Visibility="{x:Bind IsDetailsMode(ViewModel.CurrentViewMode), Mode=OneWay}"/>
 
-                <!-- Icon View (Placeholder for Phase 3) -->
-                <Grid x:Name="IconView"
-                      Visibility="{x:Bind IsIconMode(ViewModel.CurrentViewMode), Mode=OneWay}">
-                    <TextBlock Text="Icon View (Coming Soon)"
-                               HorizontalAlignment="Center"
-                               VerticalAlignment="Center"
-                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                </Grid>
+                <!-- Icon View -->
+                <views:IconModeView x:Name="IconView"
+                                    Visibility="{x:Bind IsIconMode(ViewModel.CurrentViewMode), Mode=OneWay}"/>
 
             </Grid>
 

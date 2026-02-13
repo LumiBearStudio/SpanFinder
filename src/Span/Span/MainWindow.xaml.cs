@@ -224,6 +224,7 @@ namespace Span
                     case Windows.System.VirtualKey.Number3:
                         // Ctrl+3: Icon (마지막 Icon 크기)
                         ViewModel.SwitchViewMode(ViewModel.CurrentIconSize);
+                        IconView?.UpdateIconSize(ViewModel.CurrentIconSize);
                         e.Handled = true;
                         break;
                 }
@@ -1353,21 +1354,25 @@ namespace Span
         private void OnViewModeIconExtraLarge(object sender, RoutedEventArgs e)
         {
             ViewModel.SwitchViewMode(Models.ViewMode.IconExtraLarge);
+            IconView?.UpdateIconSize(Models.ViewMode.IconExtraLarge);
         }
 
         private void OnViewModeIconLarge(object sender, RoutedEventArgs e)
         {
             ViewModel.SwitchViewMode(Models.ViewMode.IconLarge);
+            IconView?.UpdateIconSize(Models.ViewMode.IconLarge);
         }
 
         private void OnViewModeIconMedium(object sender, RoutedEventArgs e)
         {
             ViewModel.SwitchViewMode(Models.ViewMode.IconMedium);
+            IconView?.UpdateIconSize(Models.ViewMode.IconMedium);
         }
 
         private void OnViewModeIconSmall(object sender, RoutedEventArgs e)
         {
             ViewModel.SwitchViewMode(Models.ViewMode.IconSmall);
+            IconView?.UpdateIconSize(Models.ViewMode.IconSmall);
         }
 
         // Visibility helper functions for x:Bind
