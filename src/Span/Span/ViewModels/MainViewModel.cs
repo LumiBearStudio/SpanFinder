@@ -44,6 +44,12 @@ namespace Span.ViewModels
         [ObservableProperty]
         private string _statusBarText = string.Empty;
 
+        [ObservableProperty]
+        private ViewMode _currentViewMode = ViewMode.MillerColumns;
+
+        [ObservableProperty]
+        private ViewMode _currentIconSize = ViewMode.IconMedium; // Icon 모드 기본 크기
+
         public FileOperationProgressViewModel ProgressViewModel => _progressViewModel;
 
         public MainViewModel(FileSystemService fileService)
@@ -70,6 +76,9 @@ namespace Span.ViewModels
 
             // Populate Sidebar
             LoadDrives();
+
+            // Load ViewMode preference
+            LoadViewModePreference();
         }
 
         private async void LoadDrives()
@@ -240,6 +249,76 @@ namespace Span.ViewModels
         {
             // TODO: Implement error dialog
             StatusBarText = $"Error: {message}";
+        }
+
+        /// <summary>
+        /// 뷰 모드 전환
+        /// </summary>
+        public void SwitchViewMode(ViewMode mode)
+        {
+            if (CurrentViewMode == mode) return;
+
+            // Icon 모드 전환 시 크기 업데이트
+            if (Helpers.ViewModeExtensions.IsIconMode(mode))
+            {
+                CurrentIconSize = mode;
+                // UI에서는 Icon 통합 표시를 위해 IconMedium으로 설정하지만,
+                // 실제 크기는 CurrentIconSize로 구분
+                CurrentViewMode = mode; // Icon 계열은 각각 독립적인 ViewMode
+            }
+            else
+            {
+                CurrentViewMode = mode;
+            }
+
+            SaveViewModePreference();
+            Helpers.DebugLogger.Log($"[MainViewModel] ViewMode changed: {Helpers.ViewModeExtensions.GetDisplayName(mode)}");
+        }
+
+        /// <summary>
+        /// ViewMode 설정 저장 (LocalSettings)
+        /// </summary>
+        private void SaveViewModePreference()
+        {
+            try
+            {
+                var settings = Windows.Storage.ApplicationData.Current.LocalSettings;
+                settings.Values["ViewMode"] = (int)CurrentViewMode;
+                settings.Values["IconSize"] = (int)CurrentIconSize;
+                Helpers.DebugLogger.Log($"[MainViewModel] ViewMode saved: {CurrentViewMode}, IconSize: {CurrentIconSize}");
+            }
+            catch (System.Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"SaveViewModePreference error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// ViewMode 설정 로드 (앱 시작 시)
+        /// </summary>
+        public void LoadViewModePreference()
+        {
+            try
+            {
+                var settings = Windows.Storage.ApplicationData.Current.LocalSettings;
+
+                if (settings.Values.TryGetValue("ViewMode", out var mode))
+                {
+                    CurrentViewMode = (ViewMode)(int)mode;
+                }
+
+                if (settings.Values.TryGetValue("IconSize", out var size))
+                {
+                    CurrentIconSize = (ViewMode)(int)size;
+                }
+
+                Helpers.DebugLogger.Log($"[MainViewModel] ViewMode loaded: {Helpers.ViewModeExtensions.GetDisplayName(CurrentViewMode)}");
+            }
+            catch (System.Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"LoadViewModePreference error: {ex.Message}");
+                CurrentViewMode = ViewMode.MillerColumns; // Fallback
+            }
         }
     }
 }

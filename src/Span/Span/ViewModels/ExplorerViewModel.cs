@@ -22,6 +22,18 @@ namespace Span.ViewModels
 
         public string CurrentFolderName => System.IO.Path.GetFileName(CurrentPath) is string s && !string.IsNullOrEmpty(s) ? s : CurrentPath;
 
+        /// <summary>
+        /// 현재 활성 폴더 (Details/Icon 모드용)
+        /// Miller Columns의 마지막 컬럼 반환
+        /// </summary>
+        public FolderViewModel? CurrentFolder => Columns.LastOrDefault();
+
+        /// <summary>
+        /// 현재 표시할 항목 리스트 (Details/Icon 모드용)
+        /// </summary>
+        public ObservableCollection<FileSystemViewModel> CurrentItems =>
+            CurrentFolder?.Children ?? new ObservableCollection<FileSystemViewModel>();
+
         private readonly FileSystemService _fileService;
 
         // Debouncing for folder selection (Phase 1)

@@ -208,6 +208,24 @@ namespace Span
                         _ = ViewModel.RedoCommand.ExecuteAsync(null);
                         e.Handled = true;
                         break;
+
+                    case Windows.System.VirtualKey.Number1:
+                        // Ctrl+1: Miller Columns
+                        ViewModel.SwitchViewMode(Models.ViewMode.MillerColumns);
+                        e.Handled = true;
+                        break;
+
+                    case Windows.System.VirtualKey.Number2:
+                        // Ctrl+2: Details
+                        ViewModel.SwitchViewMode(Models.ViewMode.Details);
+                        e.Handled = true;
+                        break;
+
+                    case Windows.System.VirtualKey.Number3:
+                        // Ctrl+3: Icon (마지막 Icon 크기)
+                        ViewModel.SwitchViewMode(ViewModel.CurrentIconSize);
+                        e.Handled = true;
+                        break;
                 }
             }
             else if (shift)
@@ -1210,6 +1228,9 @@ namespace Span
             if (column.Children == null || column.Children.Count == 0)
                 return;
 
+            // CRITICAL: Save current selection BEFORE sorting
+            var savedSelection = column.SelectedChild;
+
             // Determine sort direction
             bool isAscending = ascending ?? true;
 
@@ -1274,7 +1295,14 @@ namespace Span
                 column.Children.Add(item);
             }
 
-            Helpers.DebugLogger.Log($"[SortCurrentColumn] Sorted by {sortBy} ({(isAscending ? "Ascending" : "Descending")}), {sortedList.Count} items");
+            // CRITICAL: Restore selection AFTER sorting
+            // This prevents focus from jumping to last tab
+            if (savedSelection != null)
+            {
+                column.SelectedChild = savedSelection;
+            }
+
+            Helpers.DebugLogger.Log($"[SortCurrentColumn] Sorted by {sortBy} ({(isAscending ? "Ascending" : "Descending")}), {sortedList.Count} items, selection restored: {savedSelection?.Name ?? "null"}");
         }
 
         private DateTime GetDateModified(FileSystemViewModel vm)
@@ -1303,21 +1331,38 @@ namespace Span
         // View mode handlers
         private void OnViewModeMillerColumns(object sender, RoutedEventArgs e)
         {
-            // Miller Columns is the current default mode
-            Helpers.DebugLogger.Log("[ViewMode] Miller Columns selected");
-        }
-
-        private void OnViewModeList(object sender, RoutedEventArgs e)
-        {
-            // TODO: Implement list view mode
-            Helpers.DebugLogger.Log("[ViewMode] List view not yet implemented");
+            ViewModel.SwitchViewMode(Models.ViewMode.MillerColumns);
         }
 
         private void OnViewModeDetails(object sender, RoutedEventArgs e)
         {
-            // TODO: Implement details view mode
-            Helpers.DebugLogger.Log("[ViewMode] Details view not yet implemented");
+            ViewModel.SwitchViewMode(Models.ViewMode.Details);
         }
+
+        private void OnViewModeIconExtraLarge(object sender, RoutedEventArgs e)
+        {
+            ViewModel.SwitchViewMode(Models.ViewMode.IconExtraLarge);
+        }
+
+        private void OnViewModeIconLarge(object sender, RoutedEventArgs e)
+        {
+            ViewModel.SwitchViewMode(Models.ViewMode.IconLarge);
+        }
+
+        private void OnViewModeIconMedium(object sender, RoutedEventArgs e)
+        {
+            ViewModel.SwitchViewMode(Models.ViewMode.IconMedium);
+        }
+
+        private void OnViewModeIconSmall(object sender, RoutedEventArgs e)
+        {
+            ViewModel.SwitchViewMode(Models.ViewMode.IconSmall);
+        }
+
+        // Visibility helper functions for x:Bind
+        public bool IsMillerColumnsMode(Models.ViewMode mode) => mode == Models.ViewMode.MillerColumns;
+        public bool IsDetailsMode(Models.ViewMode mode) => mode == Models.ViewMode.Details;
+        public bool IsIconMode(Models.ViewMode mode) => Helpers.ViewModeExtensions.IsIconMode(mode);
 
         // Sort menu opening - update checkmarks and icons
         private void OnSortMenuOpening(object sender, object e)
