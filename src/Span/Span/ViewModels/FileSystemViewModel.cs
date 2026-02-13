@@ -32,7 +32,13 @@ namespace Span.ViewModels
         /// </summary>
         public void BeginRename()
         {
-            EditableName = System.IO.Path.GetFileNameWithoutExtension(Name);
+            // 폴더는 전체 이름 사용 (.claude 같은 dot-prefixed 폴더 지원)
+            // 파일은 확장자를 제외한 이름 사용
+            if (this is FolderViewModel)
+                EditableName = Name;
+            else
+                EditableName = System.IO.Path.GetFileNameWithoutExtension(Name);
+
             IsRenaming = true;
         }
 
@@ -43,12 +49,24 @@ namespace Span.ViewModels
         {
             IsRenaming = false;
             string newName = EditableName.Trim();
-            if (string.IsNullOrEmpty(newName) || newName == System.IO.Path.GetFileNameWithoutExtension(Name))
-                return false;
 
-            // 확장자 유지
-            string ext = System.IO.Path.GetExtension(Name);
-            string fullNewName = newName + ext;
+            // 폴더와 파일 구분하여 처리
+            string fullNewName;
+            if (this is FolderViewModel)
+            {
+                // 폴더: 전체 이름 비교 및 사용 (.claude 같은 dot-prefixed 폴더 지원)
+                if (string.IsNullOrEmpty(newName) || newName == Name)
+                    return false;
+                fullNewName = newName;
+            }
+            else
+            {
+                // 파일: 확장자 제외하고 비교, 확장자 유지
+                if (string.IsNullOrEmpty(newName) || newName == System.IO.Path.GetFileNameWithoutExtension(Name))
+                    return false;
+                string ext = System.IO.Path.GetExtension(Name);
+                fullNewName = newName + ext;
+            }
 
             string dir = System.IO.Path.GetDirectoryName(Path)!;
             string newPath = System.IO.Path.Combine(dir, fullNewName);

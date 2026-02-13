@@ -24,6 +24,10 @@ namespace Span.ViewModels
 
         private readonly FileSystemService _fileService;
 
+        // Debouncing for folder selection (Phase 1)
+        private CancellationTokenSource? _selectionDebounce;
+        private const int SelectionDebounceMs = 150;
+
         public ExplorerViewModel(FolderItem rootItem, FileSystemService fileService)
         {
             _fileService = fileService;
@@ -65,9 +69,14 @@ namespace Span.ViewModels
         /// </summary>
         public async void NavigateTo(FolderItem folder)
         {
-            // Cleanup all
+            Helpers.DebugLogger.Log($"[NavigateTo] Navigating to: {folder.Name}, clearing {Columns.Count} columns");
+
+            // Cleanup all - reset state before removing
             foreach (var col in Columns)
+            {
                 col.PropertyChanged -= FolderVm_PropertyChanged;
+                col.ResetState();
+            }
             Columns.Clear();
 
             var rootVm = new FolderViewModel(folder, _fileService);
@@ -75,6 +84,8 @@ namespace Span.ViewModels
 
             AddColumn(rootVm);
             CurrentPath = rootVm.Path;
+
+            Helpers.DebugLogger.Log($"[NavigateTo] Navigation complete. Current path: {CurrentPath}");
         }
 
         /// <summary>
@@ -167,11 +178,30 @@ namespace Span.ViewModels
         /// </summary>
         private void RemoveColumnsFrom(int startIndex)
         {
+            Helpers.DebugLogger.Log($"[RemoveColumnsFrom] Removing columns from index {startIndex}, current count: {Columns.Count}");
+
             for (int i = Columns.Count - 1; i >= startIndex; i--)
             {
-                Columns[i].PropertyChanged -= FolderVm_PropertyChanged;
+                var column = Columns[i];
+                Helpers.DebugLogger.Log($"[RemoveColumnsFrom] Removing column at index {i}: {column.Name}");
+
+                column.PropertyChanged -= FolderVm_PropertyChanged;
+
+                // Reset state so folder reloads fresh when revisited
+                column.ResetState();
+
                 Columns.RemoveAt(i);
             }
+
+            Helpers.DebugLogger.Log($"[RemoveColumnsFrom] Columns after removal: {string.Join(" > ", Columns.Select(c => c.Name))}");
+        }
+
+        /// <summary>
+        /// Public wrapper for column cleanup - used by MainWindow for delete operations.
+        /// </summary>
+        public void CleanupColumnsFrom(int startIndex)
+        {
+            RemoveColumnsFrom(startIndex);
         }
 
         private async void FolderVm_PropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -179,49 +209,122 @@ namespace Span.ViewModels
             if (e.PropertyName != nameof(FolderViewModel.SelectedChild)) return;
             if (sender is not FolderViewModel parentFolder) return;
 
-            int parentIndex = Columns.IndexOf(parentFolder);
-            if (parentIndex == -1) return;
+            Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Selection changed in '{parentFolder.Name}' to '{parentFolder.SelectedChild?.Name ?? "null"}'");
 
+            int parentIndex = Columns.IndexOf(parentFolder);
+            if (parentIndex == -1)
+            {
+                Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Parent folder not in Columns - ABORT");
+                return;
+            }
             int nextIndex = parentIndex + 1;
 
-            if (parentFolder.SelectedChild is FolderViewModel selectedFolder)
+            Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] ParentIndex: {parentIndex}, NextIndex: {nextIndex}");
+
+            // File or null selection: immediate processing (no debouncing)
+            if (parentFolder.SelectedChild is FileViewModel fileVm)
             {
-                // === Folder selected ===
-
-                // 1. Load children of the selected folder
-                await selectedFolder.EnsureChildrenLoadedAsync();
-
-                // 2. Remove columns from nextIndex+1 onwards (keep slot for N+1)
-                RemoveColumnsFrom(nextIndex + 1);
-
-                // 3. Replace or add column at nextIndex
-                if (nextIndex < Columns.Count)
-                {
-                    // REPLACE in-place: unsubscribe old, swap, subscribe new
-                    Columns[nextIndex].PropertyChanged -= FolderVm_PropertyChanged;
-                    selectedFolder.PropertyChanged += FolderVm_PropertyChanged;
-                    Columns[nextIndex] = selectedFolder;  // Triggers Replace notification (no remove+add jitter)
-                }
-                else
-                {
-                    // ADD new column
-                    AddColumn(selectedFolder);
-                }
-
-                // 4. Update path
-                CurrentPath = selectedFolder.Path;
-            }
-            else if (parentFolder.SelectedChild is FileViewModel fileVm)
-            {
-                // === File selected: remove all columns after parent ===
+                Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] File selected: {fileVm.Name} - removing columns from {nextIndex}");
                 RemoveColumnsFrom(nextIndex);
                 CurrentPath = fileVm.Path;
+                Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] ===== FILE SELECTION COMPLETE =====");
+                return;
             }
-            else
+
+            if (parentFolder.SelectedChild == null)
             {
-                // === Selection cleared ===
+                Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Null selection - removing columns from {nextIndex}");
                 RemoveColumnsFrom(nextIndex);
                 CurrentPath = parentFolder.Path;
+                Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] ===== NULL SELECTION COMPLETE =====");
+                return;
+            }
+
+            // Folder selection: apply debouncing
+            if (parentFolder.SelectedChild is FolderViewModel selectedFolder)
+            {
+                Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Folder selected: {selectedFolder.Name} - applying {SelectionDebounceMs}ms debounce");
+
+                // Cancel previous pending operation
+                _selectionDebounce?.Cancel();
+                _selectionDebounce = new CancellationTokenSource();
+                var token = _selectionDebounce.Token;
+
+                try
+                {
+                    await Task.Delay(SelectionDebounceMs, token);
+                    if (token.IsCancellationRequested)
+                    {
+                        Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Debounce cancelled - ABORT");
+                        return;
+                    }
+
+                    Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Debounce complete, validating state...");
+
+                    // Validate state after await
+                    if (Columns.IndexOf(parentFolder) != parentIndex)
+                    {
+                        Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Parent index changed - ABORT");
+                        return;
+                    }
+                    if (parentFolder.SelectedChild != selectedFolder)
+                    {
+                        Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Selection changed during debounce - ABORT");
+                        return;
+                    }
+
+                    Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Loading children for {selectedFolder.Name}...");
+                    await selectedFolder.EnsureChildrenLoadedAsync();
+
+                    // Re-validate AFTER loading completes
+                    if (token.IsCancellationRequested)
+                    {
+                        Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Cancelled after loading - ABORT");
+                        return;
+                    }
+                    if (Columns.IndexOf(parentFolder) != parentIndex)
+                    {
+                        Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Parent index changed after loading - ABORT");
+                        return;
+                    }
+                    if (parentFolder.SelectedChild != selectedFolder)
+                    {
+                        Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Selection changed after loading - ABORT");
+                        return;
+                    }
+
+                    Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Removing columns from {nextIndex + 1}");
+                    RemoveColumnsFrom(nextIndex + 1);
+
+                    // Replace or Add
+                    if (nextIndex < Columns.Count)
+                    {
+                        var oldColumn = Columns[nextIndex];
+                        Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Replacing column at index {nextIndex}: '{oldColumn.Name}' → '{selectedFolder.Name}'");
+
+                        // CRITICAL FIX: Reset old column state before replacing
+                        // This ensures the old FolderViewModel will reload fresh data when selected again
+                        oldColumn.PropertyChanged -= FolderVm_PropertyChanged;
+                        oldColumn.ResetState();
+
+                        selectedFolder.PropertyChanged += FolderVm_PropertyChanged;
+                        Columns[nextIndex] = selectedFolder;
+                    }
+                    else
+                    {
+                        Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Adding new column {selectedFolder.Name} at index {nextIndex}");
+                        AddColumn(selectedFolder);
+                    }
+
+                    CurrentPath = selectedFolder.Path;
+                    Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] CurrentPath updated to: {CurrentPath}");
+                    Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Columns: {string.Join(" > ", Columns.Select(c => c.Name))}");
+                    Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] ===== FOLDER SELECTION COMPLETE =====");
+                }
+                catch (TaskCanceledException)
+                {
+                    Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] TaskCanceledException caught");
+                }
             }
         }
     }

@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml.Media;
 using Microsoft.Extensions.DependencyInjection;
 using Span.Models;
 using Span.ViewModels;
+using Span.Services.FileOperations;
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
@@ -27,6 +28,13 @@ namespace Span
 
         // Rename 완료 직후 Enter가 파일 실행으로 이어지는 것을 방지
         private bool _justFinishedRename = false;
+
+        // Selection synchronization guard (Phase 1)
+        private bool _isSyncingSelection = false;
+
+        // Sort state
+        private string _currentSortField = "Name"; // Name, Date, Size, Type
+        private bool _currentSortAscending = true;
 
         private const double ColumnWidth = 220;
 
@@ -188,6 +196,29 @@ namespace Span
                             e.Handled = true;
                         }
                         break;
+
+                    case Windows.System.VirtualKey.Z:
+                        // Undo
+                        _ = ViewModel.UndoCommand.ExecuteAsync(null);
+                        e.Handled = true;
+                        break;
+
+                    case Windows.System.VirtualKey.Y:
+                        // Redo
+                        _ = ViewModel.RedoCommand.ExecuteAsync(null);
+                        e.Handled = true;
+                        break;
+                }
+            }
+            else if (shift)
+            {
+                // Shift without Ctrl
+                switch (e.Key)
+                {
+                    case Windows.System.VirtualKey.Delete:
+                        HandlePermanentDelete();
+                        e.Handled = true;
+                        break;
                 }
             }
             else
@@ -205,7 +236,7 @@ namespace Span
                         break;
 
                     case Windows.System.VirtualKey.Delete:
-                        HandleDelete();
+                        HandleDelete(); // Send to Recycle Bin
                         e.Handled = true;
                         break;
                 }
@@ -345,7 +376,20 @@ namespace Span
 
         private void HandleCopy()
         {
-            var selected = GetCurrentSelected();
+            var columns = ViewModel.Explorer.Columns;
+            int activeIndex = GetCurrentColumnIndex();
+            if (activeIndex < 0 || activeIndex >= columns.Count) return;
+
+            var currentColumn = columns[activeIndex];
+            var selected = currentColumn.SelectedChild;
+
+            // 선택된 항목이 없으면 첫 번째 항목 선택
+            if (selected == null && currentColumn.Children.Count > 0)
+            {
+                selected = currentColumn.Children[0];
+                currentColumn.SelectedChild = selected;
+            }
+
             if (selected == null) return;
 
             _clipboardPaths.Clear();
@@ -361,7 +405,20 @@ namespace Span
 
         private void HandleCut()
         {
-            var selected = GetCurrentSelected();
+            var columns = ViewModel.Explorer.Columns;
+            int activeIndex = GetCurrentColumnIndex();
+            if (activeIndex < 0 || activeIndex >= columns.Count) return;
+
+            var currentColumn = columns[activeIndex];
+            var selected = currentColumn.SelectedChild;
+
+            // 선택된 항목이 없으면 첫 번째 항목 선택
+            if (selected == null && currentColumn.Children.Count > 0)
+            {
+                selected = currentColumn.Children[0];
+                currentColumn.SelectedChild = selected;
+            }
+
             if (selected == null) return;
 
             _clipboardPaths.Clear();
@@ -518,16 +575,25 @@ namespace Span
 
         private void HandleRename()
         {
-            var selected = GetCurrentSelected();
+            var columns = ViewModel.Explorer.Columns;
+            int activeIndex = GetCurrentColumnIndex(); // Fixed: Use GetCurrentColumnIndex
+            if (activeIndex < 0 || activeIndex >= columns.Count) return;
+
+            var currentColumn = columns[activeIndex];
+            var selected = currentColumn.SelectedChild;
+
+            // 선택된 항목이 없으면 첫 번째 항목 선택
+            if (selected == null && currentColumn.Children.Count > 0)
+            {
+                selected = currentColumn.Children[0];
+                currentColumn.SelectedChild = selected;
+            }
+
             if (selected == null) return;
 
             selected.BeginRename();
 
             // TextBox에 포커스
-            var columns = ViewModel.Explorer.Columns;
-            int activeIndex = GetActiveColumnIndex();
-            if (activeIndex < 0) activeIndex = columns.Count - 1;
-
             DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
             {
                 FocusRenameTextBox(activeIndex);
@@ -590,8 +656,9 @@ namespace Span
             var vm = textBox.DataContext as FileSystemViewModel;
             if (vm == null || !vm.IsRenaming) return;
 
-            // 포커스 잃으면 커밋
-            vm.CommitRename();
+            // 포커스 잃으면 취소 (ESC와 동일한 동작)
+            vm.CancelRename();
+            _justFinishedRename = true;
         }
 
         /// <summary>
@@ -628,51 +695,124 @@ namespace Span
 
         private async void HandleDelete()
         {
-            var selected = GetCurrentSelected();
-            if (selected == null) return;
-
-            // ★ 다이얼로그 표시 전에 activeIndex를 저장 (다이얼로그가 포커스를 가져감)
+            // ★ Save activeIndex BEFORE showing dialog (modal dialog steals focus)
             var columns = ViewModel.Explorer.Columns;
-            int activeIndex = GetActiveColumnIndex();
-            if (activeIndex < 0) activeIndex = columns.Count - 1;
+            int activeIndex = GetCurrentColumnIndex();
             if (activeIndex < 0 || activeIndex >= columns.Count) return;
 
+            var currentColumn = columns[activeIndex];
+            var selected = currentColumn.SelectedChild;
+
+            // 선택된 항목이 없으면 첫 번째 항목 선택
+            if (selected == null && currentColumn.Children.Count > 0)
+            {
+                selected = currentColumn.Children[0];
+                currentColumn.SelectedChild = selected;
+            }
+
+            if (selected == null) return;
+
+            // Remember the selected item's index for smart selection after delete
+            int selectedIndex = currentColumn.Children.IndexOf(selected);
+
+            // Confirm delete (send to Recycle Bin)
             var dialog = new ContentDialog
             {
                 Title = "삭제 확인",
-                Content = $"'{selected.Name}'을(를) 삭제하시겠습니까?",
+                Content = $"'{selected.Name}'을(를) 휴지통으로 이동하시겠습니까?",
                 PrimaryButtonText = "삭제",
                 CloseButtonText = "취소",
                 XamlRoot = this.Content.XamlRoot,
-                DefaultButton = ContentDialogButton.Primary
+                DefaultButton = ContentDialogButton.Close
             };
 
             var result = await dialog.ShowAsync();
             if (result != ContentDialogResult.Primary) return;
 
-            try
+            Helpers.DebugLogger.Log($"[HandleDelete] Dialog confirmed. Selected: {selected.Name}, ActiveIndex: {activeIndex}");
+            Helpers.DebugLogger.Log($"[HandleDelete] Columns before delete: {string.Join(" > ", ViewModel.Explorer.Columns.Select(c => c.Name))}");
+
+            // Execute delete operation (send to Recycle Bin)
+            // Pass activeIndex so the correct column gets refreshed
+            var operation = new DeleteFileOperation(new List<string> { selected.Path }, permanent: false);
+            Helpers.DebugLogger.Log($"[HandleDelete] Calling ExecuteFileOperationAsync with targetColumnIndex={activeIndex}");
+            await ViewModel.ExecuteFileOperationAsync(operation, activeIndex);
+
+            Helpers.DebugLogger.Log($"[HandleDelete] After ExecuteFileOperationAsync. CurrentColumn children count: {currentColumn.Children.Count}");
+
+            // ★ Smart selection: Select the item at the same index, or the last item if index is out of bounds
+            // Note: RefreshCurrentFolderAsync() already cleared selection and reloaded
+            if (currentColumn.Children.Count > 0)
             {
-                if (selected is FolderViewModel)
-                    System.IO.Directory.Delete(selected.Path, true);
-                else
-                    System.IO.File.Delete(selected.Path);
-
-                // ★ 저장해둔 activeIndex로 해당 컬럼 새로고침
-                await columns[activeIndex].ReloadAsync();
-
-                // 삭제된 항목 이후의 컬럼들 제거
-                for (int i = columns.Count - 1; i > activeIndex; i--)
-                {
-                    columns.RemoveAt(i);
-                }
-
-                // 포커스 복원
-                FocusColumnAsync(activeIndex);
+                int newIndex = Math.Min(selectedIndex, currentColumn.Children.Count - 1);
+                currentColumn.SelectedChild = currentColumn.Children[newIndex];
+                Helpers.DebugLogger.Log($"[HandleDelete] Smart selection: selectedIndex={selectedIndex}, newIndex={newIndex}, selected={currentColumn.Children[newIndex].Name}");
             }
-            catch (Exception ex)
+            else
             {
-                System.Diagnostics.Debug.WriteLine($"Delete error: {ex.Message}");
+                Helpers.DebugLogger.Log($"[HandleDelete] No children after delete - selection cleared");
             }
+
+            // Remove columns after deleted item (using proper cleanup)
+            Helpers.DebugLogger.Log($"[HandleDelete] Cleaning up columns from index {activeIndex + 1}");
+            ViewModel.Explorer.CleanupColumnsFrom(activeIndex + 1);
+
+            Helpers.DebugLogger.Log($"[HandleDelete] Columns after cleanup: {string.Join(" > ", ViewModel.Explorer.Columns.Select(c => c.Name))}");
+
+            // Restore focus
+            Helpers.DebugLogger.Log($"[HandleDelete] Restoring focus to column {activeIndex}");
+            FocusColumnAsync(activeIndex);
+            Helpers.DebugLogger.Log($"[HandleDelete] ===== COMPLETE =====");
+        }
+
+        private async void HandlePermanentDelete()
+        {
+            var selected = GetCurrentSelected();
+            if (selected == null) return;
+
+            // ★ Save activeIndex and column reference BEFORE showing dialog
+            var columns = ViewModel.Explorer.Columns;
+            int activeIndex = GetActiveColumnIndex();
+            if (activeIndex < 0) activeIndex = columns.Count - 1;
+            if (activeIndex < 0 || activeIndex >= columns.Count) return;
+
+            var currentColumn = columns[activeIndex];
+
+            // Remember the selected item's index for smart selection after delete
+            int selectedIndex = currentColumn.Children.IndexOf(selected);
+
+            // Confirm permanent delete
+            var dialog = new ContentDialog
+            {
+                Title = "영구 삭제 확인",
+                Content = $"'{selected.Name}'을(를) 영구적으로 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.",
+                PrimaryButtonText = "영구 삭제",
+                CloseButtonText = "취소",
+                XamlRoot = this.Content.XamlRoot,
+                DefaultButton = ContentDialogButton.Close
+            };
+
+            var result = await dialog.ShowAsync();
+            if (result != ContentDialogResult.Primary) return;
+
+            // Execute permanent delete operation
+            // Pass activeIndex so the correct column gets refreshed
+            var operation = new DeleteFileOperation(new List<string> { selected.Path }, permanent: true);
+            await ViewModel.ExecuteFileOperationAsync(operation, activeIndex);
+
+            // ★ Smart selection: Select the item at the same index, or the last item if index is out of bounds
+            // Note: RefreshCurrentFolderAsync() already cleared selection and reloaded
+            if (currentColumn.Children.Count > 0)
+            {
+                int newIndex = Math.Min(selectedIndex, currentColumn.Children.Count - 1);
+                currentColumn.SelectedChild = currentColumn.Children[newIndex];
+            }
+
+            // Remove columns after deleted item (using proper cleanup)
+            ViewModel.Explorer.CleanupColumnsFrom(activeIndex + 1);
+
+            // Restore focus
+            FocusColumnAsync(activeIndex);
         }
 
 
@@ -725,6 +865,31 @@ namespace Span
             }
         }
 
+        /// <summary>
+        /// ListView 선택 변경 시 ViewModel과 명시적으로 동기화.
+        /// x:Bind Mode=TwoWay가 복잡한 객체에서 제대로 동작하지 않을 수 있으므로.
+        /// </summary>
+        private void OnMillerColumnSelectionChanged(object sender, Microsoft.UI.Xaml.Controls.SelectionChangedEventArgs e)
+        {
+            if (_isSyncingSelection) return; // Prevent circular updates
+
+            if (sender is ListView listView && listView.DataContext is FolderViewModel folderVm)
+            {
+                var newSelection = listView.SelectedItem as FileSystemViewModel;
+                if (ReferenceEquals(folderVm.SelectedChild, newSelection)) return; // Same selection, ignore
+
+                _isSyncingSelection = true;
+                try
+                {
+                    folderVm.SelectedChild = newSelection;
+                }
+                finally
+                {
+                    _isSyncingSelection = false;
+                }
+            }
+        }
+
 
         private FileSystemViewModel? GetCurrentSelected()
         {
@@ -760,6 +925,30 @@ namespace Span
                     return i;
             }
             return -1;
+        }
+
+        /// <summary>
+        /// Get the column index that should be used for operations when focus is lost.
+        /// Finds the rightmost column with a SelectedChild.
+        /// </summary>
+        private int GetCurrentColumnIndex()
+        {
+            var columns = ViewModel.Explorer.Columns;
+            if (columns.Count == 0) return -1;
+
+            // First try to get the focused column
+            int activeIndex = GetActiveColumnIndex();
+            if (activeIndex >= 0) return activeIndex;
+
+            // If no focus (e.g., toolbar button clicked), find rightmost column with selection
+            for (int i = columns.Count - 1; i >= 0; i--)
+            {
+                if (columns[i].SelectedChild != null)
+                    return i;
+            }
+
+            // Fallback: use the last column
+            return columns.Count - 1;
         }
 
         private async void FocusColumnAsync(int columnIndex)
@@ -938,6 +1127,250 @@ namespace Span
                 dataPackage.SetText(path);
                 Clipboard.SetContent(dataPackage);
             }
+        }
+
+        // =================================================================
+        // UNIFIED BAR BUTTON HANDLERS
+        // =================================================================
+
+        private void OnCutClick(object sender, RoutedEventArgs e)
+        {
+            HandleCut();
+        }
+
+        private void OnCopyClick(object sender, RoutedEventArgs e)
+        {
+            HandleCopy();
+        }
+
+        private void OnPasteClick(object sender, RoutedEventArgs e)
+        {
+            HandlePaste();
+        }
+
+        private void OnDeleteClick(object sender, RoutedEventArgs e)
+        {
+            HandleDelete();
+        }
+
+        private void OnNewFolderClick(object sender, RoutedEventArgs e)
+        {
+            HandleNewFolder();
+        }
+
+        private void OnRenameClick(object sender, RoutedEventArgs e)
+        {
+            HandleRename();
+        }
+
+        // Sort handlers
+        private void OnSortByName(object sender, RoutedEventArgs e)
+        {
+            _currentSortField = "Name";
+            SortCurrentColumn(_currentSortField, _currentSortAscending);
+        }
+
+        private void OnSortByDate(object sender, RoutedEventArgs e)
+        {
+            _currentSortField = "Date";
+            SortCurrentColumn(_currentSortField, _currentSortAscending);
+        }
+
+        private void OnSortBySize(object sender, RoutedEventArgs e)
+        {
+            _currentSortField = "Size";
+            SortCurrentColumn(_currentSortField, _currentSortAscending);
+        }
+
+        private void OnSortByType(object sender, RoutedEventArgs e)
+        {
+            _currentSortField = "Type";
+            SortCurrentColumn(_currentSortField, _currentSortAscending);
+        }
+
+        private void OnSortAscending(object sender, RoutedEventArgs e)
+        {
+            _currentSortAscending = true;
+            SortCurrentColumn(_currentSortField, _currentSortAscending);
+        }
+
+        private void OnSortDescending(object sender, RoutedEventArgs e)
+        {
+            _currentSortAscending = false;
+            SortCurrentColumn(_currentSortField, _currentSortAscending);
+        }
+
+        private void SortCurrentColumn(string sortBy, bool? ascending = null)
+        {
+            var activeIndex = GetCurrentColumnIndex();
+            if (activeIndex < 0 || activeIndex >= ViewModel.Explorer.Columns.Count)
+                return;
+
+            var column = ViewModel.Explorer.Columns[activeIndex];
+            if (column.Children == null || column.Children.Count == 0)
+                return;
+
+            // Determine sort direction
+            bool isAscending = ascending ?? true;
+
+            // Sort folders first, then files (Windows Explorer behavior)
+            IEnumerable<FileSystemViewModel> sorted;
+
+            switch (sortBy)
+            {
+                case "Name":
+                    sorted = isAscending
+                        ? column.Children
+                            .OrderBy(x => x is FileViewModel ? 1 : 0)  // Folders first
+                            .ThenBy(x => x.Name, Helpers.NaturalStringComparer.Instance)
+                        : column.Children
+                            .OrderBy(x => x is FileViewModel ? 1 : 0)  // Folders first
+                            .ThenByDescending(x => x.Name, Helpers.NaturalStringComparer.Instance);
+                    break;
+
+                case "Date":
+                    sorted = isAscending
+                        ? column.Children
+                            .OrderBy(x => x is FileViewModel ? 1 : 0)
+                            .ThenBy(x => GetDateModified(x))
+                        : column.Children
+                            .OrderBy(x => x is FileViewModel ? 1 : 0)
+                            .ThenByDescending(x => GetDateModified(x));
+                    break;
+
+                case "Size":
+                    sorted = isAscending
+                        ? column.Children
+                            .OrderBy(x => x is FileViewModel ? 1 : 0)
+                            .ThenBy(x => GetSize(x))
+                        : column.Children
+                            .OrderBy(x => x is FileViewModel ? 1 : 0)
+                            .ThenByDescending(x => GetSize(x));
+                    break;
+
+                case "Type":
+                    sorted = isAscending
+                        ? column.Children
+                            .OrderBy(x => x is FileViewModel ? 1 : 0)
+                            .ThenBy(x => GetFileType(x))
+                            .ThenBy(x => x.Name, Helpers.NaturalStringComparer.Instance)
+                        : column.Children
+                            .OrderBy(x => x is FileViewModel ? 1 : 0)
+                            .ThenByDescending(x => GetFileType(x))
+                            .ThenBy(x => x.Name, Helpers.NaturalStringComparer.Instance);
+                    break;
+
+                default:
+                    sorted = column.Children;
+                    break;
+            }
+
+            var sortedList = sorted.ToList();
+
+            // Update collection
+            column.Children.Clear();
+            foreach (var item in sortedList)
+            {
+                column.Children.Add(item);
+            }
+
+            Helpers.DebugLogger.Log($"[SortCurrentColumn] Sorted by {sortBy} ({(isAscending ? "Ascending" : "Descending")}), {sortedList.Count} items");
+        }
+
+        private DateTime GetDateModified(FileSystemViewModel vm)
+        {
+            if (vm.Model is FileItem fileItem)
+                return fileItem.DateModified;
+            if (vm.Model is FolderItem folderItem)
+                return folderItem.DateModified;
+            return DateTime.MinValue;
+        }
+
+        private long GetSize(FileSystemViewModel vm)
+        {
+            if (vm.Model is FileItem fileItem)
+                return fileItem.Size;
+            return 0; // Folders have no size
+        }
+
+        private string GetFileType(FileSystemViewModel vm)
+        {
+            if (vm is FolderViewModel)
+                return "폴더";
+            return System.IO.Path.GetExtension(vm.Name);
+        }
+
+        // View mode handlers
+        private void OnViewModeMillerColumns(object sender, RoutedEventArgs e)
+        {
+            // Miller Columns is the current default mode
+            Helpers.DebugLogger.Log("[ViewMode] Miller Columns selected");
+        }
+
+        private void OnViewModeList(object sender, RoutedEventArgs e)
+        {
+            // TODO: Implement list view mode
+            Helpers.DebugLogger.Log("[ViewMode] List view not yet implemented");
+        }
+
+        private void OnViewModeDetails(object sender, RoutedEventArgs e)
+        {
+            // TODO: Implement details view mode
+            Helpers.DebugLogger.Log("[ViewMode] Details view not yet implemented");
+        }
+
+        // Sort menu opening - update checkmarks and icons
+        private void OnSortMenuOpening(object sender, object e)
+        {
+            // Clear all checkmarks
+            SortByNameItem.KeyboardAcceleratorTextOverride = string.Empty;
+            SortByDateItem.KeyboardAcceleratorTextOverride = string.Empty;
+            SortBySizeItem.KeyboardAcceleratorTextOverride = string.Empty;
+            SortByTypeItem.KeyboardAcceleratorTextOverride = string.Empty;
+            SortAscendingItem.KeyboardAcceleratorTextOverride = string.Empty;
+            SortDescendingItem.KeyboardAcceleratorTextOverride = string.Empty;
+
+            // Set checkmark on active sort field
+            switch (_currentSortField)
+            {
+                case "Name":
+                    SortByNameItem.KeyboardAcceleratorTextOverride = "✓";
+                    break;
+                case "Date":
+                    SortByDateItem.KeyboardAcceleratorTextOverride = "✓";
+                    break;
+                case "Size":
+                    SortBySizeItem.KeyboardAcceleratorTextOverride = "✓";
+                    break;
+                case "Type":
+                    SortByTypeItem.KeyboardAcceleratorTextOverride = "✓";
+                    break;
+            }
+
+            // Set checkmark on active sort direction
+            if (_currentSortAscending)
+                SortAscendingItem.KeyboardAcceleratorTextOverride = "✓";
+            else
+                SortDescendingItem.KeyboardAcceleratorTextOverride = "✓";
+
+            // Update button icons
+            UpdateSortButtonIcons();
+        }
+
+        private void UpdateSortButtonIcons()
+        {
+            // Update sort field icon
+            SortIcon.Glyph = _currentSortField switch
+            {
+                "Name" => "\uE8C1", // Name icon
+                "Date" => "\uE787", // Calendar icon
+                "Size" => "\uE7C6", // Size/ruler icon
+                "Type" => "\uE7C3", // Tag/category icon
+                _ => "\uE8CB" // Default sort icon
+            };
+
+            // Update sort direction icon
+            SortDirectionIcon.Glyph = _currentSortAscending ? "\uE74A" : "\uE74B"; // Up/Down arrow
         }
 
 

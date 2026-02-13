@@ -42,9 +42,18 @@ namespace Span.ViewModels
         /// </summary>
         public async Task EnsureChildrenLoadedAsync()
         {
-            if (_isLoaded) return;
+            Helpers.DebugLogger.Log($"[FolderViewModel.EnsureChildrenLoadedAsync] START - Folder: {Name}, _isLoaded: {_isLoaded}");
+
+            if (_isLoaded)
+            {
+                Helpers.DebugLogger.Log($"[FolderViewModel.EnsureChildrenLoadedAsync] Already loaded - RETURN");
+                return;
+            }
+
             _isLoaded = true;
             IsLoading = true;
+
+            Helpers.DebugLogger.Log($"[FolderViewModel.EnsureChildrenLoadedAsync] Loading children from disk...");
 
             _cts?.Cancel();
             _cts = new System.Threading.CancellationTokenSource();
@@ -98,35 +107,47 @@ namespace Span.ViewModels
 
                 if (!token.IsCancellationRequested)
                 {
-                    // Ensure UI update happens on UI thread
-                    var queue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
-                    if (queue != null)
+                    // Update Children synchronously - we're already on UI thread via await
+                    // CRITICAL FIX: Clear and re-add instead of replacing entire collection
+                    // This ensures UI bindings update correctly
+                    Helpers.DebugLogger.Log($"[FolderViewModel.EnsureChildrenLoadedAsync] Updating Children: {Children.Count} → {items.Count}");
+
+                    // Apply natural sorting: folders first, then files, both sorted naturally
+                    var sortedItems = items
+                        .OrderBy(x => x is FileViewModel ? 1 : 0)  // Folders first
+                        .ThenBy(x => x.Name, Helpers.NaturalStringComparer.Instance)
+                        .ToList();
+
+                    Children.Clear();
+                    foreach (var item in sortedItems)
                     {
-                        queue.TryEnqueue(() =>
-                        {
-                            if (!token.IsCancellationRequested)
-                                Children = new ObservableCollection<FileSystemViewModel>(items);
-                        });
+                        Children.Add(item);
                     }
-                    else
-                    {
-                        // Fallback if queue is null (e.g. unit test or direct call), though less safe for UI binding
-                        Children = new ObservableCollection<FileSystemViewModel>(items);
-                    }
+
+                    Helpers.DebugLogger.Log($"[FolderViewModel.EnsureChildrenLoadedAsync] Children updated: {sortedItems.Count} items loaded (naturally sorted)");
+                }
+                else
+                {
+                    Helpers.DebugLogger.Log($"[FolderViewModel.EnsureChildrenLoadedAsync] Cancelled before updating Children");
                 }
             }
-            catch (TaskCanceledException) { }
+            catch (TaskCanceledException)
+            {
+                Helpers.DebugLogger.Log($"[FolderViewModel.EnsureChildrenLoadedAsync] TaskCanceledException caught");
+            }
             finally
             {
                 if (!token.IsCancellationRequested)
                 {
                     IsLoading = false;
+                    Helpers.DebugLogger.Log($"[FolderViewModel.EnsureChildrenLoadedAsync] IsLoading = false");
                 }
                 if (_cts?.Token == token)
                 {
                     _cts.Dispose();
                     _cts = null;
                 }
+                Helpers.DebugLogger.Log($"[FolderViewModel.EnsureChildrenLoadedAsync] ===== COMPLETE =====");
             }
         }
 
@@ -139,12 +160,40 @@ namespace Span.ViewModels
         }
 
         /// <summary>
+        /// Reset folder state when removed from view.
+        /// This ensures fresh data when folder is revisited.
+        /// </summary>
+        public void ResetState()
+        {
+            Helpers.DebugLogger.Log($"[FolderViewModel.ResetState] Resetting folder: {Name}");
+
+            // Cancel any pending loading
+            CancelLoading();
+
+            // Clear selection to reset focus
+            SelectedChild = null;
+
+            // Mark as not loaded so it reloads next time
+            _isLoaded = false;
+
+            Helpers.DebugLogger.Log($"[FolderViewModel.ResetState] Reset complete - _isLoaded=false, SelectedChild=null");
+        }
+
+        /// <summary>
         /// Force reload (F5 새로고침).
         /// </summary>
         public async Task ReloadAsync()
         {
+            Helpers.DebugLogger.Log($"[FolderViewModel.ReloadAsync] START - Folder: {Name}, Path: {Path}");
+            Helpers.DebugLogger.Log($"[FolderViewModel.ReloadAsync] Children before reload: {Children.Count}");
+
             _isLoaded = false;
+            Helpers.DebugLogger.Log($"[FolderViewModel.ReloadAsync] _isLoaded set to false, calling EnsureChildrenLoadedAsync()...");
+
             await EnsureChildrenLoadedAsync();
+
+            Helpers.DebugLogger.Log($"[FolderViewModel.ReloadAsync] Children after reload: {Children.Count}");
+            Helpers.DebugLogger.Log($"[FolderViewModel.ReloadAsync] ===== COMPLETE =====");
         }
 
         partial void OnSelectedChildChanged(FileSystemViewModel? value)
