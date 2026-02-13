@@ -1231,8 +1231,13 @@ namespace Span
             // CRITICAL: Save current selection BEFORE sorting
             var savedSelection = column.SelectedChild;
 
-            // Determine sort direction
-            bool isAscending = ascending ?? true;
+            // 🔒 Set sorting flag to prevent PropertyChanged events during sort
+            column.IsSorting = true;
+
+            try
+            {
+                // Determine sort direction
+                bool isAscending = ascending ?? true;
 
             // Sort folders first, then files (Windows Explorer behavior)
             IEnumerable<FileSystemViewModel> sorted;
@@ -1286,23 +1291,29 @@ namespace Span
                     break;
             }
 
-            var sortedList = sorted.ToList();
+                var sortedList = sorted.ToList();
 
-            // Update collection
-            column.Children.Clear();
-            foreach (var item in sortedList)
-            {
-                column.Children.Add(item);
+                // Update collection
+                column.Children.Clear();
+                foreach (var item in sortedList)
+                {
+                    column.Children.Add(item);
+                }
+
+                // CRITICAL: Restore selection AFTER sorting
+                // This prevents focus from jumping to last tab
+                if (savedSelection != null)
+                {
+                    column.SelectedChild = savedSelection;
+                }
+
+                Helpers.DebugLogger.Log($"[SortCurrentColumn] Sorted by {sortBy} ({(isAscending ? "Ascending" : "Descending")}), {sortedList.Count} items, selection restored: {savedSelection?.Name ?? "null"}");
             }
-
-            // CRITICAL: Restore selection AFTER sorting
-            // This prevents focus from jumping to last tab
-            if (savedSelection != null)
+            finally
             {
-                column.SelectedChild = savedSelection;
+                // 🔓 Always clear sorting flag, even if exception occurs
+                column.IsSorting = false;
             }
-
-            Helpers.DebugLogger.Log($"[SortCurrentColumn] Sorted by {sortBy} ({(isAscending ? "Ascending" : "Descending")}), {sortedList.Count} items, selection restored: {savedSelection?.Name ?? "null"}");
         }
 
         private DateTime GetDateModified(FileSystemViewModel vm)

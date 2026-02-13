@@ -221,6 +221,13 @@ namespace Span.ViewModels
             if (e.PropertyName != nameof(FolderViewModel.SelectedChild)) return;
             if (sender is not FolderViewModel parentFolder) return;
 
+            // CRITICAL: Ignore selection changes during sorting to prevent tab flickering
+            if (parentFolder.IsSorting)
+            {
+                Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Ignoring selection change during sorting");
+                return;
+            }
+
             Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Selection changed in '{parentFolder.Name}' to '{parentFolder.SelectedChild?.Name ?? "null"}'");
 
             int parentIndex = Columns.IndexOf(parentFolder);

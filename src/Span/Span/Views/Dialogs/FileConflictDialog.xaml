@@ -1,0 +1,183 @@
+<ContentDialog
+    x:Class="Span.Views.Dialogs.FileConflictDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="File Already Exists"
+    PrimaryButtonText="OK"
+    CloseButtonText="Cancel"
+    DefaultButton="Primary">
+
+    <Grid RowSpacing="16" Padding="0,8,0,0">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Conflict Message -->
+        <TextBlock Grid.Row="0"
+                   TextWrapping="Wrap">
+            <Run Text="A file with the same name already exists in this location:"/>
+            <LineBreak/>
+            <Run Text="{x:Bind ViewModel.DestinationPath, Mode=OneWay}"
+                 FontWeight="SemiBold"/>
+        </TextBlock>
+
+        <!-- File Comparison -->
+        <Grid Grid.Row="1" ColumnSpacing="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Source File Info -->
+            <Border Grid.Column="0"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="4"
+                    Padding="12">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="Source File"
+                               FontWeight="SemiBold"
+                               Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                    <TextBlock Text="{x:Bind ViewModel.SourcePath, Mode=OneWay}"
+                               TextWrapping="Wrap"
+                               FontSize="12"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <Grid ColumnSpacing="8">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0"
+                                   Text="Size:"
+                                   FontSize="12"/>
+                        <TextBlock Grid.Row="0" Grid.Column="1"
+                                   Text="{x:Bind FormatFileSize(ViewModel.SourceSize), Mode=OneWay}"
+                                   FontSize="12"
+                                   Margin="4,0,0,0"/>
+
+                        <TextBlock Grid.Row="1" Grid.Column="0"
+                                   Text="Modified:"
+                                   FontSize="12"/>
+                        <TextBlock Grid.Row="1" Grid.Column="1"
+                                   Text="{x:Bind FormatDateTime(ViewModel.SourceModified), Mode=OneWay}"
+                                   FontSize="12"
+                                   Margin="4,0,0,0"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- Destination File Info -->
+            <Border Grid.Column="1"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="4"
+                    Padding="12">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="Existing File"
+                               FontWeight="SemiBold"
+                               Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
+                    <TextBlock Text="{x:Bind ViewModel.DestinationPath, Mode=OneWay}"
+                               TextWrapping="Wrap"
+                               FontSize="12"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <Grid ColumnSpacing="8">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0"
+                                   Text="Size:"
+                                   FontSize="12"/>
+                        <TextBlock Grid.Row="0" Grid.Column="1"
+                                   Text="{x:Bind FormatFileSize(ViewModel.DestinationSize), Mode=OneWay}"
+                                   FontSize="12"
+                                   Margin="4,0,0,0"/>
+
+                        <TextBlock Grid.Row="1" Grid.Column="0"
+                                   Text="Modified:"
+                                   FontSize="12"/>
+                        <TextBlock Grid.Row="1" Grid.Column="1"
+                                   Text="{x:Bind FormatDateTime(ViewModel.DestinationModified), Mode=OneWay}"
+                                   FontSize="12"
+                                   Margin="4,0,0,0"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- Resolution Options -->
+        <StackPanel Grid.Row="2" Spacing="8">
+            <TextBlock Text="Choose what to do:"
+                       FontWeight="SemiBold"/>
+
+            <RadioButton Content="Replace the file in the destination"
+                         GroupName="ConflictResolution"
+                         IsChecked="{x:Bind IsReplace, Mode=TwoWay}">
+                <RadioButton.ContentTemplate>
+                    <DataTemplate>
+                        <StackPanel>
+                            <TextBlock Text="Replace the file in the destination"
+                                       FontWeight="SemiBold"/>
+                            <TextBlock Text="The existing file will be overwritten"
+                                       FontSize="12"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        </StackPanel>
+                    </DataTemplate>
+                </RadioButton.ContentTemplate>
+            </RadioButton>
+
+            <RadioButton Content="Keep both files"
+                         GroupName="ConflictResolution"
+                         IsChecked="{x:Bind IsKeepBoth, Mode=TwoWay}">
+                <RadioButton.ContentTemplate>
+                    <DataTemplate>
+                        <StackPanel>
+                            <TextBlock Text="Keep both files"
+                                       FontWeight="SemiBold"/>
+                            <TextBlock Text="The new file will be renamed automatically"
+                                       FontSize="12"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        </StackPanel>
+                    </DataTemplate>
+                </RadioButton.ContentTemplate>
+            </RadioButton>
+
+            <RadioButton Content="Skip this file"
+                         GroupName="ConflictResolution"
+                         IsChecked="{x:Bind IsSkip, Mode=TwoWay}">
+                <RadioButton.ContentTemplate>
+                    <DataTemplate>
+                        <StackPanel>
+                            <TextBlock Text="Skip this file"
+                                       FontWeight="SemiBold"/>
+                            <TextBlock Text="No changes will be made"
+                                       FontSize="12"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        </StackPanel>
+                    </DataTemplate>
+                </RadioButton.ContentTemplate>
+            </RadioButton>
+        </StackPanel>
+
+        <!-- Apply to All Checkbox -->
+        <CheckBox Grid.Row="3"
+                  Content="Apply this action to all conflicts"
+                  IsChecked="{x:Bind ViewModel.ApplyToAll, Mode=TwoWay}"/>
+    </Grid>
+</ContentDialog>

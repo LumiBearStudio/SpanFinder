@@ -25,6 +25,11 @@ namespace Span.ViewModels
         [ObservableProperty]
         private bool _isActive = false; // Indicates if this column has focus
 
+        /// <summary>
+        /// 정렬 중 플래그 - true일 때 PropertyChanged 이벤트 무시
+        /// </summary>
+        public bool IsSorting { get; set; } = false;
+
         public override string IconGlyph => Services.IconService.Current.FolderIcon;
         public override Microsoft.UI.Xaml.Media.Brush IconBrush => Services.IconService.Current.FolderBrush;
 
