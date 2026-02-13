@@ -56,6 +56,10 @@ namespace Span
             // Focus management on ViewMode change
             ViewModel.PropertyChanged += OnViewModelPropertyChanged;
 
+            // Set ViewModel for Details and Icon views
+            DetailsView.ViewModel = ViewModel.Explorer;
+            IconView.ViewModel = ViewModel.Explorer;
+
             // ★ ItemsControl에서 키보드 이벤트 가로채기 (ScrollViewer에 전달 차단)
             MillerColumnsControl.AddHandler(
                 UIElement.KeyDownEvent,
