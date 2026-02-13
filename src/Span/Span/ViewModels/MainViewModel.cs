@@ -28,6 +28,7 @@ namespace Span.ViewModels
         private readonly FileSystemService _fileService;
         private readonly FileOperationHistory _operationHistory;
         private readonly FileOperationProgressViewModel _progressViewModel;
+        private readonly System.Threading.CancellationTokenSource _shutdownCts = new();
 
         [ObservableProperty]
         private bool _canUndo = false;
@@ -83,31 +84,73 @@ namespace Span.ViewModels
 
         private async void LoadDrives()
         {
-            // Step 1: Load from cache immediately (fast)
-            var cachedDrives = LoadDrivesFromCache();
-            if (cachedDrives.Count > 0)
+            try
             {
+                // Step 1: Load from cache immediately (fast)
+                var cachedDrives = LoadDrivesFromCache();
+                if (cachedDrives.Count > 0)
+                {
+                    Drives.Clear();
+                    foreach (var drive in cachedDrives)
+                    {
+                        Drives.Add(drive);
+                    }
+                    Helpers.DebugLogger.Log($"[MainViewModel] Loaded {cachedDrives.Count} drives from cache");
+                }
+
+                // Step 2: Refresh from file system in background (accurate)
+                var drives = await _fileService.GetDrivesAsync();
+
+                // Step 3: Check if we're shutting down before updating UI
+                if (_shutdownCts.Token.IsCancellationRequested)
+                {
+                    Helpers.DebugLogger.Log("[MainViewModel] LoadDrives cancelled - app is shutting down");
+                    return;
+                }
+
+                // Step 4: Update UI and cache
                 Drives.Clear();
-                foreach (var drive in cachedDrives)
+                foreach (var drive in drives)
                 {
                     Drives.Add(drive);
                 }
-                Helpers.DebugLogger.Log($"[MainViewModel] Loaded {cachedDrives.Count} drives from cache");
+
+                // Step 5: Save updated list to cache
+                SaveDrivesCache(drives);
+                Helpers.DebugLogger.Log($"[MainViewModel] Loaded {drives.Count} drives from file system");
             }
-
-            // Step 2: Refresh from file system in background (accurate)
-            var drives = await _fileService.GetDrivesAsync();
-
-            // Step 3: Update UI and cache
-            Drives.Clear();
-            foreach (var drive in drives)
+            catch (System.OperationCanceledException)
             {
-                Drives.Add(drive);
+                Helpers.DebugLogger.Log("[MainViewModel] LoadDrives cancelled");
             }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[MainViewModel] LoadDrives error: {ex.Message}");
+            }
+        }
 
-            // Step 4: Save updated list to cache
-            SaveDrivesCache(drives);
-            Helpers.DebugLogger.Log($"[MainViewModel] Loaded {drives.Count} drives from file system");
+        /// <summary>
+        /// Cleanup resources when app is closing
+        /// </summary>
+        public void Cleanup()
+        {
+            try
+            {
+                Helpers.DebugLogger.Log("[MainViewModel] Starting cleanup...");
+
+                // Cancel any ongoing background operations
+                _shutdownCts?.Cancel();
+
+                // Clear collections
+                Drives.Clear();
+                Tabs.Clear();
+
+                Helpers.DebugLogger.Log("[MainViewModel] Cleanup complete");
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[MainViewModel] Cleanup error: {ex.Message}");
+            }
         }
 
         /// <summary>

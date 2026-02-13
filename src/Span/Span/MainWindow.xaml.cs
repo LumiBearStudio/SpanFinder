@@ -146,8 +146,9 @@ namespace Span
                     MillerColumnsControl.RemoveHandler(UIElement.KeyDownEvent, (KeyEventHandler)OnMillerKeyDown);
                 }
 
-                // Clean up ExplorerViewModel resources
-                ViewModel?.Explorer?.Cleanup();
+                // Clean up ViewModels
+                ViewModel?.Cleanup();  // Cancel background operations (LoadDrives, etc.)
+                ViewModel?.Explorer?.Cleanup();  // Clean up Explorer columns
 
                 Helpers.DebugLogger.Log("[MainWindow.OnClosed] Cleanup complete");
             }
