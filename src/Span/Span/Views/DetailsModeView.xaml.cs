@@ -1,6 +1,5 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
 using Span.ViewModels;
 using System.Linq;
 using System;
@@ -21,7 +20,7 @@ namespace Span.Views
 
                 if (_viewModel != null && _isLoaded)
                 {
-                    SortItems("Name", true);
+                    SortItems(_currentSortBy, _isAscending);
                 }
             }
         }
@@ -31,12 +30,15 @@ namespace Span.Views
         private bool _isLoaded = false;
         private readonly ApplicationDataContainer _localSettings = ApplicationData.Current.LocalSettings;
 
-        // Column width synchronization
-        private double _iconWidth = 40;
-        private double _nameWidth = 0; // Will be calculated
-        private double _dateWidth = 200;
-        private double _typeWidth = 150;
-        private double _sizeWidth = 100;
+        // Current column widths (read from header ColumnDefinitions)
+        private double _dateColumnWidth = 200;
+        private double _typeColumnWidth = 150;
+        private double _sizeColumnWidth = 100;
+
+        // Callback tokens for ColumnDefinition.WidthProperty change tracking
+        private long _dateCallbackToken;
+        private long _typeCallbackToken;
+        private long _sizeCallbackToken;
 
         public DetailsModeView()
         {
@@ -56,11 +58,16 @@ namespace Span.Views
                 // Restore sort settings
                 RestoreSortSettings();
 
-                // Subscribe to header grid size changes for column width synchronization
-                if (HeaderGrid != null)
-                {
-                    HeaderGrid.SizeChanged += OnHeaderGridSizeChanged;
-                }
+                // Subscribe to ColumnDefinition.Width changes via RegisterPropertyChangedCallback.
+                // CRITICAL: HeaderGrid.SizeChanged does NOT fire when GridSplitter rearranges
+                // internal columns — the Grid's total size stays the same. We must watch
+                // each ColumnDefinition individually.
+                _dateCallbackToken = DateColumnDef.RegisterPropertyChangedCallback(
+                    ColumnDefinition.WidthProperty, OnColumnWidthChanged);
+                _typeCallbackToken = TypeColumnDef.RegisterPropertyChangedCallback(
+                    ColumnDefinition.WidthProperty, OnColumnWidthChanged);
+                _sizeCallbackToken = SizeColumnDef.RegisterPropertyChangedCallback(
+                    ColumnDefinition.WidthProperty, OnColumnWidthChanged);
             };
 
             this.Unloaded += OnUnloaded;
@@ -75,11 +82,17 @@ namespace Span.Views
                 // Save sort settings
                 SaveSortSettings();
 
+                // Unsubscribe from ColumnDefinition property change callbacks
+                DateColumnDef.UnregisterPropertyChangedCallback(ColumnDefinition.WidthProperty, _dateCallbackToken);
+                TypeColumnDef.UnregisterPropertyChangedCallback(ColumnDefinition.WidthProperty, _typeCallbackToken);
+                SizeColumnDef.UnregisterPropertyChangedCallback(ColumnDefinition.WidthProperty, _sizeCallbackToken);
+
                 // Disconnect ListView events
                 if (DetailsListView != null)
                 {
                     DetailsListView.DoubleTapped -= OnItemDoubleClick;
                     DetailsListView.KeyDown -= OnDetailsKeyDown;
+                    DetailsListView.ContainerContentChanging -= OnContainerContentChanging;
 
                     // Clear bindings to prevent memory leaks
                     DetailsListView.ItemsSource = null;
@@ -101,6 +114,89 @@ namespace Span.Views
             }
         }
 
+        #region Column Width Synchronization
+
+        /// <summary>
+        /// Fired when any of the 3 resizable ColumnDefinitions change Width
+        /// (via GridSplitter drag or window resize).
+        ///
+        /// WinUI 3 bugs that forced this approach:
+        /// 1. ColumnDefinition.Width binding in DataTemplate doesn't respond
+        ///    to INotifyPropertyChanged (Microsoft Issue #10300).
+        /// 2. Grid.SizeChanged does NOT fire when GridSplitter rearranges
+        ///    internal columns (total Grid size stays the same).
+        ///
+        /// Solution: RegisterPropertyChangedCallback on each ColumnDefinition,
+        /// then set Border.Width directly on each cell element.
+        /// </summary>
+        private void OnColumnWidthChanged(DependencyObject sender, DependencyProperty dp)
+        {
+            _dateColumnWidth = DateColumnDef.ActualWidth;
+            _typeColumnWidth = TypeColumnDef.ActualWidth;
+            _sizeColumnWidth = SizeColumnDef.ActualWidth;
+
+            UpdateAllVisibleContainerWidths();
+        }
+
+        /// <summary>
+        /// Called when ListView containers are created or recycled.
+        /// Sets cell widths to match current header column widths.
+        /// This handles virtualization: newly realized containers get correct widths.
+        /// </summary>
+        private void OnContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
+        {
+            if (args.InRecycleQueue) return;
+
+            if (args.ItemContainer?.ContentTemplateRoot is Grid grid)
+            {
+                ApplyCellWidths(grid);
+            }
+        }
+
+        /// <summary>
+        /// Apply current column widths to a single item Grid's cell Borders.
+        /// Note: FindName() does NOT work inside DataTemplate namescope in WinUI 3.
+        /// Instead, we find Border elements by their Grid.Column attached property.
+        /// </summary>
+        private void ApplyCellWidths(Grid grid)
+        {
+            foreach (var child in grid.Children)
+            {
+                if (child is Border border)
+                {
+                    int col = Grid.GetColumn(border);
+                    switch (col)
+                    {
+                        case 3: border.Width = _dateColumnWidth; break;  // Date
+                        case 5: border.Width = _typeColumnWidth; break;  // Type
+                        case 7: border.Width = _sizeColumnWidth; break;  // Size
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Update all currently visible containers' cell widths.
+        /// Only iterates realized containers (typically 20-50 items), not all items.
+        /// </summary>
+        private void UpdateAllVisibleContainerWidths()
+        {
+            if (DetailsListView?.ItemsPanelRoot == null) return;
+
+            for (int i = 0; i < DetailsListView.Items.Count; i++)
+            {
+                if (DetailsListView.ContainerFromIndex(i) is ListViewItem container &&
+                    container.ContentTemplateRoot is Grid grid)
+                {
+                    ApplyCellWidths(grid);
+                }
+            }
+        }
+
+        #endregion
+
+        #region Item Interaction
+
         private void OnItemDoubleClick(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
         {
             var selected = ViewModel?.CurrentFolder?.SelectedChild;
@@ -108,13 +204,11 @@ namespace Span.Views
 
             if (selected is FolderViewModel folder)
             {
-                // Navigate into folder using manual navigation (bypasses auto-navigation check)
                 ViewModel!.NavigateIntoFolder(folder);
                 Helpers.DebugLogger.Log($"[DetailsModeView] DoubleClick: Opening folder {folder.Name}");
             }
             else if (selected is FileViewModel file)
             {
-                // Open file with default application
                 try
                 {
                     _ = Windows.System.Launcher.LaunchUriAsync(new Uri(file.Path));
@@ -126,6 +220,10 @@ namespace Span.Views
                 }
             }
         }
+
+        #endregion
+
+        #region Keyboard Navigation
 
         private void OnDetailsKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
         {
@@ -148,18 +246,14 @@ namespace Span.Views
                     break;
 
                 case Windows.System.VirtualKey.Back:
-                    // Navigate to parent folder
                     ViewModel?.NavigateUp();
                     e.Handled = true;
                     Helpers.DebugLogger.Log("[DetailsModeView] Backspace: Navigating to parent folder");
                     break;
 
                 case Windows.System.VirtualKey.Delete:
-                    // Let global handler handle Delete
-                    break;
-
                 case Windows.System.VirtualKey.F2:
-                    // Let global handler handle F2 (Rename)
+                    // Let global handler handle these
                     break;
 
                 case Windows.System.VirtualKey.Up:
@@ -176,13 +270,11 @@ namespace Span.Views
 
             if (selected is FolderViewModel folder)
             {
-                // Navigate into folder using manual navigation (bypasses auto-navigation check)
                 ViewModel!.NavigateIntoFolder(folder);
                 Helpers.DebugLogger.Log($"[DetailsModeView] Enter: Opening folder {folder.Name}");
             }
             else if (selected is FileViewModel file)
             {
-                // Open file with default application
                 try
                 {
                     _ = Windows.System.Launcher.LaunchUriAsync(new Uri(file.Path));
@@ -195,11 +287,14 @@ namespace Span.Views
             }
         }
 
+        #endregion
+
+        #region Sorting
+
         private void OnHeaderClick(object sender, RoutedEventArgs e)
         {
             if (sender is Button button && button.Tag is string sortBy)
             {
-                // Toggle sort direction if same column
                 if (_currentSortBy == sortBy)
                 {
                     _isAscending = !_isAscending;
@@ -210,9 +305,7 @@ namespace Span.Views
                     _isAscending = true;
                 }
 
-                // Apply sort
                 SortItems(sortBy, _isAscending);
-
                 Helpers.DebugLogger.Log($"[DetailsModeView] Sorted by {sortBy} ({(_isAscending ? "Asc" : "Desc")})");
             }
         }
@@ -223,16 +316,11 @@ namespace Span.Views
                 return;
 
             var column = ViewModel.CurrentFolder;
-
-            // CRITICAL: Save selection before sorting
             var savedSelection = column.SelectedChild;
-
-            // Set sorting flag to prevent PropertyChanged events
             column.IsSorting = true;
 
             try
             {
-                // Sort folders first, then files
                 System.Collections.Generic.IEnumerable<FileSystemViewModel> sorted;
 
                 switch (sortBy)
@@ -242,52 +330,48 @@ namespace Span.Views
                             ? column.Children.OrderBy(x => x is FileViewModel ? 1 : 0).ThenBy(x => x.Name, Helpers.NaturalStringComparer.Instance)
                             : column.Children.OrderBy(x => x is FileViewModel ? 1 : 0).ThenByDescending(x => x.Name, Helpers.NaturalStringComparer.Instance);
                         break;
-
                     case "DateModified":
                         sorted = ascending
                             ? column.Children.OrderBy(x => x is FileViewModel ? 1 : 0).ThenBy(x => x.DateModifiedValue)
                             : column.Children.OrderBy(x => x is FileViewModel ? 1 : 0).ThenByDescending(x => x.DateModifiedValue);
                         break;
-
                     case "Type":
                         sorted = ascending
                             ? column.Children.OrderBy(x => x is FileViewModel ? 1 : 0).ThenBy(x => x.FileType)
                             : column.Children.OrderBy(x => x is FileViewModel ? 1 : 0).ThenByDescending(x => x.FileType);
                         break;
-
                     case "Size":
                         sorted = ascending
                             ? column.Children.OrderBy(x => x is FileViewModel ? 1 : 0).ThenBy(x => x.SizeValue)
                             : column.Children.OrderBy(x => x is FileViewModel ? 1 : 0).ThenByDescending(x => x.SizeValue);
                         break;
-
                     default:
                         return;
                 }
 
                 var sortedList = sorted.ToList();
-
-                // Update collection
                 column.Children.Clear();
                 foreach (var item in sortedList)
                 {
                     column.Children.Add(item);
                 }
 
-                // Restore selection
                 if (savedSelection != null)
                 {
                     column.SelectedChild = savedSelection;
                 }
 
-                Helpers.DebugLogger.Log($"[DetailsModeView] Sorted by {sortBy} ({(ascending ? "Ascending" : "Descending")}), {sortedList.Count} items");
+                Helpers.DebugLogger.Log($"[DetailsModeView] Sorted {sortedList.Count} items");
             }
             finally
             {
-                // Always clear sorting flag
                 column.IsSorting = false;
             }
         }
+
+        #endregion
+
+        #region Sort Settings Persistence
 
         private void SaveSortSettings()
         {
@@ -298,7 +382,6 @@ namespace Span.Views
                     ["SortColumn"] = _currentSortBy,
                     ["SortAscending"] = _isAscending
                 };
-
                 _localSettings.Values["DetailsViewSort"] = composite;
                 Helpers.DebugLogger.Log("[DetailsModeView] Sort settings saved");
             }
@@ -318,15 +401,12 @@ namespace Span.Views
                     {
                         _currentSortBy = sortColumn;
                     }
-
                     if (composite.TryGetValue("SortAscending", out var ascObj) && ascObj is bool ascending)
                     {
                         _isAscending = ascending;
                     }
 
-                    // Apply restored sort
                     SortItems(_currentSortBy, _isAscending);
-
                     Helpers.DebugLogger.Log("[DetailsModeView] Sort settings restored");
                 }
             }
@@ -336,90 +416,9 @@ namespace Span.Views
             }
         }
 
-        /// <summary>
-        /// Handle header grid size changes to sync column widths with item template
-        /// </summary>
-        private void OnHeaderGridSizeChanged(object sender, SizeChangedEventArgs e)
-        {
-            // Update stored widths from header columns
-            _iconWidth = IconColumn.ActualWidth;
-            _nameWidth = NameColumn.ActualWidth;
-            _dateWidth = DateColumn.ActualWidth;
-            _typeWidth = TypeColumn.ActualWidth;
-            _sizeWidth = SizeColumn.ActualWidth;
+        #endregion
 
-            // Force refresh of all visible item grids
-            UpdateAllItemColumnWidths();
-        }
-
-        /// <summary>
-        /// Update column widths for a specific item grid
-        /// </summary>
-        private void UpdateItemColumnWidths(Grid itemGrid)
-        {
-            if (itemGrid.ColumnDefinitions.Count < 8) return;
-
-            itemGrid.ColumnDefinitions[0].Width = new GridLength(_iconWidth);
-            itemGrid.ColumnDefinitions[1].Width = new GridLength(_nameWidth > 0 ? _nameWidth : 1, GridUnitType.Star);
-            itemGrid.ColumnDefinitions[3].Width = new GridLength(_dateWidth);
-            itemGrid.ColumnDefinitions[5].Width = new GridLength(_typeWidth);
-            itemGrid.ColumnDefinitions[7].Width = new GridLength(_sizeWidth);
-        }
-
-        /// <summary>
-        /// Update all visible item grids (called when header columns resize)
-        /// </summary>
-        private void UpdateAllItemColumnWidths()
-        {
-            if (DetailsListView?.ItemsPanelRoot == null) return;
-
-            // Use DispatcherQueue to ensure visual tree is ready
-            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
-            {
-                try
-                {
-                    // Find all item containers and update their column widths
-                    for (int i = 0; i < DetailsListView.Items.Count; i++)
-                    {
-                        var container = DetailsListView.ContainerFromIndex(i) as ListViewItem;
-                        if (container != null)
-                        {
-                            var itemGrid = FindChild<Grid>(container);
-                            if (itemGrid != null)
-                            {
-                                UpdateItemColumnWidths(itemGrid);
-                            }
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Helpers.DebugLogger.Log($"[DetailsModeView] Error updating column widths: {ex.Message}");
-                }
-            });
-        }
-
-        /// <summary>
-        /// Find child element in visual tree
-        /// </summary>
-        private T? FindChild<T>(DependencyObject parent) where T : DependencyObject
-        {
-            if (parent == null) return null;
-
-            int childCount = VisualTreeHelper.GetChildrenCount(parent);
-            for (int i = 0; i < childCount; i++)
-            {
-                var child = VisualTreeHelper.GetChild(parent, i);
-                if (child is T typedChild)
-                    return typedChild;
-
-                var result = FindChild<T>(child);
-                if (result != null)
-                    return result;
-            }
-
-            return null;
-        }
+        #region Focus Management
 
         /// <summary>
         /// Focus the Details ListView (called from MainWindow on view switch)
@@ -429,12 +428,15 @@ namespace Span.Views
             DetailsListView?.Focus(FocusState.Programmatic);
         }
 
-        // Keep old method for compatibility
         public void FocusListView() => FocusDataGrid();
 
+        #endregion
+
+        #region Cleanup
+
         /// <summary>
-        /// CRITICAL: Cleanup called from MainWindow.OnClosed BEFORE views are unloaded
-        /// This prevents WinUI crash by disconnecting bindings early
+        /// CRITICAL: Cleanup called from MainWindow.OnClosed BEFORE views are unloaded.
+        /// Prevents WinUI crash by disconnecting bindings early.
         /// </summary>
         public void Cleanup()
         {
@@ -442,28 +444,23 @@ namespace Span.Views
             {
                 Helpers.DebugLogger.Log("[DetailsModeView.Cleanup] Starting early cleanup...");
 
-                // Unsubscribe from header grid size changes
-                if (HeaderGrid != null)
-                {
-                    HeaderGrid.SizeChanged -= OnHeaderGridSizeChanged;
-                }
+                // Unregister column width callbacks
+                DateColumnDef.UnregisterPropertyChangedCallback(ColumnDefinition.WidthProperty, _dateCallbackToken);
+                TypeColumnDef.UnregisterPropertyChangedCallback(ColumnDefinition.WidthProperty, _typeCallbackToken);
+                SizeColumnDef.UnregisterPropertyChangedCallback(ColumnDefinition.WidthProperty, _sizeCallbackToken);
 
                 if (DetailsListView != null)
                 {
-                    // Disconnect events FIRST
                     DetailsListView.DoubleTapped -= OnItemDoubleClick;
                     DetailsListView.KeyDown -= OnDetailsKeyDown;
-
-                    // Clear data bindings to prevent WinUI internal crash
+                    DetailsListView.ContainerContentChanging -= OnContainerContentChanging;
                     DetailsListView.ItemsSource = null;
                     DetailsListView.SelectedItem = null;
 
                     Helpers.DebugLogger.Log("[DetailsModeView.Cleanup] ListView disconnected");
                 }
 
-                // Clear ViewModel reference
                 ViewModel = null;
-
                 Helpers.DebugLogger.Log("[DetailsModeView.Cleanup] Early cleanup complete");
             }
             catch (Exception ex)
@@ -471,5 +468,7 @@ namespace Span.Views
                 Helpers.DebugLogger.Log($"[DetailsModeView.Cleanup] Error: {ex.Message}");
             }
         }
+
+        #endregion
     }
 }
