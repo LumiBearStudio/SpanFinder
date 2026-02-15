@@ -40,6 +40,10 @@ namespace Span.ViewModels
         private CancellationTokenSource? _selectionDebounce;
         private const int SelectionDebounceMs = 150;
 
+        // Suppresses CollectionChanged → PropertyChanged during Cleanup to prevent
+        // notifications reaching already-disposed UI elements (causes win32 crash)
+        private bool _isCleaningUp = false;
+
         /// <summary>
         /// Controls automatic navigation on selection change.
         /// TRUE: Miller Columns mode - navigate on single click
@@ -52,8 +56,10 @@ namespace Span.ViewModels
             Columns = new ObservableCollection<FolderViewModel>();
 
             // CRITICAL: Notify UI when Columns changes so CurrentFolder/CurrentItems update
+            // Guard with _isCleaningUp to prevent PropertyChanged reaching disposed UI during shutdown
             Columns.CollectionChanged += (s, e) =>
             {
+                if (_isCleaningUp) return;
                 OnPropertyChanged(nameof(CurrentFolder));
                 OnPropertyChanged(nameof(CurrentItems));
             };
@@ -437,6 +443,11 @@ namespace Span.ViewModels
         public void Cleanup()
         {
             Helpers.DebugLogger.Log("[ExplorerViewModel.Cleanup] Starting cleanup...");
+
+            // CRITICAL: Suppress CollectionChanged → PropertyChanged BEFORE clearing.
+            // Without this, Columns.Clear() fires CollectionChanged, which fires
+            // PropertyChanged(CurrentFolder/CurrentItems), reaching disposed UI → crash.
+            _isCleaningUp = true;
 
             // Cancel any pending debounce operations
             _selectionDebounce?.Cancel();

@@ -9,7 +9,7 @@
     mc:Ignorable="d">
 
     <UserControl.Resources>
-        <!-- No custom resources needed for ListView implementation -->
+        <!-- No shared resource needed: column widths are set programmatically via ContainerContentChanging -->
     </UserControl.Resources>
 
     <Grid x:Name="RootGrid">
@@ -25,17 +25,15 @@
               BorderBrush="{ThemeResource SpanBorderSubtleBrush}"
               BorderThickness="0,0,0,1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition x:Name="IconColumn" Width="40"/>
-                <ColumnDefinition x:Name="NameColumn" Width="*" MinWidth="180"/>
-                <ColumnDefinition Width="Auto"/> <!-- Splitter -->
-                <ColumnDefinition x:Name="DateColumn" Width="200" MinWidth="140"/>
-                <ColumnDefinition Width="Auto"/> <!-- Splitter -->
-                <ColumnDefinition x:Name="TypeColumn" Width="150" MinWidth="90"/>
-                <ColumnDefinition Width="Auto"/> <!-- Splitter -->
-                <ColumnDefinition x:Name="SizeColumn" Width="100" MinWidth="80"/>
+                <ColumnDefinition Width="40"/>
+                <ColumnDefinition Width="*" MinWidth="180"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition x:Name="DateColumnDef" Width="200" MinWidth="140"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition x:Name="TypeColumnDef" Width="150" MinWidth="90"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition x:Name="SizeColumnDef" Width="100" MinWidth="80"/>
             </Grid.ColumnDefinitions>
-
-            <!-- Icon Header (empty) -->
 
             <!-- Name Header -->
             <Button Grid.Column="1"
@@ -57,12 +55,14 @@
                 </Button.Resources>
             </Button>
 
-            <!-- Splitter 1 -->
+            <!-- Splitter 1: between Name and Date -->
             <controls:GridSplitter Grid.Column="2"
-                                   Width="4"
+                                   Width="1"
+                                   Padding="0"
+                                   Margin="0"
                                    ResizeDirection="Columns"
                                    HorizontalAlignment="Center"
-                                   Background="{ThemeResource SpanBorderSubtleBrush}"/>
+                                   Background="Transparent"/>
 
             <!-- Date Modified Header -->
             <Button Grid.Column="3"
@@ -84,12 +84,14 @@
                 </Button.Resources>
             </Button>
 
-            <!-- Splitter 2 -->
+            <!-- Splitter 2: between Date and Type -->
             <controls:GridSplitter Grid.Column="4"
-                                   Width="4"
+                                   Width="1"
+                                   Padding="0"
+                                   Margin="0"
                                    ResizeDirection="Columns"
                                    HorizontalAlignment="Center"
-                                   Background="{ThemeResource SpanBorderSubtleBrush}"/>
+                                   Background="Transparent"/>
 
             <!-- Type Header -->
             <Button Grid.Column="5"
@@ -111,12 +113,14 @@
                 </Button.Resources>
             </Button>
 
-            <!-- Splitter 3 -->
+            <!-- Splitter 3: between Type and Size -->
             <controls:GridSplitter Grid.Column="6"
-                                   Width="4"
+                                   Width="1"
+                                   Padding="0"
+                                   Margin="0"
                                    ResizeDirection="Columns"
                                    HorizontalAlignment="Center"
-                                   Background="{ThemeResource SpanBorderSubtleBrush}"/>
+                                   Background="Transparent"/>
 
             <!-- Size Header -->
             <Button Grid.Column="7"
@@ -147,6 +151,7 @@
                   SelectionMode="Extended"
                   DoubleTapped="OnItemDoubleClick"
                   KeyDown="OnDetailsKeyDown"
+                  ContainerContentChanging="OnContainerContentChanging"
                   Background="Transparent"
                   Padding="0">
             <ListView.ItemContainerStyle>
@@ -159,16 +164,16 @@
             </ListView.ItemContainerStyle>
             <ListView.ItemTemplate>
                 <DataTemplate x:DataType="vm:FileSystemViewModel">
-                    <Grid Height="18" x:Name="ItemGrid">
+                    <Grid Height="18">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="40"/>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="1"/> <!-- Splitter space -->
-                            <ColumnDefinition Width="200"/>
-                            <ColumnDefinition Width="1"/> <!-- Splitter space -->
-                            <ColumnDefinition Width="150"/>
-                            <ColumnDefinition Width="1"/> <!-- Splitter space -->
-                            <ColumnDefinition Width="100"/>
+                            <ColumnDefinition Width="1"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="1"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="1"/>
+                            <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
                         <!-- Icon -->
@@ -188,26 +193,29 @@
                                    FontSize="11"
                                    Padding="6,0"/>
 
-                        <!-- Date Modified -->
-                        <TextBlock Grid.Column="3"
-                                   Text="{x:Bind DateModified, Mode=OneWay}"
-                                   VerticalAlignment="Center"
-                                   FontSize="11"
-                                   Padding="6,0"/>
+                        <!-- Date Modified - Width set by ContainerContentChanging -->
+                        <Border Grid.Column="3" x:Name="DateCell" Width="200">
+                            <TextBlock Text="{x:Bind DateModified, Mode=OneWay}"
+                                       VerticalAlignment="Center"
+                                       FontSize="11"
+                                       Padding="6,0"/>
+                        </Border>
 
-                        <!-- Type -->
-                        <TextBlock Grid.Column="5"
-                                   Text="{x:Bind FileType, Mode=OneWay}"
-                                   VerticalAlignment="Center"
-                                   FontSize="11"
-                                   Padding="6,0"/>
+                        <!-- Type - Width set by ContainerContentChanging -->
+                        <Border Grid.Column="5" x:Name="TypeCell" Width="150">
+                            <TextBlock Text="{x:Bind FileType, Mode=OneWay}"
+                                       VerticalAlignment="Center"
+                                       FontSize="11"
+                                       Padding="6,0"/>
+                        </Border>
 
-                        <!-- Size -->
-                        <TextBlock Grid.Column="7"
-                                   Text="{x:Bind Size, Mode=OneWay}"
-                                   VerticalAlignment="Center"
-                                   FontSize="11"
-                                   Padding="6,0"/>
+                        <!-- Size - Width set by ContainerContentChanging -->
+                        <Border Grid.Column="7" x:Name="SizeCell" Width="100">
+                            <TextBlock Text="{x:Bind Size, Mode=OneWay}"
+                                       VerticalAlignment="Center"
+                                       FontSize="11"
+                                       Padding="6,0"/>
+                        </Border>
                     </Grid>
                 </DataTemplate>
             </ListView.ItemTemplate>

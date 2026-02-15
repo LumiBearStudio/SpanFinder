@@ -40,6 +40,9 @@ namespace Span.Views
         private long _typeCallbackToken;
         private long _sizeCallbackToken;
 
+        // Guard against double cleanup (Cleanup() from OnClosed + OnUnloaded from visual tree teardown)
+        private bool _isCleanedUp = false;
+
         public DetailsModeView()
         {
             this.InitializeComponent();
@@ -77,40 +80,17 @@ namespace Span.Views
         {
             try
             {
-                Helpers.DebugLogger.Log("[DetailsModeView.OnUnloaded] Starting cleanup...");
-
-                // Save sort settings
+                // Save sort settings (always, even if already cleaned up)
                 SaveSortSettings();
 
-                // Unsubscribe from ColumnDefinition property change callbacks
-                DateColumnDef.UnregisterPropertyChangedCallback(ColumnDefinition.WidthProperty, _dateCallbackToken);
-                TypeColumnDef.UnregisterPropertyChangedCallback(ColumnDefinition.WidthProperty, _typeCallbackToken);
-                SizeColumnDef.UnregisterPropertyChangedCallback(ColumnDefinition.WidthProperty, _sizeCallbackToken);
+                // Skip if Cleanup() was already called from MainWindow.OnClosed
+                if (_isCleanedUp) return;
 
-                // Disconnect ListView events
-                if (DetailsListView != null)
-                {
-                    DetailsListView.DoubleTapped -= OnItemDoubleClick;
-                    DetailsListView.KeyDown -= OnDetailsKeyDown;
-                    DetailsListView.ContainerContentChanging -= OnContainerContentChanging;
-
-                    // Clear bindings to prevent memory leaks
-                    DetailsListView.ItemsSource = null;
-                    DetailsListView.SelectedItem = null;
-                }
-
-                // Clear ViewModel reference
-                ViewModel = null;
-
-                // Unsubscribe from events
-                this.Unloaded -= OnUnloaded;
-
-                Helpers.DebugLogger.Log("[DetailsModeView.OnUnloaded] Cleanup complete");
+                PerformCleanup();
             }
             catch (Exception ex)
             {
                 Helpers.DebugLogger.Log($"[DetailsModeView.OnUnloaded] Error: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"[DetailsModeView.OnUnloaded] Stack: {ex.StackTrace}");
             }
         }
 
@@ -435,19 +415,32 @@ namespace Span.Views
         #region Cleanup
 
         /// <summary>
-        /// CRITICAL: Cleanup called from MainWindow.OnClosed BEFORE views are unloaded.
+        /// CRITICAL: Called from MainWindow.OnClosed BEFORE visual tree teardown.
         /// Prevents WinUI crash by disconnecting bindings early.
         /// </summary>
         public void Cleanup()
         {
+            if (_isCleanedUp) return;
+            SaveSortSettings();
+            PerformCleanup();
+        }
+
+        private void PerformCleanup()
+        {
+            if (_isCleanedUp) return;
+            _isCleanedUp = true;
+
             try
             {
-                Helpers.DebugLogger.Log("[DetailsModeView.Cleanup] Starting early cleanup...");
+                Helpers.DebugLogger.Log("[DetailsModeView] Starting cleanup...");
 
-                // Unregister column width callbacks
-                DateColumnDef.UnregisterPropertyChangedCallback(ColumnDefinition.WidthProperty, _dateCallbackToken);
-                TypeColumnDef.UnregisterPropertyChangedCallback(ColumnDefinition.WidthProperty, _typeCallbackToken);
-                SizeColumnDef.UnregisterPropertyChangedCallback(ColumnDefinition.WidthProperty, _sizeCallbackToken);
+                // Unregister column width callbacks (only if Loaded fired and registered them)
+                if (_isLoaded)
+                {
+                    DateColumnDef.UnregisterPropertyChangedCallback(ColumnDefinition.WidthProperty, _dateCallbackToken);
+                    TypeColumnDef.UnregisterPropertyChangedCallback(ColumnDefinition.WidthProperty, _typeCallbackToken);
+                    SizeColumnDef.UnregisterPropertyChangedCallback(ColumnDefinition.WidthProperty, _sizeCallbackToken);
+                }
 
                 if (DetailsListView != null)
                 {
@@ -456,16 +449,16 @@ namespace Span.Views
                     DetailsListView.ContainerContentChanging -= OnContainerContentChanging;
                     DetailsListView.ItemsSource = null;
                     DetailsListView.SelectedItem = null;
-
-                    Helpers.DebugLogger.Log("[DetailsModeView.Cleanup] ListView disconnected");
                 }
 
-                ViewModel = null;
-                Helpers.DebugLogger.Log("[DetailsModeView.Cleanup] Early cleanup complete");
+                _viewModel = null;
+                RootGrid.DataContext = null;
+
+                Helpers.DebugLogger.Log("[DetailsModeView] Cleanup complete");
             }
             catch (Exception ex)
             {
-                Helpers.DebugLogger.Log($"[DetailsModeView.Cleanup] Error: {ex.Message}");
+                Helpers.DebugLogger.Log($"[DetailsModeView] Cleanup error: {ex.Message}");
             }
         }
 

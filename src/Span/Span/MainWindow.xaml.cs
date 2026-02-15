@@ -22,6 +22,10 @@ namespace Span
         private string _typeAheadBuffer = string.Empty;
         private DispatcherTimer? _typeAheadTimer;
 
+        // Prevents DispatcherQueue callbacks and async methods from accessing
+        // disposed UI after OnClosed has started teardown
+        private bool _isClosed = false;
+
         // Clipboard
         private readonly List<string> _clipboardPaths = new();
         private bool _isCutOperation = false;
@@ -92,63 +96,50 @@ namespace Span
             {
                 Helpers.DebugLogger.Log("[MainWindow.OnClosed] Starting cleanup...");
 
-                // CRITICAL: Disconnect view bindings FIRST, before anything else
-                try
-                {
-                    if (DetailsView != null)
-                    {
-                        DetailsView.Cleanup();
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Helpers.DebugLogger.Log($"[MainWindow.OnClosed] DetailsView cleanup error: {ex.Message}");
-                }
+                // STEP 0: Block all queued DispatcherQueue callbacks and async continuations
+                _isClosed = true;
 
-                try
-                {
-                    if (IconView != null)
-                    {
-                        IconView.Cleanup();
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Helpers.DebugLogger.Log($"[MainWindow.OnClosed] IconView cleanup error: {ex.Message}");
-                }
+                // STEP 1: Suppress ViewModel notifications FIRST (prevents PropertyChanged
+                // from reaching UI during teardown — the primary crash cause).
+                ViewModel?.Explorer?.Cleanup();  // Sets _isCleaningUp, clears Columns silently
+                ViewModel?.Cleanup();            // Cancel background ops, clear Drives/Tabs
 
-                // Stop and dispose timer
-                if (_typeAheadTimer != null)
-                {
-                    _typeAheadTimer.Stop();
-                    _typeAheadTimer = null;
-                }
-
-                // Unsubscribe from event handlers
+                // STEP 2: Unsubscribe MainWindow event handlers
                 if (ViewModel?.Explorer != null)
                 {
                     ViewModel.Explorer.Columns.CollectionChanged -= OnColumnsChanged;
                 }
-
                 if (ViewModel != null)
                 {
                     ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
                 }
 
-                // Remove keyboard handlers
+                // STEP 3: Disconnect view bindings
+                try { DetailsView?.Cleanup(); }
+                catch (Exception ex)
+                {
+                    Helpers.DebugLogger.Log($"[MainWindow.OnClosed] DetailsView cleanup error: {ex.Message}");
+                }
+                try { IconView?.Cleanup(); }
+                catch (Exception ex)
+                {
+                    Helpers.DebugLogger.Log($"[MainWindow.OnClosed] IconView cleanup error: {ex.Message}");
+                }
+
+                // STEP 4: Stop timer and remove keyboard handlers
+                if (_typeAheadTimer != null)
+                {
+                    _typeAheadTimer.Stop();
+                    _typeAheadTimer = null;
+                }
                 if (this.Content != null)
                 {
                     this.Content.RemoveHandler(UIElement.KeyDownEvent, (KeyEventHandler)OnGlobalKeyDown);
                 }
-
                 if (MillerColumnsControl != null)
                 {
                     MillerColumnsControl.RemoveHandler(UIElement.KeyDownEvent, (KeyEventHandler)OnMillerKeyDown);
                 }
-
-                // Clean up ViewModels
-                ViewModel?.Cleanup();  // Cancel background operations (LoadDrives, etc.)
-                ViewModel?.Explorer?.Cleanup();  // Clean up Explorer columns
 
                 Helpers.DebugLogger.Log("[MainWindow.OnClosed] Cleanup complete");
             }
@@ -185,6 +176,7 @@ namespace Span
             // Use DispatcherQueue for proper timing (after visibility changes take effect)
             DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
             {
+                if (_isClosed) return;
                 switch (ViewModel.CurrentViewMode)
                 {
                     case Models.ViewMode.MillerColumns:
@@ -226,6 +218,7 @@ namespace Span
                 Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
                 () =>
                 {
+                    if (_isClosed) return;
                     MillerScrollViewer.UpdateLayout();
                     double totalWidth = columns.Count * ColumnWidth;
                     double viewportWidth = MillerScrollViewer.ViewportWidth;
@@ -755,6 +748,7 @@ namespace Span
             // TextBox에 포커스
             DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
             {
+                if (_isClosed) return;
                 FocusRenameTextBox(activeIndex);
             });
         }
@@ -843,6 +837,7 @@ namespace Span
             // 약간의 딜레이 후 ListViewItem 컨테이너에 포커스
             DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
             {
+                if (_isClosed) return;
                 var container = listView.ContainerFromIndex(idx) as UIElement;
                 container?.Focus(FocusState.Keyboard);
             });
@@ -1137,6 +1132,7 @@ namespace Span
         private async void FocusColumnAsync(int columnIndex)
         {
             await System.Threading.Tasks.Task.Delay(50);
+            if (_isClosed) return;
 
             var listView = GetListViewForColumn(columnIndex);
             if (listView == null) return;

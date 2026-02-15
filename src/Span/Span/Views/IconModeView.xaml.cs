@@ -20,6 +20,7 @@ namespace Span.Views
 
         private ViewMode _currentIconSize = ViewMode.IconMedium;
         private bool _isLoaded = false;
+        private bool _isCleanedUp = false;
 
         public IconModeView()
         {
@@ -45,31 +46,12 @@ namespace Span.Views
         {
             try
             {
-                Helpers.DebugLogger.Log("[IconModeView.OnUnloaded] Starting cleanup...");
-
-                // Disconnect GridView events
-                if (IconGridView != null)
-                {
-                    IconGridView.DoubleTapped -= OnItemDoubleClick;
-                    IconGridView.KeyDown -= OnIconKeyDown;
-
-                    // Clear bindings to prevent memory leaks
-                    IconGridView.ItemsSource = null;
-                    IconGridView.SelectedItem = null;
-                }
-
-                // Clear ViewModel reference
-                ViewModel = null;
-
-                // Unsubscribe from events
-                this.Unloaded -= OnUnloaded;
-
-                Helpers.DebugLogger.Log("[IconModeView.OnUnloaded] Cleanup complete");
+                if (_isCleanedUp) return;
+                PerformCleanup();
             }
             catch (Exception ex)
             {
                 Helpers.DebugLogger.Log($"[IconModeView.OnUnloaded] Error: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"[IconModeView.OnUnloaded] Stack: {ex.StackTrace}");
             }
         }
 
@@ -207,31 +189,35 @@ namespace Span.Views
         /// </summary>
         public void Cleanup()
         {
+            if (_isCleanedUp) return;
+            PerformCleanup();
+        }
+
+        private void PerformCleanup()
+        {
+            if (_isCleanedUp) return;
+            _isCleanedUp = true;
+
             try
             {
-                Helpers.DebugLogger.Log("[IconModeView.Cleanup] Starting early cleanup...");
+                Helpers.DebugLogger.Log("[IconModeView] Starting cleanup...");
 
                 if (IconGridView != null)
                 {
-                    // Disconnect events FIRST
                     IconGridView.DoubleTapped -= OnItemDoubleClick;
                     IconGridView.KeyDown -= OnIconKeyDown;
-
-                    // Clear data bindings to prevent WinUI internal crash
                     IconGridView.ItemsSource = null;
                     IconGridView.SelectedItem = null;
-
-                    Helpers.DebugLogger.Log("[IconModeView.Cleanup] GridView disconnected");
                 }
 
-                // Clear ViewModel reference
-                ViewModel = null;
+                _viewModel = null;
+                RootGrid.DataContext = null;
 
-                Helpers.DebugLogger.Log("[IconModeView.Cleanup] Early cleanup complete");
+                Helpers.DebugLogger.Log("[IconModeView] Cleanup complete");
             }
             catch (Exception ex)
             {
-                Helpers.DebugLogger.Log($"[IconModeView.Cleanup] Error: {ex.Message}");
+                Helpers.DebugLogger.Log($"[IconModeView] Cleanup error: {ex.Message}");
             }
         }
     }
