@@ -102,9 +102,9 @@ namespace Span
                 // STEP 1: Suppress ViewModel notifications FIRST (prevents PropertyChanged
                 // from reaching UI during teardown — the primary crash cause).
                 ViewModel?.Explorer?.Cleanup();  // Sets _isCleaningUp, clears Columns silently
-                ViewModel?.Cleanup();            // Cancel background ops, clear Drives/Tabs
 
-                // STEP 2: Unsubscribe MainWindow event handlers
+                // STEP 2: Unsubscribe MainWindow event handlers BEFORE ViewModel.Cleanup()
+                // so collection Clear() notifications don't reach MainWindow handlers.
                 if (ViewModel?.Explorer != null)
                 {
                     ViewModel.Explorer.Columns.CollectionChanged -= OnColumnsChanged;
@@ -114,7 +114,8 @@ namespace Span
                     ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
                 }
 
-                // STEP 3: Disconnect view bindings
+                // STEP 3: Disconnect view bindings BEFORE ViewModel.Cleanup()
+                // so Favorites.Clear() / RecentFolders.Clear() don't reach disposed UI.
                 try { DetailsView?.Cleanup(); }
                 catch (Exception ex)
                 {
@@ -130,6 +131,13 @@ namespace Span
                 {
                     Helpers.DebugLogger.Log($"[MainWindow.OnClosed] HomeView cleanup error: {ex.Message}");
                 }
+
+                // Disconnect sidebar bindings
+                try { FavoritesItemsControl.ItemsSource = null; }
+                catch { /* ignore */ }
+
+                // STEP 4: NOW safe to clear collections — UI bindings disconnected
+                ViewModel?.Cleanup();            // Save state, cancel ops, clear collections
 
                 // STEP 4: Stop timer and remove keyboard handlers
                 if (_typeAheadTimer != null)

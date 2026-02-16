@@ -49,7 +49,16 @@ namespace Span.Views
 
         public void Cleanup()
         {
-            _mainViewModel = null;
+            try
+            {
+                if (FavoritesGridView != null)
+                    FavoritesGridView.ItemsSource = null;
+                if (RecentListView != null)
+                    RecentListView.ItemsSource = null;
+                RootPanel.DataContext = null;
+                _mainViewModel = null;
+            }
+            catch { /* ignore during teardown */ }
         }
     }
 }

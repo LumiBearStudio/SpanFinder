@@ -33,6 +33,7 @@ namespace Span.ViewModels
         private readonly FileOperationHistory _operationHistory;
         private readonly FileOperationProgressViewModel _progressViewModel;
         private readonly System.Threading.CancellationTokenSource _shutdownCts = new();
+        private bool _isCleaningUp = false;
         private const int MaxRecentFolders = 20;
 
         [ObservableProperty]
@@ -92,6 +93,7 @@ namespace Span.ViewModels
             // Track navigation for recent folders
             Explorer.PropertyChanged += (s, e) =>
             {
+                if (_isCleaningUp) return;
                 if (e.PropertyName == nameof(ExplorerViewModel.CurrentPath) && !string.IsNullOrEmpty(Explorer.CurrentPath))
                 {
                     AddRecentFolder(Explorer.CurrentPath);
@@ -155,14 +157,18 @@ namespace Span.ViewModels
             {
                 Helpers.DebugLogger.Log("[MainViewModel] Starting cleanup...");
 
-                // Save state before cleanup
+                // Save state before suppressing notifications
                 _favoritesService.SaveFavorites(Favorites.ToList());
                 SaveRecentFolders();
+
+                // MUST set before clearing collections to prevent
+                // ObservableCollection change notifications reaching disposed UI
+                _isCleaningUp = true;
 
                 // Cancel any ongoing background operations
                 _shutdownCts?.Cancel();
 
-                // Clear collections
+                // Clear collections (safe now - _isCleaningUp suppresses side effects)
                 Drives.Clear();
                 Tabs.Clear();
                 Favorites.Clear();
