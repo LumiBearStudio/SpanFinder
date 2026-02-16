@@ -13,7 +13,34 @@
       "Bash(dotnet clean:*)",
       "Skill(bkit:development-pipeline)",
       "Bash(git checkout:*)",
-      "Bash(Select-String -Pattern \"error|Build succeeded|Build FAILED\" -Context 2)"
+      "Bash(Select-String -Pattern \"error|Build succeeded|Build FAILED\" -Context 2)",
+      "Bash(dotnet run:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:xamlbrewer.wordpress.com)",
+      "Bash(dotnet list:*)",
+      "WebFetch(domain:w-ahmad.dev)",
+      "Bash(find:*)",
+      "WebFetch(domain:www.nuget.org)",
+      "WebFetch(domain:w-ahmad.github.io)",
+      "Bash(claude mcp add:*)",
+      "Bash(gh api:*)",
+      "Bash(gh search code:*)",
+      "Bash(where:*)",
+      "WebFetch(domain:api.github.com)",
+      "WebFetch(domain:joshsmithonwpf.wordpress.com)",
+      "Bash(git status:*)",
+      "Bash(python3:*)",
+      "Bash(pip install:*)",
+      "Bash(python -c:*)",
+      "WebFetch(domain:www.zabkat.com)",
+      "WebFetch(domain:devblogs.microsoft.com)",
+      "Bash(dotnet new:*)",
+      "Bash(dotnet test:*)"
     ]
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "github"
+  ]
 }
