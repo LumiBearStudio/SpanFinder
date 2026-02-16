@@ -1987,10 +1987,10 @@ namespace Span
             => (!isSplitViewEnabled && mode != Models.ViewMode.Home) ? Visibility.Visible : Visibility.Collapsed;
 
         /// <summary>
-        /// Left pane header (split mode): visible when split enabled AND NOT Home mode
+        /// Left pane header (split mode): visible when split enabled (including Home mode for accent bar)
         /// </summary>
         public Visibility IsLeftPaneHeaderVisible(bool isSplitViewEnabled, Models.ViewMode mode)
-            => (isSplitViewEnabled && mode != Models.ViewMode.Home) ? Visibility.Visible : Visibility.Collapsed;
+            => isSplitViewEnabled ? Visibility.Visible : Visibility.Collapsed;
 
         public SolidColorBrush LeftPaneAccentBrush(ActivePane activePane)
         {

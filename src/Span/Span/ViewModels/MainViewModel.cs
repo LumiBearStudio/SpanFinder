@@ -165,7 +165,7 @@ namespace Span.ViewModels
         {
             try
             {
-                // Step 1: Load from cache immediately (fast)
+                // Step 1: Load from cache immediately (fast — no I/O, no async)
                 var cachedDrives = LoadDrivesFromCache();
                 if (cachedDrives.Count > 0)
                 {
@@ -182,6 +182,7 @@ namespace Span.ViewModels
                 }
 
                 // Step 2: Refresh from file system in background (accurate)
+                // GetDrivesAsync now runs DriveInfo.GetDrives() off UI thread
                 var drives = await _fileService.GetDrivesAsync();
 
                 // Step 3: Check if we're shutting down before updating UI
@@ -191,20 +192,26 @@ namespace Span.ViewModels
                     return;
                 }
 
-                // Step 4: Update UI and cache — split by drive type
-                Drives.Clear();
-                NetworkDrives.Clear();
-                foreach (var drive in drives)
+                // Step 4: Skip UI update if drives haven't changed (avoid flicker)
+                var newLocalDrives = drives.Where(d => !d.IsNetworkDrive).ToList();
+                var newNetworkDrives = drives.Where(d => d.IsNetworkDrive).ToList();
+
+                bool drivesChanged = !AreDriveListsEqual(Drives, newLocalDrives)
+                                  || !AreDriveListsEqual(NetworkDrives, newNetworkDrives);
+
+                if (drivesChanged)
                 {
-                    if (drive.IsNetworkDrive)
-                        NetworkDrives.Add(drive);
-                    else
+                    Drives.Clear();
+                    NetworkDrives.Clear();
+                    foreach (var drive in newLocalDrives)
                         Drives.Add(drive);
+                    foreach (var drive in newNetworkDrives)
+                        NetworkDrives.Add(drive);
                 }
 
                 // Step 5: Save updated list to cache
                 SaveDrivesCache(drives);
-                Helpers.DebugLogger.Log($"[MainViewModel] Loaded {Drives.Count} local + {NetworkDrives.Count} network drives");
+                Helpers.DebugLogger.Log($"[MainViewModel] Loaded {Drives.Count} local + {NetworkDrives.Count} network drives (changed={drivesChanged})");
             }
             catch (System.OperationCanceledException)
             {
@@ -214,6 +221,22 @@ namespace Span.ViewModels
             {
                 Helpers.DebugLogger.Log($"[MainViewModel] LoadDrives error: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Compare two drive lists by Path to detect changes
+        /// </summary>
+        private static bool AreDriveListsEqual(
+            System.Collections.ObjectModel.ObservableCollection<DriveItem> current,
+            List<DriveItem> updated)
+        {
+            if (current.Count != updated.Count) return false;
+            for (int i = 0; i < current.Count; i++)
+            {
+                if (!string.Equals(current[i].Path, updated[i].Path, StringComparison.OrdinalIgnoreCase))
+                    return false;
+            }
+            return true;
         }
 
         /// <summary>
@@ -280,7 +303,8 @@ namespace Span.ViewModels
                                 TotalSize = (long)(driveData["TotalSize"] ?? 0L),
                                 AvailableFreeSpace = (long)(driveData["AvailableFreeSpace"] ?? 0L),
                                 DriveFormat = driveData["DriveFormat"] as string ?? "",
-                                DriveType = driveData["DriveType"] as string ?? ""
+                                DriveType = driveData["DriveType"] as string ?? "",
+                                IconGlyph = driveData["IconGlyph"] as string ?? "\uEEA1"
                             };
                             drives.Add(drive);
                         }
@@ -319,7 +343,8 @@ namespace Span.ViewModels
                         ["TotalSize"] = drive.TotalSize,
                         ["AvailableFreeSpace"] = drive.AvailableFreeSpace,
                         ["DriveFormat"] = drive.DriveFormat,
-                        ["DriveType"] = drive.DriveType
+                        ["DriveType"] = drive.DriveType,
+                        ["IconGlyph"] = drive.IconGlyph
                     };
                     composite[$"Drive{i}"] = driveData;
                 }

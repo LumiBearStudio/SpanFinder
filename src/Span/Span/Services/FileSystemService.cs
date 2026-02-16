@@ -17,8 +17,12 @@ namespace Span.Services
         /// </summary>
         public async Task<List<DriveItem>> GetDrivesAsync()
         {
-            var allDrives = DriveInfo.GetDrives()
-                .Where(d => d.DriveType == DriveType.Fixed || d.DriveType == DriveType.Removable);
+            // DriveInfo.GetDrives() can block for seconds with stale network drives,
+            // so run the entire enumeration off the UI thread
+            var allDrives = await Task.Run(() =>
+                DriveInfo.GetDrives()
+                    .Where(d => d.DriveType == DriveType.Fixed || d.DriveType == DriveType.Removable || d.DriveType == DriveType.Network)
+                    .ToList());
 
             // Load each drive in parallel with timeout
             var tasks = allDrives.Select(drive => LoadDriveWithTimeoutAsync(drive));
@@ -86,10 +90,29 @@ namespace Span.Services
                     driveItem.AvailableFreeSpace = 0;
                 }
 
+                // Set icon based on drive type
+                if (drive.DriveType == DriveType.Network)
+                {
+                    driveItem.IconGlyph = "\uF00C"; // RemixIcon: ServerFill
+                }
+                else if (drive.DriveType == DriveType.Removable)
+                {
+                    driveItem.IconGlyph = "\uF1D3"; // RemixIcon: UsbFill
+                }
+
                 // Generate display name
-                driveItem.Name = string.IsNullOrEmpty(driveItem.Label)
-                    ? $"Local Disk ({driveItem.Path.TrimEnd('\\')})"
-                    : $"{driveItem.Label} ({driveItem.Path.TrimEnd('\\')})";
+                if (drive.DriveType == DriveType.Network)
+                {
+                    driveItem.Name = string.IsNullOrEmpty(driveItem.Label)
+                        ? $"Network Drive ({driveItem.Path.TrimEnd('\\')})"
+                        : $"{driveItem.Label} ({driveItem.Path.TrimEnd('\\')})";
+                }
+                else
+                {
+                    driveItem.Name = string.IsNullOrEmpty(driveItem.Label)
+                        ? $"Local Disk ({driveItem.Path.TrimEnd('\\')})"
+                        : $"{driveItem.Label} ({driveItem.Path.TrimEnd('\\')})";
+                }
 
                 return driveItem;
             }
