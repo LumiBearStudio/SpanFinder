@@ -2024,6 +2024,29 @@ namespace Span
             }
         }
 
+        /// <summary>
+        /// 빈 공간 클릭 시에도 ActivePane을 전환하고 포커스를 이동.
+        /// GotFocus는 포커스 가능 요소가 hit될 때만 발생하므로, 빈 공간에서는
+        /// PointerPressed로 보완해야 함.
+        /// </summary>
+        private void OnLeftPanePointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            if (ViewModel.ActivePane != ActivePane.Left)
+            {
+                ViewModel.ActivePane = ActivePane.Left;
+                FocusActivePane();
+            }
+        }
+
+        private void OnRightPanePointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            if (ViewModel.ActivePane != ActivePane.Right)
+            {
+                ViewModel.ActivePane = ActivePane.Right;
+                FocusActivePane();
+            }
+        }
+
         private void OnLeftPaneHeaderTapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
         {
             ViewModel.ActivePane = ActivePane.Left;

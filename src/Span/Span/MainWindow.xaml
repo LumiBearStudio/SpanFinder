@@ -385,7 +385,8 @@
                 </Grid.ColumnDefinitions>
 
                 <!-- ===== LEFT PANE ===== -->
-                <Grid x:Name="LeftPaneContainer" Grid.Column="0" GotFocus="OnLeftPaneGotFocus">
+                <Grid x:Name="LeftPaneContainer" Grid.Column="0" GotFocus="OnLeftPaneGotFocus"
+                      PointerPressed="OnLeftPanePointerPressed" Background="Transparent">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
@@ -636,6 +637,7 @@
 
                 <!-- ===== RIGHT PANE ===== -->
                 <Grid x:Name="RightPaneContainer" Grid.Column="2" GotFocus="OnRightPaneGotFocus"
+                      PointerPressed="OnRightPanePointerPressed" Background="Transparent"
                       Visibility="{x:Bind IsSplitVisible(ViewModel.IsSplitViewEnabled), Mode=OneWay}">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
