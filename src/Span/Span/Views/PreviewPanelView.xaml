@@ -1,0 +1,182 @@
+<UserControl
+    x:Class="Span.Views.PreviewPanelView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:helpers="using:Span.Helpers"
+    Background="{ThemeResource SpanBgLayer2Brush}">
+
+    <UserControl.Resources>
+        <helpers:VisibilityConverter x:Key="VisConv"/>
+    </UserControl.Resources>
+
+    <Grid x:Name="RootPanel">
+        <!-- Loading indicator -->
+        <ProgressBar IsIndeterminate="True"
+                     Visibility="{Binding IsLoading, Converter={StaticResource VisConv}}"
+                     VerticalAlignment="Top" HorizontalAlignment="Stretch"/>
+
+        <!-- Empty state -->
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
+                    Visibility="{Binding HasContent, Converter={StaticResource VisConv}, ConverterParameter=Invert}">
+            <FontIcon Glyph="&#xE8A5;" FontSize="32"
+                      Foreground="{ThemeResource SpanTextTertiaryBrush}"
+                      HorizontalAlignment="Center" Margin="0,0,0,12"/>
+            <TextBlock Text="파일을 선택하면&#x000a;미리보기가 표시됩니다"
+                       TextAlignment="Center" FontSize="13"
+                       Foreground="{ThemeResource SpanTextTertiaryBrush}"/>
+        </StackPanel>
+
+        <!-- Content -->
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                      Visibility="{Binding HasContent, Converter={StaticResource VisConv}}">
+            <StackPanel Padding="16" Spacing="12">
+
+                <!-- Header: Icon + Name -->
+                <StackPanel HorizontalAlignment="Center" Spacing="8" Margin="0,8,0,4">
+                    <FontIcon FontFamily="{StaticResource RemixIcons}"
+                              Glyph="{Binding FileIconGlyph}"
+                              Foreground="{Binding FileIconBrush}"
+                              FontSize="48" HorizontalAlignment="Center"/>
+                    <TextBlock Text="{Binding FileName}"
+                               TextWrapping="Wrap" TextAlignment="Center"
+                               FontWeight="SemiBold" FontSize="14"
+                               MaxLines="3" TextTrimming="CharacterEllipsis"/>
+                </StackPanel>
+
+                <!-- Image Preview -->
+                <Image Source="{Binding ImagePreview}"
+                       Visibility="{Binding IsImageVisible, Converter={StaticResource VisConv}}"
+                       Stretch="Uniform" MaxHeight="400"
+                       HorizontalAlignment="Center"/>
+
+                <!-- Text Preview -->
+                <Border Visibility="{Binding IsTextVisible, Converter={StaticResource VisConv}}"
+                        Background="{ThemeResource SpanBgLayer1Brush}"
+                        CornerRadius="4" Padding="8" MaxHeight="300">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Auto"
+                                  MaxHeight="284">
+                        <TextBlock Text="{Binding TextPreview}"
+                                   FontFamily="Consolas" FontSize="11"
+                                   TextWrapping="Wrap"
+                                   IsTextSelectionEnabled="True"
+                                   Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
+                    </ScrollViewer>
+                </Border>
+
+                <!-- PDF Preview -->
+                <Image Source="{Binding PdfPreview}"
+                       Visibility="{Binding IsPdfVisible, Converter={StaticResource VisConv}}"
+                       Stretch="Uniform" MaxHeight="500"
+                       HorizontalAlignment="Center"/>
+
+                <!-- Media Preview -->
+                <MediaPlayerElement x:Name="PreviewMediaPlayer"
+                                    Source="{Binding MediaSource}"
+                                    Visibility="{Binding IsMediaVisible, Converter={StaticResource VisConv}}"
+                                    AreTransportControlsEnabled="True"
+                                    AutoPlay="False" MaxHeight="300"/>
+
+                <!-- Folder Info -->
+                <StackPanel Visibility="{Binding IsFolderVisible, Converter={StaticResource VisConv}}"
+                            HorizontalAlignment="Center" Spacing="8" Margin="0,8">
+                    <FontIcon FontFamily="{StaticResource RemixIcons}"
+                              Glyph="{StaticResource Icon_Folder}"
+                              FontSize="48"
+                              Foreground="{ThemeResource SpanTextTertiaryBrush}"
+                              HorizontalAlignment="Center"/>
+                    <TextBlock Text="{Binding FolderItemCount}"
+                               HorizontalAlignment="Center" FontSize="14"
+                               Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
+                </StackPanel>
+
+                <!-- Separator -->
+                <Rectangle Height="1" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="0,4"/>
+
+                <!-- Metadata Section -->
+                <StackPanel Spacing="2">
+                    <!-- File Type -->
+                    <Grid Height="24" Visibility="{Binding FileType, Converter={StaticResource VisConv}}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="72"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="종류" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1" Text="{Binding FileType}" FontSize="12" IsTextSelectionEnabled="True" VerticalAlignment="Center"/>
+                    </Grid>
+
+                    <!-- Size -->
+                    <Grid Height="24" Visibility="{Binding FileSizeFormatted, Converter={StaticResource VisConv}}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="72"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="크기" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1" Text="{Binding FileSizeFormatted}" FontSize="12" IsTextSelectionEnabled="True" VerticalAlignment="Center"/>
+                    </Grid>
+
+                    <!-- Created -->
+                    <Grid Height="24" Visibility="{Binding DateCreated, Converter={StaticResource VisConv}}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="72"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="생성일" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1" Text="{Binding DateCreated}" FontSize="12" IsTextSelectionEnabled="True" VerticalAlignment="Center"/>
+                    </Grid>
+
+                    <!-- Modified -->
+                    <Grid Height="24" Visibility="{Binding DateModified, Converter={StaticResource VisConv}}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="72"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="수정일" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1" Text="{Binding DateModified}" FontSize="12" IsTextSelectionEnabled="True" VerticalAlignment="Center"/>
+                    </Grid>
+
+                    <!-- Dimensions (conditional) -->
+                    <Grid Height="24" Visibility="{Binding Dimensions, Converter={StaticResource VisConv}}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="72"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="해상도" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1" Text="{Binding Dimensions}" FontSize="12" IsTextSelectionEnabled="True" VerticalAlignment="Center"/>
+                    </Grid>
+
+                    <!-- Duration (conditional) -->
+                    <Grid Height="24" Visibility="{Binding Duration, Converter={StaticResource VisConv}}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="72"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="재생시간" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1" Text="{Binding Duration}" FontSize="12" IsTextSelectionEnabled="True" VerticalAlignment="Center"/>
+                    </Grid>
+
+                    <!-- Artist (conditional) -->
+                    <Grid Height="24" Visibility="{Binding Artist, Converter={StaticResource VisConv}}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="72"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="아티스트" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1" Text="{Binding Artist}" FontSize="12" IsTextSelectionEnabled="True" VerticalAlignment="Center"/>
+                    </Grid>
+
+                    <!-- Album (conditional) -->
+                    <Grid Height="24" Visibility="{Binding Album, Converter={StaticResource VisConv}}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="72"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="앨범" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1" Text="{Binding Album}" FontSize="12" IsTextSelectionEnabled="True" VerticalAlignment="Center"/>
+                    </Grid>
+                </StackPanel>
+
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>
