@@ -229,12 +229,22 @@ namespace Span.Services
 
         private void OnMenuClosed(object? sender, object e)
         {
-            // Dispose shell COM session when menu closes
-            _currentSession?.Dispose();
-            _currentSession = null;
-
-            if (sender is MenuFlyout flyout)
-                flyout.Closed -= OnMenuClosed;
+            try
+            {
+                // Dispose shell COM session when menu closes
+                _currentSession?.Dispose();
+                _currentSession = null;
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[ContextMenuService] Session dispose error: {ex.Message}");
+                _currentSession = null;
+            }
+            finally
+            {
+                if (sender is MenuFlyout flyout)
+                    flyout.Closed -= OnMenuClosed;
+            }
         }
 
         private static MenuFlyoutItem CreateItem(string text, string? glyph, Action action)

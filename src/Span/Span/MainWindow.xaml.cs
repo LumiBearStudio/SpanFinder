@@ -39,6 +39,7 @@ namespace Span
         private DispatcherTimer? _deviceChangeDebounceTimer;
 
         private readonly Services.ContextMenuService _contextMenuService;
+        private readonly Services.LocalizationService _loc;
         public MainViewModel ViewModel { get; }
 
         // Type-ahead search
@@ -74,6 +75,7 @@ namespace Span
             this.InitializeComponent();
             ViewModel = App.Current.Services.GetRequiredService<MainViewModel>();
             _contextMenuService = App.Current.Services.GetRequiredService<Services.ContextMenuService>();
+            _loc = App.Current.Services.GetRequiredService<Services.LocalizationService>();
 
             // Mica
             SystemBackdrop = new Microsoft.UI.Xaml.Media.MicaBackdrop();
@@ -346,7 +348,7 @@ namespace Span
             // Use DispatcherQueue for proper timing (after visibility changes take effect)
             DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
             {
-                if (_isClosed) return;
+                if (_isClosed || ViewModel == null) return;
 
                 // Determine which pane's view mode to use
                 var viewMode = (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
@@ -977,7 +979,7 @@ namespace Span
             if (activeIndex < 0 || activeIndex >= columns.Count) return;
 
             var currentFolder = columns[activeIndex];
-            string baseName = "새 폴더";
+            string baseName = _loc.Get("NewFolderBaseName");
             string newPath = System.IO.Path.Combine(currentFolder.Path, baseName);
 
             int count = 1;
@@ -1186,10 +1188,10 @@ namespace Span
             // Confirm delete (send to Recycle Bin)
             var dialog = new ContentDialog
             {
-                Title = "삭제 확인",
-                Content = $"'{selected.Name}'을(를) 휴지통으로 이동하시겠습니까?",
-                PrimaryButtonText = "삭제",
-                CloseButtonText = "취소",
+                Title = _loc.Get("DeleteConfirmTitle"),
+                Content = string.Format(_loc.Get("DeleteConfirmContent"), selected.Name),
+                PrimaryButtonText = _loc.Get("Delete"),
+                CloseButtonText = _loc.Get("Cancel"),
                 XamlRoot = this.Content.XamlRoot,
                 DefaultButton = ContentDialogButton.Close
             };
@@ -1252,10 +1254,10 @@ namespace Span
             // Confirm permanent delete
             var dialog = new ContentDialog
             {
-                Title = "영구 삭제 확인",
-                Content = $"'{selected.Name}'을(를) 영구적으로 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.",
-                PrimaryButtonText = "영구 삭제",
-                CloseButtonText = "취소",
+                Title = _loc.Get("PermanentDeleteTitle"),
+                Content = string.Format(_loc.Get("PermanentDeleteContent"), selected.Name),
+                PrimaryButtonText = _loc.Get("PermanentDelete"),
+                CloseButtonText = _loc.Get("Cancel"),
                 XamlRoot = this.Content.XamlRoot,
                 DefaultButton = ContentDialogButton.Close
             };
@@ -2175,7 +2177,7 @@ namespace Span
         {
             DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
             {
-                if (_isClosed) return;
+                if (_isClosed || ViewModel == null) return;
                 var columns = ViewModel.ActiveExplorer.Columns;
                 if (columns.Count > 0)
                 {
@@ -2487,10 +2489,10 @@ namespace Span
         {
             var dialog = new ContentDialog
             {
-                Title = "삭제 확인",
-                Content = $"'{itemName}'을(를) 휴지통으로 이동하시겠습니까?",
-                PrimaryButtonText = "삭제",
-                CloseButtonText = "취소",
+                Title = _loc.Get("DeleteConfirmTitle"),
+                Content = string.Format(_loc.Get("DeleteConfirmContent"), itemName),
+                PrimaryButtonText = _loc.Get("Delete"),
+                CloseButtonText = _loc.Get("Cancel"),
                 XamlRoot = this.Content.XamlRoot,
                 DefaultButton = ContentDialogButton.Close
             };
@@ -2555,7 +2557,7 @@ namespace Span
 
         async void Services.IContextMenuHost.PerformNewFolder(string parentFolderPath)
         {
-            string baseName = "새 폴더";
+            string baseName = _loc.Get("NewFolderBaseName");
             string newPath = System.IO.Path.Combine(parentFolderPath, baseName);
 
             int count = 1;

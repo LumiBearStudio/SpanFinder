@@ -53,6 +53,16 @@ namespace Span.Services
 
                 // Shell extensions section
                 ["ShellExtensions"] = "More options",
+
+                // Dialog strings
+                ["DeleteConfirmTitle"] = "Confirm Delete",
+                ["DeleteConfirmContent"] = "Move '{0}' to Recycle Bin?",
+                ["PermanentDeleteTitle"] = "Confirm Permanent Delete",
+                ["PermanentDeleteContent"] = "Permanently delete '{0}'?\n\nThis action cannot be undone.",
+                ["PermanentDelete"] = "Permanently Delete",
+                ["Cancel"] = "Cancel",
+                ["NewFolderBaseName"] = "New folder",
+                ["FolderItemCount"] = "{0} items",
             },
             ["ko"] = new Dictionary<string, string>
             {
@@ -91,6 +101,16 @@ namespace Span.Services
 
                 // Shell extensions section
                 ["ShellExtensions"] = "\ucd94\uac00 \uc635\uc158",
+
+                // Dialog strings
+                ["DeleteConfirmTitle"] = "\uc0ad\uc81c \ud655\uc778",
+                ["DeleteConfirmContent"] = "'{0}'\uc744(\ub97c) \ud734\uc9c0\ud1b5\uc73c\ub85c \uc774\ub3d9\ud558\uc2dc\uaca0\uc2b5\ub2c8\uae4c?",
+                ["PermanentDeleteTitle"] = "\uc601\uad6c \uc0ad\uc81c \ud655\uc778",
+                ["PermanentDeleteContent"] = "'{0}'\uc744(\ub97c) \uc601\uad6c\uc801\uc73c\ub85c \uc0ad\uc81c\ud558\uc2dc\uaca0\uc2b5\ub2c8\uae4c?\n\n\uc774 \uc791\uc5c5\uc740 \ub418\ub3cc\ub9b4 \uc218 \uc5c6\uc2b5\ub2c8\ub2e4.",
+                ["PermanentDelete"] = "\uc601\uad6c \uc0ad\uc81c",
+                ["Cancel"] = "\ucde8\uc18c",
+                ["NewFolderBaseName"] = "\uc0c8 \ud3f4\ub354",
+                ["FolderItemCount"] = "{0}\uac1c \ud56d\ubaa9",
             },
             ["ja"] = new Dictionary<string, string>
             {
@@ -122,6 +142,16 @@ namespace Span.Services
                 ["Ascending"] = "\u6607\u9806",
                 ["Descending"] = "\u964d\u9806",
                 ["ShellExtensions"] = "\u305d\u306e\u4ed6\u306e\u30aa\u30d7\u30b7\u30e7\u30f3",
+
+                // Dialog strings
+                ["DeleteConfirmTitle"] = "\u524a\u9664\u306e\u78ba\u8a8d",
+                ["DeleteConfirmContent"] = "'{0}'\u3092\u3054\u307f\u7bb1\u306b\u79fb\u52d5\u3057\u307e\u3059\u304b\uff1f",
+                ["PermanentDeleteTitle"] = "\u5b8c\u5168\u524a\u9664\u306e\u78ba\u8a8d",
+                ["PermanentDeleteContent"] = "'{0}'\u3092\u5b8c\u5168\u306b\u524a\u9664\u3057\u307e\u3059\u304b\uff1f\n\n\u3053\u306e\u64cd\u4f5c\u306f\u5143\u306b\u623b\u305b\u307e\u305b\u3093\u3002",
+                ["PermanentDelete"] = "\u5b8c\u5168\u306b\u524a\u9664",
+                ["Cancel"] = "\u30ad\u30e3\u30f3\u30bb\u30eb",
+                ["NewFolderBaseName"] = "\u65b0\u3057\u3044\u30d5\u30a9\u30eb\u30c0\u30fc",
+                ["FolderItemCount"] = "{0}\u500b\u306e\u9805\u76ee",
             }
         };
 
