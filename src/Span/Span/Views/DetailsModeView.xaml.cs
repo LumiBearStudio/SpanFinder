@@ -198,17 +198,21 @@ namespace Span.Views
 
         private void OnItemRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
         {
-            if (sender is Grid grid)
+            if (sender is Grid grid && ContextMenuService != null && ContextMenuHost != null)
             {
-                string? path = null;
-                if (grid.DataContext is FolderViewModel folder)
-                    path = folder.Path;
-                else if (grid.DataContext is FileViewModel file)
-                    path = file.Path;
+                Microsoft.UI.Xaml.Controls.MenuFlyout? flyout = null;
 
-                if (path != null && OwnerHwnd != IntPtr.Zero)
+                if (grid.DataContext is FolderViewModel folder)
+                    flyout = ContextMenuService.BuildFolderMenu(folder, ContextMenuHost);
+                else if (grid.DataContext is FileViewModel file)
+                    flyout = ContextMenuService.BuildFileMenu(file, ContextMenuHost);
+
+                if (flyout != null)
                 {
-                    ShellContextMenu.ShowForItem(OwnerHwnd, path);
+                    flyout.ShowAt(grid, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
+                    {
+                        Position = e.GetPosition(grid)
+                    });
                     e.Handled = true;
                 }
             }

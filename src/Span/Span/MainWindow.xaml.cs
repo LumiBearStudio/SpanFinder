@@ -98,7 +98,11 @@ namespace Span
             DetailsViewRight.ViewModel = ViewModel.RightExplorer;
             IconViewRight.ViewModel = ViewModel.RightExplorer;
 
+            // Get HWND early (needed by child views and context menu service)
+            _hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+
             // Pass context menu service and HWND to child views
+            _contextMenuService.OwnerHwnd = _hwnd;
             DetailsView.ContextMenuService = _contextMenuService;
             DetailsView.ContextMenuHost = this;
             DetailsView.OwnerHwnd = _hwnd;
@@ -145,7 +149,6 @@ namespace Span
             this.Closed += OnClosed;
 
             // WM_DEVICECHANGE: detect USB drive plug/unplug
-            _hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
             _subclassProc = new SUBCLASSPROC(WndProc);
             SetWindowSubclass(_hwnd, _subclassProc, IntPtr.Zero, IntPtr.Zero);
 
@@ -462,7 +465,11 @@ namespace Span
         {
             if (sender is Grid grid && grid.DataContext is FolderViewModel folder)
             {
-                ShellContextMenu.ShowForItem(_hwnd, folder.Path);
+                var flyout = _contextMenuService.BuildFolderMenu(folder, this);
+                flyout.ShowAt(grid, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
+                {
+                    Position = e.GetPosition(grid)
+                });
                 e.Handled = true;
             }
         }
@@ -471,7 +478,11 @@ namespace Span
         {
             if (sender is Grid grid && grid.DataContext is FileViewModel file)
             {
-                ShellContextMenu.ShowForItem(_hwnd, file.Path);
+                var flyout = _contextMenuService.BuildFileMenu(file, this);
+                flyout.ShowAt(grid, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
+                {
+                    Position = e.GetPosition(grid)
+                });
                 e.Handled = true;
             }
         }

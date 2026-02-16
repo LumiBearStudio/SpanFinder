@@ -101,26 +101,30 @@ namespace Span.Views
 
         private void OnItemRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
         {
-            if (e.OriginalSource is FrameworkElement fe)
+            if (e.OriginalSource is FrameworkElement fe && ContextMenuService != null && ContextMenuHost != null)
             {
-                string? path = null;
-                if (fe.DataContext is FolderViewModel folder)
-                    path = folder.Path;
-                else if (fe.DataContext is FileViewModel file)
-                    path = file.Path;
+                Microsoft.UI.Xaml.Controls.MenuFlyout? flyout = null;
 
-                if (path != null && OwnerHwnd != IntPtr.Zero)
+                if (fe.DataContext is FolderViewModel folder)
+                    flyout = ContextMenuService.BuildFolderMenu(folder, ContextMenuHost);
+                else if (fe.DataContext is FileViewModel file)
+                    flyout = ContextMenuService.BuildFileMenu(file, ContextMenuHost);
+
+                if (flyout != null)
                 {
-                    ShellContextMenu.ShowForItem(OwnerHwnd, path);
+                    flyout.ShowAt(fe, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
+                    {
+                        Position = e.GetPosition(fe)
+                    });
                     e.Handled = true;
                 }
-                else if (ContextMenuService != null && ContextMenuHost != null)
+                else
                 {
-                    // Empty area fallback — custom WinUI flyout
+                    // Empty area fallback
                     var folderPath = ViewModel?.CurrentFolder?.Path;
                     if (!string.IsNullOrEmpty(folderPath))
                     {
-                        var flyout = ContextMenuService.BuildEmptyAreaMenu(folderPath, ContextMenuHost);
+                        flyout = ContextMenuService.BuildEmptyAreaMenu(folderPath, ContextMenuHost);
                         flyout.ShowAt(fe, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
                         {
                             Position = e.GetPosition(fe)
