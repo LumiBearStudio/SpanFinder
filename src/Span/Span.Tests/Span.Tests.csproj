@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <Platforms>x86;x64;ARM64</Platforms>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageReference Include="MSTest.TestAdapter" Version="3.1.1" />
+    <PackageReference Include="MSTest.TestFramework" Version="3.1.1" />
+  </ItemGroup>
+
+  <!-- Compile testable source files directly (avoids WinUI module initializer) -->
+  <ItemGroup>
+    <!-- Models (pure C#, no WinUI dependency) -->
+    <Compile Include="..\Span\Models\ViewMode.cs" Link="Sources\Models\ViewMode.cs" />
+    <Compile Include="..\Span\Models\PreviewType.cs" Link="Sources\Models\PreviewType.cs" />
+    <Compile Include="..\Span\Models\ActivePane.cs" Link="Sources\Models\ActivePane.cs" />
+    <Compile Include="..\Span\Models\IFileSystemItem.cs" Link="Sources\Models\IFileSystemItem.cs" />
+    <Compile Include="..\Span\Models\FileItem.cs" Link="Sources\Models\FileItem.cs" />
+    <Compile Include="..\Span\Models\FolderItem.cs" Link="Sources\Models\FolderItem.cs" />
+    <Compile Include="..\Span\Models\DriveItem.cs" Link="Sources\Models\DriveItem.cs" />
+    <Compile Include="..\Span\Models\TabItem.cs" Link="Sources\Models\TabItem.cs" />
+    <Compile Include="..\Span\Models\ShellMenuItem.cs" Link="Sources\Models\ShellMenuItem.cs" />
+    <!-- Helpers (pure C#) -->
+    <Compile Include="..\Span\Helpers\NaturalStringComparer.cs" Link="Sources\Helpers\NaturalStringComparer.cs" />
+    <Compile Include="..\Span\Helpers\ViewModeExtensions.cs" Link="Sources\Helpers\ViewModeExtensions.cs" />
+    <!-- Services (pure C#) -->
+    <Compile Include="..\Span\Services\LocalizationService.cs" Link="Sources\Services\LocalizationService.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Microsoft.VisualStudio.TestTools.UnitTesting" />
+  </ItemGroup>
+
+</Project>
