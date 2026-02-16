@@ -12,6 +12,7 @@ namespace Span.Views
         public ContextMenuService? ContextMenuService { get; set; }
         public IContextMenuHost? ContextMenuHost { get; set; }
         public IntPtr OwnerHwnd { get; set; }
+        public bool IsRightPane { get; set; }
 
         private ExplorerViewModel? _viewModel;
         public ExplorerViewModel? ViewModel
@@ -35,12 +36,13 @@ namespace Span.Views
             this.Loaded += (s, e) =>
             {
                 _isLoaded = true;
+                _isCleanedUp = false; // Allow cleanup on next Unloaded
 
                 // Get ViewModel from MainWindow's DataContext
                 if (this.XamlRoot?.Content is FrameworkElement root &&
                     root.DataContext is MainViewModel mainVm)
                 {
-                    ViewModel = mainVm.Explorer;
+                    ViewModel = IsRightPane ? mainVm.RightExplorer : mainVm.Explorer;
                     UpdateIconSize(mainVm.CurrentIconSize);
                 }
             };

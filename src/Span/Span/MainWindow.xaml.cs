@@ -95,7 +95,9 @@ namespace Span
             HomeView.MainViewModel = ViewModel;
 
             // Set ViewModel for Details and Icon views (right pane)
+            DetailsViewRight.IsRightPane = true;
             DetailsViewRight.ViewModel = ViewModel.RightExplorer;
+            IconViewRight.IsRightPane = true;
             IconViewRight.ViewModel = ViewModel.RightExplorer;
 
             // Get HWND early (needed by child views and context menu service)
@@ -332,7 +334,8 @@ namespace Span
 
         private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == nameof(MainViewModel.CurrentViewMode))
+            if (e.PropertyName == nameof(MainViewModel.CurrentViewMode) ||
+                e.PropertyName == nameof(MainViewModel.RightViewMode))
             {
                 FocusActiveView();
             }
