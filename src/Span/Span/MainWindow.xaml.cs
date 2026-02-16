@@ -5,17 +5,40 @@ using Microsoft.UI.Xaml.Media;
 using Microsoft.Extensions.DependencyInjection;
 using Span.Models;
 using Span.ViewModels;
+using Span.Services;
 using Span.Services.FileOperations;
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Linq;
+using System.Runtime.InteropServices;
 using Windows.ApplicationModel.DataTransfer;
 
 namespace Span
 {
-    public sealed partial class MainWindow : Window
+    public sealed partial class MainWindow : Window, Services.IContextMenuHost
     {
+        // --- WM_DEVICECHANGE P/Invoke for USB hotplug detection ---
+        private const int WM_DEVICECHANGE = 0x0219;
+        private const int DBT_DEVNODES_CHANGED = 0x0007;
+
+        private delegate IntPtr SUBCLASSPROC(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam, IntPtr uIdSubclass, IntPtr dwRefData);
+
+        [DllImport("comctl32.dll", SetLastError = true)]
+        private static extern bool SetWindowSubclass(IntPtr hWnd, SUBCLASSPROC pfnSubclass, IntPtr uIdSubclass, IntPtr dwRefData);
+
+        [DllImport("comctl32.dll", SetLastError = true)]
+        private static extern bool RemoveWindowSubclass(IntPtr hWnd, SUBCLASSPROC pfnSubclass, IntPtr uIdSubclass);
+
+        [DllImport("comctl32.dll", SetLastError = true)]
+        private static extern IntPtr DefSubclassProc(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam);
+
+        private IntPtr _hwnd;
+        private SUBCLASSPROC? _subclassProc; // prevent GC collection
+        private DispatcherTimer? _deviceChangeDebounceTimer;
+
+        private readonly Services.ContextMenuService _contextMenuService;
         public MainViewModel ViewModel { get; }
 
         // Type-ahead search
@@ -36,6 +59,10 @@ namespace Span
         // Selection synchronization guard (Phase 1)
         private bool _isSyncingSelection = false;
 
+        // Preview panel selection subscriptions
+        private FolderViewModel? _leftPreviewSubscribedColumn;
+        private FolderViewModel? _rightPreviewSubscribedColumn;
+
         // Sort state
         private string _currentSortField = "Name"; // Name, Date, Size, Type
         private bool _currentSortAscending = true;
@@ -46,6 +73,7 @@ namespace Span
         {
             this.InitializeComponent();
             ViewModel = App.Current.Services.GetRequiredService<MainViewModel>();
+            _contextMenuService = App.Current.Services.GetRequiredService<Services.ContextMenuService>();
 
             // Mica
             SystemBackdrop = new Microsoft.UI.Xaml.Media.MicaBackdrop();
@@ -54,18 +82,45 @@ namespace Span
             ExtendsContentIntoTitleBar = true;
             SetTitleBar(AppTitleBar);
 
-            // Auto-scroll on column change
+            // Auto-scroll on column change (both panes)
             ViewModel.Explorer.Columns.CollectionChanged += OnColumnsChanged;
+            ViewModel.RightExplorer.Columns.CollectionChanged += OnRightColumnsChanged;
 
             // Focus management on ViewMode change
             ViewModel.PropertyChanged += OnViewModelPropertyChanged;
 
-            // Set ViewModel for Details and Icon views
+            // Set ViewModel for Details and Icon views (left pane)
             DetailsView.ViewModel = ViewModel.Explorer;
             IconView.ViewModel = ViewModel.Explorer;
+            HomeView.MainViewModel = ViewModel;
 
-            // ★ ItemsControl에서 키보드 이벤트 가로채기 (ScrollViewer에 전달 차단)
+            // Set ViewModel for Details and Icon views (right pane)
+            DetailsViewRight.ViewModel = ViewModel.RightExplorer;
+            IconViewRight.ViewModel = ViewModel.RightExplorer;
+
+            // Pass context menu service and HWND to child views
+            DetailsView.ContextMenuService = _contextMenuService;
+            DetailsView.ContextMenuHost = this;
+            DetailsView.OwnerHwnd = _hwnd;
+            IconView.ContextMenuService = _contextMenuService;
+            IconView.ContextMenuHost = this;
+            IconView.OwnerHwnd = _hwnd;
+            HomeView.ContextMenuService = _contextMenuService;
+            HomeView.ContextMenuHost = this;
+            DetailsViewRight.ContextMenuService = _contextMenuService;
+            DetailsViewRight.ContextMenuHost = this;
+            DetailsViewRight.OwnerHwnd = _hwnd;
+            IconViewRight.ContextMenuService = _contextMenuService;
+            IconViewRight.ContextMenuHost = this;
+            IconViewRight.OwnerHwnd = _hwnd;
+
+            // ★ ItemsControl에서 키보드 이벤트 가로채기 (both panes)
             MillerColumnsControl.AddHandler(
+                UIElement.KeyDownEvent,
+                new KeyEventHandler(OnMillerKeyDown),
+                true
+            );
+            MillerColumnsControlRight.AddHandler(
                 UIElement.KeyDownEvent,
                 new KeyEventHandler(OnMillerKeyDown),
                 true
@@ -88,6 +143,46 @@ namespace Span
             };
 
             this.Closed += OnClosed;
+
+            // WM_DEVICECHANGE: detect USB drive plug/unplug
+            _hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+            _subclassProc = new SUBCLASSPROC(WndProc);
+            SetWindowSubclass(_hwnd, _subclassProc, IntPtr.Zero, IntPtr.Zero);
+
+            _deviceChangeDebounceTimer = new DispatcherTimer();
+            _deviceChangeDebounceTimer.Interval = TimeSpan.FromMilliseconds(1000);
+            _deviceChangeDebounceTimer.Tick += (s, e) =>
+            {
+                _deviceChangeDebounceTimer.Stop();
+                if (!_isClosed)
+                {
+                    ViewModel.RefreshDrives();
+                }
+            };
+
+            // Initialize preview panels
+            InitializePreviewPanels();
+
+            // Restore split view state and preview state from persisted settings
+            if (this.Content is FrameworkElement rootElement)
+            {
+                rootElement.Loaded += (s, e) =>
+                {
+                    if (ViewModel.IsSplitViewEnabled)
+                    {
+                        SplitterCol.Width = new GridLength(2, GridUnitType.Pixel);
+                        RightPaneCol.Width = new GridLength(1, GridUnitType.Star);
+
+                        // Navigate right pane to a real path (not conceptual "PC")
+                        if (ViewModel.RightExplorer.Columns.Count == 0 ||
+                            ViewModel.RightExplorer.CurrentPath == "PC")
+                        {
+                            NavigateRightPaneToRealPath();
+                        }
+                    }
+                    RestorePreviewState();
+                };
+            }
         }
 
         private void OnClosed(object sender, WindowEventArgs args)
@@ -101,7 +196,8 @@ namespace Span
 
                 // STEP 1: Suppress ViewModel notifications FIRST (prevents PropertyChanged
                 // from reaching UI during teardown — the primary crash cause).
-                ViewModel?.Explorer?.Cleanup();  // Sets _isCleaningUp, clears Columns silently
+                ViewModel?.Explorer?.Cleanup();       // Left pane
+                ViewModel?.RightExplorer?.Cleanup();   // Right pane
 
                 // STEP 2: Unsubscribe MainWindow event handlers BEFORE ViewModel.Cleanup()
                 // so collection Clear() notifications don't reach MainWindow handlers.
@@ -109,28 +205,44 @@ namespace Span
                 {
                     ViewModel.Explorer.Columns.CollectionChanged -= OnColumnsChanged;
                 }
+                if (ViewModel?.RightExplorer != null)
+                {
+                    ViewModel.RightExplorer.Columns.CollectionChanged -= OnRightColumnsChanged;
+                }
                 if (ViewModel != null)
                 {
                     ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+                    ViewModel.PropertyChanged -= OnViewModelPropertyChangedForPreview;
                 }
+
+                // Unsubscribe preview column change handlers
+                if (ViewModel?.LeftExplorer != null)
+                    ViewModel.LeftExplorer.Columns.CollectionChanged -= OnLeftColumnsChangedForPreview;
+                if (ViewModel?.RightExplorer != null)
+                    ViewModel.RightExplorer.Columns.CollectionChanged -= OnRightColumnsChangedForPreview;
+
+                // STEP 2.5: Cleanup preview panels (stop media, dispose ViewModels)
+                try { LeftPreviewPanel?.Cleanup(); } catch { }
+                try { RightPreviewPanel?.Cleanup(); } catch { }
+                UnsubscribePreviewSelection(isLeft: true);
+                UnsubscribePreviewSelection(isLeft: false);
+
+                // Save preview panel widths
+                try
+                {
+                    double leftW = LeftPreviewCol.Width.Value;
+                    double rightW = RightPreviewCol.Width.Value;
+                    ViewModel?.SavePreviewWidths(leftW, rightW);
+                }
+                catch { }
 
                 // STEP 3: Disconnect view bindings BEFORE ViewModel.Cleanup()
                 // so Favorites.Clear() / RecentFolders.Clear() don't reach disposed UI.
-                try { DetailsView?.Cleanup(); }
-                catch (Exception ex)
-                {
-                    Helpers.DebugLogger.Log($"[MainWindow.OnClosed] DetailsView cleanup error: {ex.Message}");
-                }
-                try { IconView?.Cleanup(); }
-                catch (Exception ex)
-                {
-                    Helpers.DebugLogger.Log($"[MainWindow.OnClosed] IconView cleanup error: {ex.Message}");
-                }
-                try { HomeView?.Cleanup(); }
-                catch (Exception ex)
-                {
-                    Helpers.DebugLogger.Log($"[MainWindow.OnClosed] HomeView cleanup error: {ex.Message}");
-                }
+                try { DetailsView?.Cleanup(); } catch { }
+                try { IconView?.Cleanup(); } catch { }
+                try { HomeView?.Cleanup(); } catch { }
+                try { DetailsViewRight?.Cleanup(); } catch { }
+                try { IconViewRight?.Cleanup(); } catch { }
 
                 // Disconnect sidebar bindings
                 try { FavoritesItemsControl.ItemsSource = null; }
@@ -139,7 +251,7 @@ namespace Span
                 // STEP 4: NOW safe to clear collections — UI bindings disconnected
                 ViewModel?.Cleanup();            // Save state, cancel ops, clear collections
 
-                // STEP 4: Stop timer and remove keyboard handlers
+                // STEP 5: Stop timer and remove keyboard handlers
                 if (_typeAheadTimer != null)
                 {
                     _typeAheadTimer.Stop();
@@ -153,6 +265,21 @@ namespace Span
                 {
                     MillerColumnsControl.RemoveHandler(UIElement.KeyDownEvent, (KeyEventHandler)OnMillerKeyDown);
                 }
+                if (MillerColumnsControlRight != null)
+                {
+                    MillerColumnsControlRight.RemoveHandler(UIElement.KeyDownEvent, (KeyEventHandler)OnMillerKeyDown);
+                }
+
+                // STEP 6: Remove window subclass for device change
+                if (_subclassProc != null)
+                {
+                    RemoveWindowSubclass(_hwnd, _subclassProc, IntPtr.Zero);
+                }
+                if (_deviceChangeDebounceTimer != null)
+                {
+                    _deviceChangeDebounceTimer.Stop();
+                    _deviceChangeDebounceTimer = null;
+                }
 
                 Helpers.DebugLogger.Log("[MainWindow.OnClosed] Cleanup complete");
             }
@@ -161,6 +288,21 @@ namespace Span
                 System.Diagnostics.Debug.WriteLine($"[MainWindow.OnClosed] Error during close: {ex.Message}");
                 System.Diagnostics.Debug.WriteLine($"[MainWindow.OnClosed] Stack trace: {ex.StackTrace}");
             }
+        }
+
+        /// <summary>
+        /// Win32 subclass procedure to intercept WM_DEVICECHANGE for USB hotplug
+        /// </summary>
+        private IntPtr WndProc(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam, IntPtr uIdSubclass, IntPtr dwRefData)
+        {
+            if (uMsg == WM_DEVICECHANGE && wParam == (IntPtr)DBT_DEVNODES_CHANGED)
+            {
+                // Debounce: multiple WM_DEVICECHANGE messages fire in quick succession
+                _deviceChangeDebounceTimer?.Stop();
+                _deviceChangeDebounceTimer?.Start();
+                Helpers.DebugLogger.Log("[MainWindow] WM_DEVICECHANGE: Device change detected");
+            }
+            return DefSubclassProc(hWnd, uMsg, wParam, lParam);
         }
 
         // =================================================================
@@ -172,7 +314,16 @@ namespace Span
             if (e.Action == NotifyCollectionChangedAction.Add ||
                 e.Action == NotifyCollectionChangedAction.Replace)
             {
-                ScrollToLastColumn();
+                ScrollToLastColumn(ViewModel.LeftExplorer, MillerScrollViewer);
+            }
+        }
+
+        private void OnRightColumnsChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            if (e.Action == NotifyCollectionChangedAction.Add ||
+                e.Action == NotifyCollectionChangedAction.Replace)
+            {
+                ScrollToLastColumn(ViewModel.RightExplorer, MillerScrollViewerRight);
             }
         }
 
@@ -190,11 +341,15 @@ namespace Span
             DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
             {
                 if (_isClosed) return;
-                switch (ViewModel.CurrentViewMode)
+
+                // Determine which pane's view mode to use
+                var viewMode = (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
+                    ? ViewModel.RightViewMode : ViewModel.CurrentViewMode;
+
+                switch (viewMode)
                 {
                     case Models.ViewMode.MillerColumns:
-                        // Focus the active Miller column
-                        var columns = ViewModel.Explorer.Columns;
+                        var columns = ViewModel.ActiveExplorer.Columns;
                         if (columns.Count > 0)
                         {
                             int activeIndex = GetActiveColumnIndex();
@@ -205,8 +360,10 @@ namespace Span
                         break;
 
                     case Models.ViewMode.Details:
-                        // Focus the Details ListView
-                        DetailsView?.FocusListView();
+                        if (ViewModel.ActivePane == ActivePane.Right && ViewModel.IsSplitViewEnabled)
+                            DetailsViewRight?.FocusListView();
+                        else
+                            DetailsView?.FocusListView();
                         Helpers.DebugLogger.Log("[MainWindow] Focus: Details");
                         break;
 
@@ -214,34 +371,35 @@ namespace Span
                     case Models.ViewMode.IconMedium:
                     case Models.ViewMode.IconLarge:
                     case Models.ViewMode.IconExtraLarge:
-                        // Focus the Icon GridView
-                        IconView?.FocusGridView();
-                        Helpers.DebugLogger.Log($"[MainWindow] Focus: Icon ({ViewModel.CurrentViewMode})");
+                        if (ViewModel.ActivePane == ActivePane.Right && ViewModel.IsSplitViewEnabled)
+                            IconViewRight?.FocusGridView();
+                        else
+                            IconView?.FocusGridView();
+                        Helpers.DebugLogger.Log($"[MainWindow] Focus: Icon ({viewMode})");
                         break;
 
                     case Models.ViewMode.Home:
-                        // Home view doesn't need special focus management
                         Helpers.DebugLogger.Log("[MainWindow] Focus: Home");
                         break;
                 }
             });
         }
 
-        private void ScrollToLastColumn()
+        private void ScrollToLastColumn(ExplorerViewModel explorer, ScrollViewer scrollViewer)
         {
-            var columns = ViewModel.Explorer.Columns;
+            var columns = explorer.Columns;
             if (columns.Count == 0) return;
 
-            MillerScrollViewer.DispatcherQueue.TryEnqueue(
+            scrollViewer.DispatcherQueue.TryEnqueue(
                 Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
                 () =>
                 {
                     if (_isClosed) return;
-                    MillerScrollViewer.UpdateLayout();
+                    scrollViewer.UpdateLayout();
                     double totalWidth = columns.Count * ColumnWidth;
-                    double viewportWidth = MillerScrollViewer.ViewportWidth;
+                    double viewportWidth = scrollViewer.ViewportWidth;
                     double targetScroll = Math.Max(0, totalWidth - viewportWidth);
-                    MillerScrollViewer.ChangeView(targetScroll, null, null, false);
+                    scrollViewer.ChangeView(targetScroll, null, null, false);
                 });
         }
 
@@ -291,21 +449,12 @@ namespace Span
         {
             if (sender is Grid grid && grid.DataContext is FavoriteItem favorite)
             {
-                var flyout = new MenuFlyout();
-                var removeItem = new MenuFlyoutItem
-                {
-                    Text = "즐겨찾기에서 제거",
-                    Icon = new FontIcon { Glyph = "\uE74D" }
-                };
-                removeItem.Click += (s, args) =>
-                {
-                    ViewModel.RemoveFromFavorites(favorite.Path);
-                };
-                flyout.Items.Add(removeItem);
+                var flyout = _contextMenuService.BuildFavoriteMenu(favorite, this);
                 flyout.ShowAt(grid, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
                 {
                     Position = e.GetPosition(grid)
                 });
+                e.Handled = true;
             }
         }
 
@@ -313,7 +462,30 @@ namespace Span
         {
             if (sender is Grid grid && grid.DataContext is FolderViewModel folder)
             {
-                ShowFavoriteFlyout(grid, folder.Path, e.GetPosition(grid));
+                ShellContextMenu.ShowForItem(_hwnd, folder.Path);
+                e.Handled = true;
+            }
+        }
+
+        private void OnFileRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
+        {
+            if (sender is Grid grid && grid.DataContext is FileViewModel file)
+            {
+                ShellContextMenu.ShowForItem(_hwnd, file.Path);
+                e.Handled = true;
+            }
+        }
+
+        private void OnSidebarDriveRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
+        {
+            if (sender is Grid grid && grid.DataContext is DriveItem drive)
+            {
+                var flyout = _contextMenuService.BuildDriveMenu(drive, this);
+                flyout.ShowAt(grid, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
+                {
+                    Position = e.GetPosition(grid)
+                });
+                e.Handled = true;
             }
         }
 
@@ -352,30 +524,6 @@ namespace Span
                     Helpers.DebugLogger.Log($"[Sidebar] Folder dropped to favorites: {path}");
                 }
             }
-        }
-
-        private void ShowFavoriteFlyout(FrameworkElement target, string folderPath, Windows.Foundation.Point position)
-        {
-            var flyout = new MenuFlyout();
-            bool isFav = ViewModel.IsFavorite(folderPath);
-
-            var item = new MenuFlyoutItem
-            {
-                Text = isFav ? "즐겨찾기에서 제거" : "즐겨찾기에 추가",
-                Icon = new FontIcon { Glyph = isFav ? "\uE74D" : "\uE734" }
-            };
-            item.Click += (s, args) =>
-            {
-                if (isFav)
-                    ViewModel.RemoveFromFavorites(folderPath);
-                else
-                    ViewModel.AddToFavorites(folderPath);
-            };
-            flyout.Items.Add(item);
-            flyout.ShowAt(target, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
-            {
-                Position = position
-            });
         }
 
         /// <summary>
@@ -422,6 +570,33 @@ namespace Span
             {
                 switch (e.Key)
                 {
+                    case Windows.System.VirtualKey.E:
+                        if (shift)
+                        {
+                            ToggleSplitView();
+                            e.Handled = true;
+                        }
+                        break;
+
+                    case Windows.System.VirtualKey.P:
+                        if (shift)
+                        {
+                            TogglePreviewPanel();
+                            e.Handled = true;
+                        }
+                        break;
+
+                    case Windows.System.VirtualKey.Tab:
+                        // Ctrl+Tab: switch between panes
+                        if (ViewModel.IsSplitViewEnabled)
+                        {
+                            ViewModel.ActivePane = ViewModel.ActivePane == ActivePane.Left
+                                ? ActivePane.Right : ActivePane.Left;
+                            FocusActivePane();
+                            e.Handled = true;
+                        }
+                        break;
+
                     case Windows.System.VirtualKey.L:
                         ShowAddressBarEditMode();
                         e.Handled = true;
@@ -482,7 +657,7 @@ namespace Span
                     case Windows.System.VirtualKey.Number3:
                         // Ctrl+3: Icon (마지막 Icon 크기)
                         ViewModel.SwitchViewMode(ViewModel.CurrentIconSize);
-                        IconView?.UpdateIconSize(ViewModel.CurrentIconSize);
+                        GetActiveIconView()?.UpdateIconSize(ViewModel.CurrentIconSize);
                         e.Handled = true;
                         break;
                 }
@@ -545,7 +720,7 @@ namespace Span
                       .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
             if (ctrl || alt) return;
 
-            var columns = ViewModel.Explorer.Columns;
+            var columns = ViewModel.ActiveExplorer.Columns;
             if (columns.Count == 0) return;
 
             int activeIndex = GetActiveColumnIndex();
@@ -585,7 +760,7 @@ namespace Span
 
         private void HandleRightArrow(int activeIndex)
         {
-            var columns = ViewModel.Explorer.Columns;
+            var columns = ViewModel.ActiveExplorer.Columns;
             var currentColumn = columns[activeIndex];
 
             if (currentColumn.SelectedChild is FolderViewModel && activeIndex + 1 < columns.Count)
@@ -604,7 +779,7 @@ namespace Span
 
         private void HandleEnter(int activeIndex)
         {
-            var columns = ViewModel.Explorer.Columns;
+            var columns = ViewModel.ActiveExplorer.Columns;
             var currentColumn = columns[activeIndex];
 
             if (currentColumn.SelectedChild is FolderViewModel)
@@ -630,7 +805,7 @@ namespace Span
             _typeAheadTimer?.Stop();
             _typeAheadTimer?.Start();
 
-            var columns = ViewModel.Explorer.Columns;
+            var columns = ViewModel.ActiveExplorer.Columns;
             if (activeIndex < 0 || activeIndex >= columns.Count) return;
 
             var column = columns[activeIndex];
@@ -653,7 +828,7 @@ namespace Span
 
         private void HandleCopy()
         {
-            var columns = ViewModel.Explorer.Columns;
+            var columns = ViewModel.ActiveExplorer.Columns;
             int activeIndex = GetCurrentColumnIndex();
             if (activeIndex < 0 || activeIndex >= columns.Count) return;
 
@@ -682,7 +857,7 @@ namespace Span
 
         private void HandleCut()
         {
-            var columns = ViewModel.Explorer.Columns;
+            var columns = ViewModel.ActiveExplorer.Columns;
             int activeIndex = GetCurrentColumnIndex();
             if (activeIndex < 0 || activeIndex >= columns.Count) return;
 
@@ -713,7 +888,7 @@ namespace Span
         {
             if (_clipboardPaths.Count == 0) return;
 
-            var columns = ViewModel.Explorer.Columns;
+            var columns = ViewModel.ActiveExplorer.Columns;
             int activeIndex = GetActiveColumnIndex();
             if (activeIndex < 0) activeIndex = columns.Count - 1;
             if (activeIndex < 0 || activeIndex >= columns.Count) return;
@@ -782,7 +957,7 @@ namespace Span
 
         private async void HandleNewFolder()
         {
-            var columns = ViewModel.Explorer.Columns;
+            var columns = ViewModel.ActiveExplorer.Columns;
             int activeIndex = GetActiveColumnIndex();
             if (activeIndex < 0) activeIndex = columns.Count - 1;
             if (activeIndex < 0 || activeIndex >= columns.Count) return;
@@ -826,7 +1001,7 @@ namespace Span
 
         private async void HandleRefresh()
         {
-            var columns = ViewModel.Explorer.Columns;
+            var columns = ViewModel.ActiveExplorer.Columns;
             int activeIndex = GetActiveColumnIndex();
             if (activeIndex < 0) activeIndex = columns.Count - 1;
             if (activeIndex < 0 || activeIndex >= columns.Count) return;
@@ -852,7 +1027,7 @@ namespace Span
 
         private void HandleRename()
         {
-            var columns = ViewModel.Explorer.Columns;
+            var columns = ViewModel.ActiveExplorer.Columns;
             int activeIndex = GetCurrentColumnIndex(); // Fixed: Use GetCurrentColumnIndex
             if (activeIndex < 0 || activeIndex >= columns.Count) return;
 
@@ -886,7 +1061,7 @@ namespace Span
             var listView = GetListViewForColumn(columnIndex);
             if (listView == null) return;
 
-            var columns = ViewModel.Explorer.Columns;
+            var columns = ViewModel.ActiveExplorer.Columns;
             if (columnIndex >= columns.Count) return;
 
             var column = columns[columnIndex];
@@ -945,7 +1120,7 @@ namespace Span
         /// </summary>
         private void FocusSelectedItem()
         {
-            var columns = ViewModel.Explorer.Columns;
+            var columns = ViewModel.ActiveExplorer.Columns;
             int activeIndex = GetActiveColumnIndex();
             if (activeIndex < 0) activeIndex = columns.Count - 1;
             if (activeIndex < 0 || activeIndex >= columns.Count) return;
@@ -975,7 +1150,7 @@ namespace Span
         private async void HandleDelete()
         {
             // ★ Save activeIndex BEFORE showing dialog (modal dialog steals focus)
-            var columns = ViewModel.Explorer.Columns;
+            var columns = ViewModel.ActiveExplorer.Columns;
             int activeIndex = GetCurrentColumnIndex();
             if (activeIndex < 0 || activeIndex >= columns.Count) return;
 
@@ -1009,7 +1184,7 @@ namespace Span
             if (result != ContentDialogResult.Primary) return;
 
             Helpers.DebugLogger.Log($"[HandleDelete] Dialog confirmed. Selected: {selected.Name}, ActiveIndex: {activeIndex}");
-            Helpers.DebugLogger.Log($"[HandleDelete] Columns before delete: {string.Join(" > ", ViewModel.Explorer.Columns.Select(c => c.Name))}");
+            Helpers.DebugLogger.Log($"[HandleDelete] Columns before delete: {string.Join(" > ", ViewModel.ActiveExplorer.Columns.Select(c => c.Name))}");
 
             // Execute delete operation (send to Recycle Bin)
             // Pass activeIndex so the correct column gets refreshed
@@ -1034,9 +1209,9 @@ namespace Span
 
             // Remove columns after deleted item (using proper cleanup)
             Helpers.DebugLogger.Log($"[HandleDelete] Cleaning up columns from index {activeIndex + 1}");
-            ViewModel.Explorer.CleanupColumnsFrom(activeIndex + 1);
+            ViewModel.ActiveExplorer.CleanupColumnsFrom(activeIndex + 1);
 
-            Helpers.DebugLogger.Log($"[HandleDelete] Columns after cleanup: {string.Join(" > ", ViewModel.Explorer.Columns.Select(c => c.Name))}");
+            Helpers.DebugLogger.Log($"[HandleDelete] Columns after cleanup: {string.Join(" > ", ViewModel.ActiveExplorer.Columns.Select(c => c.Name))}");
 
             // Restore focus
             Helpers.DebugLogger.Log($"[HandleDelete] Restoring focus to column {activeIndex}");
@@ -1050,7 +1225,7 @@ namespace Span
             if (selected == null) return;
 
             // ★ Save activeIndex and column reference BEFORE showing dialog
-            var columns = ViewModel.Explorer.Columns;
+            var columns = ViewModel.ActiveExplorer.Columns;
             int activeIndex = GetActiveColumnIndex();
             if (activeIndex < 0) activeIndex = columns.Count - 1;
             if (activeIndex < 0 || activeIndex >= columns.Count) return;
@@ -1088,7 +1263,7 @@ namespace Span
             }
 
             // Remove columns after deleted item (using proper cleanup)
-            ViewModel.Explorer.CleanupColumnsFrom(activeIndex + 1);
+            ViewModel.ActiveExplorer.CleanupColumnsFrom(activeIndex + 1);
 
             // Restore focus
             FocusColumnAsync(activeIndex);
@@ -1104,7 +1279,7 @@ namespace Span
         {
             if (e.Key == Windows.System.VirtualKey.Escape)
             {
-                MillerColumnsControl.Focus(FocusState.Keyboard);
+                GetActiveMillerColumnsControl().Focus(FocusState.Keyboard);
                 e.Handled = true;
             }
             else if (e.Key == Windows.System.VirtualKey.Enter)
@@ -1112,7 +1287,7 @@ namespace Span
                 string query = SearchBox.Text.Trim();
                 if (string.IsNullOrEmpty(query)) return;
 
-                var columns = ViewModel.Explorer.Columns;
+                var columns = ViewModel.ActiveExplorer.Columns;
                 int activeIndex = GetActiveColumnIndex();
                 if (activeIndex < 0) activeIndex = columns.Count - 1;
                 if (activeIndex < 0 || activeIndex >= columns.Count) return;
@@ -1140,7 +1315,17 @@ namespace Span
         {
             if (sender is FrameworkElement fe && fe.DataContext is FolderViewModel folderVm)
             {
-                ViewModel.Explorer.SetActiveColumn(folderVm);
+                // Detect which pane and set ActivePane + SetActiveColumn
+                if (ViewModel.IsSplitViewEnabled && IsDescendant(RightPaneContainer, fe))
+                {
+                    ViewModel.ActivePane = ActivePane.Right;
+                    ViewModel.RightExplorer.SetActiveColumn(folderVm);
+                }
+                else
+                {
+                    ViewModel.ActivePane = ActivePane.Left;
+                    ViewModel.LeftExplorer.SetActiveColumn(folderVm);
+                }
             }
         }
 
@@ -1161,6 +1346,8 @@ namespace Span
                 try
                 {
                     folderVm.SelectedChild = newSelection;
+                    // Update preview for the active pane
+                    UpdatePreviewForSelection(newSelection);
                 }
                 finally
                 {
@@ -1196,7 +1383,7 @@ namespace Span
 
         private FileSystemViewModel? GetCurrentSelected()
         {
-            var columns = ViewModel.Explorer.Columns;
+            var columns = ViewModel.ActiveExplorer.Columns;
             int activeIndex = GetActiveColumnIndex();
             if (activeIndex < 0) activeIndex = columns.Count - 1;
             if (activeIndex < 0 || activeIndex >= columns.Count) return null;
@@ -1205,15 +1392,16 @@ namespace Span
 
         private void EnsureColumnVisible(int columnIndex)
         {
+            var scrollViewer = GetActiveMillerScrollViewer();
             double columnLeft = columnIndex * ColumnWidth;
             double columnRight = columnLeft + ColumnWidth;
-            double viewportLeft = MillerScrollViewer.HorizontalOffset;
-            double viewportRight = viewportLeft + MillerScrollViewer.ViewportWidth;
+            double viewportLeft = scrollViewer.HorizontalOffset;
+            double viewportRight = viewportLeft + scrollViewer.ViewportWidth;
 
             if (columnLeft < viewportLeft)
-                MillerScrollViewer.ChangeView(columnLeft, null, null, true);
+                scrollViewer.ChangeView(columnLeft, null, null, true);
             else if (columnRight > viewportRight)
-                MillerScrollViewer.ChangeView(columnRight - MillerScrollViewer.ViewportWidth, null, null, true);
+                scrollViewer.ChangeView(columnRight - scrollViewer.ViewportWidth, null, null, true);
         }
 
         private int GetActiveColumnIndex()
@@ -1221,7 +1409,7 @@ namespace Span
             var focused = FocusManager.GetFocusedElement(this.Content.XamlRoot) as DependencyObject;
             if (focused == null) return -1;
 
-            for (int i = 0; i < ViewModel.Explorer.Columns.Count; i++)
+            for (int i = 0; i < ViewModel.ActiveExplorer.Columns.Count; i++)
             {
                 var listView = GetListViewForColumn(i);
                 if (listView != null && IsDescendant(listView, focused))
@@ -1236,12 +1424,12 @@ namespace Span
         /// </summary>
         private int GetCurrentColumnIndex()
         {
-            var columns = ViewModel.Explorer.Columns;
+            var columns = ViewModel.ActiveExplorer.Columns;
             if (columns.Count == 0) return -1;
 
             // First try to get the focused column
-            int activeIndex = GetActiveColumnIndex();
-            if (activeIndex >= 0) return activeIndex;
+            int focusedIndex = GetActiveColumnIndex();
+            if (focusedIndex >= 0) return focusedIndex;
 
             // If no focus (e.g., toolbar button clicked), find rightmost column with selection
             for (int i = columns.Count - 1; i >= 0; i--)
@@ -1262,7 +1450,7 @@ namespace Span
             var listView = GetListViewForColumn(columnIndex);
             if (listView == null) return;
 
-            var columns = ViewModel.Explorer.Columns;
+            var columns = ViewModel.ActiveExplorer.Columns;
             if (columnIndex >= columns.Count) return;
 
             var column = columns[columnIndex];
@@ -1289,8 +1477,9 @@ namespace Span
 
         private ListView? GetListViewForColumn(int columnIndex)
         {
-            if (MillerColumnsControl == null) return null;
-            var container = MillerColumnsControl.ContainerFromIndex(columnIndex) as ContentPresenter;
+            var control = GetActiveMillerColumnsControl();
+            if (control == null) return null;
+            var container = control.ContainerFromIndex(columnIndex) as ContentPresenter;
             if (container == null) return null;
             return FindChild<ListView>(container);
         }
@@ -1344,7 +1533,7 @@ namespace Span
         {
             if (sender is Button btn && btn.Tag is string fullPath)
             {
-                ViewModel.Explorer.NavigateToPath(fullPath);
+                ViewModel.ActiveExplorer.NavigateToPath(fullPath);
             }
         }
 
@@ -1373,7 +1562,7 @@ namespace Span
         /// </summary>
         private void OnNavigateUpClick(object sender, RoutedEventArgs e)
         {
-            ViewModel?.Explorer?.NavigateUp();
+            ViewModel?.ActiveExplorer?.NavigateUp();
             Helpers.DebugLogger.Log("[MainWindow] Up button clicked - navigating to parent folder");
         }
 
@@ -1384,7 +1573,7 @@ namespace Span
         {
             BreadcrumbScroller.Visibility = Visibility.Collapsed;
             AddressBarTextBox.Visibility = Visibility.Visible;
-            AddressBarTextBox.Text = ViewModel.Explorer.CurrentPath;
+            AddressBarTextBox.Text = ViewModel.ActiveExplorer.CurrentPath;
             AddressBarTextBox.Focus(FocusState.Keyboard);
             AddressBarTextBox.SelectAll();
         }
@@ -1408,7 +1597,7 @@ namespace Span
                 var path = AddressBarTextBox.Text.Trim();
                 if (!string.IsNullOrEmpty(path))
                 {
-                    ViewModel.Explorer.NavigateToPath(path);
+                    ViewModel.ActiveExplorer.NavigateToPath(path);
                 }
                 ShowAddressBarBreadcrumbMode();
                 e.Handled = true;
@@ -1433,7 +1622,7 @@ namespace Span
         /// </summary>
         private void OnCopyPathClick(object sender, RoutedEventArgs e)
         {
-            var path = ViewModel.Explorer.CurrentPath;
+            var path = ViewModel.ActiveExplorer.CurrentPath;
             if (!string.IsNullOrEmpty(path))
             {
                 var dataPackage = new DataPackage();
@@ -1516,10 +1705,10 @@ namespace Span
         private void SortCurrentColumn(string sortBy, bool? ascending = null)
         {
             var activeIndex = GetCurrentColumnIndex();
-            if (activeIndex < 0 || activeIndex >= ViewModel.Explorer.Columns.Count)
+            if (activeIndex < 0 || activeIndex >= ViewModel.ActiveExplorer.Columns.Count)
                 return;
 
-            var column = ViewModel.Explorer.Columns[activeIndex];
+            var column = ViewModel.ActiveExplorer.Columns[activeIndex];
             if (column.Children == null || column.Children.Count == 0)
                 return;
 
@@ -1648,25 +1837,32 @@ namespace Span
         private void OnViewModeIconExtraLarge(object sender, RoutedEventArgs e)
         {
             ViewModel.SwitchViewMode(Models.ViewMode.IconExtraLarge);
-            IconView?.UpdateIconSize(Models.ViewMode.IconExtraLarge);
+            GetActiveIconView()?.UpdateIconSize(Models.ViewMode.IconExtraLarge);
         }
 
         private void OnViewModeIconLarge(object sender, RoutedEventArgs e)
         {
             ViewModel.SwitchViewMode(Models.ViewMode.IconLarge);
-            IconView?.UpdateIconSize(Models.ViewMode.IconLarge);
+            GetActiveIconView()?.UpdateIconSize(Models.ViewMode.IconLarge);
         }
 
         private void OnViewModeIconMedium(object sender, RoutedEventArgs e)
         {
             ViewModel.SwitchViewMode(Models.ViewMode.IconMedium);
-            IconView?.UpdateIconSize(Models.ViewMode.IconMedium);
+            GetActiveIconView()?.UpdateIconSize(Models.ViewMode.IconMedium);
         }
 
         private void OnViewModeIconSmall(object sender, RoutedEventArgs e)
         {
             ViewModel.SwitchViewMode(Models.ViewMode.IconSmall);
-            IconView?.UpdateIconSize(Models.ViewMode.IconSmall);
+            GetActiveIconView()?.UpdateIconSize(Models.ViewMode.IconSmall);
+        }
+
+        private Views.IconModeView? GetActiveIconView()
+        {
+            if (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
+                return IconViewRight;
+            return IconView;
         }
 
         // Visibility helper functions for x:Bind
@@ -1736,6 +1932,688 @@ namespace Span
             SortDirectionIcon.Glyph = _currentSortAscending ? "\uE74A" : "\uE74B"; // Up/Down arrow
         }
 
+        // =================================================================
+        //  Split View — Pane Helpers & Handlers
+        // =================================================================
+
+        /// <summary>
+        /// Returns the ItemsControl for the currently active pane.
+        /// </summary>
+        private ItemsControl GetActiveMillerColumnsControl()
+        {
+            if (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
+                return MillerColumnsControlRight;
+            return MillerColumnsControl;
+        }
+
+        /// <summary>
+        /// Returns the ScrollViewer for the currently active pane.
+        /// </summary>
+        private ScrollViewer GetActiveMillerScrollViewer()
+        {
+            if (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
+                return MillerScrollViewerRight;
+            return MillerScrollViewer;
+        }
+
+        // --- x:Bind visibility/brush helpers ---
+
+        public Visibility IsSplitVisible(bool isSplitViewEnabled)
+            => isSplitViewEnabled ? Visibility.Visible : Visibility.Collapsed;
+
+        public Visibility IsNotSplitVisible(bool isSplitViewEnabled)
+            => isSplitViewEnabled ? Visibility.Collapsed : Visibility.Visible;
+
+        /// <summary>
+        /// Single mode toolbar/address bar: visible when NOT split AND NOT Home mode
+        /// </summary>
+        public Visibility IsSingleNonHomeVisible(bool isSplitViewEnabled, Models.ViewMode mode)
+            => (!isSplitViewEnabled && mode != Models.ViewMode.Home) ? Visibility.Visible : Visibility.Collapsed;
+
+        /// <summary>
+        /// Left pane header (split mode): visible when split enabled AND NOT Home mode
+        /// </summary>
+        public Visibility IsLeftPaneHeaderVisible(bool isSplitViewEnabled, Models.ViewMode mode)
+            => (isSplitViewEnabled && mode != Models.ViewMode.Home) ? Visibility.Visible : Visibility.Collapsed;
+
+        public SolidColorBrush LeftPaneAccentBrush(ActivePane activePane)
+        {
+            return activePane == ActivePane.Left
+                ? (SolidColorBrush)(Application.Current.Resources["SpanAccentBrush"])
+                : new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+        }
+
+        public SolidColorBrush RightPaneAccentBrush(ActivePane activePane)
+        {
+            return activePane == ActivePane.Right
+                ? (SolidColorBrush)(Application.Current.Resources["SpanAccentBrush"])
+                : new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+        }
+
+        // --- Focus tracking ---
+
+        private void OnLeftPaneGotFocus(object sender, RoutedEventArgs e)
+        {
+            if (ViewModel.ActivePane != ActivePane.Left)
+            {
+                ViewModel.ActivePane = ActivePane.Left;
+            }
+        }
+
+        private void OnRightPaneGotFocus(object sender, RoutedEventArgs e)
+        {
+            if (ViewModel.ActivePane != ActivePane.Right)
+            {
+                ViewModel.ActivePane = ActivePane.Right;
+            }
+        }
+
+        private void OnLeftPaneHeaderTapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
+        {
+            ViewModel.ActivePane = ActivePane.Left;
+        }
+
+        private void OnRightPaneHeaderTapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
+        {
+            ViewModel.ActivePane = ActivePane.Right;
+        }
+
+        // --- Pane-specific flyout opening handlers (set ActivePane before menu item click) ---
+
+        private void OnLeftPaneSortMenuOpening(object sender, object e)
+        {
+            ViewModel.ActivePane = ActivePane.Left;
+        }
+
+        private void OnRightPaneSortMenuOpening(object sender, object e)
+        {
+            ViewModel.ActivePane = ActivePane.Right;
+        }
+
+        private void OnLeftPaneViewModeMenuOpening(object sender, object e)
+        {
+            ViewModel.ActivePane = ActivePane.Left;
+        }
+
+        private void OnRightPaneViewModeMenuOpening(object sender, object e)
+        {
+            ViewModel.ActivePane = ActivePane.Right;
+        }
+
+        private void OnPanePreviewToggle(object sender, RoutedEventArgs e)
+        {
+            if (sender is FrameworkElement fe && fe.Tag is string tag)
+            {
+                ViewModel.ActivePane = tag == "Right" ? ActivePane.Right : ActivePane.Left;
+            }
+            TogglePreviewPanel();
+        }
+
+        /// <summary>
+        /// Breadcrumb click in per-pane path header.
+        /// Detects which pane the button belongs to and navigates accordingly.
+        /// </summary>
+        private void OnPaneBreadcrumbClick(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is string fullPath)
+            {
+                // Detect pane from visual tree
+                if (IsDescendant(RightPaneContainer, btn))
+                {
+                    ViewModel.ActivePane = ActivePane.Right;
+                    ViewModel.RightExplorer.NavigateToPath(fullPath);
+                }
+                else
+                {
+                    ViewModel.ActivePane = ActivePane.Left;
+                    ViewModel.LeftExplorer.NavigateToPath(fullPath);
+                }
+            }
+        }
+
+        // --- Split View Toggle ---
+
+        private void OnSplitViewToggleClick(object sender, RoutedEventArgs e)
+        {
+            ToggleSplitView();
+        }
+
+        private void ToggleSplitView()
+        {
+            ViewModel.IsSplitViewEnabled = !ViewModel.IsSplitViewEnabled;
+
+            if (ViewModel.IsSplitViewEnabled)
+            {
+                SplitterCol.Width = new GridLength(2, GridUnitType.Pixel);
+                RightPaneCol.Width = new GridLength(1, GridUnitType.Star);
+
+                // Initialize right pane with a real filesystem path
+                if (ViewModel.RightExplorer.Columns.Count == 0 ||
+                    ViewModel.RightExplorer.CurrentPath == "PC")
+                {
+                    NavigateRightPaneToRealPath();
+                }
+
+                Helpers.DebugLogger.Log("[MainWindow] Split View enabled");
+            }
+            else
+            {
+                SplitterCol.Width = new GridLength(0);
+                RightPaneCol.Width = new GridLength(0);
+
+                // Reset active pane to left
+                ViewModel.ActivePane = ActivePane.Left;
+
+                Helpers.DebugLogger.Log("[MainWindow] Split View disabled");
+            }
+        }
+
+        /// <summary>
+        /// Navigate the right pane to a real filesystem path (saved path, first drive, or user profile).
+        /// </summary>
+        private void NavigateRightPaneToRealPath()
+        {
+            var path = ViewModel.GetRightPaneInitialPath();
+            var name = System.IO.Path.GetFileName(path);
+            if (string.IsNullOrEmpty(name))
+                name = path; // Drive root like "C:\"
+
+            ViewModel.RightExplorer.NavigateTo(new FolderItem { Name = name, Path = path });
+            Helpers.DebugLogger.Log($"[MainWindow] Right pane navigated to: {path}");
+        }
+
+        /// <summary>
+        /// Per-pane navigate up button click.
+        /// </summary>
+        private void OnPaneNavigateUpClick(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn)
+            {
+                var explorer = (btn.Tag as string) == "Right"
+                    ? ViewModel.RightExplorer : ViewModel.LeftExplorer;
+                explorer.NavigateUp();
+            }
+        }
+
+        /// <summary>
+        /// Per-pane copy path button click.
+        /// </summary>
+        private void OnPaneCopyPathClick(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn)
+            {
+                var explorer = (btn.Tag as string) == "Right"
+                    ? ViewModel.RightExplorer : ViewModel.LeftExplorer;
+                var path = explorer.CurrentPath;
+                if (!string.IsNullOrEmpty(path))
+                {
+                    var dataPackage = new DataPackage();
+                    dataPackage.SetText(path);
+                    Clipboard.SetContent(dataPackage);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Focus the active pane's content (used after Ctrl+Tab pane switch).
+        /// </summary>
+        private void FocusActivePane()
+        {
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+            {
+                if (_isClosed) return;
+                var columns = ViewModel.ActiveExplorer.Columns;
+                if (columns.Count > 0)
+                {
+                    int lastIndex = columns.Count - 1;
+                    FocusColumnAsync(lastIndex);
+                }
+            });
+        }
+
+        // =================================================================
+        //  Preview Panel
+        // =================================================================
+
+        /// <summary>
+        /// x:Bind visibility helper for preview panel.
+        /// </summary>
+        public Visibility PreviewVisible(bool isPreviewEnabled)
+            => isPreviewEnabled ? Visibility.Visible : Visibility.Collapsed;
+
+        /// <summary>
+        /// Initialize preview panels with ViewModels from DI.
+        /// </summary>
+        private void InitializePreviewPanels()
+        {
+            var previewService = App.Current.Services.GetRequiredService<PreviewService>();
+
+            var leftVm = new PreviewPanelViewModel(previewService);
+            LeftPreviewPanel.Initialize(leftVm);
+
+            var rightVm = new PreviewPanelViewModel(previewService);
+            RightPreviewPanel.Initialize(rightVm);
+
+            // Subscribe to LeftExplorer column changes for preview updates
+            ViewModel.LeftExplorer.Columns.CollectionChanged += OnLeftColumnsChangedForPreview;
+            ViewModel.RightExplorer.Columns.CollectionChanged += OnRightColumnsChangedForPreview;
+
+            // Subscribe to ViewModel property changes for preview state
+            ViewModel.PropertyChanged += OnViewModelPropertyChangedForPreview;
+        }
+
+        /// <summary>
+        /// When columns change, subscribe to the last column's SelectedChild for preview.
+        /// </summary>
+        private void OnLeftColumnsChangedForPreview(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            if (_isClosed || !ViewModel.IsLeftPreviewEnabled) return;
+            SubscribePreviewToLastColumn(isLeft: true);
+        }
+
+        private void OnRightColumnsChangedForPreview(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            if (_isClosed || !ViewModel.IsRightPreviewEnabled) return;
+            SubscribePreviewToLastColumn(isLeft: false);
+        }
+
+        /// <summary>
+        /// Subscribe to the last column's SelectedChild property changes to auto-update preview.
+        /// </summary>
+        private void SubscribePreviewToLastColumn(bool isLeft)
+        {
+            var explorer = isLeft ? ViewModel.LeftExplorer : ViewModel.RightExplorer;
+            var columns = explorer.Columns;
+
+            UnsubscribePreviewSelection(isLeft);
+
+            if (columns.Count == 0) return;
+
+            var lastColumn = columns[columns.Count - 1];
+            lastColumn.PropertyChanged += isLeft ? OnLeftColumnSelectionForPreview : OnRightColumnSelectionForPreview;
+
+            if (isLeft) _leftPreviewSubscribedColumn = lastColumn;
+            else _rightPreviewSubscribedColumn = lastColumn;
+
+            // Immediately update preview with current selection
+            var previewPanel = isLeft ? LeftPreviewPanel : RightPreviewPanel;
+            previewPanel.UpdatePreview(lastColumn.SelectedChild);
+        }
+
+        private void UnsubscribePreviewSelection(bool isLeft)
+        {
+            if (isLeft && _leftPreviewSubscribedColumn != null)
+            {
+                _leftPreviewSubscribedColumn.PropertyChanged -= OnLeftColumnSelectionForPreview;
+                _leftPreviewSubscribedColumn = null;
+            }
+            else if (!isLeft && _rightPreviewSubscribedColumn != null)
+            {
+                _rightPreviewSubscribedColumn.PropertyChanged -= OnRightColumnSelectionForPreview;
+                _rightPreviewSubscribedColumn = null;
+            }
+        }
+
+        private void OnLeftColumnSelectionForPreview(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName != nameof(FolderViewModel.SelectedChild)) return;
+            if (_isClosed || !ViewModel.IsLeftPreviewEnabled) return;
+            if (sender is FolderViewModel folder)
+                LeftPreviewPanel.UpdatePreview(folder.SelectedChild);
+        }
+
+        private void OnRightColumnSelectionForPreview(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName != nameof(FolderViewModel.SelectedChild)) return;
+            if (_isClosed || !ViewModel.IsRightPreviewEnabled) return;
+            if (sender is FolderViewModel folder)
+                RightPreviewPanel.UpdatePreview(folder.SelectedChild);
+        }
+
+        /// <summary>
+        /// Update preview when selection changes in Details/Icon mode (via Miller column selection handler).
+        /// </summary>
+        private void UpdatePreviewForSelection(FileSystemViewModel? selectedItem)
+        {
+            if (_isClosed) return;
+
+            if (ViewModel.ActivePane == ActivePane.Left && ViewModel.IsLeftPreviewEnabled)
+                LeftPreviewPanel.UpdatePreview(selectedItem);
+            else if (ViewModel.ActivePane == ActivePane.Right && ViewModel.IsRightPreviewEnabled)
+                RightPreviewPanel.UpdatePreview(selectedItem);
+        }
+
+        /// <summary>
+        /// React to preview enable/disable changes to wire/unwire subscriptions.
+        /// </summary>
+        private void OnViewModelPropertyChangedForPreview(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(MainViewModel.IsLeftPreviewEnabled))
+            {
+                if (ViewModel.IsLeftPreviewEnabled)
+                    SubscribePreviewToLastColumn(isLeft: true);
+                else
+                {
+                    UnsubscribePreviewSelection(isLeft: true);
+                    LeftPreviewPanel.UpdatePreview(null);
+                }
+            }
+            else if (e.PropertyName == nameof(MainViewModel.IsRightPreviewEnabled))
+            {
+                if (ViewModel.IsRightPreviewEnabled)
+                    SubscribePreviewToLastColumn(isLeft: false);
+                else
+                {
+                    UnsubscribePreviewSelection(isLeft: false);
+                    RightPreviewPanel.UpdatePreview(null);
+                }
+            }
+        }
+
+        private void OnPreviewToggleClick(object sender, RoutedEventArgs e)
+        {
+            TogglePreviewPanel();
+        }
+
+        private void TogglePreviewPanel()
+        {
+            ViewModel.TogglePreview();
+
+            // Update column widths for the active pane
+            if (ViewModel.ActivePane == ActivePane.Left)
+            {
+                if (ViewModel.IsLeftPreviewEnabled)
+                {
+                    LeftPreviewSplitterCol.Width = new GridLength(2, GridUnitType.Pixel);
+                    LeftPreviewCol.Width = new GridLength(280, GridUnitType.Pixel);
+                }
+                else
+                {
+                    LeftPreviewSplitterCol.Width = new GridLength(0);
+                    LeftPreviewCol.Width = new GridLength(0);
+                    LeftPreviewPanel.StopMedia();
+                }
+            }
+            else
+            {
+                if (ViewModel.IsRightPreviewEnabled)
+                {
+                    RightPreviewSplitterCol.Width = new GridLength(2, GridUnitType.Pixel);
+                    RightPreviewCol.Width = new GridLength(280, GridUnitType.Pixel);
+                }
+                else
+                {
+                    RightPreviewSplitterCol.Width = new GridLength(0);
+                    RightPreviewCol.Width = new GridLength(0);
+                    RightPreviewPanel.StopMedia();
+                }
+            }
+
+            Helpers.DebugLogger.Log($"[MainWindow] Preview toggled: Left={ViewModel.IsLeftPreviewEnabled}, Right={ViewModel.IsRightPreviewEnabled}");
+        }
+
+        /// <summary>
+        /// Restore preview panel widths from saved settings on Loaded.
+        /// </summary>
+        private void RestorePreviewState()
+        {
+            try
+            {
+                var settings = Windows.Storage.ApplicationData.Current.LocalSettings;
+
+                if (ViewModel.IsLeftPreviewEnabled)
+                {
+                    LeftPreviewSplitterCol.Width = new GridLength(2, GridUnitType.Pixel);
+                    double leftW = 280;
+                    if (settings.Values.TryGetValue("LeftPreviewWidth", out var lw))
+                        leftW = Math.Max(200, (double)lw);
+                    LeftPreviewCol.Width = new GridLength(leftW, GridUnitType.Pixel);
+                    SubscribePreviewToLastColumn(isLeft: true);
+                }
+
+                if (ViewModel.IsRightPreviewEnabled)
+                {
+                    RightPreviewSplitterCol.Width = new GridLength(2, GridUnitType.Pixel);
+                    double rightW = 280;
+                    if (settings.Values.TryGetValue("RightPreviewWidth", out var rw))
+                        rightW = Math.Max(200, (double)rw);
+                    RightPreviewCol.Width = new GridLength(rightW, GridUnitType.Pixel);
+                    SubscribePreviewToLastColumn(isLeft: false);
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[MainWindow] RestorePreviewState error: {ex.Message}");
+            }
+        }
+
+        // =================================================================
+        //  IContextMenuHost Implementation
+        // =================================================================
+
+        void Services.IContextMenuHost.PerformCut(string path)
+        {
+            _clipboardPaths.Clear();
+            _clipboardPaths.Add(path);
+            _isCutOperation = true;
+
+            var dataPackage = new DataPackage();
+            dataPackage.SetText(path);
+            Clipboard.SetContent(dataPackage);
+            Helpers.DebugLogger.Log($"[ContextMenu] Cut: {path}");
+        }
+
+        void Services.IContextMenuHost.PerformCopy(string path)
+        {
+            _clipboardPaths.Clear();
+            _clipboardPaths.Add(path);
+            _isCutOperation = false;
+
+            var dataPackage = new DataPackage();
+            dataPackage.SetText(path);
+            Clipboard.SetContent(dataPackage);
+            Helpers.DebugLogger.Log($"[ContextMenu] Copy: {path}");
+        }
+
+        async void Services.IContextMenuHost.PerformPaste(string targetFolderPath)
+        {
+            if (_clipboardPaths.Count == 0) return;
+
+            foreach (var srcPath in _clipboardPaths)
+            {
+                try
+                {
+                    string fileName = System.IO.Path.GetFileName(srcPath);
+                    string destPath = System.IO.Path.Combine(targetFolderPath, fileName);
+
+                    int copy = 1;
+                    while (System.IO.File.Exists(destPath) || System.IO.Directory.Exists(destPath))
+                    {
+                        string nameNoExt = System.IO.Path.GetFileNameWithoutExtension(srcPath);
+                        string ext = System.IO.Path.GetExtension(srcPath);
+                        destPath = System.IO.Path.Combine(targetFolderPath, $"{nameNoExt} ({copy}){ext}");
+                        copy++;
+                    }
+
+                    await System.Threading.Tasks.Task.Run(() =>
+                    {
+                        if (System.IO.File.Exists(srcPath))
+                        {
+                            if (_isCutOperation)
+                                System.IO.File.Move(srcPath, destPath);
+                            else
+                                System.IO.File.Copy(srcPath, destPath);
+                        }
+                        else if (System.IO.Directory.Exists(srcPath))
+                        {
+                            if (_isCutOperation)
+                                System.IO.Directory.Move(srcPath, destPath);
+                            else
+                                CopyDirectory(srcPath, destPath);
+                        }
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Helpers.DebugLogger.Log($"[ContextMenu] Paste error: {ex.Message}");
+                }
+            }
+
+            if (_isCutOperation) _clipboardPaths.Clear();
+
+            // Refresh the target folder if it's in the current columns
+            var columns = ViewModel.ActiveExplorer.Columns;
+            var targetColumn = columns.FirstOrDefault(c =>
+                c.Path.Equals(targetFolderPath, StringComparison.OrdinalIgnoreCase));
+            if (targetColumn != null)
+                await targetColumn.ReloadAsync();
+        }
+
+        async void Services.IContextMenuHost.PerformDelete(string path, string itemName)
+        {
+            var dialog = new ContentDialog
+            {
+                Title = "삭제 확인",
+                Content = $"'{itemName}'을(를) 휴지통으로 이동하시겠습니까?",
+                PrimaryButtonText = "삭제",
+                CloseButtonText = "취소",
+                XamlRoot = this.Content.XamlRoot,
+                DefaultButton = ContentDialogButton.Close
+            };
+
+            var result = await dialog.ShowAsync();
+            if (result != ContentDialogResult.Primary) return;
+
+            var operation = new Services.FileOperations.DeleteFileOperation(
+                new List<string> { path }, permanent: false);
+
+            int activeIndex = GetCurrentColumnIndex();
+            if (activeIndex >= 0)
+            {
+                await ViewModel.ExecuteFileOperationAsync(operation, activeIndex);
+                ViewModel.ActiveExplorer.CleanupColumnsFrom(activeIndex + 1);
+                FocusColumnAsync(activeIndex);
+            }
+        }
+
+        void Services.IContextMenuHost.PerformRename(FileSystemViewModel item)
+        {
+            item.BeginRename();
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+            {
+                if (_isClosed) return;
+                int activeIndex = GetCurrentColumnIndex();
+                if (activeIndex >= 0)
+                    FocusRenameTextBox(activeIndex);
+            });
+        }
+
+        void Services.IContextMenuHost.PerformOpen(FileSystemViewModel item)
+        {
+            if (item is FolderViewModel folder)
+            {
+                ViewModel.ActiveExplorer.NavigateIntoFolder(folder);
+            }
+            else if (item is FileViewModel file)
+            {
+                try
+                {
+                    _ = Windows.System.Launcher.LaunchUriAsync(new Uri(file.Path));
+                }
+                catch (Exception ex)
+                {
+                    Helpers.DebugLogger.Log($"[ContextMenu] Open file error: {ex.Message}");
+                }
+            }
+        }
+
+        void Services.IContextMenuHost.PerformOpenDrive(DriveItem drive)
+        {
+            ViewModel.OpenDrive(drive);
+            FocusColumnAsync(0);
+        }
+
+        void Services.IContextMenuHost.PerformOpenFavorite(FavoriteItem fav)
+        {
+            ViewModel.NavigateToFavorite(fav);
+            FocusColumnAsync(0);
+        }
+
+        async void Services.IContextMenuHost.PerformNewFolder(string parentFolderPath)
+        {
+            string baseName = "새 폴더";
+            string newPath = System.IO.Path.Combine(parentFolderPath, baseName);
+
+            int count = 1;
+            while (System.IO.Directory.Exists(newPath))
+            {
+                newPath = System.IO.Path.Combine(parentFolderPath, $"{baseName} ({count})");
+                count++;
+            }
+
+            try
+            {
+                System.IO.Directory.CreateDirectory(newPath);
+
+                // Find and refresh the column for this parent
+                var columns = ViewModel.ActiveExplorer.Columns;
+                var parentColumn = columns.FirstOrDefault(c =>
+                    c.Path.Equals(parentFolderPath, StringComparison.OrdinalIgnoreCase));
+                if (parentColumn != null)
+                {
+                    await parentColumn.ReloadAsync();
+                    var newFolder = parentColumn.Children.FirstOrDefault(c =>
+                        c.Path.Equals(newPath, StringComparison.OrdinalIgnoreCase));
+                    if (newFolder != null)
+                    {
+                        parentColumn.SelectedChild = newFolder;
+                        newFolder.BeginRename();
+                        await System.Threading.Tasks.Task.Delay(100);
+                        int colIndex = columns.IndexOf(parentColumn);
+                        if (colIndex >= 0)
+                            FocusRenameTextBox(colIndex);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[ContextMenu] NewFolder error: {ex.Message}");
+            }
+        }
+
+        void Services.IContextMenuHost.AddToFavorites(string path)
+        {
+            ViewModel.AddToFavorites(path);
+        }
+
+        void Services.IContextMenuHost.RemoveFromFavorites(string path)
+        {
+            ViewModel.RemoveFromFavorites(path);
+        }
+
+        bool Services.IContextMenuHost.IsFavorite(string path)
+        {
+            return ViewModel.IsFavorite(path);
+        }
+
+        void Services.IContextMenuHost.SwitchViewMode(ViewMode mode)
+        {
+            ViewModel.SwitchViewMode(mode);
+            if (Helpers.ViewModeExtensions.IsIconMode(mode))
+                GetActiveIconView()?.UpdateIconSize(mode);
+        }
+
+        void Services.IContextMenuHost.ApplySort(string field)
+        {
+            _currentSortField = field;
+            SortCurrentColumn(_currentSortField, _currentSortAscending);
+        }
+
+        void Services.IContextMenuHost.ApplySortDirection(bool ascending)
+        {
+            _currentSortAscending = ascending;
+            SortCurrentColumn(_currentSortField, _currentSortAscending);
+        }
 
     }
 }

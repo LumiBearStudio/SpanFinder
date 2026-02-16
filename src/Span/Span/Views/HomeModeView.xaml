@@ -8,20 +8,161 @@
     mc:Ignorable="d">
 
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-        <StackPanel x:Name="RootPanel" Padding="32,24" Spacing="24" MaxWidth="800">
+        <StackPanel x:Name="RootPanel" Padding="32,24" Spacing="24" MaxWidth="900">
 
-            <!-- Favorites Section -->
+            <!-- Section 1: Devices and Drives -->
             <StackPanel Spacing="12">
-                <TextBlock Text="즐겨찾기"
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <FontIcon Glyph="&#xE70D;" FontSize="12"
+                              Foreground="{ThemeResource SpanTextSecondaryBrush}"
+                              VerticalAlignment="Center"/>
+                    <TextBlock Text="Devices and drives"
+                               FontSize="16"
+                               FontWeight="SemiBold"
+                               Foreground="{ThemeResource SpanTextPrimaryBrush}"/>
+                </StackPanel>
+
+                <GridView x:Name="DrivesGridView"
+                          ItemsSource="{x:Bind LocalDrives, Mode=OneWay}"
+                          SelectionMode="Single">
+                    <GridView.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <ItemsWrapGrid Orientation="Horizontal" MaximumRowsOrColumns="4"/>
+                        </ItemsPanelTemplate>
+                    </GridView.ItemsPanel>
+                    <GridView.ItemContainerStyle>
+                        <Style TargetType="GridViewItem">
+                            <Setter Property="Margin" Value="0,0,8,8"/>
+                            <Setter Property="Padding" Value="0"/>
+                        </Style>
+                    </GridView.ItemContainerStyle>
+                    <GridView.ItemTemplate>
+                        <DataTemplate x:DataType="models:DriveItem">
+                            <Grid Width="220" Height="80"
+                                  Padding="14,10"
+                                  CornerRadius="6"
+                                  Background="{ThemeResource SpanBgLayer2Brush}"
+                                  BorderBrush="{ThemeResource SpanBorderSubtleBrush}"
+                                  BorderThickness="1"
+                                  DoubleTapped="OnDriveDoubleTapped"
+                                  RightTapped="OnDriveRightTapped">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Drive Icon -->
+                                <FontIcon Grid.Column="0"
+                                          FontFamily="{StaticResource RemixIcons}"
+                                          Glyph="{x:Bind IconGlyph}"
+                                          FontSize="28"
+                                          Foreground="{ThemeResource SpanAccentBrush}"
+                                          VerticalAlignment="Center"
+                                          Margin="0,0,12,0"/>
+
+                                <!-- Drive Info -->
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
+                                    <TextBlock Text="{x:Bind Name}"
+                                               FontSize="12"
+                                               FontWeight="SemiBold"
+                                               TextTrimming="CharacterEllipsis"
+                                               MaxLines="1"/>
+                                    <ProgressBar Value="{x:Bind UsagePercent}"
+                                                 Maximum="100"
+                                                 Height="4"
+                                                 CornerRadius="2"/>
+                                    <TextBlock Text="{x:Bind SizeDescription}"
+                                               FontSize="10"
+                                               Foreground="{ThemeResource SpanTextTertiaryBrush}"
+                                               TextTrimming="CharacterEllipsis"
+                                               MaxLines="1"/>
+                                </StackPanel>
+                            </Grid>
+                        </DataTemplate>
+                    </GridView.ItemTemplate>
+                </GridView>
+            </StackPanel>
+
+            <!-- Section 2: Network Locations (hidden when empty) -->
+            <StackPanel x:Name="NetworkSection" Spacing="12"
+                        Visibility="{x:Bind HasNetworkDrives, Mode=OneWay}">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <FontIcon Glyph="&#xE70D;" FontSize="12"
+                              Foreground="{ThemeResource SpanTextSecondaryBrush}"
+                              VerticalAlignment="Center"/>
+                    <TextBlock Text="Network locations"
+                               FontSize="16"
+                               FontWeight="SemiBold"
+                               Foreground="{ThemeResource SpanTextPrimaryBrush}"/>
+                </StackPanel>
+
+                <GridView x:Name="NetworkDrivesGridView"
+                          ItemsSource="{x:Bind NetworkDrivesList, Mode=OneWay}"
+                          SelectionMode="Single">
+                    <GridView.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <ItemsWrapGrid Orientation="Horizontal" MaximumRowsOrColumns="4"/>
+                        </ItemsPanelTemplate>
+                    </GridView.ItemsPanel>
+                    <GridView.ItemContainerStyle>
+                        <Style TargetType="GridViewItem">
+                            <Setter Property="Margin" Value="0,0,8,8"/>
+                            <Setter Property="Padding" Value="0"/>
+                        </Style>
+                    </GridView.ItemContainerStyle>
+                    <GridView.ItemTemplate>
+                        <DataTemplate x:DataType="models:DriveItem">
+                            <Grid Width="220" Height="80"
+                                  Padding="14,10"
+                                  CornerRadius="6"
+                                  Background="{ThemeResource SpanBgLayer2Brush}"
+                                  BorderBrush="{ThemeResource SpanBorderSubtleBrush}"
+                                  BorderThickness="1"
+                                  DoubleTapped="OnDriveDoubleTapped"
+                                  RightTapped="OnDriveRightTapped">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Network Icon -->
+                                <FontIcon Grid.Column="0"
+                                          FontFamily="{StaticResource RemixIcons}"
+                                          Glyph="{x:Bind IconGlyph}"
+                                          FontSize="28"
+                                          Foreground="{ThemeResource SpanTextSecondaryBrush}"
+                                          VerticalAlignment="Center"
+                                          Margin="0,0,12,0"/>
+
+                                <!-- Network Drive Info -->
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
+                                    <TextBlock Text="{x:Bind Name}"
+                                               FontSize="12"
+                                               FontWeight="SemiBold"
+                                               TextTrimming="CharacterEllipsis"
+                                               MaxLines="1"/>
+                                    <TextBlock Text="{x:Bind SizeDescription}"
+                                               FontSize="10"
+                                               Foreground="{ThemeResource SpanTextTertiaryBrush}"
+                                               TextTrimming="CharacterEllipsis"
+                                               MaxLines="1"/>
+                                </StackPanel>
+                            </Grid>
+                        </DataTemplate>
+                    </GridView.ItemTemplate>
+                </GridView>
+            </StackPanel>
+
+            <!-- Section 3: Favorites -->
+            <StackPanel Spacing="12">
+                <TextBlock Text="Favorites"
                            FontSize="16"
                            FontWeight="SemiBold"
                            Foreground="{ThemeResource SpanTextPrimaryBrush}"/>
 
                 <GridView x:Name="FavoritesGridView"
                           ItemsSource="{x:Bind Favorites, Mode=OneWay}"
-                          SelectionMode="None"
-                          IsItemClickEnabled="True"
-                          ItemClick="OnFavoriteClick">
+                          SelectionMode="Single">
                     <GridView.ItemsPanel>
                         <ItemsPanelTemplate>
                             <ItemsWrapGrid Orientation="Horizontal" MaximumRowsOrColumns="6"/>
@@ -40,7 +181,9 @@
                                   CornerRadius="6"
                                   Background="{ThemeResource SpanBgLayer2Brush}"
                                   BorderBrush="{ThemeResource SpanBorderSubtleBrush}"
-                                  BorderThickness="1">
+                                  BorderThickness="1"
+                                  DoubleTapped="OnFavoriteDoubleTapped"
+                                  RightTapped="OnFavoriteRightTapped">
                                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="6">
                                     <FontIcon FontFamily="{StaticResource RemixIcons}"
                                               Glyph="{x:Bind IconGlyph}"
@@ -57,59 +200,6 @@
                         </DataTemplate>
                     </GridView.ItemTemplate>
                 </GridView>
-            </StackPanel>
-
-            <!-- Recent Folders Section -->
-            <StackPanel Spacing="12">
-                <TextBlock Text="최근 폴더"
-                           FontSize="16"
-                           FontWeight="SemiBold"
-                           Foreground="{ThemeResource SpanTextPrimaryBrush}"/>
-
-                <ListView x:Name="RecentListView"
-                          ItemsSource="{x:Bind RecentFolders, Mode=OneWay}"
-                          SelectionMode="None"
-                          IsItemClickEnabled="True"
-                          ItemClick="OnRecentClick">
-                    <ListView.ItemContainerStyle>
-                        <Style TargetType="ListViewItem">
-                            <Setter Property="Padding" Value="0"/>
-                            <Setter Property="Margin" Value="0"/>
-                            <Setter Property="MinHeight" Value="0"/>
-                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                        </Style>
-                    </ListView.ItemContainerStyle>
-                    <ListView.ItemTemplate>
-                        <DataTemplate x:DataType="models:FavoriteItem">
-                            <Grid Height="32" Padding="8,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <FontIcon Grid.Column="0"
-                                          FontFamily="{StaticResource RemixIcons}"
-                                          Glyph="&#xED93;"
-                                          FontSize="16"
-                                          Foreground="{ThemeResource SpanTextSecondaryBrush}"
-                                          Margin="0,0,12,0"/>
-                                <TextBlock Grid.Column="1"
-                                           Text="{x:Bind Name}"
-                                           FontSize="12"
-                                           VerticalAlignment="Center"
-                                           TextTrimming="CharacterEllipsis"/>
-                                <TextBlock Grid.Column="2"
-                                           Text="{x:Bind Path}"
-                                           FontSize="11"
-                                           Foreground="{ThemeResource SpanTextTertiaryBrush}"
-                                           VerticalAlignment="Center"
-                                           TextTrimming="CharacterEllipsis"
-                                           MaxWidth="300"
-                                           Margin="12,0,0,0"/>
-                            </Grid>
-                        </DataTemplate>
-                    </ListView.ItemTemplate>
-                </ListView>
             </StackPanel>
 
         </StackPanel>

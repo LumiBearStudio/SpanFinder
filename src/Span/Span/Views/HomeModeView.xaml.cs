@@ -1,49 +1,106 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Span.Models;
+using Span.Services;
 using Span.ViewModels;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 
 namespace Span.Views
 {
     public sealed partial class HomeModeView : UserControl
     {
+        public ContextMenuService? ContextMenuService { get; set; }
+        public IContextMenuHost? ContextMenuHost { get; set; }
+
         private MainViewModel? _mainViewModel;
 
+        public ObservableCollection<DriveItem>? LocalDrives => _mainViewModel?.Drives;
+        public ObservableCollection<DriveItem>? NetworkDrivesList => _mainViewModel?.NetworkDrives;
         public ObservableCollection<FavoriteItem>? Favorites => _mainViewModel?.Favorites;
-        public ObservableCollection<FavoriteItem>? RecentFolders => _mainViewModel?.RecentFolders;
+
+        public Visibility HasNetworkDrives =>
+            _mainViewModel?.NetworkDrives?.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+        public MainViewModel? MainViewModel
+        {
+            get => _mainViewModel;
+            set
+            {
+                if (_mainViewModel != null)
+                    _mainViewModel.NetworkDrives.CollectionChanged -= OnNetworkDrivesChanged;
+
+                _mainViewModel = value;
+
+                if (_mainViewModel != null)
+                {
+                    _mainViewModel.NetworkDrives.CollectionChanged += OnNetworkDrivesChanged;
+                    Bindings.Update();
+                }
+            }
+        }
 
         public HomeModeView()
         {
             this.InitializeComponent();
 
-            this.Loaded += (s, e) =>
+            this.Unloaded += (s, e) =>
             {
-                if (this.XamlRoot?.Content is FrameworkElement root &&
-                    root.DataContext is MainViewModel mainVm)
+                if (_mainViewModel != null)
                 {
-                    _mainViewModel = mainVm;
-                    RootPanel.DataContext = _mainViewModel;
-                    Bindings.Update();
+                    _mainViewModel.NetworkDrives.CollectionChanged -= OnNetworkDrivesChanged;
                 }
             };
         }
 
-        private void OnFavoriteClick(object sender, ItemClickEventArgs e)
+        private void OnNetworkDrivesChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
-            if (e.ClickedItem is FavoriteItem favorite && _mainViewModel != null)
+            Bindings.Update();
+        }
+
+        private void OnDriveDoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
+        {
+            if (sender is FrameworkElement fe && fe.DataContext is DriveItem drive && _mainViewModel != null)
             {
-                _mainViewModel.NavigateToFavorite(favorite);
-                Helpers.DebugLogger.Log($"[HomeModeView] Favorite clicked: {favorite.Name}");
+                _mainViewModel.OpenDrive(drive);
+                Helpers.DebugLogger.Log($"[HomeModeView] Drive double-clicked: {drive.Name}");
             }
         }
 
-        private void OnRecentClick(object sender, ItemClickEventArgs e)
+        private void OnFavoriteDoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
         {
-            if (e.ClickedItem is FavoriteItem recent && _mainViewModel != null)
+            if (sender is FrameworkElement fe && fe.DataContext is FavoriteItem favorite && _mainViewModel != null)
             {
-                _mainViewModel.NavigateToFavorite(recent);
-                Helpers.DebugLogger.Log($"[HomeModeView] Recent clicked: {recent.Name}");
+                _mainViewModel.NavigateToFavorite(favorite);
+                Helpers.DebugLogger.Log($"[HomeModeView] Favorite double-clicked: {favorite.Name}");
+            }
+        }
+
+        private void OnDriveRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
+        {
+            if (ContextMenuService == null || ContextMenuHost == null) return;
+            if (sender is FrameworkElement fe && fe.DataContext is DriveItem drive)
+            {
+                var flyout = ContextMenuService.BuildDriveMenu(drive, ContextMenuHost);
+                flyout.ShowAt(fe, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
+                {
+                    Position = e.GetPosition(fe)
+                });
+                e.Handled = true;
+            }
+        }
+
+        private void OnFavoriteRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
+        {
+            if (ContextMenuService == null || ContextMenuHost == null) return;
+            if (sender is FrameworkElement fe && fe.DataContext is FavoriteItem favorite)
+            {
+                var flyout = ContextMenuService.BuildFavoriteMenu(favorite, ContextMenuHost);
+                flyout.ShowAt(fe, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
+                {
+                    Position = e.GetPosition(fe)
+                });
+                e.Handled = true;
             }
         }
 
@@ -51,10 +108,17 @@ namespace Span.Views
         {
             try
             {
+                if (_mainViewModel != null)
+                {
+                    _mainViewModel.NetworkDrives.CollectionChanged -= OnNetworkDrivesChanged;
+                }
+
+                if (DrivesGridView != null)
+                    DrivesGridView.ItemsSource = null;
+                if (NetworkDrivesGridView != null)
+                    NetworkDrivesGridView.ItemsSource = null;
                 if (FavoritesGridView != null)
                     FavoritesGridView.ItemsSource = null;
-                if (RecentListView != null)
-                    RecentListView.ItemsSource = null;
                 RootPanel.DataContext = null;
                 _mainViewModel = null;
             }

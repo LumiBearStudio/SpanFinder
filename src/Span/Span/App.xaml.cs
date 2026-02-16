@@ -33,6 +33,9 @@ namespace Span
             services.AddSingleton<Services.FileSystemService>();
             services.AddSingleton<Services.IconService>();
             services.AddSingleton<Services.FavoritesService>();
+            services.AddSingleton<Services.PreviewService>();
+            services.AddSingleton<Services.ShellService>();
+            services.AddSingleton<Services.ContextMenuService>();
 
             // ViewModel 등록
             services.AddTransient<MainViewModel>();

@@ -17,16 +17,57 @@ namespace Span.ViewModels
 
         public ObservableCollection<TabItem> Tabs { get; } = new();
         public ObservableCollection<DriveItem> Drives { get; } = new();
+        public ObservableCollection<DriveItem> NetworkDrives { get; } = new();
         public ObservableCollection<FavoriteItem> Favorites { get; } = new();
         public ObservableCollection<FavoriteItem> RecentFolders { get; } = new();
 
-        // Engine
-        private ExplorerViewModel _explorer;
-        public ExplorerViewModel Explorer
+        // Engine — Split View (Dual-Pane)
+        private ExplorerViewModel _leftExplorer;
+        public ExplorerViewModel LeftExplorer
         {
-            get => _explorer;
-            set => SetProperty(ref _explorer, value);
+            get => _leftExplorer;
+            set => SetProperty(ref _leftExplorer, value);
         }
+
+        private ExplorerViewModel _rightExplorer;
+        public ExplorerViewModel RightExplorer
+        {
+            get => _rightExplorer;
+            set => SetProperty(ref _rightExplorer, value);
+        }
+
+        /// <summary>
+        /// Backward-compat: always returns LeftExplorer.
+        /// XAML bindings for the left/single pane use this.
+        /// </summary>
+        public ExplorerViewModel Explorer => LeftExplorer;
+
+        /// <summary>
+        /// Returns the explorer for the currently active pane.
+        /// Code-behind operations should use this instead of Explorer.
+        /// </summary>
+        public ExplorerViewModel ActiveExplorer =>
+            ActivePane == ActivePane.Left ? LeftExplorer : RightExplorer;
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(ActiveExplorer))]
+        private ActivePane _activePane = ActivePane.Left;
+
+        [ObservableProperty]
+        private bool _isSplitViewEnabled = false;
+
+        [ObservableProperty]
+        private ViewMode _leftViewMode = ViewMode.MillerColumns;
+
+        [ObservableProperty]
+        private ViewMode _rightViewMode = ViewMode.MillerColumns;
+
+        // Preview panel state (per-pane independent)
+        [ObservableProperty]
+        private bool _isLeftPreviewEnabled = false;
+
+        [ObservableProperty]
+        private bool _isRightPreviewEnabled = false;
 
         private readonly FileSystemService _fileService;
         private readonly FavoritesService _favoritesService;
@@ -76,29 +117,48 @@ namespace Span.ViewModels
             // Dummy tabs
             Tabs.Add(new TabItem { Header = "Project Span", Icon = "\uEA34" }); // ri-apps-2-fill
 
-            // Initialize Engine with a conceptual Root or just empty
-            // To make sure UI binds correctly, we start with a dummy or a specific path if possible.
-            // Let's start with "My Computer" concept or just C:\
-            var root = new FolderItem { Name = "PC", Path = "PC" }; /* Virtual Root */
-            Explorer = new ExplorerViewModel(root, _fileService);
+            // Initialize Engines with a conceptual Root
+            var root = new FolderItem { Name = "PC", Path = "PC" };
+            LeftExplorer = new ExplorerViewModel(root, _fileService);
+
+            var rightRoot = new FolderItem { Name = "PC", Path = "PC" };
+            RightExplorer = new ExplorerViewModel(rightRoot, _fileService);
 
             // Populate Sidebar
             LoadDrives();
             LoadFavorites();
             LoadRecentFolders();
 
-            // Load ViewMode preference
+            // Load ViewMode preference (includes split state)
             LoadViewModePreference();
 
-            // Track navigation for recent folders
-            Explorer.PropertyChanged += (s, e) =>
+            // Track navigation for recent folders (both panes)
+            LeftExplorer.PropertyChanged += (s, e) =>
             {
                 if (_isCleaningUp) return;
-                if (e.PropertyName == nameof(ExplorerViewModel.CurrentPath) && !string.IsNullOrEmpty(Explorer.CurrentPath))
+                if (e.PropertyName == nameof(ExplorerViewModel.CurrentPath) && !string.IsNullOrEmpty(LeftExplorer.CurrentPath))
                 {
-                    AddRecentFolder(Explorer.CurrentPath);
+                    AddRecentFolder(LeftExplorer.CurrentPath);
                 }
             };
+            RightExplorer.PropertyChanged += (s, e) =>
+            {
+                if (_isCleaningUp) return;
+                if (e.PropertyName == nameof(ExplorerViewModel.CurrentPath) && !string.IsNullOrEmpty(RightExplorer.CurrentPath))
+                {
+                    AddRecentFolder(RightExplorer.CurrentPath);
+                }
+            };
+        }
+
+        /// <summary>
+        /// Refresh drives list (called on device change events like USB plug/unplug)
+        /// </summary>
+        public void RefreshDrives()
+        {
+            if (_isCleaningUp || _shutdownCts.Token.IsCancellationRequested) return;
+            LoadDrives();
+            Helpers.DebugLogger.Log("[MainViewModel] RefreshDrives triggered by device change");
         }
 
         private async void LoadDrives()
@@ -110,9 +170,13 @@ namespace Span.ViewModels
                 if (cachedDrives.Count > 0)
                 {
                     Drives.Clear();
+                    NetworkDrives.Clear();
                     foreach (var drive in cachedDrives)
                     {
-                        Drives.Add(drive);
+                        if (drive.IsNetworkDrive)
+                            NetworkDrives.Add(drive);
+                        else
+                            Drives.Add(drive);
                     }
                     Helpers.DebugLogger.Log($"[MainViewModel] Loaded {cachedDrives.Count} drives from cache");
                 }
@@ -127,16 +191,20 @@ namespace Span.ViewModels
                     return;
                 }
 
-                // Step 4: Update UI and cache
+                // Step 4: Update UI and cache — split by drive type
                 Drives.Clear();
+                NetworkDrives.Clear();
                 foreach (var drive in drives)
                 {
-                    Drives.Add(drive);
+                    if (drive.IsNetworkDrive)
+                        NetworkDrives.Add(drive);
+                    else
+                        Drives.Add(drive);
                 }
 
                 // Step 5: Save updated list to cache
                 SaveDrivesCache(drives);
-                Helpers.DebugLogger.Log($"[MainViewModel] Loaded {drives.Count} drives from file system");
+                Helpers.DebugLogger.Log($"[MainViewModel] Loaded {Drives.Count} local + {NetworkDrives.Count} network drives");
             }
             catch (System.OperationCanceledException)
             {
@@ -160,6 +228,8 @@ namespace Span.ViewModels
                 // Save state before suppressing notifications
                 _favoritesService.SaveFavorites(Favorites.ToList());
                 SaveRecentFolders();
+                SaveSplitViewState();
+                SavePreviewState();
 
                 // MUST set before clearing collections to prevent
                 // ObservableCollection change notifications reaching disposed UI
@@ -170,6 +240,7 @@ namespace Span.ViewModels
 
                 // Clear collections (safe now - _isCleaningUp suppresses side effects)
                 Drives.Clear();
+                NetworkDrives.Clear();
                 Tabs.Clear();
                 Favorites.Clear();
                 RecentFolders.Clear();
@@ -265,16 +336,21 @@ namespace Span.ViewModels
         [RelayCommand]
         public void OpenDrive(DriveItem drive)
         {
-            // When a drive is clicked, navigate Explorer to it.
+            // Switch away from Home mode if needed (same pattern as NavigateToFavorite)
+            var activeViewMode = (IsSplitViewEnabled && ActivePane == ActivePane.Right)
+                ? RightViewMode : CurrentViewMode;
+            if (activeViewMode == ViewMode.Home)
+            {
+                SwitchViewMode(ViewMode.MillerColumns);
+            }
+
             var driveRoot = new FolderItem
             {
                 Name = drive.Name,
                 Path = drive.Path
             };
 
-            // Re-initialize Explorer or Navigate?
-            // Since we want to clear previous columns and start fresh from this drive:
-            Explorer.NavigateTo(driveRoot);
+            ActiveExplorer.NavigateTo(driveRoot);
         }
 
         private void OnHistoryChanged(object? sender, HistoryChangedEventArgs e)
@@ -318,7 +394,7 @@ namespace Span.ViewModels
         public async Task ExecuteFileOperationAsync(IFileOperation operation, int? targetColumnIndex = null)
         {
             Helpers.DebugLogger.Log($"[ExecuteFileOperationAsync] START - Operation: {operation.Description}, TargetColumnIndex: {targetColumnIndex}");
-            Helpers.DebugLogger.Log($"[ExecuteFileOperationAsync] Columns: {string.Join(" > ", Explorer.Columns.Select(c => c.Name))}");
+            Helpers.DebugLogger.Log($"[ExecuteFileOperationAsync] Columns: {string.Join(" > ", ActiveExplorer.Columns.Select(c => c.Name))}");
 
             _progressViewModel.IsVisible = true;
             _progressViewModel.OperationDescription = operation.Description;
@@ -359,11 +435,12 @@ namespace Span.ViewModels
             Helpers.DebugLogger.Log($"[ExecuteFileOperationAsync] ===== COMPLETE =====");
         }
 
-        private async Task RefreshCurrentFolderAsync(int? columnIndex = null)
+        private async Task RefreshCurrentFolderAsync(int? columnIndex = null, ExplorerViewModel? explorer = null)
         {
+            explorer ??= ActiveExplorer;
             Helpers.DebugLogger.Log($"[RefreshCurrentFolderAsync] START - columnIndex: {columnIndex}");
 
-            if (Explorer?.Columns == null || Explorer.Columns.Count == 0)
+            if (explorer?.Columns == null || explorer.Columns.Count == 0)
             {
                 Helpers.DebugLogger.Log($"[RefreshCurrentFolderAsync] No columns to refresh - ABORT");
                 return;
@@ -371,17 +448,17 @@ namespace Span.ViewModels
 
             // Determine which column to refresh
             // If columnIndex is provided, use it; otherwise refresh the last column
-            int targetIndex = columnIndex ?? Explorer.Columns.Count - 1;
-            Helpers.DebugLogger.Log($"[RefreshCurrentFolderAsync] Target index: {targetIndex} (total columns: {Explorer.Columns.Count})");
+            int targetIndex = columnIndex ?? explorer.Columns.Count - 1;
+            Helpers.DebugLogger.Log($"[RefreshCurrentFolderAsync] Target index: {targetIndex} (total columns: {explorer.Columns.Count})");
 
             // Validate index
-            if (targetIndex < 0 || targetIndex >= Explorer.Columns.Count)
+            if (targetIndex < 0 || targetIndex >= explorer.Columns.Count)
             {
                 Helpers.DebugLogger.Log($"[RefreshCurrentFolderAsync] Invalid index - ABORT");
                 return;
             }
 
-            var targetColumn = Explorer.Columns[targetIndex];
+            var targetColumn = explorer.Columns[targetIndex];
             var savedName = targetColumn.SelectedChild?.Name;
 
             Helpers.DebugLogger.Log($"[RefreshCurrentFolderAsync] Refreshing column '{targetColumn.Name}' (saved selection: {savedName ?? "null"})");
@@ -485,13 +562,15 @@ namespace Span.ViewModels
             }
 
             // Switch away from Home mode if needed
-            if (CurrentViewMode == ViewMode.Home)
+            var activeViewMode = (IsSplitViewEnabled && ActivePane == ActivePane.Right)
+                ? RightViewMode : CurrentViewMode;
+            if (activeViewMode == ViewMode.Home)
             {
                 SwitchViewMode(ViewMode.MillerColumns);
             }
 
             var folder = new FolderItem { Name = favorite.Name, Path = favorite.Path };
-            Explorer.NavigateTo(folder);
+            ActiveExplorer.NavigateTo(folder);
             Helpers.DebugLogger.Log($"[MainViewModel] Navigated to favorite: {favorite.Name}");
         }
 
@@ -589,32 +668,59 @@ namespace Span.ViewModels
         #endregion
 
         /// <summary>
-        /// 뷰 모드 전환
+        /// 뷰 모드 전환 — 활성 패널에 적용
         /// </summary>
         public void SwitchViewMode(ViewMode mode)
         {
-            if (CurrentViewMode == mode) return;
-
-            // Icon 모드 전환 시 크기 업데이트
-            if (Helpers.ViewModeExtensions.IsIconMode(mode))
+            // Home mode always targets the left pane (HomeView only exists in left pane)
+            if (mode == ViewMode.Home)
             {
-                CurrentIconSize = mode;
-                // UI에서는 Icon 통합 표시를 위해 IconMedium으로 설정하지만,
-                // 실제 크기는 CurrentIconSize로 구분
-                CurrentViewMode = mode; // Icon 계열은 각각 독립적인 ViewMode
+                if (CurrentViewMode == ViewMode.Home) return;
+                ActivePane = ActivePane.Left;
+                CurrentViewMode = ViewMode.Home;
+                LeftViewMode = ViewMode.Home;
+                SaveViewModePreference();
+                Helpers.DebugLogger.Log($"[MainViewModel] ViewMode changed: Home (always left pane)");
+                return;
+            }
+
+            // Determine which pane's view mode to update
+            if (IsSplitViewEnabled && ActivePane == ActivePane.Right)
+            {
+                if (RightViewMode == mode) return;
+
+                if (Helpers.ViewModeExtensions.IsIconMode(mode))
+                {
+                    CurrentIconSize = mode;
+                    RightViewMode = mode;
+                }
+                else
+                {
+                    RightViewMode = mode;
+                }
+
+                RightExplorer.EnableAutoNavigation = (mode == ViewMode.MillerColumns);
+                Helpers.DebugLogger.Log($"[MainViewModel] Right pane AutoNav: {RightExplorer.EnableAutoNavigation} (mode: {mode})");
             }
             else
             {
-                CurrentViewMode = mode;
-            }
+                if (CurrentViewMode == mode) return;
 
-            // CRITICAL: Enable auto-navigation only in Miller Columns mode
-            // In Details/Icon/Home modes, disable auto-navigation (use double-click instead)
-            if (mode != ViewMode.Home)
-            {
-                Explorer.EnableAutoNavigation = (mode == ViewMode.MillerColumns);
+                if (Helpers.ViewModeExtensions.IsIconMode(mode))
+                {
+                    CurrentIconSize = mode;
+                    CurrentViewMode = mode;
+                    LeftViewMode = mode;
+                }
+                else
+                {
+                    CurrentViewMode = mode;
+                    LeftViewMode = mode;
+                }
+
+                LeftExplorer.EnableAutoNavigation = (mode == ViewMode.MillerColumns);
+                Helpers.DebugLogger.Log($"[MainViewModel] Left pane AutoNav: {LeftExplorer.EnableAutoNavigation} (mode: {mode})");
             }
-            Helpers.DebugLogger.Log($"[MainViewModel] Auto-navigation: {Explorer.EnableAutoNavigation} (mode: {mode})");
 
             SaveViewModePreference();
             Helpers.DebugLogger.Log($"[MainViewModel] ViewMode changed: {Helpers.ViewModeExtensions.GetDisplayName(mode)}");
@@ -633,7 +739,9 @@ namespace Span.ViewModels
                 var settings = Windows.Storage.ApplicationData.Current.LocalSettings;
                 settings.Values["ViewMode"] = (int)CurrentViewMode;
                 settings.Values["IconSize"] = (int)CurrentIconSize;
-                Helpers.DebugLogger.Log($"[MainViewModel] ViewMode saved: {CurrentViewMode}, IconSize: {CurrentIconSize}");
+                settings.Values["LeftViewMode"] = (int)LeftViewMode;
+                settings.Values["RightViewMode"] = (int)RightViewMode;
+                Helpers.DebugLogger.Log($"[MainViewModel] ViewMode saved: L={LeftViewMode}, R={RightViewMode}, IconSize={CurrentIconSize}");
             }
             catch (System.Exception ex)
             {
@@ -653,6 +761,7 @@ namespace Span.ViewModels
                 if (settings.Values.TryGetValue("ViewMode", out var mode))
                 {
                     CurrentViewMode = (ViewMode)(int)mode;
+                    LeftViewMode = CurrentViewMode;
                 }
 
                 if (settings.Values.TryGetValue("IconSize", out var size))
@@ -660,18 +769,143 @@ namespace Span.ViewModels
                     CurrentIconSize = (ViewMode)(int)size;
                 }
 
-                // Set auto-navigation based on loaded view mode
-                Explorer.EnableAutoNavigation = (CurrentViewMode == ViewMode.MillerColumns);
-                Helpers.DebugLogger.Log($"[MainViewModel] Auto-navigation: {Explorer.EnableAutoNavigation}");
+                if (settings.Values.TryGetValue("LeftViewMode", out var leftMode))
+                {
+                    LeftViewMode = (ViewMode)(int)leftMode;
+                    CurrentViewMode = LeftViewMode;
+                }
 
-                Helpers.DebugLogger.Log($"[MainViewModel] ViewMode loaded: {Helpers.ViewModeExtensions.GetDisplayName(CurrentViewMode)}");
+                if (settings.Values.TryGetValue("RightViewMode", out var rightMode))
+                {
+                    RightViewMode = (ViewMode)(int)rightMode;
+                }
+
+                // Load split view state
+                if (settings.Values.TryGetValue("IsSplitViewEnabled", out var splitEnabled))
+                {
+                    IsSplitViewEnabled = (bool)splitEnabled;
+                }
+
+                // Load preview state
+                if (settings.Values.TryGetValue("IsLeftPreviewEnabled", out var leftPrev))
+                    IsLeftPreviewEnabled = (bool)leftPrev;
+                if (settings.Values.TryGetValue("IsRightPreviewEnabled", out var rightPrev))
+                    IsRightPreviewEnabled = (bool)rightPrev;
+
+                // Set auto-navigation based on loaded view mode
+                LeftExplorer.EnableAutoNavigation = (LeftViewMode == ViewMode.MillerColumns);
+                RightExplorer.EnableAutoNavigation = (RightViewMode == ViewMode.MillerColumns);
+                Helpers.DebugLogger.Log($"[MainViewModel] AutoNav: L={LeftExplorer.EnableAutoNavigation}, R={RightExplorer.EnableAutoNavigation}");
+
+                Helpers.DebugLogger.Log($"[MainViewModel] ViewMode loaded: L={Helpers.ViewModeExtensions.GetDisplayName(LeftViewMode)}, R={Helpers.ViewModeExtensions.GetDisplayName(RightViewMode)}, Split={IsSplitViewEnabled}");
             }
             catch (System.Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"LoadViewModePreference error: {ex.Message}");
-                CurrentViewMode = ViewMode.MillerColumns; // Fallback
-                Explorer.EnableAutoNavigation = true; // Fallback to Miller mode
+                CurrentViewMode = ViewMode.MillerColumns;
+                LeftViewMode = ViewMode.MillerColumns;
+                RightViewMode = ViewMode.MillerColumns;
+                LeftExplorer.EnableAutoNavigation = true;
+                RightExplorer.EnableAutoNavigation = true;
             }
+        }
+
+        /// <summary>
+        /// Toggle preview panel for the active pane.
+        /// </summary>
+        public void TogglePreview()
+        {
+            if (ActivePane == ActivePane.Left)
+                IsLeftPreviewEnabled = !IsLeftPreviewEnabled;
+            else
+                IsRightPreviewEnabled = !IsRightPreviewEnabled;
+
+            SavePreviewState();
+        }
+
+        /// <summary>
+        /// Save preview panel state to LocalSettings.
+        /// </summary>
+        public void SavePreviewState()
+        {
+            try
+            {
+                var settings = Windows.Storage.ApplicationData.Current.LocalSettings;
+                settings.Values["IsLeftPreviewEnabled"] = IsLeftPreviewEnabled;
+                settings.Values["IsRightPreviewEnabled"] = IsRightPreviewEnabled;
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[MainViewModel] Error saving preview state: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Save preview panel widths (called from MainWindow on close).
+        /// </summary>
+        public void SavePreviewWidths(double leftWidth, double rightWidth)
+        {
+            try
+            {
+                var settings = Windows.Storage.ApplicationData.Current.LocalSettings;
+                settings.Values["LeftPreviewWidth"] = leftWidth;
+                settings.Values["RightPreviewWidth"] = rightWidth;
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[MainViewModel] Error saving preview widths: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Save split view state to LocalSettings
+        /// </summary>
+        private void SaveSplitViewState()
+        {
+            try
+            {
+                var settings = Windows.Storage.ApplicationData.Current.LocalSettings;
+                settings.Values["IsSplitViewEnabled"] = IsSplitViewEnabled;
+
+                // Save right pane path for restore on next launch
+                if (!string.IsNullOrEmpty(RightExplorer?.CurrentPath) && RightExplorer.CurrentPath != "PC")
+                {
+                    settings.Values["RightPanePath"] = RightExplorer.CurrentPath;
+                }
+
+                Helpers.DebugLogger.Log($"[MainViewModel] Split state saved: {IsSplitViewEnabled}");
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[MainViewModel] Error saving split state: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Get the path to navigate the right pane to when split view is activated.
+        /// Tries: saved right pane path → first available drive → user profile folder.
+        /// </summary>
+        public string GetRightPaneInitialPath()
+        {
+            try
+            {
+                var settings = Windows.Storage.ApplicationData.Current.LocalSettings;
+                if (settings.Values.TryGetValue("RightPanePath", out var savedPath) && savedPath is string path)
+                {
+                    if (System.IO.Directory.Exists(path))
+                        return path;
+                }
+            }
+            catch { }
+
+            // Fallback: first available drive
+            if (Drives.Count > 0)
+            {
+                return Drives[0].Path;
+            }
+
+            // Last resort: user profile
+            return Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         }
     }
 }

@@ -1,14 +1,19 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Span.Services;
 using Span.ViewModels;
-using System.Linq;
 using System;
+using System.Linq;
 using Windows.Storage;
 
 namespace Span.Views
 {
     public sealed partial class DetailsModeView : UserControl
     {
+        public ContextMenuService? ContextMenuService { get; set; }
+        public IContextMenuHost? ContextMenuHost { get; set; }
+        public IntPtr OwnerHwnd { get; set; }
+
         private ExplorerViewModel? _viewModel;
         public ExplorerViewModel? ViewModel
         {
@@ -193,41 +198,20 @@ namespace Span.Views
 
         private void OnItemRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
         {
-            if (sender is Grid grid && grid.DataContext is FolderViewModel folder)
+            if (sender is Grid grid)
             {
-                var mainVm = GetMainViewModel();
-                if (mainVm == null) return;
+                string? path = null;
+                if (grid.DataContext is FolderViewModel folder)
+                    path = folder.Path;
+                else if (grid.DataContext is FileViewModel file)
+                    path = file.Path;
 
-                var flyout = new MenuFlyout();
-                bool isFav = mainVm.IsFavorite(folder.Path);
-                var item = new MenuFlyoutItem
+                if (path != null && OwnerHwnd != IntPtr.Zero)
                 {
-                    Text = isFav ? "즐겨찾기에서 제거" : "즐겨찾기에 추가",
-                    Icon = new FontIcon { Glyph = isFav ? "\uE74D" : "\uE734" }
-                };
-                item.Click += (s, args) =>
-                {
-                    if (isFav)
-                        mainVm.RemoveFromFavorites(folder.Path);
-                    else
-                        mainVm.AddToFavorites(folder.Path);
-                };
-                flyout.Items.Add(item);
-                flyout.ShowAt(grid, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
-                {
-                    Position = e.GetPosition(grid)
-                });
+                    ShellContextMenu.ShowForItem(OwnerHwnd, path);
+                    e.Handled = true;
+                }
             }
-        }
-
-        private MainViewModel? GetMainViewModel()
-        {
-            if (this.XamlRoot?.Content is FrameworkElement root &&
-                root.DataContext is MainViewModel mainVm)
-            {
-                return mainVm;
-            }
-            return null;
         }
 
         private void OnItemDoubleClick(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
@@ -462,6 +446,29 @@ namespace Span.Views
         }
 
         public void FocusListView() => FocusDataGrid();
+
+        /// <summary>
+        /// Empty space click → focus ListView → triggers GotFocus bubbling → ActivePane set
+        /// </summary>
+        private void OnRootTapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
+        {
+            DetailsListView?.Focus(FocusState.Programmatic);
+        }
+
+        private void OnEmptyAreaRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
+        {
+            if (e.Handled) return; // Item handler already handled
+            if (ContextMenuService == null || ContextMenuHost == null) return;
+
+            var folderPath = ViewModel?.CurrentFolder?.Path;
+            if (string.IsNullOrEmpty(folderPath)) return;
+
+            var flyout = ContextMenuService.BuildEmptyAreaMenu(folderPath, ContextMenuHost);
+            flyout.ShowAt(RootGrid, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
+            {
+                Position = e.GetPosition(RootGrid)
+            });
+        }
 
         #endregion
 

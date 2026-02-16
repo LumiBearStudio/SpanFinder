@@ -1,12 +1,18 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Span.Models;
+using Span.Services;
 using Span.ViewModels;
+using System;
 
 namespace Span.Views
 {
     public sealed partial class IconModeView : UserControl
     {
+        public ContextMenuService? ContextMenuService { get; set; }
+        public IContextMenuHost? ContextMenuHost { get; set; }
+        public IntPtr OwnerHwnd { get; set; }
+
         private ExplorerViewModel? _viewModel;
         public ExplorerViewModel? ViewModel
         {
@@ -95,46 +101,33 @@ namespace Span.Views
 
         private void OnItemRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
         {
-            // Walk up visual tree to find the data item
             if (e.OriginalSource is FrameworkElement fe)
             {
-                var dataContext = fe.DataContext;
-                if (dataContext is FolderViewModel folder)
-                {
-                    var mainVm = GetMainViewModel();
-                    if (mainVm == null) return;
+                string? path = null;
+                if (fe.DataContext is FolderViewModel folder)
+                    path = folder.Path;
+                else if (fe.DataContext is FileViewModel file)
+                    path = file.Path;
 
-                    var flyout = new MenuFlyout();
-                    bool isFav = mainVm.IsFavorite(folder.Path);
-                    var item = new MenuFlyoutItem
+                if (path != null && OwnerHwnd != IntPtr.Zero)
+                {
+                    ShellContextMenu.ShowForItem(OwnerHwnd, path);
+                    e.Handled = true;
+                }
+                else if (ContextMenuService != null && ContextMenuHost != null)
+                {
+                    // Empty area fallback — custom WinUI flyout
+                    var folderPath = ViewModel?.CurrentFolder?.Path;
+                    if (!string.IsNullOrEmpty(folderPath))
                     {
-                        Text = isFav ? "즐겨찾기에서 제거" : "즐겨찾기에 추가",
-                        Icon = new FontIcon { Glyph = isFav ? "\uE74D" : "\uE734" }
-                    };
-                    item.Click += (s, args) =>
-                    {
-                        if (isFav)
-                            mainVm.RemoveFromFavorites(folder.Path);
-                        else
-                            mainVm.AddToFavorites(folder.Path);
-                    };
-                    flyout.Items.Add(item);
-                    flyout.ShowAt(fe, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
-                    {
-                        Position = e.GetPosition(fe)
-                    });
+                        var flyout = ContextMenuService.BuildEmptyAreaMenu(folderPath, ContextMenuHost);
+                        flyout.ShowAt(fe, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
+                        {
+                            Position = e.GetPosition(fe)
+                        });
+                    }
                 }
             }
-        }
-
-        private MainViewModel? GetMainViewModel()
-        {
-            if (this.XamlRoot?.Content is FrameworkElement root &&
-                root.DataContext is MainViewModel mainVm)
-            {
-                return mainVm;
-            }
-            return null;
         }
 
         private void OnItemDoubleClick(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
