@@ -137,8 +137,10 @@
             SelectionMode="Extended"
             CanDragItems="True"
             AllowDrop="True"
+            DragItemsStarting="OnDragItemsStarting"
             DoubleTapped="OnItemDoubleClick"
             KeyDown="OnIconKeyDown"
+            RightTapped="OnItemRightTapped"
             Padding="16">
 
             <GridView.ItemsPanel>

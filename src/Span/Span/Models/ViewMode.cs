@@ -33,6 +33,11 @@ namespace Span.Models
         /// <summary>
         /// Icon Extra Large: 256x256 그리드 (썸네일 지원)
         /// </summary>
-        IconExtraLarge = 5
+        IconExtraLarge = 5,
+
+        /// <summary>
+        /// Home: 즐겨찾기 및 빠른 액세스 홈 화면
+        /// </summary>
+        Home = 6
     }
 }

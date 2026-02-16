@@ -258,7 +258,10 @@
                     <StackPanel Padding="0,12">
 
                         <!-- Section 1: 홈 -->
-                        <Grid Height="28" Padding="12,0" Background="Transparent" PointerEntered="OnSidebarItemPointerEntered" PointerExited="OnSidebarItemPointerExited">
+                        <Grid Height="28" Padding="12,0" Background="Transparent"
+                              Tapped="OnHomeItemTapped"
+                              PointerEntered="OnSidebarItemPointerEntered"
+                              PointerExited="OnSidebarItemPointerExited">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
@@ -270,31 +273,45 @@
                         <!-- Separator -->
                         <Rectangle Height="1" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="12,12"/>
 
-                        <!-- Section 2: 즐겨찾기 -->
+                        <!-- Section 2: 즐겨찾기 (Drop Target) -->
+                        <StackPanel AllowDrop="True"
+                                    DragOver="OnFavoritesDragOver"
+                                    Drop="OnFavoritesDrop">
                         <TextBlock Text="즐겨찾기"
                                    Style="{StaticResource CaptionTextBlockStyle}"
                                    Foreground="{ThemeResource SpanTextTertiaryBrush}"
                                    FontWeight="SemiBold"
                                    Margin="16,0,16,8"/>
 
-                        <!-- Favorite Items (placeholder) -->
-                        <Grid Height="26" Padding="12,0,8,0" Background="Transparent" PointerEntered="OnSidebarItemPointerEntered" PointerExited="OnSidebarItemPointerExited">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <FontIcon Grid.Column="0" FontFamily="{StaticResource RemixIcons}" Glyph="&#xEDA2;" FontSize="16" Foreground="#FFA066" Margin="0,0,12,0"/>
-                            <TextBlock Grid.Column="1" Text="다운로드" FontSize="13" VerticalAlignment="Center"/>
-                        </Grid>
-
-                        <Grid Height="26" Padding="12,0,8,0" Background="Transparent" PointerEntered="OnSidebarItemPointerEntered" PointerExited="OnSidebarItemPointerExited">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <FontIcon Grid.Column="0" FontFamily="{StaticResource RemixIcons}" Glyph="&#xF07B;" FontSize="16" Foreground="#6FA8DC" Margin="0,0,12,0"/>
-                            <TextBlock Grid.Column="1" Text="문서" FontSize="13" VerticalAlignment="Center"/>
-                        </Grid>
+                        <!-- Favorites List (data-bound) -->
+                        <ItemsControl x:Name="FavoritesItemsControl"
+                                      ItemsSource="{x:Bind ViewModel.Favorites, Mode=OneWay}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="models:FavoriteItem">
+                                    <Grid Height="26" Padding="12,0,8,0" Background="Transparent"
+                                          Tapped="OnFavoriteItemTapped"
+                                          RightTapped="OnFavoriteRightTapped"
+                                          PointerEntered="OnSidebarItemPointerEntered"
+                                          PointerExited="OnSidebarItemPointerExited">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <FontIcon Grid.Column="0"
+                                                  FontFamily="{StaticResource RemixIcons}"
+                                                  Glyph="{x:Bind IconGlyph}"
+                                                  FontSize="16"
+                                                  Foreground="{x:Bind IconBrush}"
+                                                  Margin="0,0,12,0"/>
+                                        <TextBlock Grid.Column="1"
+                                                   Text="{x:Bind Name}"
+                                                   FontSize="13"
+                                                   VerticalAlignment="Center"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        </StackPanel>
 
                         <!-- Separator -->
                         <Rectangle Height="1" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="12,12"/>
@@ -374,6 +391,8 @@
 
                                         <ListView Grid.Row="1" ItemsSource="{x:Bind Children}" SelectedItem="{x:Bind SelectedChild, Mode=OneWay}"
                                               SelectionMode="Single" IsItemClickEnabled="False"
+                                              CanDragItems="True"
+                                              DragItemsStarting="OnDragItemsStarting"
                                               GotFocus="OnMillerColumnGotFocus"
                                               SelectionChanged="OnMillerColumnSelectionChanged"
                                               DoubleTapped="OnMillerColumnDoubleTapped">
@@ -381,7 +400,7 @@
                                             <local:FileSystemItemTemplateSelector>
                                                 <local:FileSystemItemTemplateSelector.FolderTemplate>
                                                     <DataTemplate x:DataType="viewmodels:FolderViewModel">
-                                                        <Grid Padding="12,4">
+                                                        <Grid Padding="12,4" RightTapped="OnFolderRightTapped">
                                                             <Grid.ColumnDefinitions>
                                                                 <ColumnDefinition Width="Auto"/>
                                                                 <ColumnDefinition Width="*"/>
@@ -432,6 +451,10 @@
                 <!-- Icon View -->
                 <views:IconModeView x:Name="IconView"
                                     Visibility="{x:Bind IsIconMode(ViewModel.CurrentViewMode), Mode=OneWay}"/>
+
+                <!-- Home View -->
+                <views:HomeModeView x:Name="HomeView"
+                                    Visibility="{x:Bind IsHomeMode(ViewModel.CurrentViewMode), Mode=OneWay}"/>
 
             </Grid>
 

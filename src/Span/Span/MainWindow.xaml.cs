@@ -125,6 +125,11 @@ namespace Span
                 {
                     Helpers.DebugLogger.Log($"[MainWindow.OnClosed] IconView cleanup error: {ex.Message}");
                 }
+                try { HomeView?.Cleanup(); }
+                catch (Exception ex)
+                {
+                    Helpers.DebugLogger.Log($"[MainWindow.OnClosed] HomeView cleanup error: {ex.Message}");
+                }
 
                 // STEP 4: Stop timer and remove keyboard handlers
                 if (_typeAheadTimer != null)
@@ -205,6 +210,11 @@ namespace Span
                         IconView?.FocusGridView();
                         Helpers.DebugLogger.Log($"[MainWindow] Focus: Icon ({ViewModel.CurrentViewMode})");
                         break;
+
+                    case Models.ViewMode.Home:
+                        // Home view doesn't need special focus management
+                        Helpers.DebugLogger.Log("[MainWindow] Focus: Home");
+                        break;
                 }
             });
         }
@@ -251,6 +261,113 @@ namespace Span
                 FocusColumnAsync(0);
                 Helpers.DebugLogger.Log($"[Sidebar] Drive tapped: {drive.Name}");
             }
+        }
+
+        private void OnHomeItemTapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
+        {
+            ViewModel.SwitchViewMode(ViewMode.Home);
+            Helpers.DebugLogger.Log("[Sidebar] Home tapped");
+        }
+
+        private void OnFavoriteItemTapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
+        {
+            if (sender is Grid grid && grid.DataContext is FavoriteItem favorite)
+            {
+                ViewModel.NavigateToFavorite(favorite);
+                FocusColumnAsync(0);
+                Helpers.DebugLogger.Log($"[Sidebar] Favorite tapped: {favorite.Name}");
+            }
+        }
+
+        private void OnFavoriteRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
+        {
+            if (sender is Grid grid && grid.DataContext is FavoriteItem favorite)
+            {
+                var flyout = new MenuFlyout();
+                var removeItem = new MenuFlyoutItem
+                {
+                    Text = "즐겨찾기에서 제거",
+                    Icon = new FontIcon { Glyph = "\uE74D" }
+                };
+                removeItem.Click += (s, args) =>
+                {
+                    ViewModel.RemoveFromFavorites(favorite.Path);
+                };
+                flyout.Items.Add(removeItem);
+                flyout.ShowAt(grid, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
+                {
+                    Position = e.GetPosition(grid)
+                });
+            }
+        }
+
+        private void OnFolderRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
+        {
+            if (sender is Grid grid && grid.DataContext is FolderViewModel folder)
+            {
+                ShowFavoriteFlyout(grid, folder.Path, e.GetPosition(grid));
+            }
+        }
+
+        private void OnDragItemsStarting(object sender, DragItemsStartingEventArgs e)
+        {
+            // Only allow dragging folders
+            var folder = e.Items.OfType<FolderViewModel>().FirstOrDefault();
+            if (folder != null)
+            {
+                e.Data.SetText(folder.Path);
+                e.Data.RequestedOperation = DataPackageOperation.Link;
+            }
+            else
+            {
+                e.Cancel = true;
+            }
+        }
+
+        private void OnFavoritesDragOver(object sender, DragEventArgs e)
+        {
+            if (e.DataView.Contains(StandardDataFormats.Text))
+            {
+                e.AcceptedOperation = DataPackageOperation.Link;
+                e.DragUIOverride.Caption = "즐겨찾기에 추가";
+            }
+        }
+
+        private async void OnFavoritesDrop(object sender, DragEventArgs e)
+        {
+            if (e.DataView.Contains(StandardDataFormats.Text))
+            {
+                var path = await e.DataView.GetTextAsync();
+                if (!string.IsNullOrEmpty(path) && System.IO.Directory.Exists(path))
+                {
+                    ViewModel.AddToFavorites(path);
+                    Helpers.DebugLogger.Log($"[Sidebar] Folder dropped to favorites: {path}");
+                }
+            }
+        }
+
+        private void ShowFavoriteFlyout(FrameworkElement target, string folderPath, Windows.Foundation.Point position)
+        {
+            var flyout = new MenuFlyout();
+            bool isFav = ViewModel.IsFavorite(folderPath);
+
+            var item = new MenuFlyoutItem
+            {
+                Text = isFav ? "즐겨찾기에서 제거" : "즐겨찾기에 추가",
+                Icon = new FontIcon { Glyph = isFav ? "\uE74D" : "\uE734" }
+            };
+            item.Click += (s, args) =>
+            {
+                if (isFav)
+                    ViewModel.RemoveFromFavorites(folderPath);
+                else
+                    ViewModel.AddToFavorites(folderPath);
+            };
+            flyout.Items.Add(item);
+            flyout.ShowAt(target, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
+            {
+                Position = position
+            });
         }
 
         /// <summary>
@@ -1553,6 +1670,9 @@ namespace Span
 
         public Visibility IsIconMode(Models.ViewMode mode)
             => Helpers.ViewModeExtensions.IsIconMode(mode) ? Visibility.Visible : Visibility.Collapsed;
+
+        public Visibility IsHomeMode(Models.ViewMode mode)
+            => mode == Models.ViewMode.Home ? Visibility.Visible : Visibility.Collapsed;
 
         // Sort menu opening - update checkmarks and icons
         private void OnSortMenuOpening(object sender, object e)

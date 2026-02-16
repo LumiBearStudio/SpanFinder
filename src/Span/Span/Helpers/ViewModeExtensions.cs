@@ -9,7 +9,7 @@ namespace Span.Helpers
         /// </summary>
         public static bool IsIconMode(this ViewMode mode)
         {
-            return mode >= ViewMode.IconSmall && mode <= ViewMode.IconExtraLarge;
+            return mode >= ViewMode.IconSmall && mode <= ViewMode.IconExtraLarge && mode != ViewMode.Home;
         }
 
         /// <summary>
@@ -40,6 +40,7 @@ namespace Span.Helpers
                 ViewMode.IconMedium => "Medium Icons",
                 ViewMode.IconLarge => "Large Icons",
                 ViewMode.IconExtraLarge => "Extra Large Icons",
+                ViewMode.Home => "Home",
                 _ => mode.ToString()
             };
         }
@@ -54,6 +55,7 @@ namespace Span.Helpers
                 ViewMode.MillerColumns => "Ctrl+1",
                 ViewMode.Details => "Ctrl+2",
                 ViewMode.IconSmall or ViewMode.IconMedium or ViewMode.IconLarge or ViewMode.IconExtraLarge => "Ctrl+3",
+                ViewMode.Home => "",
                 _ => ""
             };
         }

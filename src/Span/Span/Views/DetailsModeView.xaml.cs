@@ -177,6 +177,59 @@ namespace Span.Views
 
         #region Item Interaction
 
+        private void OnDragItemsStarting(object sender, Microsoft.UI.Xaml.Controls.DragItemsStartingEventArgs e)
+        {
+            var folder = e.Items.OfType<FolderViewModel>().FirstOrDefault();
+            if (folder != null)
+            {
+                e.Data.SetText(folder.Path);
+                e.Data.RequestedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Link;
+            }
+            else
+            {
+                e.Cancel = true;
+            }
+        }
+
+        private void OnItemRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
+        {
+            if (sender is Grid grid && grid.DataContext is FolderViewModel folder)
+            {
+                var mainVm = GetMainViewModel();
+                if (mainVm == null) return;
+
+                var flyout = new MenuFlyout();
+                bool isFav = mainVm.IsFavorite(folder.Path);
+                var item = new MenuFlyoutItem
+                {
+                    Text = isFav ? "즐겨찾기에서 제거" : "즐겨찾기에 추가",
+                    Icon = new FontIcon { Glyph = isFav ? "\uE74D" : "\uE734" }
+                };
+                item.Click += (s, args) =>
+                {
+                    if (isFav)
+                        mainVm.RemoveFromFavorites(folder.Path);
+                    else
+                        mainVm.AddToFavorites(folder.Path);
+                };
+                flyout.Items.Add(item);
+                flyout.ShowAt(grid, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
+                {
+                    Position = e.GetPosition(grid)
+                });
+            }
+        }
+
+        private MainViewModel? GetMainViewModel()
+        {
+            if (this.XamlRoot?.Content is FrameworkElement root &&
+                root.DataContext is MainViewModel mainVm)
+            {
+                return mainVm;
+            }
+            return null;
+        }
+
         private void OnItemDoubleClick(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
         {
             var selected = ViewModel?.CurrentFolder?.SelectedChild;

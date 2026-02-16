@@ -149,6 +149,8 @@
                   ItemsSource="{Binding CurrentItems, Mode=OneWay}"
                   SelectedItem="{Binding CurrentFolder.SelectedChild, Mode=TwoWay}"
                   SelectionMode="Extended"
+                  CanDragItems="True"
+                  DragItemsStarting="OnDragItemsStarting"
                   DoubleTapped="OnItemDoubleClick"
                   KeyDown="OnDetailsKeyDown"
                   ContainerContentChanging="OnContainerContentChanging"
@@ -164,7 +166,7 @@
             </ListView.ItemContainerStyle>
             <ListView.ItemTemplate>
                 <DataTemplate x:DataType="vm:FileSystemViewModel">
-                    <Grid Height="18">
+                    <Grid Height="18" RightTapped="OnItemRightTapped">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="40"/>
                             <ColumnDefinition Width="*"/>

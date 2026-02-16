@@ -6,6 +6,7 @@ using Span.Services;
 using Span.Services.FileOperations;
 using System.Linq;
 using System.Threading.Tasks;
+using System;
 
 namespace Span.ViewModels
 {
@@ -16,6 +17,8 @@ namespace Span.ViewModels
 
         public ObservableCollection<TabItem> Tabs { get; } = new();
         public ObservableCollection<DriveItem> Drives { get; } = new();
+        public ObservableCollection<FavoriteItem> Favorites { get; } = new();
+        public ObservableCollection<FavoriteItem> RecentFolders { get; } = new();
 
         // Engine
         private ExplorerViewModel _explorer;
@@ -26,9 +29,11 @@ namespace Span.ViewModels
         }
 
         private readonly FileSystemService _fileService;
+        private readonly FavoritesService _favoritesService;
         private readonly FileOperationHistory _operationHistory;
         private readonly FileOperationProgressViewModel _progressViewModel;
         private readonly System.Threading.CancellationTokenSource _shutdownCts = new();
+        private const int MaxRecentFolders = 20;
 
         [ObservableProperty]
         private bool _canUndo = false;
@@ -53,9 +58,10 @@ namespace Span.ViewModels
 
         public FileOperationProgressViewModel ProgressViewModel => _progressViewModel;
 
-        public MainViewModel(FileSystemService fileService)
+        public MainViewModel(FileSystemService fileService, FavoritesService favoritesService)
         {
             _fileService = fileService;
+            _favoritesService = favoritesService;
             _operationHistory = new FileOperationHistory();
             _progressViewModel = new FileOperationProgressViewModel();
 
@@ -77,9 +83,20 @@ namespace Span.ViewModels
 
             // Populate Sidebar
             LoadDrives();
+            LoadFavorites();
+            LoadRecentFolders();
 
             // Load ViewMode preference
             LoadViewModePreference();
+
+            // Track navigation for recent folders
+            Explorer.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName == nameof(ExplorerViewModel.CurrentPath) && !string.IsNullOrEmpty(Explorer.CurrentPath))
+                {
+                    AddRecentFolder(Explorer.CurrentPath);
+                }
+            };
         }
 
         private async void LoadDrives()
@@ -138,12 +155,18 @@ namespace Span.ViewModels
             {
                 Helpers.DebugLogger.Log("[MainViewModel] Starting cleanup...");
 
+                // Save state before cleanup
+                _favoritesService.SaveFavorites(Favorites.ToList());
+                SaveRecentFolders();
+
                 // Cancel any ongoing background operations
                 _shutdownCts?.Cancel();
 
                 // Clear collections
                 Drives.Clear();
                 Tabs.Clear();
+                Favorites.Clear();
+                RecentFolders.Clear();
 
                 Helpers.DebugLogger.Log("[MainViewModel] Cleanup complete");
             }
@@ -393,6 +416,172 @@ namespace Span.ViewModels
             StatusBarText = $"Error: {message}";
         }
 
+        #region Favorites
+
+        private void LoadFavorites()
+        {
+            try
+            {
+                var items = _favoritesService.LoadFavorites();
+                Favorites.Clear();
+                foreach (var item in items)
+                {
+                    Favorites.Add(item);
+                }
+                Helpers.DebugLogger.Log($"[MainViewModel] Loaded {items.Count} favorites");
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[MainViewModel] Error loading favorites: {ex.Message}");
+            }
+        }
+
+        public void AddToFavorites(string path)
+        {
+            if (Favorites.Any(f => f.Path.Equals(path, StringComparison.OrdinalIgnoreCase)))
+                return;
+
+            var updated = _favoritesService.AddFavorite(path, Favorites.ToList());
+            _favoritesService.SaveFavorites(updated);
+
+            Favorites.Clear();
+            foreach (var item in updated)
+            {
+                Favorites.Add(item);
+            }
+            Helpers.DebugLogger.Log($"[MainViewModel] Added to favorites: {path}");
+        }
+
+        public void RemoveFromFavorites(string path)
+        {
+            var updated = _favoritesService.RemoveFavorite(path, Favorites.ToList());
+            _favoritesService.SaveFavorites(updated);
+
+            Favorites.Clear();
+            foreach (var item in updated)
+            {
+                Favorites.Add(item);
+            }
+            Helpers.DebugLogger.Log($"[MainViewModel] Removed from favorites: {path}");
+        }
+
+        public bool IsFavorite(string path)
+        {
+            return Favorites.Any(f => f.Path.Equals(path, StringComparison.OrdinalIgnoreCase));
+        }
+
+        public void NavigateToFavorite(FavoriteItem favorite)
+        {
+            if (!System.IO.Directory.Exists(favorite.Path))
+            {
+                Helpers.DebugLogger.Log($"[MainViewModel] Favorite path not found: {favorite.Path}");
+                return;
+            }
+
+            // Switch away from Home mode if needed
+            if (CurrentViewMode == ViewMode.Home)
+            {
+                SwitchViewMode(ViewMode.MillerColumns);
+            }
+
+            var folder = new FolderItem { Name = favorite.Name, Path = favorite.Path };
+            Explorer.NavigateTo(folder);
+            Helpers.DebugLogger.Log($"[MainViewModel] Navigated to favorite: {favorite.Name}");
+        }
+
+        #endregion
+
+        #region Recent Folders
+
+        private void LoadRecentFolders()
+        {
+            try
+            {
+                var settings = Windows.Storage.ApplicationData.Current.LocalSettings;
+                if (settings.Values["RecentFolders"] is Windows.Storage.ApplicationDataCompositeValue composite)
+                {
+                    int count = (int)(composite["Count"] ?? 0);
+                    RecentFolders.Clear();
+                    for (int i = 0; i < count; i++)
+                    {
+                        var name = composite[$"N{i}"] as string ?? "";
+                        var path = composite[$"P{i}"] as string ?? "";
+                        if (!string.IsNullOrEmpty(path))
+                        {
+                            RecentFolders.Add(new FavoriteItem
+                            {
+                                Name = name,
+                                Path = path,
+                                IconGlyph = "\uED93",
+                                IconColor = "#A0A0A0",
+                                Order = i
+                            });
+                        }
+                    }
+                    Helpers.DebugLogger.Log($"[MainViewModel] Loaded {RecentFolders.Count} recent folders");
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[MainViewModel] Error loading recent folders: {ex.Message}");
+            }
+        }
+
+        private void SaveRecentFolders()
+        {
+            try
+            {
+                var settings = Windows.Storage.ApplicationData.Current.LocalSettings;
+                var composite = new Windows.Storage.ApplicationDataCompositeValue
+                {
+                    ["Count"] = RecentFolders.Count
+                };
+                for (int i = 0; i < RecentFolders.Count; i++)
+                {
+                    composite[$"N{i}"] = RecentFolders[i].Name;
+                    composite[$"P{i}"] = RecentFolders[i].Path;
+                }
+                settings.Values["RecentFolders"] = composite;
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[MainViewModel] Error saving recent folders: {ex.Message}");
+            }
+        }
+
+        private void AddRecentFolder(string path)
+        {
+            // Skip drive roots and virtual paths
+            if (path == "PC" || path.Length <= 3) return;
+
+            // Remove if already exists (will re-add at top)
+            var existing = RecentFolders.FirstOrDefault(r => r.Path.Equals(path, StringComparison.OrdinalIgnoreCase));
+            if (existing != null)
+            {
+                RecentFolders.Remove(existing);
+            }
+
+            // Add at top
+            RecentFolders.Insert(0, new FavoriteItem
+            {
+                Name = System.IO.Path.GetFileName(path),
+                Path = path,
+                IconGlyph = "\uED93",
+                IconColor = "#A0A0A0",
+                Order = 0
+            });
+
+            // Trim to max
+            while (RecentFolders.Count > MaxRecentFolders)
+            {
+                RecentFolders.RemoveAt(RecentFolders.Count - 1);
+            }
+
+            SaveRecentFolders();
+        }
+
+        #endregion
+
         /// <summary>
         /// 뷰 모드 전환
         /// </summary>
@@ -414,8 +603,11 @@ namespace Span.ViewModels
             }
 
             // CRITICAL: Enable auto-navigation only in Miller Columns mode
-            // In Details/Icon modes, disable auto-navigation (use double-click instead)
-            Explorer.EnableAutoNavigation = (mode == ViewMode.MillerColumns);
+            // In Details/Icon/Home modes, disable auto-navigation (use double-click instead)
+            if (mode != ViewMode.Home)
+            {
+                Explorer.EnableAutoNavigation = (mode == ViewMode.MillerColumns);
+            }
             Helpers.DebugLogger.Log($"[MainViewModel] Auto-navigation: {Explorer.EnableAutoNavigation} (mode: {mode})");
 
             SaveViewModePreference();
@@ -429,6 +621,9 @@ namespace Span.ViewModels
         {
             try
             {
+                // Don't persist Home as startup mode
+                if (CurrentViewMode == ViewMode.Home) return;
+
                 var settings = Windows.Storage.ApplicationData.Current.LocalSettings;
                 settings.Values["ViewMode"] = (int)CurrentViewMode;
                 settings.Values["IconSize"] = (int)CurrentIconSize;
