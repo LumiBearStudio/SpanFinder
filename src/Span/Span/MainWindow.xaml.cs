@@ -2110,6 +2110,10 @@ namespace Span
                     NavigateRightPaneToRealPath();
                 }
 
+                // Set active pane to right and focus it after UI has updated
+                ViewModel.ActivePane = ActivePane.Right;
+                FocusActivePane();
+
                 Helpers.DebugLogger.Log("[MainWindow] Split View enabled");
             }
             else
@@ -2117,8 +2121,9 @@ namespace Span
                 SplitterCol.Width = new GridLength(0);
                 RightPaneCol.Width = new GridLength(0);
 
-                // Reset active pane to left
+                // Reset active pane to left and focus it
                 ViewModel.ActivePane = ActivePane.Left;
+                FocusActivePane();
 
                 Helpers.DebugLogger.Log("[MainWindow] Split View disabled");
             }
@@ -2171,18 +2176,50 @@ namespace Span
         }
 
         /// <summary>
-        /// Focus the active pane's content (used after Ctrl+Tab pane switch).
+        /// Focus the active pane's content (used after pane switch or split toggle).
+        /// Handles all view modes and retries if columns haven't loaded yet.
         /// </summary>
-        private void FocusActivePane()
+        private void FocusActivePane(int retryCount = 0)
         {
             DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
             {
                 if (_isClosed || ViewModel == null) return;
-                var columns = ViewModel.ActiveExplorer.Columns;
-                if (columns.Count > 0)
+
+                var viewMode = (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
+                    ? ViewModel.RightViewMode : ViewModel.CurrentViewMode;
+
+                switch (viewMode)
                 {
-                    int lastIndex = columns.Count - 1;
-                    FocusColumnAsync(lastIndex);
+                    case Models.ViewMode.MillerColumns:
+                        var columns = ViewModel.ActiveExplorer.Columns;
+                        if (columns.Count > 0)
+                        {
+                            FocusColumnAsync(columns.Count - 1);
+                        }
+                        else if (retryCount < 3)
+                        {
+                            // Columns may still be loading after NavigateRightPaneToRealPath
+                            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+                                () => FocusActivePane(retryCount + 1));
+                        }
+                        break;
+
+                    case Models.ViewMode.Details:
+                        if (ViewModel.ActivePane == ActivePane.Right && ViewModel.IsSplitViewEnabled)
+                            DetailsViewRight?.FocusListView();
+                        else
+                            DetailsView?.FocusListView();
+                        break;
+
+                    case Models.ViewMode.IconSmall:
+                    case Models.ViewMode.IconMedium:
+                    case Models.ViewMode.IconLarge:
+                    case Models.ViewMode.IconExtraLarge:
+                        if (ViewModel.ActivePane == ActivePane.Right && ViewModel.IsSplitViewEnabled)
+                            IconViewRight?.FocusGridView();
+                        else
+                            IconView?.FocusGridView();
+                        break;
                 }
             });
         }
