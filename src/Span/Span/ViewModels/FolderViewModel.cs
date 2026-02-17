@@ -80,6 +80,15 @@ namespace Span.ViewModels
 
             try
             {
+                // Capture setting on UI thread before entering Task.Run
+                bool showHidden = false;
+                try
+                {
+                    var settings = App.Current.Services.GetService(typeof(Services.SettingsService)) as Services.SettingsService;
+                    if (settings != null) showHidden = settings.ShowHiddenFiles;
+                }
+                catch { }
+
                 var items = await Task.Run(() =>
                 {
                     var result = new List<FileSystemViewModel>();
@@ -95,7 +104,7 @@ namespace Span.ViewModels
                         foreach (var d in dirInfo.EnumerateDirectories())
                         {
                             if (token.IsCancellationRequested) return new List<FileSystemViewModel>();
-                            if ((d.Attributes & System.IO.FileAttributes.Hidden) != 0) continue;
+                            if (!showHidden && (d.Attributes & System.IO.FileAttributes.Hidden) != 0) continue;
                             if ((d.Attributes & System.IO.FileAttributes.System) != 0) continue;
 
                             result.Add(new FolderViewModel(
@@ -107,7 +116,7 @@ namespace Span.ViewModels
                         foreach (var f in dirInfo.EnumerateFiles())
                         {
                             if (token.IsCancellationRequested) return new List<FileSystemViewModel>();
-                            if ((f.Attributes & System.IO.FileAttributes.Hidden) != 0) continue;
+                            if (!showHidden && (f.Attributes & System.IO.FileAttributes.Hidden) != 0) continue;
                             if ((f.Attributes & System.IO.FileAttributes.System) != 0) continue;
 
                             result.Add(new FileViewModel(

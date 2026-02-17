@@ -429,7 +429,6 @@ namespace Span
 
         private void ApplyDensity(string density)
         {
-            // Update ListView item height via resource override
             var itemHeight = density switch
             {
                 "compact" => 28.0,
@@ -441,6 +440,9 @@ namespace Span
             {
                 root.Resources["ListViewItemMinHeight"] = itemHeight;
             }
+
+            // Force re-render existing items by refreshing current view
+            RefreshCurrentView();
         }
 
         private void ApplyMillerCheckboxMode(bool showCheckboxes)
