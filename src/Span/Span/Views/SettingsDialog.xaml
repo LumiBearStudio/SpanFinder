@@ -98,23 +98,16 @@
         </Style>
     </ContentDialog.Resources>
 
-    <Grid Width="740" Height="540">
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="180" />
-            <ColumnDefinition Width="*" />
-        </Grid.ColumnDefinitions>
-
-        <!-- Left Navigation -->
-        <NavigationView x:Name="SettingsNav"
-                        Grid.Column="0"
-                        IsBackButtonVisible="Collapsed"
-                        IsSettingsVisible="False"
-                        IsPaneToggleButtonVisible="False"
-                        PaneDisplayMode="Left"
-                        OpenPaneLength="180"
-                        IsPaneOpen="True"
-                        SelectionChanged="SettingsNav_SelectionChanged"
-                        Background="Transparent">
+    <NavigationView x:Name="SettingsNav"
+                    Width="740" Height="540"
+                    IsBackButtonVisible="Collapsed"
+                    IsSettingsVisible="False"
+                    IsPaneToggleButtonVisible="False"
+                    PaneDisplayMode="Left"
+                    OpenPaneLength="180"
+                    IsPaneOpen="True"
+                    SelectionChanged="SettingsNav_SelectionChanged"
+                    Background="Transparent">
 
             <!-- Phase 6: Search Header -->
             <NavigationView.AutoSuggestBox>
@@ -1002,6 +995,5 @@
                     </ScrollViewer>
                 </Grid>
             </NavigationView.Content>
-        </NavigationView>
-    </Grid>
+    </NavigationView>
 </ContentDialog>
