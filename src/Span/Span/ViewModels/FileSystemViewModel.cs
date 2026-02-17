@@ -18,6 +18,27 @@ namespace Span.ViewModels
 
         public string Name => _model.Name;
         public string Path => _model.Path;
+
+        /// <summary>
+        /// Display name that respects ShowFileExtensions setting.
+        /// Folders always show full name; files strip extension when setting is off.
+        /// </summary>
+        public virtual string DisplayName
+        {
+            get
+            {
+                if (this is FolderViewModel) return Name;
+                try
+                {
+                    var settings = App.Current.Services.GetService(typeof(Services.SettingsService)) as Services.SettingsService;
+                    if (settings != null && !settings.ShowFileExtensions)
+                        return System.IO.Path.GetFileNameWithoutExtension(Name);
+                }
+                catch { /* fallback to full name */ }
+                return Name;
+            }
+        }
+
         public virtual string IconGlyph => _model.IconGlyph;
         public virtual Microsoft.UI.Xaml.Media.Brush IconBrush => new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White);
         public IFileSystemItem Model => _model;

@@ -5,9 +5,18 @@ namespace Span.Services.FileOperations;
 /// </summary>
 public class FileOperationHistory
 {
-    private const int MaxHistorySize = 50;
+    private int _maxHistorySize = 50;
     private readonly Stack<IFileOperation> _undoStack = new();
     private readonly Stack<IFileOperation> _redoStack = new();
+
+    /// <summary>
+    /// Sets the maximum history size from settings.
+    /// </summary>
+    public int MaxHistorySize
+    {
+        get => _maxHistorySize;
+        set => _maxHistorySize = Math.Max(1, value);
+    }
 
     /// <summary>
     /// Occurs when the history state changes (undo/redo availability or descriptions).
@@ -54,11 +63,11 @@ public class FileOperationHistory
             _redoStack.Clear();
 
             // Limit stack size to prevent memory issues
-            if (_undoStack.Count > MaxHistorySize)
+            if (_undoStack.Count > _maxHistorySize)
             {
                 var temp = _undoStack.ToArray();
                 _undoStack.Clear();
-                for (int i = 0; i < MaxHistorySize; i++)
+                for (int i = 0; i < _maxHistorySize; i++)
                 {
                     _undoStack.Push(temp[i]);
                 }

@@ -26,7 +26,7 @@
                           VerticalAlignment="Center"/>
 
                 <TextBlock Grid.Column="1"
-                           Text="{x:Bind Name, Mode=OneWay}"
+                           Text="{x:Bind DisplayName, Mode=OneWay}"
                            VerticalAlignment="Center"
                            TextTrimming="CharacterEllipsis"
                            FontSize="13"/>
@@ -51,7 +51,7 @@
                           VerticalAlignment="Center"/>
 
                 <TextBlock Grid.Column="1"
-                           Text="{x:Bind Name, Mode=OneWay}"
+                           Text="{x:Bind DisplayName, Mode=OneWay}"
                            VerticalAlignment="Center"
                            TextTrimming="CharacterEllipsis"
                            TextWrapping="Wrap"
@@ -78,7 +78,7 @@
                           Margin="0,4,0,4"/>
 
                 <TextBlock Grid.Row="1"
-                           Text="{x:Bind Name, Mode=OneWay}"
+                           Text="{x:Bind DisplayName, Mode=OneWay}"
                            HorizontalAlignment="Center"
                            TextAlignment="Center"
                            TextTrimming="CharacterEllipsis"
@@ -107,7 +107,7 @@
                           Margin="0,6,0,6"/>
 
                 <TextBlock Grid.Row="1"
-                           Text="{x:Bind Name, Mode=OneWay}"
+                           Text="{x:Bind DisplayName, Mode=OneWay}"
                            HorizontalAlignment="Center"
                            TextAlignment="Center"
                            TextTrimming="CharacterEllipsis"
@@ -140,6 +140,7 @@
             DragItemsStarting="OnDragItemsStarting"
             DoubleTapped="OnItemDoubleClick"
             KeyDown="OnIconKeyDown"
+            SelectionChanged="OnIconSelectionChanged"
             RightTapped="OnItemRightTapped"
             Padding="16">
 

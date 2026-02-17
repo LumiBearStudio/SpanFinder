@@ -124,13 +124,17 @@
                     </ItemsRepeater>
                 </ScrollViewer>
 
-                <!-- 텍스트 편집 모드 (클릭 시 전환) -->
-                <TextBox x:Name="AddressBarTextBox" Grid.Column="0" Visibility="Collapsed"
+                <!-- 텍스트 편집 모드 (클릭 시 전환) — AutoSuggestBox for path autocomplete -->
+                <AutoSuggestBox x:Name="AddressBarAutoSuggest" Grid.Column="0" Visibility="Collapsed"
                          VerticalAlignment="Center" Height="28" FontSize="12"
-                         Background="Transparent" BorderThickness="0"
-                         KeyDown="OnAddressBarKeyDown"
+                         BorderThickness="0"
+                         TextChanged="OnAddressBarTextChanged"
+                         SuggestionChosen="OnAddressBarSuggestionChosen"
+                         QuerySubmitted="OnAddressBarQuerySubmitted"
+                         KeyDown="OnAddressBarAutoSuggestKeyDown"
                          LostFocus="OnAddressBarLostFocus"
-                         PlaceholderText="경로 입력..."/>
+                         PlaceholderText="경로 입력..."
+                         UpdateTextOnSelect="True"/>
 
                 <!-- 경로 복사 버튼 -->
                 <Button x:Name="CopyPathButton" Grid.Column="1"
@@ -262,6 +266,29 @@
                 <TextBox x:Name="SearchBox" Width="200" Height="28" FontSize="12"
                          PlaceholderText="검색 (Ctrl+F)"
                          KeyDown="OnSearchBoxKeyDown"/>
+
+                <Rectangle Width="1" Height="20" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="4,0"/>
+
+                <!-- Help -->
+                <Button x:Name="HelpButton" Style="{StaticResource UnifiedButtonStyle}"
+                        ToolTipService.ToolTip="도움말 (F1)"
+                        Click="OnHelpClick">
+                    <FontIcon Glyph="&#xE897;" FontSize="14"/>
+                </Button>
+
+                <!-- Settings -->
+                <Button x:Name="SettingsButton" Style="{StaticResource UnifiedButtonStyle}"
+                        ToolTipService.ToolTip="설정"
+                        Click="OnSettingsClick">
+                    <FontIcon Glyph="&#xE713;" FontSize="14"/>
+                </Button>
+
+                <!-- Action Log -->
+                <Button x:Name="LogButton" Style="{StaticResource UnifiedButtonStyle}"
+                        ToolTipService.ToolTip="작업 로그"
+                        Click="OnLogClick">
+                    <FontIcon Glyph="&#xE81C;" FontSize="14"/>
+                </Button>
             </StackPanel>
         </Grid>
 
@@ -386,11 +413,16 @@
 
                 <!-- ===== LEFT PANE ===== -->
                 <Grid x:Name="LeftPaneContainer" Grid.Column="0" GotFocus="OnLeftPaneGotFocus"
-                      PointerPressed="OnLeftPanePointerPressed" Background="Transparent">
+                      PointerPressed="OnLeftPanePointerPressed" Background="Transparent"
+                      AllowDrop="True" DragOver="OnPaneDragOver" Drop="OnPaneDrop" DragLeave="OnPaneDragLeave">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
+
+                    <!-- Drop overlay (cross-pane visual feedback) -->
+                    <Border x:Name="LeftDropOverlay" Grid.RowSpan="2" Opacity="0" IsHitTestVisible="False"
+                            Background="{ThemeResource SpanAccentBrush}" CornerRadius="4" Margin="4"/>
 
                     <!-- Left Pane Path Header (split mode, hidden in Home) -->
                     <Grid Grid.Row="0" x:Name="LeftPathHeader" Height="32"
@@ -551,9 +583,10 @@
                                                     <Rectangle Grid.Row="0" Height="2"
                                                                Fill="{Binding IsActive, Converter={StaticResource BoolToBrushConverter}}"/>
                                                     <ListView Grid.Row="1" ItemsSource="{x:Bind Children}" SelectedItem="{x:Bind SelectedChild, Mode=OneWay}"
-                                                              SelectionMode="Single" IsItemClickEnabled="False"
-                                                              CanDragItems="True"
+                                                              SelectionMode="Extended" IsItemClickEnabled="False"
+                                                              CanDragItems="True" AllowDrop="True"
                                                               DragItemsStarting="OnDragItemsStarting"
+                                                              DragOver="OnColumnDragOver" Drop="OnColumnDrop"
                                                               GotFocus="OnMillerColumnGotFocus"
                                                               SelectionChanged="OnMillerColumnSelectionChanged"
                                                               DoubleTapped="OnMillerColumnDoubleTapped">
@@ -561,14 +594,15 @@
                                                             <local:FileSystemItemTemplateSelector>
                                                                 <local:FileSystemItemTemplateSelector.FolderTemplate>
                                                                     <DataTemplate x:DataType="viewmodels:FolderViewModel">
-                                                                        <Grid Padding="12,4" RightTapped="OnFolderRightTapped">
+                                                                        <Grid Padding="12,4" RightTapped="OnFolderRightTapped"
+                                                                                                AllowDrop="True" DragOver="OnFolderItemDragOver" Drop="OnFolderItemDrop" DragLeave="OnFolderItemDragLeave">
                                                                             <Grid.ColumnDefinitions>
                                                                                 <ColumnDefinition Width="Auto"/>
                                                                                 <ColumnDefinition Width="*"/>
                                                                                 <ColumnDefinition Width="Auto"/>
                                                                             </Grid.ColumnDefinitions>
                                                                             <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Folder}" FontSize="16" Foreground="{x:Bind IconBrush}" Margin="0,0,12,0"/>
-                                                                            <TextBlock Grid.Column="1" Text="{x:Bind Name, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                                            <TextBlock Grid.Column="1" Text="{x:Bind DisplayName, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                                                                        Visibility="{x:Bind viewmodels:FileSystemViewModel.NotRenaming(IsRenaming), Mode=OneWay}"/>
                                                                             <TextBox Grid.Column="1" Text="{x:Bind EditableName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                                                      Visibility="{x:Bind IsRenaming, Mode=OneWay}"
@@ -586,7 +620,7 @@
                                                                                 <ColumnDefinition Width="*"/>
                                                                             </Grid.ColumnDefinitions>
                                                                             <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{x:Bind IconGlyph}" FontSize="16" Foreground="{x:Bind IconBrush}" Margin="0,0,12,0"/>
-                                                                            <TextBlock Grid.Column="1" Text="{x:Bind Name, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                                            <TextBlock Grid.Column="1" Text="{x:Bind DisplayName, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                                                                        Visibility="{x:Bind viewmodels:FileSystemViewModel.NotRenaming(IsRenaming), Mode=OneWay}"/>
                                                                             <TextBox Grid.Column="1" Text="{x:Bind EditableName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                                                      Visibility="{x:Bind IsRenaming, Mode=OneWay}"
@@ -638,11 +672,16 @@
                 <!-- ===== RIGHT PANE ===== -->
                 <Grid x:Name="RightPaneContainer" Grid.Column="2" GotFocus="OnRightPaneGotFocus"
                       PointerPressed="OnRightPanePointerPressed" Background="Transparent"
+                      AllowDrop="True" DragOver="OnPaneDragOver" Drop="OnPaneDrop" DragLeave="OnPaneDragLeave"
                       Visibility="{x:Bind IsSplitVisible(ViewModel.IsSplitViewEnabled), Mode=OneWay}">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
+
+                    <!-- Drop overlay (cross-pane visual feedback) -->
+                    <Border x:Name="RightDropOverlay" Grid.RowSpan="2" Opacity="0" IsHitTestVisible="False"
+                            Background="{ThemeResource SpanAccentBrush}" CornerRadius="4" Margin="4"/>
 
                     <!-- Right Pane Path Header -->
                     <Grid Grid.Row="0" x:Name="RightPathHeader" Height="32"
@@ -802,9 +841,10 @@
                                                     <Rectangle Grid.Row="0" Height="2"
                                                                Fill="{Binding IsActive, Converter={StaticResource BoolToBrushConverter}}"/>
                                                     <ListView Grid.Row="1" ItemsSource="{x:Bind Children}" SelectedItem="{x:Bind SelectedChild, Mode=OneWay}"
-                                                              SelectionMode="Single" IsItemClickEnabled="False"
-                                                              CanDragItems="True"
+                                                              SelectionMode="Extended" IsItemClickEnabled="False"
+                                                              CanDragItems="True" AllowDrop="True"
                                                               DragItemsStarting="OnDragItemsStarting"
+                                                              DragOver="OnColumnDragOver" Drop="OnColumnDrop"
                                                               GotFocus="OnMillerColumnGotFocus"
                                                               SelectionChanged="OnMillerColumnSelectionChanged"
                                                               DoubleTapped="OnMillerColumnDoubleTapped">
@@ -812,14 +852,15 @@
                                                             <local:FileSystemItemTemplateSelector>
                                                                 <local:FileSystemItemTemplateSelector.FolderTemplate>
                                                                     <DataTemplate x:DataType="viewmodels:FolderViewModel">
-                                                                        <Grid Padding="12,4" RightTapped="OnFolderRightTapped">
+                                                                        <Grid Padding="12,4" RightTapped="OnFolderRightTapped"
+                                                                                                AllowDrop="True" DragOver="OnFolderItemDragOver" Drop="OnFolderItemDrop" DragLeave="OnFolderItemDragLeave">
                                                                             <Grid.ColumnDefinitions>
                                                                                 <ColumnDefinition Width="Auto"/>
                                                                                 <ColumnDefinition Width="*"/>
                                                                                 <ColumnDefinition Width="Auto"/>
                                                                             </Grid.ColumnDefinitions>
                                                                             <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Folder}" FontSize="16" Foreground="{x:Bind IconBrush}" Margin="0,0,12,0"/>
-                                                                            <TextBlock Grid.Column="1" Text="{x:Bind Name, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                                            <TextBlock Grid.Column="1" Text="{x:Bind DisplayName, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                                                                        Visibility="{x:Bind viewmodels:FileSystemViewModel.NotRenaming(IsRenaming), Mode=OneWay}"/>
                                                                             <TextBox Grid.Column="1" Text="{x:Bind EditableName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                                                      Visibility="{x:Bind IsRenaming, Mode=OneWay}"
@@ -837,7 +878,7 @@
                                                                                 <ColumnDefinition Width="*"/>
                                                                             </Grid.ColumnDefinitions>
                                                                             <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{x:Bind IconGlyph}" FontSize="16" Foreground="{x:Bind IconBrush}" Margin="0,0,12,0"/>
-                                                                            <TextBlock Grid.Column="1" Text="{x:Bind Name, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                                            <TextBlock Grid.Column="1" Text="{x:Bind DisplayName, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                                                                        Visibility="{x:Bind viewmodels:FileSystemViewModel.NotRenaming(IsRenaming), Mode=OneWay}"/>
                                                                             <TextBox Grid.Column="1" Text="{x:Bind EditableName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                                                      Visibility="{x:Bind IsRenaming, Mode=OneWay}"
@@ -901,5 +942,29 @@
                  <TextBlock Text="밀러 컬럼" FontSize="11" Foreground="{ThemeResource SpanTextSecondaryBrush}" VerticalAlignment="Center"/>
             </StackPanel>
         </Grid>
+
+        <!-- Toast Notification Overlay -->
+        <Border x:Name="ToastOverlay" Grid.Row="2"
+                HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                Margin="0,0,0,16" Padding="16,10"
+                Background="{ThemeResource SpanBgLayer1Brush}"
+                BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="1"
+                CornerRadius="8" Opacity="0" IsHitTestVisible="False"
+                RenderTransformOrigin="0.5,1">
+            <Border.RenderTransform>
+                <TranslateTransform x:Name="ToastTranslate" Y="20"/>
+            </Border.RenderTransform>
+            <Border.Shadow>
+                <ThemeShadow/>
+            </Border.Shadow>
+            <StackPanel Orientation="Horizontal" Spacing="10">
+                <FontIcon x:Name="ToastIcon" Glyph="&#xE73E;" FontSize="14"
+                          Foreground="{ThemeResource SpanAccentBrush}"/>
+                <TextBlock x:Name="ToastText" Text="" FontSize="13"
+                           Foreground="{ThemeResource SpanTextPrimaryBrush}"
+                           VerticalAlignment="Center" MaxWidth="400"
+                           TextTrimming="CharacterEllipsis"/>
+            </StackPanel>
+        </Border>
     </Grid>
 </Window>

@@ -153,6 +153,7 @@
                   DragItemsStarting="OnDragItemsStarting"
                   DoubleTapped="OnItemDoubleClick"
                   KeyDown="OnDetailsKeyDown"
+                  SelectionChanged="OnDetailsSelectionChanged"
                   ContainerContentChanging="OnContainerContentChanging"
                   Background="Transparent"
                   Padding="0">
@@ -189,7 +190,7 @@
 
                         <!-- Name -->
                         <TextBlock Grid.Column="1"
-                                   Text="{x:Bind Name, Mode=OneWay}"
+                                   Text="{x:Bind DisplayName, Mode=OneWay}"
                                    VerticalAlignment="Center"
                                    TextTrimming="CharacterEllipsis"
                                    FontSize="11"

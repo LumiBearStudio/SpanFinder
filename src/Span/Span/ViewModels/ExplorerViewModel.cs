@@ -318,6 +318,13 @@ namespace Span.ViewModels
                 return;
             }
 
+            // CRITICAL: Suppress navigation when multiple items are selected
+            if (parentFolder.HasMultiSelection)
+            {
+                Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Multi-selection active ({parentFolder.SelectedItems.Count} items) - suppressing navigation");
+                return;
+            }
+
             Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Selection changed in '{parentFolder.Name}' to '{parentFolder.SelectedChild?.Name ?? "null"}'");
 
             int parentIndex = Columns.IndexOf(parentFolder);
@@ -435,6 +442,17 @@ namespace Span.ViewModels
                     Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] TaskCanceledException caught");
                 }
             }
+        }
+
+        /// <summary>
+        /// Get all selected items from the current (last) folder column.
+        /// Supports both multi-selection and single-selection.
+        /// </summary>
+        public List<FileSystemViewModel> GetSelectedItems()
+        {
+            var folder = CurrentFolder;
+            if (folder == null) return new List<FileSystemViewModel>();
+            return folder.GetSelectedItemsList();
         }
 
         /// <summary>

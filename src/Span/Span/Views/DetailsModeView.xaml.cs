@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml.Controls;
 using Span.Services;
 using Span.ViewModels;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Windows.Storage;
 
@@ -182,20 +183,32 @@ namespace Span.Views
 
         #endregion
 
+        #region Selection Sync
+
+        private void OnDetailsSelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (ViewModel?.CurrentFolder == null) return;
+            if (sender is ListView listView)
+            {
+                ViewModel.CurrentFolder.SyncSelectedItems(listView.SelectedItems);
+            }
+        }
+
+        #endregion
+
         #region Item Interaction
 
         private void OnDragItemsStarting(object sender, Microsoft.UI.Xaml.Controls.DragItemsStartingEventArgs e)
         {
-            var folder = e.Items.OfType<FolderViewModel>().FirstOrDefault();
-            if (folder != null)
-            {
-                e.Data.SetText(folder.Path);
-                e.Data.RequestedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Link;
-            }
-            else
-            {
-                e.Cancel = true;
-            }
+            var items = e.Items.OfType<FileSystemViewModel>().ToList();
+            if (items.Count == 0) { e.Cancel = true; return; }
+
+            var paths = items.Select(i => i.Path).ToList();
+            e.Data.SetText(string.Join("\n", paths));
+            e.Data.Properties["SourcePaths"] = paths;
+            e.Data.Properties["SourcePane"] = IsRightPane ? "Right" : "Left";
+            e.Data.RequestedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Copy
+                                      | Windows.ApplicationModel.DataTransfer.DataPackageOperation.Move;
         }
 
         private void OnItemRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)

@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.DependencyInjection;
 using System.Collections.ObjectModel;
 using Span.Models;
 using Span.Services;
@@ -71,6 +72,7 @@ namespace Span.ViewModels
 
         private readonly FileSystemService _fileService;
         private readonly FavoritesService _favoritesService;
+        private readonly ActionLogService _actionLogService;
         private readonly FileOperationHistory _operationHistory;
         private readonly FileOperationProgressViewModel _progressViewModel;
         private readonly System.Threading.CancellationTokenSource _shutdownCts = new();
@@ -93,6 +95,14 @@ namespace Span.ViewModels
         private string _statusBarText = string.Empty;
 
         [ObservableProperty]
+        private string _toastMessage = string.Empty;
+
+        [ObservableProperty]
+        private bool _isToastVisible = false;
+
+        private System.Threading.Timer? _toastTimer;
+
+        [ObservableProperty]
         private ViewMode _currentViewMode = ViewMode.MillerColumns;
 
         [ObservableProperty]
@@ -100,12 +110,22 @@ namespace Span.ViewModels
 
         public FileOperationProgressViewModel ProgressViewModel => _progressViewModel;
 
-        public MainViewModel(FileSystemService fileService, FavoritesService favoritesService)
+        public MainViewModel(FileSystemService fileService, FavoritesService favoritesService, ActionLogService actionLogService)
         {
             _fileService = fileService;
             _favoritesService = favoritesService;
+            _actionLogService = actionLogService;
             _operationHistory = new FileOperationHistory();
             _progressViewModel = new FileOperationProgressViewModel();
+
+            // Apply UndoHistorySize setting
+            var settings = App.Current.Services.GetRequiredService<Services.SettingsService>();
+            _operationHistory.MaxHistorySize = settings.UndoHistorySize;
+            settings.SettingChanged += (key, value) =>
+            {
+                if (key == "UndoHistorySize" && value is int size)
+                    _operationHistory.MaxHistorySize = size;
+            };
 
             _operationHistory.HistoryChanged += OnHistoryChanged;
 
@@ -260,6 +280,7 @@ namespace Span.ViewModels
 
                 // Cancel any ongoing background operations
                 _shutdownCts?.Cancel();
+                _toastTimer?.Dispose();
 
                 // Clear collections (safe now - _isCleaningUp suppresses side effects)
                 Drives.Clear();
@@ -436,6 +457,24 @@ namespace Span.ViewModels
 
             Helpers.DebugLogger.Log($"[ExecuteFileOperationAsync] Operation result: Success={result.Success}, Error={result.ErrorMessage}");
 
+            // Log operation to action log
+            _actionLogService.LogOperation(new Models.ActionLogEntry
+            {
+                OperationType = operation switch
+                {
+                    CopyFileOperation => "Copy",
+                    MoveFileOperation => "Move",
+                    DeleteFileOperation => "Delete",
+                    RenameFileOperation => "Rename",
+                    _ => operation.GetType().Name.Replace("Operation", "")
+                },
+                Description = operation.Description,
+                Success = result.Success,
+                ErrorMessage = result.ErrorMessage,
+                SourcePaths = result.AffectedPaths,
+                ItemCount = result.AffectedPaths.Count
+            });
+
             if (result.Success)
             {
                 // Refresh the specified column (or last column if not specified)
@@ -512,16 +551,21 @@ namespace Span.ViewModels
             Helpers.DebugLogger.Log($"[RefreshCurrentFolderAsync] ===== COMPLETE =====");
         }
 
-        private void ShowToast(string message)
+        public void ShowToast(string message, int durationMs = 3000)
         {
-            // TODO: Implement toast notification
-            StatusBarText = message;
+            _toastTimer?.Dispose();
+            ToastMessage = message;
+            IsToastVisible = true;
+
+            _toastTimer = new System.Threading.Timer(_ =>
+            {
+                IsToastVisible = false;
+            }, null, durationMs, System.Threading.Timeout.Infinite);
         }
 
         private void ShowError(string message)
         {
-            // TODO: Implement error dialog
-            StatusBarText = $"Error: {message}";
+            ShowToast($"Error: {message}", 5000);
         }
 
         #region Favorites
@@ -724,7 +768,7 @@ namespace Span.ViewModels
                     RightViewMode = mode;
                 }
 
-                RightExplorer.EnableAutoNavigation = (mode == ViewMode.MillerColumns);
+                RightExplorer.EnableAutoNavigation = ShouldAutoNavigate(mode);
                 Helpers.DebugLogger.Log($"[MainViewModel] Right pane AutoNav: {RightExplorer.EnableAutoNavigation} (mode: {mode})");
             }
             else
@@ -743,12 +787,26 @@ namespace Span.ViewModels
                     LeftViewMode = mode;
                 }
 
-                LeftExplorer.EnableAutoNavigation = (mode == ViewMode.MillerColumns);
+                LeftExplorer.EnableAutoNavigation = ShouldAutoNavigate(mode);
                 Helpers.DebugLogger.Log($"[MainViewModel] Left pane AutoNav: {LeftExplorer.EnableAutoNavigation} (mode: {mode})");
             }
 
             SaveViewModePreference();
             Helpers.DebugLogger.Log($"[MainViewModel] ViewMode changed: {Helpers.ViewModeExtensions.GetDisplayName(mode)}");
+        }
+
+        /// <summary>
+        /// Determines if auto-navigation should be enabled based on view mode and MillerClickBehavior setting.
+        /// </summary>
+        private bool ShouldAutoNavigate(ViewMode mode)
+        {
+            if (mode != ViewMode.MillerColumns) return false;
+            try
+            {
+                var settings = App.Current.Services.GetRequiredService<Services.SettingsService>();
+                return settings.MillerClickBehavior != "double";
+            }
+            catch { return true; }
         }
 
         /// <summary>
@@ -818,8 +876,8 @@ namespace Span.ViewModels
                     IsRightPreviewEnabled = (bool)rightPrev;
 
                 // Set auto-navigation based on loaded view mode
-                LeftExplorer.EnableAutoNavigation = (LeftViewMode == ViewMode.MillerColumns);
-                RightExplorer.EnableAutoNavigation = (RightViewMode == ViewMode.MillerColumns);
+                LeftExplorer.EnableAutoNavigation = ShouldAutoNavigate(LeftViewMode);
+                RightExplorer.EnableAutoNavigation = ShouldAutoNavigate(RightViewMode);
                 Helpers.DebugLogger.Log($"[MainViewModel] AutoNav: L={LeftExplorer.EnableAutoNavigation}, R={RightExplorer.EnableAutoNavigation}");
 
                 Helpers.DebugLogger.Log($"[MainViewModel] ViewMode loaded: L={Helpers.ViewModeExtensions.GetDisplayName(LeftViewMode)}, R={Helpers.ViewModeExtensions.GetDisplayName(RightViewMode)}, Split={IsSplitViewEnabled}");
@@ -830,8 +888,8 @@ namespace Span.ViewModels
                 CurrentViewMode = ViewMode.MillerColumns;
                 LeftViewMode = ViewMode.MillerColumns;
                 RightViewMode = ViewMode.MillerColumns;
-                LeftExplorer.EnableAutoNavigation = true;
-                RightExplorer.EnableAutoNavigation = true;
+                LeftExplorer.EnableAutoNavigation = ShouldAutoNavigate(ViewMode.MillerColumns);
+                RightExplorer.EnableAutoNavigation = ShouldAutoNavigate(ViewMode.MillerColumns);
             }
         }
 

@@ -70,6 +70,33 @@ namespace Span.Services
             }
         }
 
+        /// <summary>
+        /// Opens a terminal at the given directory using the user's preferred terminal app.
+        /// </summary>
+        public void OpenTerminal(string directoryPath, string terminalType = "wt")
+        {
+            try
+            {
+                var (fileName, arguments) = terminalType switch
+                {
+                    "powershell" => ("powershell.exe", $"-NoExit -Command \"cd '{directoryPath}'\""),
+                    "cmd" => ("cmd.exe", $"/K cd /d \"{directoryPath}\""),
+                    _ => ("wt.exe", $"-d \"{directoryPath}\"") // Windows Terminal
+                };
+
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = fileName,
+                    Arguments = arguments,
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[ShellService] OpenTerminal error: {ex.Message}");
+            }
+        }
+
         #region P/Invoke
 
         private const int SEE_MASK_INVOKEIDLIST = 0x0000000C;

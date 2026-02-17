@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using Span.Models;
 using System.Threading.Tasks;
 using Span.Services;
+using System.Linq;
 
 namespace Span.ViewModels
 {
@@ -18,6 +19,19 @@ namespace Span.ViewModels
 
         [ObservableProperty]
         private FileSystemViewModel? _selectedChild;
+
+        /// <summary>
+        /// Multi-selection: tracks all selected items in this column.
+        /// Updated via SyncSelectedItems() from ListView.SelectionChanged.
+        /// </summary>
+        [ObservableProperty]
+        private ObservableCollection<FileSystemViewModel> _selectedItems = new();
+
+        /// <summary>
+        /// True when more than one item is selected.
+        /// Used to suppress auto-navigation in Miller Columns.
+        /// </summary>
+        public bool HasMultiSelection => SelectedItems.Count > 1;
 
         [ObservableProperty]
         private bool _isLoading = false;
@@ -185,6 +199,11 @@ namespace Span.ViewModels
         }
 
         /// <summary>
+        /// Alias for ReloadAsync (used by settings refresh).
+        /// </summary>
+        public Task RefreshAsync() => ReloadAsync();
+
+        /// <summary>
         /// Force reload (F5 새로고침).
         /// </summary>
         public async Task ReloadAsync()
@@ -204,6 +223,40 @@ namespace Span.ViewModels
         partial void OnSelectedChildChanged(FileSystemViewModel? value)
         {
             // ExplorerViewModel listens to this via PropertyChanged
+        }
+
+        /// <summary>
+        /// Synchronize SelectedItems from ListView.SelectionChanged.
+        /// Single selection: updates SelectedChild (triggers auto-navigation).
+        /// Multi-selection: suppresses SelectedChild update (navigation suppressed).
+        /// </summary>
+        public void SyncSelectedItems(IList<object> selectedObjects)
+        {
+            SelectedItems.Clear();
+            foreach (var obj in selectedObjects)
+            {
+                if (obj is FileSystemViewModel fsvm)
+                    SelectedItems.Add(fsvm);
+            }
+
+            // Single selection: sync SelectedChild for navigation
+            if (SelectedItems.Count == 1)
+            {
+                SelectedChild = SelectedItems[0];
+            }
+            // Multi-selection: don't touch SelectedChild → navigation suppressed
+
+            OnPropertyChanged(nameof(HasMultiSelection));
+        }
+
+        /// <summary>
+        /// Get all selected items (multi or single).
+        /// </summary>
+        public List<FileSystemViewModel> GetSelectedItemsList()
+        {
+            if (HasMultiSelection)
+                return SelectedItems.ToList();
+            return SelectedChild != null ? new List<FileSystemViewModel> { SelectedChild } : new List<FileSystemViewModel>();
         }
     }
 }
