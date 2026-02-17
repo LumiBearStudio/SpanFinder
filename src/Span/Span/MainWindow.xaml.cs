@@ -204,6 +204,13 @@ namespace Span
                     }
                     RestorePreviewState();
                     RestoreSessionPath();
+
+                    // Apply ShowCheckboxes to Miller Columns after initial render
+                    if (_settings.ShowCheckboxes)
+                    {
+                        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+                            () => ApplyMillerCheckboxMode(true));
+                    }
                 };
             }
         }
@@ -397,8 +404,7 @@ namespace Span
                     break;
 
                 case "ShowCheckboxes":
-                    // ShowCheckboxes is read directly by views from SettingsService.
-                    // No dynamic propagation needed — applied on next view refresh.
+                    DispatcherQueue.TryEnqueue(() => ApplyMillerCheckboxMode(value is bool cb && cb));
                     break;
 
                 case "ShowThumbnails":
@@ -437,6 +443,37 @@ namespace Span
             {
                 root.Resources["ListViewItemMinHeight"] = itemHeight;
             }
+        }
+
+        private void ApplyMillerCheckboxMode(bool showCheckboxes)
+        {
+            var mode = showCheckboxes
+                ? ListViewSelectionMode.Multiple
+                : ListViewSelectionMode.Extended;
+
+            // Apply to all visible Miller Column ListViews in both panes
+            ApplyCheckboxToItemsControl(MillerColumnsControl, mode);
+            ApplyCheckboxToItemsControl(MillerColumnsControlRight, mode);
+        }
+
+        private void ApplyCheckboxToItemsControl(ItemsControl? control, ListViewSelectionMode mode)
+        {
+            if (control?.ItemsPanelRoot == null) return;
+            for (int i = 0; i < control.Items.Count; i++)
+            {
+                var listView = GetListViewFromItemsControl(control, i);
+                if (listView != null)
+                {
+                    listView.SelectionMode = mode;
+                }
+            }
+        }
+
+        private ListView? GetListViewFromItemsControl(ItemsControl control, int index)
+        {
+            var container = control.ContainerFromIndex(index) as ContentPresenter;
+            if (container == null) return null;
+            return FindChild<ListView>(container);
         }
 
         private void HandleOpenTerminal()

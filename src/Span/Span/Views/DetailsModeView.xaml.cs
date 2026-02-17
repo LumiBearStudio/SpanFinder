@@ -36,6 +36,7 @@ namespace Span.Views
         private bool _isAscending = true;
         private bool _isLoaded = false;
         private readonly ApplicationDataContainer _localSettings = ApplicationData.Current.LocalSettings;
+        private SettingsService? _settings;
 
         // Current column widths (read from header ColumnDefinitions)
         private double _dateColumnWidth = 200;
@@ -65,6 +66,18 @@ namespace Span.Views
                 {
                     ViewModel = IsRightPane ? mainVm.RightExplorer : mainVm.Explorer;
                 }
+
+                // Apply ShowCheckboxes setting
+                try
+                {
+                    _settings = App.Current.Services.GetService(typeof(SettingsService)) as SettingsService;
+                    if (_settings != null)
+                    {
+                        ApplyCheckboxMode(_settings.ShowCheckboxes);
+                        _settings.SettingChanged += OnSettingChanged;
+                    }
+                }
+                catch { }
 
                 // Restore sort settings
                 RestoreSortSettings();
@@ -191,6 +204,22 @@ namespace Span.Views
             if (sender is ListView listView)
             {
                 ViewModel.CurrentFolder.SyncSelectedItems(listView.SelectedItems);
+            }
+        }
+
+        private void ApplyCheckboxMode(bool showCheckboxes)
+        {
+            if (DetailsListView == null) return;
+            DetailsListView.SelectionMode = showCheckboxes
+                ? ListViewSelectionMode.Multiple
+                : ListViewSelectionMode.Extended;
+        }
+
+        private void OnSettingChanged(string key, object? value)
+        {
+            if (key == "ShowCheckboxes" && value is bool show)
+            {
+                DispatcherQueue.TryEnqueue(() => ApplyCheckboxMode(show));
             }
         }
 
@@ -519,6 +548,12 @@ namespace Span.Views
                     DateColumnDef.UnregisterPropertyChangedCallback(ColumnDefinition.WidthProperty, _dateCallbackToken);
                     TypeColumnDef.UnregisterPropertyChangedCallback(ColumnDefinition.WidthProperty, _typeCallbackToken);
                     SizeColumnDef.UnregisterPropertyChangedCallback(ColumnDefinition.WidthProperty, _sizeCallbackToken);
+                }
+
+                if (_settings != null)
+                {
+                    _settings.SettingChanged -= OnSettingChanged;
+                    _settings = null;
                 }
 
                 if (DetailsListView != null)

@@ -30,6 +30,7 @@ namespace Span.Views
         private ViewMode _currentIconSize = ViewMode.IconMedium;
         private bool _isLoaded = false;
         private bool _isCleanedUp = false;
+        private SettingsService? _settings;
 
         public IconModeView()
         {
@@ -47,6 +48,18 @@ namespace Span.Views
                     ViewModel = IsRightPane ? mainVm.RightExplorer : mainVm.Explorer;
                     UpdateIconSize(mainVm.CurrentIconSize);
                 }
+
+                // Apply ShowCheckboxes setting
+                try
+                {
+                    _settings = App.Current.Services.GetService(typeof(SettingsService)) as SettingsService;
+                    if (_settings != null)
+                    {
+                        ApplyCheckboxMode(_settings.ShowCheckboxes);
+                        _settings.SettingChanged += OnSettingChanged;
+                    }
+                }
+                catch { }
             };
 
             this.Unloaded += OnUnloaded;
@@ -86,6 +99,22 @@ namespace Span.Views
             {
                 IconGridView.ItemTemplate = (DataTemplate)this.Resources[templateKey];
                 Helpers.DebugLogger.Log($"[IconModeView] Icon size updated: {Helpers.ViewModeExtensions.GetDisplayName(iconSize)} (Template: {templateKey})");
+            }
+        }
+
+        private void ApplyCheckboxMode(bool showCheckboxes)
+        {
+            if (IconGridView == null) return;
+            IconGridView.SelectionMode = showCheckboxes
+                ? ListViewSelectionMode.Multiple
+                : ListViewSelectionMode.Extended;
+        }
+
+        private void OnSettingChanged(string key, object? value)
+        {
+            if (key == "ShowCheckboxes" && value is bool show)
+            {
+                DispatcherQueue.TryEnqueue(() => ApplyCheckboxMode(show));
             }
         }
 
@@ -268,6 +297,12 @@ namespace Span.Views
             try
             {
                 Helpers.DebugLogger.Log("[IconModeView] Starting cleanup...");
+
+                if (_settings != null)
+                {
+                    _settings.SettingChanged -= OnSettingChanged;
+                    _settings = null;
+                }
 
                 if (IconGridView != null)
                 {
