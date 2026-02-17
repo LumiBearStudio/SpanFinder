@@ -619,7 +619,12 @@
                                                                                 <ColumnDefinition Width="Auto"/>
                                                                                 <ColumnDefinition Width="*"/>
                                                                             </Grid.ColumnDefinitions>
-                                                                            <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{x:Bind IconGlyph}" FontSize="16" Foreground="{x:Bind IconBrush}" Margin="0,0,12,0"/>
+                                                                            <Grid Width="16" Height="16" Margin="0,0,12,0" VerticalAlignment="Center">
+                                                                                <Image Source="{x:Bind ThumbnailSource, Mode=OneWay}" Stretch="UniformToFill"
+                                                                                       Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfTrue(HasThumbnail), Mode=OneWay}"/>
+                                                                                <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{x:Bind IconGlyph}" FontSize="16" Foreground="{x:Bind IconBrush}"
+                                                                                          Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfFalse(HasThumbnail), Mode=OneWay}"/>
+                                                                            </Grid>
                                                                             <TextBlock Grid.Column="1" Text="{x:Bind DisplayName, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                                                                        Visibility="{x:Bind viewmodels:FileSystemViewModel.NotRenaming(IsRenaming), Mode=OneWay}"/>
                                                                             <TextBox Grid.Column="1" Text="{x:Bind EditableName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
@@ -877,7 +882,12 @@
                                                                                 <ColumnDefinition Width="Auto"/>
                                                                                 <ColumnDefinition Width="*"/>
                                                                             </Grid.ColumnDefinitions>
-                                                                            <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{x:Bind IconGlyph}" FontSize="16" Foreground="{x:Bind IconBrush}" Margin="0,0,12,0"/>
+                                                                            <Grid Width="16" Height="16" Margin="0,0,12,0" VerticalAlignment="Center">
+                                                                                <Image Source="{x:Bind ThumbnailSource, Mode=OneWay}" Stretch="UniformToFill"
+                                                                                       Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfTrue(HasThumbnail), Mode=OneWay}"/>
+                                                                                <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{x:Bind IconGlyph}" FontSize="16" Foreground="{x:Bind IconBrush}"
+                                                                                          Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfFalse(HasThumbnail), Mode=OneWay}"/>
+                                                                            </Grid>
                                                                             <TextBlock Grid.Column="1" Text="{x:Bind DisplayName, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                                                                        Visibility="{x:Bind viewmodels:FileSystemViewModel.NotRenaming(IsRenaming), Mode=OneWay}"/>
                                                                             <TextBox Grid.Column="1" Text="{x:Bind EditableName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"

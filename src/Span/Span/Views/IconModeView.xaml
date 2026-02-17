@@ -17,13 +17,15 @@
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <FontIcon Grid.Column="0"
-                          FontFamily="{StaticResource RemixIcons}"
-                          Glyph="{x:Bind IconGlyph, Mode=OneWay}"
-                          Foreground="{x:Bind IconBrush, Mode=OneWay}"
-                          FontSize="14"
-                          Margin="0,0,6,0"
-                          VerticalAlignment="Center"/>
+                <Grid Grid.Column="0" Width="14" Height="14" Margin="0,0,6,0" VerticalAlignment="Center">
+                    <Image Source="{x:Bind ThumbnailSource, Mode=OneWay}" Stretch="UniformToFill"
+                           Visibility="{x:Bind vm:FileSystemViewModel.ShowIfTrue(HasThumbnail), Mode=OneWay}"/>
+                    <FontIcon FontFamily="{StaticResource RemixIcons}"
+                              Glyph="{x:Bind IconGlyph, Mode=OneWay}"
+                              Foreground="{x:Bind IconBrush, Mode=OneWay}"
+                              FontSize="14"
+                              Visibility="{x:Bind vm:FileSystemViewModel.ShowIfFalse(HasThumbnail), Mode=OneWay}"/>
+                </Grid>
 
                 <TextBlock Grid.Column="1"
                            Text="{x:Bind DisplayName, Mode=OneWay}"
@@ -42,13 +44,15 @@
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <FontIcon Grid.Column="0"
-                          FontFamily="{StaticResource RemixIcons}"
-                          Glyph="{x:Bind IconGlyph, Mode=OneWay}"
-                          Foreground="{x:Bind IconBrush, Mode=OneWay}"
-                          FontSize="40"
-                          Margin="0,0,10,0"
-                          VerticalAlignment="Center"/>
+                <Grid Grid.Column="0" Width="40" Height="40" Margin="0,0,10,0" VerticalAlignment="Center">
+                    <Image Source="{x:Bind ThumbnailSource, Mode=OneWay}" Stretch="UniformToFill"
+                           Visibility="{x:Bind vm:FileSystemViewModel.ShowIfTrue(HasThumbnail), Mode=OneWay}"/>
+                    <FontIcon FontFamily="{StaticResource RemixIcons}"
+                              Glyph="{x:Bind IconGlyph, Mode=OneWay}"
+                              Foreground="{x:Bind IconBrush, Mode=OneWay}"
+                              FontSize="40"
+                              Visibility="{x:Bind vm:FileSystemViewModel.ShowIfFalse(HasThumbnail), Mode=OneWay}"/>
+                </Grid>
 
                 <TextBlock Grid.Column="1"
                            Text="{x:Bind DisplayName, Mode=OneWay}"
@@ -69,13 +73,15 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <FontIcon Grid.Row="0"
-                          FontFamily="{StaticResource RemixIcons}"
-                          Glyph="{x:Bind IconGlyph, Mode=OneWay}"
-                          Foreground="{x:Bind IconBrush, Mode=OneWay}"
-                          FontSize="80"
-                          HorizontalAlignment="Center"
-                          Margin="0,4,0,4"/>
+                <Grid Grid.Row="0" Width="80" Height="80" HorizontalAlignment="Center" Margin="0,4,0,4">
+                    <Image Source="{x:Bind ThumbnailSource, Mode=OneWay}" Stretch="Uniform"
+                           Visibility="{x:Bind vm:FileSystemViewModel.ShowIfTrue(HasThumbnail), Mode=OneWay}"/>
+                    <FontIcon FontFamily="{StaticResource RemixIcons}"
+                              Glyph="{x:Bind IconGlyph, Mode=OneWay}"
+                              Foreground="{x:Bind IconBrush, Mode=OneWay}"
+                              FontSize="80"
+                              Visibility="{x:Bind vm:FileSystemViewModel.ShowIfFalse(HasThumbnail), Mode=OneWay}"/>
+                </Grid>
 
                 <TextBlock Grid.Row="1"
                            Text="{x:Bind DisplayName, Mode=OneWay}"
@@ -98,13 +104,15 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <FontIcon Grid.Row="0"
-                          FontFamily="{StaticResource RemixIcons}"
-                          Glyph="{x:Bind IconGlyph, Mode=OneWay}"
-                          Foreground="{x:Bind IconBrush, Mode=OneWay}"
-                          FontSize="180"
-                          HorizontalAlignment="Center"
-                          Margin="0,6,0,6"/>
+                <Grid Grid.Row="0" Width="200" Height="200" HorizontalAlignment="Center" Margin="0,6,0,6">
+                    <Image Source="{x:Bind ThumbnailSource, Mode=OneWay}" Stretch="Uniform"
+                           Visibility="{x:Bind vm:FileSystemViewModel.ShowIfTrue(HasThumbnail), Mode=OneWay}"/>
+                    <FontIcon FontFamily="{StaticResource RemixIcons}"
+                              Glyph="{x:Bind IconGlyph, Mode=OneWay}"
+                              Foreground="{x:Bind IconBrush, Mode=OneWay}"
+                              FontSize="180"
+                              Visibility="{x:Bind vm:FileSystemViewModel.ShowIfFalse(HasThumbnail), Mode=OneWay}"/>
+                </Grid>
 
                 <TextBlock Grid.Row="1"
                            Text="{x:Bind DisplayName, Mode=OneWay}"

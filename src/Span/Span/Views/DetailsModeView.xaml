@@ -179,14 +179,17 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
-                        <!-- Icon -->
-                        <FontIcon Grid.Column="0"
-                                  FontFamily="{StaticResource RemixIcons}"
-                                  Glyph="{x:Bind IconGlyph, Mode=OneWay}"
-                                  Foreground="{x:Bind IconBrush, Mode=OneWay}"
-                                  FontSize="16"
-                                  HorizontalAlignment="Center"
-                                  VerticalAlignment="Center"/>
+                        <!-- Icon / Thumbnail -->
+                        <Grid Grid.Column="0" Width="16" Height="16"
+                              HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Image Source="{x:Bind ThumbnailSource, Mode=OneWay}" Stretch="UniformToFill"
+                                   Visibility="{x:Bind vm:FileSystemViewModel.ShowIfTrue(HasThumbnail), Mode=OneWay}"/>
+                            <FontIcon FontFamily="{StaticResource RemixIcons}"
+                                      Glyph="{x:Bind IconGlyph, Mode=OneWay}"
+                                      Foreground="{x:Bind IconBrush, Mode=OneWay}"
+                                      FontSize="16"
+                                      Visibility="{x:Bind vm:FileSystemViewModel.ShowIfFalse(HasThumbnail), Mode=OneWay}"/>
+                        </Grid>
 
                         <!-- Name -->
                         <TextBlock Grid.Column="1"

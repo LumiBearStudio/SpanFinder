@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using Microsoft.UI.Xaml.Media.Imaging;
 using Span.Models;
 
 namespace Span.ViewModels
@@ -15,6 +16,9 @@ namespace Span.ViewModels
 
         [ObservableProperty]
         private string _editableName = string.Empty;
+
+        [ObservableProperty]
+        private BitmapImage? _thumbnailSource;
 
         public string Name => _model.Name;
         public string Path => _model.Path;
@@ -42,6 +46,21 @@ namespace Span.ViewModels
         public virtual string IconGlyph => _model.IconGlyph;
         public virtual Microsoft.UI.Xaml.Media.Brush IconBrush => new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White);
         public IFileSystemItem Model => _model;
+
+        /// <summary>
+        /// Whether this item has a thumbnail loaded. Used by XAML to toggle Image vs FontIcon.
+        /// </summary>
+        public bool HasThumbnail => ThumbnailSource != null;
+
+        /// <summary>
+        /// Whether this item supports thumbnail preview (image files only).
+        /// </summary>
+        public virtual bool IsThumbnailSupported => false;
+
+        partial void OnThumbnailSourceChanged(BitmapImage? value)
+        {
+            OnPropertyChanged(nameof(HasThumbnail));
+        }
 
         // Properties for Details mode
         public virtual string DateModified
@@ -187,6 +206,18 @@ namespace Span.ViewModels
         /// </summary>
         public static Microsoft.UI.Xaml.Visibility NotRenaming(bool isRenaming)
             => isRenaming ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible;
+
+        /// <summary>
+        /// XAML x:Bind: show thumbnail Image when HasThumbnail is true.
+        /// </summary>
+        public static Microsoft.UI.Xaml.Visibility ShowIfTrue(bool value)
+            => value ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+
+        /// <summary>
+        /// XAML x:Bind: show FontIcon when HasThumbnail is false.
+        /// </summary>
+        public static Microsoft.UI.Xaml.Visibility ShowIfFalse(bool value)
+            => value ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible;
 
         /// <summary>
         /// 이름 변경 취소 (Esc).

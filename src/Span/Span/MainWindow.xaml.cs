@@ -408,9 +408,7 @@ namespace Span
                     break;
 
                 case "ShowThumbnails":
-                    // ShowThumbnails will be used by icon/detail views when thumbnail rendering is implemented.
-                    // Currently icon-based only. Refresh to toggle.
-                    DispatcherQueue.TryEnqueue(() => RefreshCurrentView());
+                    DispatcherQueue.TryEnqueue(() => ToggleThumbnails(value is bool st && st));
                     break;
             }
         }
@@ -454,6 +452,23 @@ namespace Span
             // Apply to all visible Miller Column ListViews in both panes
             ApplyCheckboxToItemsControl(MillerColumnsControl, mode);
             ApplyCheckboxToItemsControl(MillerColumnsControlRight, mode);
+        }
+
+        private void ToggleThumbnails(bool showThumbnails)
+        {
+            var explorer = ViewModel.ActiveExplorer;
+            if (explorer?.CurrentFolder == null) return;
+
+            foreach (var child in explorer.CurrentFolder.Children)
+            {
+                if (child is FileViewModel fileVm)
+                {
+                    if (showThumbnails && fileVm.IsThumbnailSupported)
+                        _ = fileVm.LoadThumbnailAsync();
+                    else
+                        fileVm.UnloadThumbnail();
+                }
+            }
         }
 
         private void ApplyCheckboxToItemsControl(ItemsControl? control, ListViewSelectionMode mode)

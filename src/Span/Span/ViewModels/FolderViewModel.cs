@@ -144,6 +144,9 @@ namespace Span.ViewModels
                     }
 
                     Helpers.DebugLogger.Log($"[FolderViewModel.EnsureChildrenLoadedAsync] Children updated: {sortedItems.Count} items loaded (naturally sorted)");
+
+                    // Load thumbnails for image files in the background
+                    _ = LoadThumbnailsAsync(sortedItems, token);
                 }
                 else
                 {
@@ -196,6 +199,34 @@ namespace Span.ViewModels
             _isLoaded = false;
 
             Helpers.DebugLogger.Log($"[FolderViewModel.ResetState] Reset complete - _isLoaded=false, SelectedChild=null");
+        }
+
+        /// <summary>
+        /// Load thumbnails for image files in the background.
+        /// Processes in batches to avoid flooding the UI thread.
+        /// </summary>
+        private async Task LoadThumbnailsAsync(List<FileSystemViewModel> items, System.Threading.CancellationToken token)
+        {
+            try
+            {
+                var imageFiles = items.OfType<FileViewModel>()
+                    .Where(f => f.IsThumbnailSupported)
+                    .ToList();
+
+                if (imageFiles.Count == 0) return;
+
+                Helpers.DebugLogger.Log($"[FolderViewModel] Loading thumbnails for {imageFiles.Count} image files");
+
+                foreach (var file in imageFiles)
+                {
+                    if (token.IsCancellationRequested) break;
+                    await file.LoadThumbnailAsync();
+                }
+            }
+            catch (System.Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[FolderViewModel] Thumbnail batch load error: {ex.Message}");
+            }
         }
 
         /// <summary>
