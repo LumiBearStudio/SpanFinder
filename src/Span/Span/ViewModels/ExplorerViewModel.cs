@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Threading.Tasks;
 using Span.Models;
 using Span.Services;
 
@@ -101,15 +102,16 @@ namespace Span.ViewModels
         /// <summary>
         /// Navigate to a folder from sidebar (reset all columns).
         /// </summary>
-        public async void NavigateTo(FolderItem folder)
+        public async Task NavigateTo(FolderItem folder)
         {
             Helpers.DebugLogger.Log($"[NavigateTo] Navigating to: {folder.Name}, clearing {Columns.Count} columns");
 
-            // Cleanup all - reset state before removing
+            // 경량 정리 — Children 유지 (캐시 효과), 구독만 해제
             foreach (var col in Columns)
             {
                 col.PropertyChanged -= FolderVm_PropertyChanged;
-                col.ResetState();
+                col.CancelLoading();
+                col.SelectedChild = null;
             }
             Columns.Clear();
 
@@ -123,15 +125,90 @@ namespace Span.ViewModels
         }
 
         /// <summary>
-        /// 문자열 경로로 직접 탐색 (주소 표시줄 편집, 브레드크럼 클릭).
+        /// 문자열 경로로 직접 탐색 (주소 표시줄 편집, 브레드크럼 클릭, 세션 복원).
+        /// 루트 드라이브부터 대상 폴더까지 전체 계층을 Miller Columns로 구성.
+        /// 예: D:\foo\bar → [D:\] > [foo] > [bar] 세 개의 컬럼 표시.
         /// </summary>
-        public async void NavigateToPath(string path)
+        public async Task NavigateToPath(string path)
         {
             if (string.IsNullOrWhiteSpace(path)) return;
             if (!System.IO.Directory.Exists(path)) return;
 
-            var folderItem = new FolderItem { Name = System.IO.Path.GetFileName(path), Path = path };
-            NavigateTo(folderItem);
+            // Normalize path
+            path = System.IO.Path.GetFullPath(path);
+
+            // Get root and relative parts
+            var root = System.IO.Path.GetPathRoot(path);
+            if (string.IsNullOrEmpty(root)) return;
+
+            var relative = path.Substring(root.Length);
+            var parts = string.IsNullOrEmpty(relative)
+                ? System.Array.Empty<string>()
+                : relative.Split(System.IO.Path.DirectorySeparatorChar, System.StringSplitOptions.RemoveEmptyEntries);
+
+            // If only root drive, use simple NavigateTo
+            if (parts.Length == 0)
+            {
+                var folderItem = new FolderItem { Name = root.TrimEnd('\\'), Path = root };
+                await NavigateTo(folderItem);
+                return;
+            }
+
+            Helpers.DebugLogger.Log($"[NavigateToPath] Building full hierarchy for: {path} ({parts.Length + 1} levels)");
+
+            // Suppress auto-navigation while building column hierarchy
+            var previousAutoNav = EnableAutoNavigation;
+            EnableAutoNavigation = false;
+
+            try
+            {
+                // 경량 정리 — Children 유지, 구독만 해제
+                foreach (var col in Columns)
+                {
+                    col.PropertyChanged -= FolderVm_PropertyChanged;
+                    col.CancelLoading();
+                    col.SelectedChild = null;
+                }
+                Columns.Clear();
+
+                // Create root column (drive)
+                var rootFolder = new FolderItem { Name = root.TrimEnd('\\'), Path = root };
+                var currentVm = new FolderViewModel(rootFolder, _fileService);
+                await currentVm.EnsureChildrenLoadedAsync();
+                AddColumn(currentVm);
+
+                // Build columns for each path segment
+                for (int i = 0; i < parts.Length; i++)
+                {
+                    // Find matching child folder in current column
+                    var childVm = currentVm.Children.OfType<FolderViewModel>()
+                        .FirstOrDefault(c => string.Equals(c.Name, parts[i], System.StringComparison.OrdinalIgnoreCase));
+
+                    if (childVm == null)
+                    {
+                        Helpers.DebugLogger.Log($"[NavigateToPath] Segment '{parts[i]}' not found in '{currentVm.Path}' - stopping");
+                        break;
+                    }
+
+                    // Select child in parent column (visual highlight)
+                    currentVm.SelectedChild = childVm;
+
+                    // Load children and add as next column
+                    await childVm.EnsureChildrenLoadedAsync();
+                    AddColumn(childVm);
+
+                    currentVm = childVm;
+                }
+
+                // Set current path to the last successfully loaded column
+                CurrentPath = currentVm.Path;
+
+                Helpers.DebugLogger.Log($"[NavigateToPath] Hierarchy built: {string.Join(" > ", Columns.Select(c => c.Name))}");
+            }
+            finally
+            {
+                EnableAutoNavigation = previousAutoNav;
+            }
         }
 
         /// <summary>
@@ -189,7 +266,7 @@ namespace Span.ViewModels
             else
             {
                 // 3. 컬럼에 없다면 (완전히 다른 경로로 점프하는 경우) 기존 방식대로 전체 이동
-                NavigateToPath(segment.FullPath);
+                _ = NavigateToPath(segment.FullPath);
             }
         }
 
@@ -233,7 +310,8 @@ namespace Span.ViewModels
             {
                 var oldColumn = Columns[nextIndex];
                 oldColumn.PropertyChanged -= FolderVm_PropertyChanged;
-                oldColumn.ResetState();
+                oldColumn.CancelLoading();
+                oldColumn.SelectedChild = null;
 
                 folder.PropertyChanged += FolderVm_PropertyChanged;
                 Columns[nextIndex] = folder;
@@ -261,7 +339,7 @@ namespace Span.ViewModels
             if (!System.IO.Directory.Exists(parentPath)) return;
 
             Helpers.DebugLogger.Log($"[NavigateUp] Navigating from '{CurrentFolder.Path}' to '{parentPath}'");
-            NavigateToPath(parentPath);
+            _ = NavigateToPath(parentPath);
         }
 
         private void AddColumn(FolderViewModel folderVm)
@@ -284,8 +362,11 @@ namespace Span.ViewModels
 
                 column.PropertyChanged -= FolderVm_PropertyChanged;
 
-                // Reset state so folder reloads fresh when revisited
-                column.ResetState();
+                // 경량 초기화: 선택 해제만 수행, Children 및 _isLoaded 유지
+                // 재방문 시 디스크 I/O 없이 즉시 표시 가능
+                // (ResetState는 Cleanup/탭 닫기에서만 사용)
+                column.CancelLoading();
+                column.SelectedChild = null;
 
                 Columns.RemoveAt(i);
             }
@@ -420,10 +501,10 @@ namespace Span.ViewModels
                         var oldColumn = Columns[nextIndex];
                         Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Replacing column at index {nextIndex}: '{oldColumn.Name}' → '{selectedFolder.Name}'");
 
-                        // CRITICAL FIX: Reset old column state before replacing
-                        // This ensures the old FolderViewModel will reload fresh data when selected again
+                        // 경량 정리 — Children 유지 (재방문 시 캐시 효과)
                         oldColumn.PropertyChanged -= FolderVm_PropertyChanged;
-                        oldColumn.ResetState();
+                        oldColumn.CancelLoading();
+                        oldColumn.SelectedChild = null;
 
                         selectedFolder.PropertyChanged += FolderVm_PropertyChanged;
                         Columns[nextIndex] = selectedFolder;

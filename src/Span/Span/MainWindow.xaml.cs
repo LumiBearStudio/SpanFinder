@@ -13,6 +13,7 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.InteropServices;
+using Microsoft.UI.Input;
 using Windows.ApplicationModel.DataTransfer;
 
 namespace Span
@@ -95,6 +96,17 @@ namespace Span
         private string _currentSortField = "Name"; // Name, Date, Size, Type
         private bool _currentSortAscending = true;
 
+        // Tab tear-off drag state
+        private bool _isTabDragging;
+        private Windows.Foundation.Point _tabDragStartPoint;
+        private Models.TabItem? _draggingTab;
+        private const double TAB_DRAG_THRESHOLD = 8;
+
+        // Pending tear-off tab state (set before Activate, consumed in Loaded)
+        private Models.TabStateDto? _pendingTearOff;
+        // True if this window was created from a tear-off (skip session save on close)
+        private bool _isTearOffWindow;
+
         private const double ColumnWidth = 220;
 
         public MainWindow()
@@ -109,9 +121,10 @@ namespace Span
             SystemBackdrop = new Microsoft.UI.Xaml.Media.MicaBackdrop();
 
             // Minimize to taskbar on close (instead of quitting) when MinimizeToTray enabled
+            // Tear-off windows close normally (no tray minimization)
             this.AppWindow.Closing += (s, e) =>
             {
-                if (_settings.MinimizeToTray && !_forceClose)
+                if (_settings.MinimizeToTray && !_forceClose && !_isTearOffWindow)
                 {
                     e.Cancel = true;
                     ShowWindow(_hwnd, 6); // SW_MINIMIZE
@@ -120,6 +133,8 @@ namespace Span
 
             // TitleBar
             ExtendsContentIntoTitleBar = true;
+            // SetTitleBar → 전체 타이틀바를 드래그 영역 + 캡션 버튼 자동 관리
+            // Passthrough 영역은 Loaded 후 SetRegionRects로 별도 설정 (탭 영역만)
             SetTitleBar(AppTitleBar);
 
             // Auto-scroll on column change (both panes)
@@ -244,6 +259,56 @@ namespace Span
             {
                 rootElement.Loaded += (s, e) =>
                 {
+                    if (_pendingTearOff != null)
+                    {
+                        // ── Tear-off mode: load single tab from DTO, skip session restore ──
+                        _isTearOffWindow = true;
+                        var dto = _pendingTearOff;
+                        _pendingTearOff = null;
+
+                        ViewModel.LoadSingleTabFromDto(dto);
+
+                        // Re-bind MillerColumnsControl to the new explorer
+                        MillerColumnsControl.ItemsSource = ViewModel.Explorer.Columns;
+                        var tabId = ViewModel.ActiveTab?.Id ?? "_default";
+                        _tabMillerPanels.Clear();
+                        _tabMillerPanels[tabId] = (MillerScrollViewer, MillerColumnsControl);
+                        _activeMillerTabId = tabId;
+
+                        // Re-bind Details/Icon panels
+                        _tabDetailsPanels.Clear();
+                        _tabIconPanels.Clear();
+                        _tabDetailsPanels[tabId] = DetailsView;
+                        _tabIconPanels[tabId] = IconView;
+                        _activeDetailsTabId = tabId;
+                        _activeIconTabId = tabId;
+
+                        DetailsView.ViewModel = ViewModel.Explorer;
+                        IconView.ViewModel = ViewModel.Explorer;
+                        AddressBreadcrumbBar.ItemsSource = ViewModel.Explorer.PathSegments;
+                        LeftPaneBreadcrumbRepeater.ItemsSource = ViewModel.Explorer.PathSegments;
+
+                        // Resubscribe column changes
+                        if (_subscribedLeftExplorer != null)
+                            _subscribedLeftExplorer.Columns.CollectionChanged -= OnColumnsChanged;
+                        _subscribedLeftExplorer = ViewModel.Explorer;
+                        ViewModel.Explorer.Columns.CollectionChanged += OnColumnsChanged;
+
+                        _previousViewMode = ViewModel.CurrentViewMode;
+                        SetViewModeVisibility(ViewModel.CurrentViewMode);
+
+                        // Set tab bar as passthrough so pointer events work for tear-off
+                        UpdateTitleBarRegions();
+                        TabScrollViewer.SizeChanged += (_, __) => UpdateTitleBarRegions();
+                        TabBarContent.SizeChanged += (_, __) => UpdateTitleBarRegions();
+                        this.SizeChanged += (_, __) => UpdateTitleBarRegions();
+
+                        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+                            () => FocusActiveView());
+                        return;
+                    }
+
+                    // ── Normal startup: restore session tabs ──
                     if (ViewModel.IsSplitViewEnabled)
                     {
                         SplitterCol.Width = new GridLength(2, GridUnitType.Pixel);
@@ -261,6 +326,12 @@ namespace Span
 
                     // ── Per-Tab Miller Panels: 세션 복원 후 모든 탭에 대해 패널 생성 ──
                     InitializeTabMillerPanels();
+
+                    // Set tab bar as passthrough so pointer events work for tab tear-off
+                    UpdateTitleBarRegions();
+                    TabScrollViewer.SizeChanged += (_, __) => UpdateTitleBarRegions();
+                    TabBarContent.SizeChanged += (_, __) => UpdateTitleBarRegions();
+                    this.SizeChanged += (_, __) => UpdateTitleBarRegions();
 
                     // ViewMode Visibility 초기화 (x:Bind 제거 후 코드비하인드에서 관리)
                     _previousViewMode = ViewModel.CurrentViewMode;
@@ -297,9 +368,12 @@ namespace Span
                 // STEP 0: Block all queued DispatcherQueue callbacks and async continuations
                 _isClosed = true;
 
-                // Save tab state for session restore
-                ViewModel.SaveActiveTabState();
-                ViewModel.SaveTabsToSettings();
+                // Save tab state for session restore (skip for tear-off windows)
+                if (!_isTearOffWindow)
+                {
+                    ViewModel.SaveActiveTabState();
+                    ViewModel.SaveTabsToSettings();
+                }
 
                 // Unsubscribe settings
                 _settings.SettingChanged -= OnSettingChanged;
@@ -405,6 +479,9 @@ namespace Span
                 }
 
                 Helpers.DebugLogger.Log("[MainWindow.OnClosed] Cleanup complete");
+
+                // Unregister from multi-window tracking (may trigger app exit if last window)
+                App.Current.UnregisterWindow(this);
             }
             catch (Exception ex)
             {
@@ -414,7 +491,7 @@ namespace Span
         }
 
         /// <summary>
-        /// Win32 subclass procedure to intercept WM_DEVICECHANGE for USB hotplug
+        /// Win32 subclass procedure to intercept WM_DEVICECHANGE for USB hotplug detection.
         /// </summary>
         private IntPtr WndProc(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam, IntPtr uIdSubclass, IntPtr dwRefData)
         {
@@ -653,7 +730,16 @@ namespace Span
             {
                 // 탭 전환 중이거나 UpdateViewModeVisibility 내부에서는 FocusActiveView 억제
                 if (!ViewModel.IsSwitchingTab && !_suppressFocusOnViewModeChange)
+                {
+                    // ViewMode 변경 시 패널 Visibility도 업데이트 (Home→Miller 등)
+                    var newMode = ViewModel.CurrentViewMode;
+                    if (_previousViewMode != newMode)
+                    {
+                        _previousViewMode = newMode;
+                        SetViewModeVisibility(newMode);
+                    }
                     FocusActiveView();
+                }
             }
             else if (e.PropertyName == nameof(MainViewModel.Explorer))
             {
@@ -3370,6 +3456,15 @@ namespace Span
                 int index = ViewModel.Tabs.IndexOf(tab);
                 if (index >= 0)
                 {
+                    // Record drag start for tear-off detection
+                    _tabDragStartPoint = e.GetCurrentPoint(null).Position;
+                    _draggingTab = tab;
+                    _isTabDragging = false; // Will become true if threshold exceeded
+
+                    // Capture pointer so PointerMoved fires even outside the tab element
+                    if (ViewModel.Tabs.Count > 1)
+                        fe.CapturePointer(e.Pointer);
+
                     // Show/Hide 패널 전환 (ViewModel.SwitchToTab 전에 실행하여 바인딩 재평가 방지)
                     SwitchMillerPanel(tab.Id);
                     SwitchDetailsPanel(tab.Id, tab.ViewMode == ViewMode.Details);
@@ -3381,6 +3476,218 @@ namespace Span
                     FocusActiveView();
                 }
             }
+        }
+
+        private void OnTabItemPointerMoved(object sender, PointerRoutedEventArgs e)
+        {
+            if (_draggingTab == null) return;
+
+            var currentPoint = e.GetCurrentPoint(null).Position;
+            double dx = currentPoint.X - _tabDragStartPoint.X;
+            double dy = currentPoint.Y - _tabDragStartPoint.Y;
+
+            // Check if drag threshold exceeded
+            if (!_isTabDragging)
+            {
+                if (Math.Sqrt(dx * dx + dy * dy) < TAB_DRAG_THRESHOLD)
+                    return;
+                _isTabDragging = true;
+            }
+
+            // Check if cursor is outside the window
+            if (IsCursorOutsideWindow())
+            {
+                // Don't tear off the last tab
+                if (ViewModel.Tabs.Count <= 1) return;
+
+                var tabToTearOff = _draggingTab;
+                _draggingTab = null;
+                _isTabDragging = false;
+
+                // Release pointer capture so the new window can take over
+                if (sender is UIElement element)
+                {
+                    try { element.ReleasePointerCaptures(); } catch { }
+                }
+
+                TearOffTab(tabToTearOff);
+            }
+        }
+
+        private void OnTabItemPointerReleased(object sender, PointerRoutedEventArgs e)
+        {
+            _draggingTab = null;
+            _isTabDragging = false;
+            if (sender is UIElement element)
+            {
+                try { element.ReleasePointerCaptures(); } catch { }
+            }
+        }
+
+        private bool IsCursorOutsideWindow()
+        {
+            if (!Helpers.NativeMethods.GetCursorPos(out var cursorPos))
+                return false;
+            if (!Helpers.NativeMethods.GetWindowRect(_hwnd, out var windowRect))
+                return false;
+
+            return cursorPos.X < windowRect.Left ||
+                   cursorPos.X > windowRect.Right ||
+                   cursorPos.Y < windowRect.Top ||
+                   cursorPos.Y > windowRect.Bottom;
+        }
+
+        private void TearOffTab(Models.TabItem tab)
+        {
+            try
+            {
+                // 1. Save tab state as DTO
+                ViewModel.SaveActiveTabState();
+                var dto = new Models.TabStateDto(
+                    tab.Id, tab.Header, tab.Path,
+                    (int)tab.ViewMode, (int)tab.IconSize);
+
+                // 2. Get cursor position for new window placement
+                Helpers.NativeMethods.GetCursorPos(out var cursorPos);
+
+                // 3. Remove tab from current window (panels + ViewModel)
+                int index = ViewModel.Tabs.IndexOf(tab);
+                if (index < 0) return;
+
+                RemoveMillerPanel(tab.Id);
+                RemoveDetailsPanel(tab.Id);
+                RemoveIconPanel(tab.Id);
+                ViewModel.CloseTab(index);
+
+                // Switch panels for the new active tab
+                if (ViewModel.ActiveTab != null)
+                {
+                    SwitchMillerPanel(ViewModel.ActiveTab.Id);
+                    SwitchDetailsPanel(ViewModel.ActiveTab.Id, ViewModel.ActiveTab.ViewMode == ViewMode.Details);
+                    SwitchIconPanel(ViewModel.ActiveTab.Id, Helpers.ViewModeExtensions.IsIconMode(ViewModel.ActiveTab.ViewMode));
+                }
+                ResubscribeLeftExplorer();
+                UpdateViewModeVisibility();
+                FocusActiveView();
+
+                // 4. Create new window with single tab
+                var newWindow = new MainWindow();
+                newWindow._pendingTearOff = dto;
+                App.Current.RegisterWindow(newWindow);
+
+                // 5. Position window at cursor
+                newWindow.AppWindow.MoveAndResize(new Windows.Graphics.RectInt32(
+                    cursorPos.X - 400, cursorPos.Y - 20, 1000, 700));
+
+                newWindow.Activate();
+
+                // 6. Start OS drag on the new window (SC_DRAGMOVE via PostMessage-like approach)
+                var newHwnd = WinRT.Interop.WindowNative.GetWindowHandle(newWindow);
+                DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+                {
+                    Helpers.NativeMethods.ReleaseCapture();
+                    Helpers.NativeMethods.SendMessage(newHwnd,
+                        Helpers.NativeMethods.WM_SYSCOMMAND,
+                        (IntPtr)Helpers.NativeMethods.SC_DRAGMOVE, IntPtr.Zero);
+                });
+
+                Helpers.DebugLogger.Log($"[TearOff] Tab '{dto.Header}' torn off to new window at ({cursorPos.X}, {cursorPos.Y})");
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[TearOff] Error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// MS 공식 패턴: SetTitleBar(AppTitleBar)가 드래그/캡션 버튼을 자동 관리.
+        /// Passthrough 영역 = TabBarContent(StackPanel)의 실제 콘텐츠 영역을
+        /// ScrollViewer 뷰포트에 클리핑한 교집합.
+        /// → 탭 오른쪽 빈 공간은 드래그 영역으로 유지
+        /// → 스크롤 시에도 캡션 버튼 영역을 넘지 않음
+        /// </summary>
+        private void UpdateTitleBarRegions()
+        {
+            try
+            {
+                if (_isClosed || TabScrollViewer == null || TabRepeater == null) return;
+                if (!ExtendsContentIntoTitleBar) return;
+
+                double scale = AppTitleBar.XamlRoot.RasterizationScale;
+
+                // 캡션 버튼 영역 확보
+                RightPaddingColumn.Width = new GridLength(
+                    this.AppWindow.TitleBar.RightInset / scale);
+
+                // ScrollViewer 뷰포트 경계 (클리핑용)
+                GeneralTransform svTransform = TabScrollViewer.TransformToVisual(null);
+                Windows.Foundation.Rect svBounds = svTransform.TransformBounds(
+                    new Windows.Foundation.Rect(0, 0,
+                        TabScrollViewer.ActualWidth,
+                        TabScrollViewer.ActualHeight));
+
+                var rects = new List<Windows.Graphics.RectInt32>();
+
+                // 각 탭 요소를 개별 Passthrough rect로 등록
+                if (TabRepeater.ItemsSourceView != null)
+                {
+                    for (int i = 0; i < TabRepeater.ItemsSourceView.Count; i++)
+                    {
+                        if (TabRepeater.TryGetElement(i) is not FrameworkElement element) continue;
+
+                        var clipped = GetClippedRect(element, svBounds);
+                        if (clipped.HasValue)
+                        {
+                            rects.Add(ToRectInt32(clipped.Value, scale));
+                        }
+                    }
+                }
+
+                // + (New Tab) 버튼도 Passthrough로 등록
+                if (NewTabButton != null)
+                {
+                    var clipped = GetClippedRect(NewTabButton, svBounds);
+                    if (clipped.HasValue)
+                    {
+                        rects.Add(ToRectInt32(clipped.Value, scale));
+                    }
+                }
+
+                var nonClientInputSrc = InputNonClientPointerSource.GetForWindowId(this.AppWindow.Id);
+                nonClientInputSrc.SetRegionRects(NonClientRegionKind.Passthrough, rects.ToArray());
+            }
+            catch { /* Layout not ready yet */ }
+        }
+
+        /// <summary>
+        /// 요소의 bounds를 뷰포트에 클리핑하여 반환. 뷰포트 밖이면 null.
+        /// </summary>
+        private static Windows.Foundation.Rect? GetClippedRect(
+            FrameworkElement element, Windows.Foundation.Rect viewport)
+        {
+            GeneralTransform transform = element.TransformToVisual(null);
+            Windows.Foundation.Rect bounds = transform.TransformBounds(
+                new Windows.Foundation.Rect(0, 0,
+                    element.ActualWidth, element.ActualHeight));
+
+            double left = Math.Max(bounds.X, viewport.X);
+            double top = Math.Max(bounds.Y, viewport.Y);
+            double right = Math.Min(bounds.X + bounds.Width, viewport.X + viewport.Width);
+            double bottom = Math.Min(bounds.Y + bounds.Height, viewport.Y + viewport.Height);
+
+            if (right > left && bottom > top)
+                return new Windows.Foundation.Rect(left, top, right - left, bottom - top);
+            return null;
+        }
+
+        private static Windows.Graphics.RectInt32 ToRectInt32(
+            Windows.Foundation.Rect rect, double scale)
+        {
+            return new Windows.Graphics.RectInt32(
+                (int)Math.Round(rect.X * scale),
+                (int)Math.Round(rect.Y * scale),
+                (int)Math.Round(rect.Width * scale),
+                (int)Math.Round(rect.Height * scale));
         }
 
         private void OnTabCloseClick(object sender, RoutedEventArgs e)
@@ -3405,6 +3712,8 @@ namespace Span
                     ResubscribeLeftExplorer();
                     UpdateViewModeVisibility();
                     FocusActiveView();
+                    // Tab count changed — update passthrough region
+                    DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, UpdateTitleBarRegions);
                 }
             }
         }
@@ -3425,6 +3734,8 @@ namespace Span
             ResubscribeLeftExplorer();
             UpdateViewModeVisibility();
             FocusActiveView();
+            // Tab count changed — update passthrough region
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, UpdateTitleBarRegions);
         }
 
         // Sort menu opening - update checkmarks and icons

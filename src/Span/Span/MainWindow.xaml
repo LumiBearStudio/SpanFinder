@@ -35,7 +35,7 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/> <!-- Tabs Placeholder -->
+                <ColumnDefinition x:Name="RightPaddingColumn" Width="0"/> <!-- 캡션 버튼 여백 (코드에서 설정) -->
             </Grid.ColumnDefinitions>
             
             <!-- App Icon & Title -->
@@ -45,9 +45,9 @@
             </StackPanel>
             
             <!-- Dynamic Tabs -->
-            <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
+            <ScrollViewer x:Name="TabScrollViewer" Grid.Column="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
                           HorizontalScrollMode="Auto" VerticalScrollMode="Disabled">
-                <StackPanel Orientation="Horizontal" Spacing="1">
+                <StackPanel x:Name="TabBarContent" Orientation="Horizontal" Spacing="1">
                     <ItemsRepeater x:Name="TabRepeater" ItemsSource="{x:Bind ViewModel.Tabs, Mode=OneWay}">
                         <ItemsRepeater.Layout>
                             <StackLayout Orientation="Horizontal" Spacing="1"/>
@@ -56,7 +56,10 @@
                             <DataTemplate x:DataType="models:TabItem">
                                 <Grid Width="200" Height="34" VerticalAlignment="Bottom"
                                       Background="{ThemeResource SpanBgLayer1Brush}" CornerRadius="6,6,0,0"
-                                      PointerPressed="OnTabItemPointerPressed" Tag="{x:Bind}">
+                                      PointerPressed="OnTabItemPointerPressed"
+                                      PointerMoved="OnTabItemPointerMoved"
+                                      PointerReleased="OnTabItemPointerReleased"
+                                      Tag="{x:Bind}">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
@@ -91,7 +94,7 @@
                         </ItemsRepeater.ItemTemplate>
                     </ItemsRepeater>
                     <!-- New Tab button -->
-                    <Button Style="{StaticResource UnifiedButtonStyle}" Width="34" Height="34" VerticalAlignment="Bottom"
+                    <Button x:Name="NewTabButton" Style="{StaticResource UnifiedButtonStyle}" Width="34" Height="34" VerticalAlignment="Bottom"
                             Margin="2,0,0,0" Click="OnNewTabClick" ToolTipService.ToolTip="New Tab (Ctrl+T)">
                         <FontIcon Glyph="&#xE710;" FontSize="12"/>
                     </Button>

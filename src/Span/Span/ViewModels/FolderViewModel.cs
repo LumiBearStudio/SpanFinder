@@ -72,94 +72,93 @@ namespace Span.ViewModels
             _isLoaded = true;
             IsLoading = true;
 
-            Helpers.DebugLogger.Log($"[FolderViewModel.EnsureChildrenLoadedAsync] Loading children from disk...");
-
             _cts?.Cancel();
             _cts = new System.Threading.CancellationTokenSource();
             var token = _cts.Token;
 
             try
             {
-                // Capture setting on UI thread before entering Task.Run
+                // Capture settings on UI thread before background work
                 bool showHidden = false;
+                Services.FolderContentCache? folderCache = null;
                 try
                 {
                     var settings = App.Current.Services.GetService(typeof(Services.SettingsService)) as Services.SettingsService;
                     if (settings != null) showHidden = settings.ShowHiddenFiles;
+                    folderCache = App.Current.Services.GetService(typeof(Services.FolderContentCache)) as Services.FolderContentCache;
                 }
                 catch { }
 
-                var items = await Task.Run(() =>
+                var folderPath = _folderModel.Path;
+
+                // ── Cache 확인: 캐시 히트 시 디스크 I/O 완전 스킵 ──
+                var cached = folderCache?.TryGet(folderPath, showHidden);
+                if (cached != null)
                 {
-                    var result = new List<FileSystemViewModel>();
-                    var path = _folderModel.Path;
+                    Helpers.DebugLogger.Log($"[FolderViewModel.EnsureChildrenLoadedAsync] CACHE HIT: {folderPath}");
+                    var items = new List<FileSystemViewModel>();
+                    foreach (var d in cached.Folders)
+                        items.Add(new FolderViewModel(d, _fileService));
+                    foreach (var f in cached.Files)
+                        items.Add(new FileViewModel(f));
 
-                    if (string.IsNullOrEmpty(path) || !System.IO.Directory.Exists(path))
-                        return result;
-
-                    try
-                    {
-                        var dirInfo = new System.IO.DirectoryInfo(path);
-
-                        foreach (var d in dirInfo.EnumerateDirectories())
-                        {
-                            if (token.IsCancellationRequested) return new List<FileSystemViewModel>();
-                            if (!showHidden && (d.Attributes & System.IO.FileAttributes.Hidden) != 0) continue;
-                            if ((d.Attributes & System.IO.FileAttributes.System) != 0) continue;
-
-                            result.Add(new FolderViewModel(
-                                new FolderItem { Name = d.Name, Path = d.FullName, DateModified = d.LastWriteTime },
-                                _fileService
-                            ));
-                        }
-
-                        foreach (var f in dirInfo.EnumerateFiles())
-                        {
-                            if (token.IsCancellationRequested) return new List<FileSystemViewModel>();
-                            if (!showHidden && (f.Attributes & System.IO.FileAttributes.Hidden) != 0) continue;
-                            if ((f.Attributes & System.IO.FileAttributes.System) != 0) continue;
-
-                            result.Add(new FileViewModel(
-                                new FileItem { Name = f.Name, Path = f.FullName, Size = f.Length, DateModified = f.LastWriteTime, FileType = f.Extension }
-                            ));
-                        }
-                    }
-                    catch (System.UnauthorizedAccessException) { }
-                    catch (System.Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"Error: {ex.Message}");
-                    }
-
-                    return result;
-                }, token);
-
-                if (!token.IsCancellationRequested)
-                {
-                    // Update Children synchronously - we're already on UI thread via await
-                    // CRITICAL FIX: Clear and re-add instead of replacing entire collection
-                    // This ensures UI bindings update correctly
-                    Helpers.DebugLogger.Log($"[FolderViewModel.EnsureChildrenLoadedAsync] Updating Children: {Children.Count} → {items.Count}");
-
-                    // Apply natural sorting: folders first, then files, both sorted naturally
-                    var sortedItems = items
-                        .OrderBy(x => x is FileViewModel ? 1 : 0)  // Folders first
-                        .ThenBy(x => x.Name, Helpers.NaturalStringComparer.Instance)
-                        .ToList();
-
-                    Children.Clear();
-                    foreach (var item in sortedItems)
-                    {
-                        Children.Add(item);
-                    }
-
-                    Helpers.DebugLogger.Log($"[FolderViewModel.EnsureChildrenLoadedAsync] Children updated: {sortedItems.Count} items loaded (naturally sorted)");
-
-                    // Load thumbnails for image files in the background
-                    _ = LoadThumbnailsAsync(sortedItems, token);
+                    PopulateChildren(items, token);
                 }
                 else
                 {
-                    Helpers.DebugLogger.Log($"[FolderViewModel.EnsureChildrenLoadedAsync] Cancelled before updating Children");
+                    // ── Cache 미스: 디스크에서 로드 ──
+                    Helpers.DebugLogger.Log($"[FolderViewModel.EnsureChildrenLoadedAsync] Loading from disk: {folderPath}");
+
+                    var (items, rawFolders, rawFiles) = await Task.Run(() =>
+                    {
+                        var result = new List<FileSystemViewModel>();
+                        var folders = new List<Models.FolderItem>();
+                        var files = new List<Models.FileItem>();
+
+                        if (string.IsNullOrEmpty(folderPath) || !System.IO.Directory.Exists(folderPath))
+                            return (result, folders, files);
+
+                        try
+                        {
+                            var dirInfo = new System.IO.DirectoryInfo(folderPath);
+
+                            foreach (var d in dirInfo.EnumerateDirectories())
+                            {
+                                if (token.IsCancellationRequested) return (new List<FileSystemViewModel>(), folders, files);
+                                if (!showHidden && (d.Attributes & System.IO.FileAttributes.Hidden) != 0) continue;
+                                if ((d.Attributes & System.IO.FileAttributes.System) != 0) continue;
+
+                                var folderItem = new FolderItem { Name = d.Name, Path = d.FullName, DateModified = d.LastWriteTime };
+                                folders.Add(folderItem);
+                                result.Add(new FolderViewModel(folderItem, _fileService));
+                            }
+
+                            foreach (var f in dirInfo.EnumerateFiles())
+                            {
+                                if (token.IsCancellationRequested) return (new List<FileSystemViewModel>(), folders, files);
+                                if (!showHidden && (f.Attributes & System.IO.FileAttributes.Hidden) != 0) continue;
+                                if ((f.Attributes & System.IO.FileAttributes.System) != 0) continue;
+
+                                var fileItem = new FileItem { Name = f.Name, Path = f.FullName, Size = f.Length, DateModified = f.LastWriteTime, FileType = f.Extension };
+                                files.Add(fileItem);
+                                result.Add(new FileViewModel(fileItem));
+                            }
+                        }
+                        catch (System.UnauthorizedAccessException) { }
+                        catch (System.Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Error: {ex.Message}");
+                        }
+
+                        return (result, folders, files);
+                    }, token);
+
+                    if (!token.IsCancellationRequested)
+                    {
+                        // 캐시에 저장 (raw models — ViewModel 없이)
+                        folderCache?.Set(folderPath, rawFolders, rawFiles, showHidden);
+                        PopulateChildren(items, token);
+                    }
                 }
             }
             catch (TaskCanceledException)
@@ -171,7 +170,6 @@ namespace Span.ViewModels
                 if (!token.IsCancellationRequested)
                 {
                     IsLoading = false;
-                    Helpers.DebugLogger.Log($"[FolderViewModel.EnsureChildrenLoadedAsync] IsLoading = false");
                 }
                 if (_cts?.Token == token)
                 {
@@ -180,6 +178,28 @@ namespace Span.ViewModels
                 }
                 Helpers.DebugLogger.Log($"[FolderViewModel.EnsureChildrenLoadedAsync] ===== COMPLETE =====");
             }
+        }
+
+        /// <summary>
+        /// Children 컬렉션에 정렬된 아이템을 채우고 썸네일 로드를 시작한다.
+        /// 캐시 히트와 디스크 로드 양쪽에서 공통으로 사용.
+        /// </summary>
+        private void PopulateChildren(List<FileSystemViewModel> items, System.Threading.CancellationToken token)
+        {
+            if (token.IsCancellationRequested) return;
+
+            var sortedItems = items
+                .OrderBy(x => x is FileViewModel ? 1 : 0)
+                .ThenBy(x => x.Name, Helpers.NaturalStringComparer.Instance)
+                .ToList();
+
+            Children.Clear();
+            foreach (var item in sortedItems)
+                Children.Add(item);
+
+            Helpers.DebugLogger.Log($"[FolderViewModel] Children populated: {sortedItems.Count} items");
+
+            _ = LoadThumbnailsAsync(sortedItems, token);
         }
 
         public void CancelLoading()
@@ -249,14 +269,18 @@ namespace Span.ViewModels
         public async Task ReloadAsync()
         {
             Helpers.DebugLogger.Log($"[FolderViewModel.ReloadAsync] START - Folder: {Name}, Path: {Path}");
-            Helpers.DebugLogger.Log($"[FolderViewModel.ReloadAsync] Children before reload: {Children.Count}");
+
+            // 캐시 무효화 (강제 새로고침)
+            try
+            {
+                var cache = App.Current.Services.GetService(typeof(Services.FolderContentCache)) as Services.FolderContentCache;
+                cache?.Invalidate(Path);
+            }
+            catch { }
 
             _isLoaded = false;
-            Helpers.DebugLogger.Log($"[FolderViewModel.ReloadAsync] _isLoaded set to false, calling EnsureChildrenLoadedAsync()...");
-
             await EnsureChildrenLoadedAsync();
 
-            Helpers.DebugLogger.Log($"[FolderViewModel.ReloadAsync] Children after reload: {Children.Count}");
             Helpers.DebugLogger.Log($"[FolderViewModel.ReloadAsync] ===== COMPLETE =====");
         }
 

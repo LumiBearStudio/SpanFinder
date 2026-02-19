@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using System;
+using System.Collections.Generic;
 using Span.ViewModels;
 
 namespace Span
@@ -10,12 +11,35 @@ namespace Span
         public IServiceProvider Services { get; }
         public new static App Current => (App)Application.Current;
 
+        // Multi-window tracking
+        private readonly List<Window> _windows = new();
+        private readonly object _windowLock = new();
+
         public App()
         {
             this.InitializeComponent();
             Services = ConfigureServices();
 
             this.UnhandledException += OnUnhandledException;
+        }
+
+        public void RegisterWindow(Window w)
+        {
+            lock (_windowLock)
+            {
+                if (!_windows.Contains(w))
+                    _windows.Add(w);
+            }
+        }
+
+        public void UnregisterWindow(Window w)
+        {
+            lock (_windowLock)
+            {
+                _windows.Remove(w);
+                if (_windows.Count == 0)
+                    Exit();
+            }
         }
 
         private void OnUnhandledException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs e)
@@ -39,6 +63,7 @@ namespace Span
             services.AddSingleton<Services.ContextMenuService>();
             services.AddSingleton<Services.ActionLogService>();
             services.AddSingleton<Services.SettingsService>();
+            services.AddSingleton<Services.FolderContentCache>();
 
             // ViewModel 등록
             services.AddTransient<MainViewModel>();
@@ -54,6 +79,7 @@ namespace Span
                 await iconService.LoadAsync();
 
                 m_window = new MainWindow();
+                RegisterWindow(m_window);
                 m_window.Activate();
             }
             catch (Exception ex)

@@ -146,4 +146,18 @@ public class SettingsService
         get => Get("Language", "system");
         set => Set("Language", value);
     }
+
+    // ── Tabs ──
+
+    public string TabsJson
+    {
+        get => Get("TabsJson", "");
+        set => Set("TabsJson", value);
+    }
+
+    public int ActiveTabIndex
+    {
+        get => Get("ActiveTabIndex", 0);
+        set => Set("ActiveTabIndex", value);
+    }
 }

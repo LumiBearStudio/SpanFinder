@@ -8,6 +8,7 @@ using Span.Services.FileOperations;
 using System.Linq;
 using System.Threading.Tasks;
 using System;
+using System.Text.Json;
 
 namespace Span.ViewModels
 {
@@ -27,7 +28,19 @@ namespace Span.ViewModels
         public ExplorerViewModel LeftExplorer
         {
             get => _leftExplorer;
-            set => SetProperty(ref _leftExplorer, value);
+            set
+            {
+                var old = _leftExplorer;
+                if (SetProperty(ref _leftExplorer, value))
+                {
+                    // PropertyChanged 구독 교체 (old → new)
+                    if (old != null) old.PropertyChanged -= OnLeftExplorerPropertyChanged;
+                    if (value != null) value.PropertyChanged += OnLeftExplorerPropertyChanged;
+
+                    OnPropertyChanged(nameof(Explorer));
+                    OnPropertyChanged(nameof(ActiveExplorer));
+                }
+            }
         }
 
         private ExplorerViewModel _rightExplorer;
@@ -108,6 +121,17 @@ namespace Span.ViewModels
         [ObservableProperty]
         private ViewMode _currentIconSize = ViewMode.IconMedium; // Icon 모드 기본 크기
 
+        [ObservableProperty]
+        private int _activeTabIndex = 0;
+
+        public TabItem? ActiveTab => (ActiveTabIndex >= 0 && ActiveTabIndex < Tabs.Count) ? Tabs[ActiveTabIndex] : null;
+
+        /// <summary>
+        /// 탭 전환 중 PropertyChanged 연쇄 반응(FocusActiveView, ScrollToLastColumn 등) 억제용 플래그.
+        /// MainWindow에서 읽어서 불필요한 UI 작업을 건너뛴다.
+        /// </summary>
+        public bool IsSwitchingTab { get; private set; }
+
         public FileOperationProgressViewModel ProgressViewModel => _progressViewModel;
 
         public MainViewModel(FileSystemService fileService, FavoritesService favoritesService, ActionLogService actionLogService)
@@ -132,14 +156,29 @@ namespace Span.ViewModels
             Initialize();
         }
 
+        /// <summary>
+        /// LeftExplorer의 PropertyChanged 핸들러 — setter에서 구독/해제 관리
+        /// </summary>
+        private void OnLeftExplorerPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (_isCleaningUp) return;
+            if (e.PropertyName == nameof(ExplorerViewModel.CurrentPath) && !string.IsNullOrEmpty(LeftExplorer?.CurrentPath))
+            {
+                AddRecentFolder(LeftExplorer.CurrentPath);
+                UpdateActiveTabHeader();
+            }
+        }
+
         private void Initialize()
         {
-            // Dummy tabs
-            Tabs.Add(new TabItem { Header = "Project Span", Icon = "\uEA34" }); // ri-apps-2-fill
+            // Create default tab (will be replaced by LoadTabsFromSettings on Loaded)
+            EnsureDefaultTab();
 
             // Initialize Engines with a conceptual Root
             var root = new FolderItem { Name = "PC", Path = "PC" };
             LeftExplorer = new ExplorerViewModel(root, _fileService);
+            // 첫 번째 탭에 ExplorerViewModel 할당
+            Tabs[0].Explorer = LeftExplorer;
 
             var rightRoot = new FolderItem { Name = "PC", Path = "PC" };
             RightExplorer = new ExplorerViewModel(rightRoot, _fileService);
@@ -152,15 +191,8 @@ namespace Span.ViewModels
             // Load ViewMode preference (includes split state)
             LoadViewModePreference();
 
-            // Track navigation for recent folders (both panes)
-            LeftExplorer.PropertyChanged += (s, e) =>
-            {
-                if (_isCleaningUp) return;
-                if (e.PropertyName == nameof(ExplorerViewModel.CurrentPath) && !string.IsNullOrEmpty(LeftExplorer.CurrentPath))
-                {
-                    AddRecentFolder(LeftExplorer.CurrentPath);
-                }
-            };
+            // LeftExplorer PropertyChanged는 setter에서 자동 구독됨
+            // RightExplorer는 탭과 무관하므로 별도 구독
             RightExplorer.PropertyChanged += (s, e) =>
             {
                 if (_isCleaningUp) return;
@@ -169,6 +201,16 @@ namespace Span.ViewModels
                     AddRecentFolder(RightExplorer.CurrentPath);
                 }
             };
+        }
+
+        private void EnsureDefaultTab()
+        {
+            if (Tabs.Count == 0)
+            {
+                var tab = new TabItem { Header = "Home", ViewMode = ViewMode.Home, IsActive = true };
+                Tabs.Add(tab);
+                ActiveTabIndex = 0;
+            }
         }
 
         /// <summary>
@@ -268,6 +310,10 @@ namespace Span.ViewModels
             {
                 Helpers.DebugLogger.Log("[MainViewModel] Starting cleanup...");
 
+                // Save tab state before cleanup
+                SaveActiveTabState();
+                SaveTabsToSettings();
+
                 // Save state before suppressing notifications
                 _favoritesService.SaveFavorites(Favorites.ToList());
                 SaveRecentFolders();
@@ -281,6 +327,10 @@ namespace Span.ViewModels
                 // Cancel any ongoing background operations
                 _shutdownCts?.Cancel();
                 _toastTimer?.Dispose();
+
+                // 모든 탭의 Explorer 정리
+                foreach (var tab in Tabs)
+                    tab.Explorer?.Cleanup();
 
                 // Clear collections (safe now - _isCleaningUp suppresses side effects)
                 Drives.Clear();
@@ -396,7 +446,7 @@ namespace Span.ViewModels
                 Path = drive.Path
             };
 
-            ActiveExplorer.NavigateTo(driveRoot);
+            _ = ActiveExplorer.NavigateTo(driveRoot);
         }
 
         private void OnHistoryChanged(object? sender, HistoryChangedEventArgs e)
@@ -639,7 +689,7 @@ namespace Span.ViewModels
             }
 
             var folder = new FolderItem { Name = favorite.Name, Path = favorite.Path };
-            ActiveExplorer.NavigateTo(folder);
+            _ = ActiveExplorer.NavigateTo(folder);
             Helpers.DebugLogger.Log($"[MainViewModel] Navigated to favorite: {favorite.Name}");
         }
 
@@ -731,7 +781,7 @@ namespace Span.ViewModels
                 RecentFolders.RemoveAt(RecentFolders.Count - 1);
             }
 
-            SaveRecentFolders();
+            // SaveRecentFolders() 제거 — Cleanup()에서 일괄 저장
         }
 
         #endregion
@@ -792,6 +842,13 @@ namespace Span.ViewModels
             }
 
             SaveViewModePreference();
+            UpdateActiveTabHeader();
+            // 활성 탭의 ViewMode도 즉시 동기화
+            if (ActiveTab != null)
+            {
+                ActiveTab.ViewMode = CurrentViewMode;
+                ActiveTab.IconSize = CurrentIconSize;
+            }
             Helpers.DebugLogger.Log($"[MainViewModel] ViewMode changed: {Helpers.ViewModeExtensions.GetDisplayName(mode)}");
         }
 
@@ -963,6 +1020,398 @@ namespace Span.ViewModels
                 Helpers.DebugLogger.Log($"[MainViewModel] Error saving split state: {ex.Message}");
             }
         }
+
+        #region Tab Management
+
+        /// <summary>
+        /// Add a new Home tab and switch to it.
+        /// </summary>
+        public void AddNewTab()
+        {
+            var root = new FolderItem { Name = "PC", Path = "PC" };
+            var explorer = new ExplorerViewModel(root, _fileService);
+            explorer.EnableAutoNavigation = ShouldAutoNavigate(ViewMode.Home);
+
+            var tab = new TabItem
+            {
+                Header = "Home",
+                Path = "",
+                ViewMode = ViewMode.Home,
+                IconSize = ViewMode.IconMedium,
+                IsActive = false,
+                Explorer = explorer
+            };
+            Tabs.Add(tab);
+            SwitchToTab(Tabs.Count - 1);
+            Helpers.DebugLogger.Log($"[MainViewModel] New tab added (total: {Tabs.Count})");
+        }
+
+        /// <summary>
+        /// Switch to a tab by index. Saves old tab state, restores new tab state.
+        /// Minimizes PropertyChanged events: backing fields are set directly,
+        /// and the caller (code-behind) is responsible for updating UI manually.
+        /// </summary>
+        public void SwitchToTab(int index)
+        {
+            if (index < 0 || index >= Tabs.Count)
+                return;
+            if (index == ActiveTabIndex && Tabs[index].IsActive)
+                return;
+
+            IsSwitchingTab = true;
+            try
+            {
+                // 현재 탭 상태 동기화 (Path, ViewMode만)
+                SaveActiveTabState();
+
+                // Deactivate old tab
+                if (ActiveTabIndex >= 0 && ActiveTabIndex < Tabs.Count)
+                    Tabs[ActiveTabIndex].IsActive = false;
+
+                // Activate new tab — backing field 직접 설정으로 PropertyChanged 방지
+                _activeTabIndex = index;
+                Tabs[index].IsActive = true;
+                OnPropertyChanged(nameof(ActiveTab));
+
+                // Explorer가 없으면 생성, 있지만 경로가 미로드이면 탐색 실행
+                if (Tabs[index].Explorer == null)
+                {
+                    InitializeTabExplorer(Tabs[index]);
+                }
+                else if (!string.IsNullOrEmpty(Tabs[index].Path)
+                    && Tabs[index].ViewMode != ViewMode.Home
+                    && string.IsNullOrEmpty(Tabs[index].Explorer.CurrentPath))
+                {
+                    // H4: 비활성 탭에서 지연된 NavigateToPath 실행
+                    LoadDeferredTabPath(Tabs[index]);
+                }
+
+                // ★ LeftExplorer 필드 직접 설정 — PropertyChanged 미발생 (SetProperty 우회)
+                var old = _leftExplorer;
+                if (old != null) old.PropertyChanged -= OnLeftExplorerPropertyChanged;
+                _leftExplorer = Tabs[index].Explorer!;
+                if (_leftExplorer != null) _leftExplorer.PropertyChanged += OnLeftExplorerPropertyChanged;
+
+                // ★ ViewMode도 backing field 직접 설정 — PropertyChanged 미발생
+                _currentViewMode = Tabs[index].ViewMode;
+                _leftViewMode = Tabs[index].ViewMode;
+                if (Helpers.ViewModeExtensions.IsIconMode(Tabs[index].ViewMode))
+                    _currentIconSize = Tabs[index].IconSize;
+                _leftExplorer.EnableAutoNavigation = ShouldAutoNavigate(Tabs[index].ViewMode);
+
+                Helpers.DebugLogger.Log($"[MainViewModel] Switched to tab {index}: {Tabs[index].Header}");
+            }
+            finally
+            {
+                IsSwitchingTab = false;
+            }
+        }
+
+        /// <summary>
+        /// Close a tab by index. Blocks if it's the last tab.
+        /// </summary>
+        public void CloseTab(int index)
+        {
+            if (Tabs.Count <= 1) return; // Don't close the last tab
+            if (index < 0 || index >= Tabs.Count) return;
+
+            bool wasActive = (index == ActiveTabIndex);
+            // 닫히는 탭의 Explorer 정리
+            Tabs[index].Explorer?.Cleanup();
+            Tabs.RemoveAt(index);
+
+            if (wasActive)
+            {
+                // Switch to closest valid tab
+                int newIndex = Math.Min(index, Tabs.Count - 1);
+                ActiveTabIndex = -1; // Force switch
+                SwitchToTab(newIndex);
+            }
+            else if (index < ActiveTabIndex)
+            {
+                // Active tab shifted left
+                ActiveTabIndex--;
+                OnPropertyChanged(nameof(ActiveTab));
+            }
+
+            Helpers.DebugLogger.Log($"[MainViewModel] Closed tab {index} (remaining: {Tabs.Count})");
+        }
+
+        /// <summary>
+        /// Copy current explorer state into the active tab.
+        /// </summary>
+        public void SaveActiveTabState()
+        {
+            var tab = ActiveTab;
+            if (tab == null) return;
+
+            if (tab.ViewMode != CurrentViewMode)
+                tab.ViewMode = CurrentViewMode;
+            if (tab.IconSize != CurrentIconSize)
+                tab.IconSize = CurrentIconSize;
+            tab.Path = tab.Explorer?.CurrentPath ?? "";
+        }
+
+        /// <summary>
+        /// 탭에 ExplorerViewModel을 최초 생성 (앱 시작/세션 복원 시).
+        /// 이미 Explorer가 있으면 아무것도 하지 않음.
+        /// </summary>
+        private async void InitializeTabExplorer(TabItem tab)
+        {
+            if (tab.Explorer != null) return;
+
+            var root = new FolderItem { Name = "PC", Path = "PC" };
+            var explorer = new ExplorerViewModel(root, _fileService);
+            explorer.EnableAutoNavigation = ShouldAutoNavigate(tab.ViewMode);
+            tab.Explorer = explorer;
+
+            if (!string.IsNullOrEmpty(tab.Path) && tab.ViewMode != ViewMode.Home)
+            {
+                try
+                {
+                    if (System.IO.Directory.Exists(tab.Path))
+                    {
+                        await explorer.NavigateToPath(tab.Path);
+                    }
+                    else
+                    {
+                        tab.Path = "";
+                        tab.ViewMode = ViewMode.Home;
+                        Helpers.DebugLogger.Log($"[MainViewModel] Tab path not found, falling back to Home");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Helpers.DebugLogger.Log($"[MainViewModel] InitializeTabExplorer error: {ex.Message}");
+                    tab.Path = "";
+                    tab.ViewMode = ViewMode.Home;
+                }
+            }
+        }
+
+        /// <summary>
+        /// H4: 비활성 탭의 지연된 NavigateToPath 실행 (최초 전환 시)
+        /// </summary>
+        private async void LoadDeferredTabPath(TabItem tab)
+        {
+            if (tab.Explorer == null || string.IsNullOrEmpty(tab.Path)) return;
+
+            try
+            {
+                if (System.IO.Directory.Exists(tab.Path))
+                {
+                    await tab.Explorer.NavigateToPath(tab.Path);
+                }
+                else
+                {
+                    tab.Path = "";
+                    tab.ViewMode = ViewMode.Home;
+                    Helpers.DebugLogger.Log($"[MainViewModel] Deferred tab path not found, falling back to Home");
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[MainViewModel] LoadDeferredTabPath error: {ex.Message}");
+                tab.Path = "";
+                tab.ViewMode = ViewMode.Home;
+            }
+        }
+
+        /// <summary>
+        /// SwitchToTab에서 PropertyChanged를 우회한 후, XAML x:Bind가 필요로 하는
+        /// 최소한의 PropertyChanged만 일괄 발생시킨다.
+        /// code-behind에서 ResubscribeLeftExplorer() 호출 후 사용.
+        /// Explorer/ActiveExplorer는 ResubscribeLeftExplorer가 이미 처리하므로 제외.
+        /// </summary>
+        public void NotifyViewModeChanged()
+        {
+            // LeftViewMode는 XAML x:Bind에서 사용하지 않으므로 제거 (불필요한 바인딩 평가 방지)
+            OnPropertyChanged(nameof(CurrentViewMode));
+        }
+
+        /// <summary>
+        /// Sync the active tab's header/icon with the current explorer state.
+        /// </summary>
+        public void UpdateActiveTabHeader()
+        {
+            var tab = ActiveTab;
+            if (tab == null) return;
+
+            if (CurrentViewMode == ViewMode.Home)
+            {
+                tab.Header = "Home";
+                tab.ViewMode = ViewMode.Home;
+            }
+            else
+            {
+                tab.Header = tab.Explorer?.CurrentFolderName ?? "Home";
+                tab.ViewMode = CurrentViewMode;
+            }
+        }
+
+        /// <summary>
+        /// Save all tab states to settings (JSON persistence).
+        /// </summary>
+        public void SaveTabsToSettings()
+        {
+            try
+            {
+                var settings = App.Current.Services.GetRequiredService<SettingsService>();
+                var dtos = Tabs.Select(t => new TabStateDto(
+                    t.Id, t.Header, t.Path, (int)t.ViewMode, (int)t.IconSize
+                )).ToList();
+
+                settings.TabsJson = JsonSerializer.Serialize(dtos);
+                settings.ActiveTabIndex = ActiveTabIndex;
+                Helpers.DebugLogger.Log($"[MainViewModel] Saved {dtos.Count} tabs to settings");
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[MainViewModel] Error saving tabs: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Load tab states from settings. Replaces current tabs.
+        /// </summary>
+        public void LoadTabsFromSettings()
+        {
+            try
+            {
+                var settings = App.Current.Services.GetRequiredService<SettingsService>();
+                var json = settings.TabsJson;
+
+                if (string.IsNullOrEmpty(json))
+                {
+                    // 저장된 탭 없음 — 기본 탭 유지, Explorer 할당 확인
+                    if (Tabs.Count > 0)
+                    {
+                        if (Tabs[0].Explorer == null)
+                            Tabs[0].Explorer = LeftExplorer;
+                        Tabs[0].IsActive = true;
+                        ActiveTabIndex = 0;
+                        OnPropertyChanged(nameof(ActiveTab));
+                    }
+                    return;
+                }
+
+                var dtos = JsonSerializer.Deserialize<List<TabStateDto>>(json);
+                if (dtos == null || dtos.Count == 0)
+                {
+                    EnsureDefaultTab();
+                    Tabs[0].Explorer = LeftExplorer;
+                    return;
+                }
+
+                Tabs.Clear();
+                int savedIndex = Math.Clamp(settings.ActiveTabIndex, 0, dtos.Count - 1);
+
+                for (int i = 0; i < dtos.Count; i++)
+                {
+                    var dto = dtos[i];
+                    var tab = new TabItem
+                    {
+                        Id = dto.Id,
+                        Header = dto.Header,
+                        Path = dto.Path,
+                        ViewMode = (ViewMode)dto.ViewMode,
+                        IconSize = (ViewMode)dto.IconSize,
+                        IsActive = false
+                    };
+
+                    // 활성 탭은 기존 LeftExplorer 재활용
+                    if (i == savedIndex)
+                    {
+                        tab.Explorer = LeftExplorer;
+                    }
+                    else
+                    {
+                        // 비활성 탭은 ExplorerViewModel만 생성하고 NavigateToPath는 호출하지 않음
+                        // Path는 tab.Path에 저장되어 있으므로 최초 전환 시 InitializeTabExplorer에서 로드
+                        var root = new FolderItem { Name = "PC", Path = "PC" };
+                        var explorer = new ExplorerViewModel(root, _fileService);
+                        explorer.EnableAutoNavigation = ShouldAutoNavigate(tab.ViewMode);
+                        tab.Explorer = explorer;
+                    }
+
+                    Tabs.Add(tab);
+                }
+
+                ActiveTabIndex = -1; // Force switch
+                SwitchToTab(savedIndex);
+
+                Helpers.DebugLogger.Log($"[MainViewModel] Loaded {Tabs.Count} tabs from settings (active: {savedIndex})");
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[MainViewModel] Error loading tabs: {ex.Message}");
+                EnsureDefaultTab();
+                Tabs[0].Explorer = LeftExplorer;
+            }
+        }
+
+        /// <summary>
+        /// Load a single tab from a tear-off DTO. Replaces all existing tabs.
+        /// Used when creating a new window from a torn-off tab.
+        /// </summary>
+        public async void LoadSingleTabFromDto(TabStateDto dto)
+        {
+            try
+            {
+                Tabs.Clear();
+
+                var tab = new TabItem
+                {
+                    Id = dto.Id,
+                    Header = dto.Header,
+                    Path = dto.Path,
+                    ViewMode = (ViewMode)dto.ViewMode,
+                    IconSize = (ViewMode)dto.IconSize,
+                    IsActive = true
+                };
+
+                // Create explorer and assign
+                var root = new FolderItem { Name = "PC", Path = "PC" };
+                var explorer = new ExplorerViewModel(root, _fileService);
+                explorer.EnableAutoNavigation = ShouldAutoNavigate(tab.ViewMode);
+                tab.Explorer = explorer;
+
+                Tabs.Add(tab);
+
+                // Set LeftExplorer directly
+                var old = _leftExplorer;
+                if (old != null) old.PropertyChanged -= OnLeftExplorerPropertyChanged;
+                _leftExplorer = explorer;
+                _leftExplorer.PropertyChanged += OnLeftExplorerPropertyChanged;
+
+                _activeTabIndex = 0;
+                _currentViewMode = tab.ViewMode;
+                _leftViewMode = tab.ViewMode;
+                if (Helpers.ViewModeExtensions.IsIconMode(tab.ViewMode))
+                    _currentIconSize = tab.IconSize;
+
+                OnPropertyChanged(nameof(ActiveTab));
+                OnPropertyChanged(nameof(Explorer));
+                OnPropertyChanged(nameof(ActiveExplorer));
+                OnPropertyChanged(nameof(CurrentViewMode));
+
+                // Navigate to path if not Home
+                if (tab.ViewMode != ViewMode.Home && !string.IsNullOrEmpty(tab.Path))
+                {
+                    await explorer.NavigateToPath(tab.Path);
+                }
+
+                Helpers.DebugLogger.Log($"[MainViewModel] Loaded tear-off tab: {tab.Header} @ {tab.Path}");
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[MainViewModel] Error loading tear-off tab: {ex.Message}");
+                EnsureDefaultTab();
+                Tabs[0].Explorer = LeftExplorer;
+            }
+        }
+
+        #endregion
 
         /// <summary>
         /// Get the path to navigate the right pane to when split view is activated.
