@@ -48,8 +48,17 @@
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="1">
                 <Grid Width="200" Height="34" VerticalAlignment="Bottom" Background="{ThemeResource SpanBgLayer1Brush}" CornerRadius="6,6,0,0">
                     <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Padding="12,0">
-                        <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Folder}" Foreground="{ThemeResource SpanAccentBrush}" Margin="0,0,8,0"/>
-                        <TextBlock Text="{x:Bind ViewModel.Explorer.CurrentFolderName, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource SpanTextPrimaryBrush}"/>
+                        <!-- Home icon (Segoe Fluent Icons) -->
+                        <FontIcon Glyph="&#xE80F;" FontSize="14"
+                                  Foreground="{ThemeResource SpanAccentBrush}"
+                                  Visibility="{x:Bind IsHomeMode(ViewModel.CurrentViewMode), Mode=OneWay}"/>
+                        <!-- Folder icon (RemixIcons) — color matches explorer folder icons -->
+                        <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Folder}" FontSize="14"
+                                  Foreground="#FFD54F"
+                                  Visibility="{x:Bind IsNotHomeMode(ViewModel.CurrentViewMode), Mode=OneWay}"/>
+                        <TextBlock Text="{x:Bind GetTabDisplayName(ViewModel.CurrentViewMode, ViewModel.Explorer.CurrentFolderName), Mode=OneWay}"
+                                   FontSize="12" Foreground="{ThemeResource SpanTextPrimaryBrush}"
+                                   TextTrimming="CharacterEllipsis" MaxLines="1"/>
                     </StackPanel>
                     <Rectangle Height="2" VerticalAlignment="Bottom" Margin="12,0" Fill="{ThemeResource SpanAccentBrush}"/>
                 </Grid>
@@ -93,36 +102,17 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- 브레드크럼 모드 -->
-                <ScrollViewer x:Name="BreadcrumbScroller" Grid.Column="0"
-                              HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled"
-                              HorizontalScrollMode="Auto" VerticalScrollMode="Disabled"
-                              Background="Transparent"
-                              Tapped="OnAddressBarContainerClicked">
-                    <ItemsRepeater x:Name="BreadcrumbRepeater"
-                                   ItemsSource="{x:Bind ViewModel.Explorer.PathSegments, Mode=OneWay}">
-                        <ItemsRepeater.Layout>
-                            <StackLayout Orientation="Horizontal" Spacing="0"/>
-                        </ItemsRepeater.Layout>
-                        <ItemsRepeater.ItemTemplate>
-                            <DataTemplate x:DataType="models:PathSegment">
-                                <StackPanel Orientation="Horizontal">
-                                    <Button Content="{x:Bind Name}" Tag="{x:Bind FullPath}"
-                                            Click="OnBreadcrumbSegmentClick"
-                                            Background="Transparent" BorderThickness="0"
-                                            Padding="6,4" MinWidth="0" MinHeight="0"
-                                            CornerRadius="3"
-                                            FontSize="12" VerticalAlignment="Center"
-                                            Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
-                                    <FontIcon Glyph="&#xE76C;" FontSize="8"
-                                              Foreground="{ThemeResource SpanTextTertiaryBrush}"
-                                              VerticalAlignment="Center" Margin="0,1,0,0"
-                                              Visibility="{x:Bind ChevronVisibility}"/>
-                                </StackPanel>
-                            </DataTemplate>
-                        </ItemsRepeater.ItemTemplate>
-                    </ItemsRepeater>
-                </ScrollViewer>
+                <!-- 브레드크럼 모드 (BreadcrumbBar: 오버플로우 시 앞부분 ... 축소) -->
+                <BreadcrumbBar x:Name="AddressBreadcrumbBar" Grid.Column="0"
+                               ItemsSource="{x:Bind ViewModel.Explorer.PathSegments, Mode=OneWay}"
+                               ItemClicked="OnBreadcrumbItemClicked"
+                               VerticalAlignment="Center">
+                    <BreadcrumbBar.ItemTemplate>
+                        <DataTemplate x:DataType="models:PathSegment">
+                            <TextBlock Text="{x:Bind Name}" FontSize="12"/>
+                        </DataTemplate>
+                    </BreadcrumbBar.ItemTemplate>
+                </BreadcrumbBar>
 
                 <!-- 텍스트 편집 모드 (클릭 시 전환) — AutoSuggestBox for path autocomplete -->
                 <AutoSuggestBox x:Name="AddressBarAutoSuggest" Grid.Column="0" Visibility="Collapsed"
@@ -595,7 +585,8 @@
                                                                 <local:FileSystemItemTemplateSelector.FolderTemplate>
                                                                     <DataTemplate x:DataType="viewmodels:FolderViewModel">
                                                                         <Grid Padding="12,4" RightTapped="OnFolderRightTapped"
-                                                                                                AllowDrop="True" DragOver="OnFolderItemDragOver" Drop="OnFolderItemDrop" DragLeave="OnFolderItemDragLeave">
+                                                                              ToolTipService.ToolTip="{x:Bind TooltipText}"
+                                                                              AllowDrop="True" DragOver="OnFolderItemDragOver" Drop="OnFolderItemDrop" DragLeave="OnFolderItemDragLeave">
                                                                             <Grid.ColumnDefinitions>
                                                                                 <ColumnDefinition Width="Auto"/>
                                                                                 <ColumnDefinition Width="*"/>
@@ -614,7 +605,8 @@
                                                                 </local:FileSystemItemTemplateSelector.FolderTemplate>
                                                                 <local:FileSystemItemTemplateSelector.FileTemplate>
                                                                     <DataTemplate x:DataType="viewmodels:FileViewModel">
-                                                                        <Grid Padding="12,4" RightTapped="OnFileRightTapped">
+                                                                        <Grid Padding="12,4" RightTapped="OnFileRightTapped"
+                                                                              ToolTipService.ToolTip="{x:Bind TooltipText}">
                                                                             <Grid.ColumnDefinitions>
                                                                                 <ColumnDefinition Width="Auto"/>
                                                                                 <ColumnDefinition Width="*"/>
@@ -858,7 +850,8 @@
                                                                 <local:FileSystemItemTemplateSelector.FolderTemplate>
                                                                     <DataTemplate x:DataType="viewmodels:FolderViewModel">
                                                                         <Grid Padding="12,4" RightTapped="OnFolderRightTapped"
-                                                                                                AllowDrop="True" DragOver="OnFolderItemDragOver" Drop="OnFolderItemDrop" DragLeave="OnFolderItemDragLeave">
+                                                                              ToolTipService.ToolTip="{x:Bind TooltipText}"
+                                                                              AllowDrop="True" DragOver="OnFolderItemDragOver" Drop="OnFolderItemDrop" DragLeave="OnFolderItemDragLeave">
                                                                             <Grid.ColumnDefinitions>
                                                                                 <ColumnDefinition Width="Auto"/>
                                                                                 <ColumnDefinition Width="*"/>
@@ -877,7 +870,8 @@
                                                                 </local:FileSystemItemTemplateSelector.FolderTemplate>
                                                                 <local:FileSystemItemTemplateSelector.FileTemplate>
                                                                     <DataTemplate x:DataType="viewmodels:FileViewModel">
-                                                                        <Grid Padding="12,4" RightTapped="OnFileRightTapped">
+                                                                        <Grid Padding="12,4" RightTapped="OnFileRightTapped"
+                                                                              ToolTipService.ToolTip="{x:Bind TooltipText}">
                                                                             <Grid.ColumnDefinitions>
                                                                                 <ColumnDefinition Width="Auto"/>
                                                                                 <ColumnDefinition Width="*"/>

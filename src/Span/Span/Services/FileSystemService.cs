@@ -11,6 +11,12 @@ namespace Span.Services
     public class FileSystemService
     {
         private const int DriveLoadTimeoutMs = 500; // 500ms timeout per drive
+        private readonly SettingsService _settings;
+
+        public FileSystemService(SettingsService settings)
+        {
+            _settings = settings;
+        }
 
         /// <summary>
         /// Get all available drives with parallel loading and timeout protection
@@ -33,24 +39,30 @@ namespace Span.Services
         }
 
         /// <summary>
-        /// Load a single drive with timeout protection
+        /// Load a single drive with timeout protection.
+        /// Uses Task.WhenAny to enforce real timeout — CancellationToken alone
+        /// cannot cancel a blocking DriveInfo property access (IsReady, VolumeLabel, etc.).
         /// </summary>
         private async Task<DriveItem?> LoadDriveWithTimeoutAsync(DriveInfo drive)
         {
             try
             {
-                using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(DriveLoadTimeoutMs));
-                return await Task.Run(() => CreateDriveItem(drive), cts.Token);
-            }
-            catch (OperationCanceledException)
-            {
-                // Timeout occurred - skip this drive
+                var driveTask = Task.Run(() => CreateDriveItem(drive));
+                var timeoutTask = Task.Delay(DriveLoadTimeoutMs);
+
+                var completed = await Task.WhenAny(driveTask, timeoutTask);
+
+                if (completed == driveTask)
+                {
+                    return await driveTask; // propagate result or exception
+                }
+
+                // Timeout — drive took too long (stale network share, etc.)
                 System.Diagnostics.Debug.WriteLine($"[FileSystemService] Drive {drive.Name} timed out after {DriveLoadTimeoutMs}ms");
                 return null;
             }
             catch (Exception ex)
             {
-                // Other errors (access denied, etc.) - skip this drive
                 System.Diagnostics.Debug.WriteLine($"[FileSystemService] Error loading drive {drive.Name}: {ex.Message}");
                 return null;
             }
@@ -141,7 +153,7 @@ namespace Span.Services
                     // Get Directories
                     foreach (var d in dirInfo.GetDirectories())
                     {
-                        if ((d.Attributes & FileAttributes.Hidden) != 0) continue; // Skip hidden
+                        if (!_settings.ShowHiddenFiles && (d.Attributes & FileAttributes.Hidden) != 0) continue;
 
                         items.Add(new FolderItem
                         {
@@ -154,7 +166,7 @@ namespace Span.Services
                     // Get Files
                     foreach (var f in dirInfo.GetFiles())
                     {
-                        if ((f.Attributes & FileAttributes.Hidden) != 0) continue;
+                        if (!_settings.ShowHiddenFiles && (f.Attributes & FileAttributes.Hidden) != 0) continue;
 
                         items.Add(new FileItem
                         {

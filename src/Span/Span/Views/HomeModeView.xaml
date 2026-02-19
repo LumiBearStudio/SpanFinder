@@ -7,7 +7,8 @@
     xmlns:models="using:Span.Models"
     mc:Ignorable="d">
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                  Background="{ThemeResource SpanBgMicaBrush}">
         <StackPanel x:Name="RootPanel" Padding="32,24" Spacing="24" MaxWidth="900">
 
             <!-- Section 1: Devices and Drives -->
@@ -24,7 +25,9 @@
 
                 <GridView x:Name="DrivesGridView"
                           ItemsSource="{x:Bind LocalDrives, Mode=OneWay}"
-                          SelectionMode="Single">
+                          IsItemClickEnabled="True"
+                          ItemClick="OnDriveItemClick"
+                          SelectionMode="None">
                     <GridView.ItemsPanel>
                         <ItemsPanelTemplate>
                             <ItemsWrapGrid Orientation="Horizontal" MaximumRowsOrColumns="4"/>
@@ -44,7 +47,6 @@
                                   Background="{ThemeResource SpanBgLayer2Brush}"
                                   BorderBrush="{ThemeResource SpanBorderSubtleBrush}"
                                   BorderThickness="1"
-                                  DoubleTapped="OnDriveDoubleTapped"
                                   RightTapped="OnDriveRightTapped">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
@@ -85,7 +87,7 @@
 
             <!-- Section 2: Network Locations (hidden when empty) -->
             <StackPanel x:Name="NetworkSection" Spacing="12"
-                        Visibility="{x:Bind HasNetworkDrives, Mode=OneWay}">
+                        Visibility="{x:Bind HasNetworkDrives}">
                 <StackPanel Orientation="Horizontal" Spacing="8">
                     <FontIcon Glyph="&#xE70D;" FontSize="12"
                               Foreground="{ThemeResource SpanTextSecondaryBrush}"
@@ -98,7 +100,9 @@
 
                 <GridView x:Name="NetworkDrivesGridView"
                           ItemsSource="{x:Bind NetworkDrivesList, Mode=OneWay}"
-                          SelectionMode="Single">
+                          IsItemClickEnabled="True"
+                          ItemClick="OnDriveItemClick"
+                          SelectionMode="None">
                     <GridView.ItemsPanel>
                         <ItemsPanelTemplate>
                             <ItemsWrapGrid Orientation="Horizontal" MaximumRowsOrColumns="4"/>
@@ -118,7 +122,6 @@
                                   Background="{ThemeResource SpanBgLayer2Brush}"
                                   BorderBrush="{ThemeResource SpanBorderSubtleBrush}"
                                   BorderThickness="1"
-                                  DoubleTapped="OnDriveDoubleTapped"
                                   RightTapped="OnDriveRightTapped">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
@@ -162,7 +165,9 @@
 
                 <GridView x:Name="FavoritesGridView"
                           ItemsSource="{x:Bind Favorites, Mode=OneWay}"
-                          SelectionMode="Single">
+                          IsItemClickEnabled="True"
+                          ItemClick="OnFavoriteItemClick"
+                          SelectionMode="None">
                     <GridView.ItemsPanel>
                         <ItemsPanelTemplate>
                             <ItemsWrapGrid Orientation="Horizontal" MaximumRowsOrColumns="6"/>
@@ -182,7 +187,6 @@
                                   Background="{ThemeResource SpanBgLayer2Brush}"
                                   BorderBrush="{ThemeResource SpanBorderSubtleBrush}"
                                   BorderThickness="1"
-                                  DoubleTapped="OnFavoriteDoubleTapped"
                                   RightTapped="OnFavoriteRightTapped">
                                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="6">
                                     <FontIcon FontFamily="{StaticResource RemixIcons}"

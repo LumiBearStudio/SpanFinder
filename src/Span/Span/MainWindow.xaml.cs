@@ -34,6 +34,11 @@ namespace Span
         [DllImport("comctl32.dll", SetLastError = true)]
         private static extern IntPtr DefSubclassProc(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam);
 
+        [DllImport("user32.dll")]
+        private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+        private const int SW_HIDE = 0;
+        private const int SW_SHOW = 5;
+
         private IntPtr _hwnd;
         private SUBCLASSPROC? _subclassProc; // prevent GC collection
         private DispatcherTimer? _deviceChangeDebounceTimer;
@@ -50,6 +55,10 @@ namespace Span
         // Prevents DispatcherQueue callbacks and async methods from accessing
         // disposed UI after OnClosed has started teardown
         private bool _isClosed = false;
+        private bool _forceClose = false;
+
+        // Miller Columns checkbox mode tracking
+        private ListViewSelectionMode _millerSelectionMode = ListViewSelectionMode.Extended;
 
         // Clipboard
         private readonly List<string> _clipboardPaths = new();
@@ -81,6 +90,16 @@ namespace Span
 
             // Mica
             SystemBackdrop = new Microsoft.UI.Xaml.Media.MicaBackdrop();
+
+            // Minimize to taskbar on close (instead of quitting) when MinimizeToTray enabled
+            this.AppWindow.Closing += (s, e) =>
+            {
+                if (_settings.MinimizeToTray && !_forceClose)
+                {
+                    e.Cancel = true;
+                    ShowWindow(_hwnd, 6); // SW_MINIMIZE
+                }
+            };
 
             // TitleBar
             ExtendsContentIntoTitleBar = true;
@@ -210,6 +229,13 @@ namespace Span
                     {
                         DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
                             () => ApplyMillerCheckboxMode(true));
+                    }
+
+                    // Apply MillerClickBehavior on startup
+                    if (_settings.MillerClickBehavior == "double")
+                    {
+                        ViewModel.Explorer.EnableAutoNavigation = false;
+                        ViewModel.RightExplorer.EnableAutoNavigation = false;
                     }
                 };
             }
@@ -447,13 +473,13 @@ namespace Span
 
         private void ApplyMillerCheckboxMode(bool showCheckboxes)
         {
-            var mode = showCheckboxes
+            _millerSelectionMode = showCheckboxes
                 ? ListViewSelectionMode.Multiple
                 : ListViewSelectionMode.Extended;
 
             // Apply to all visible Miller Column ListViews in both panes
-            ApplyCheckboxToItemsControl(MillerColumnsControl, mode);
-            ApplyCheckboxToItemsControl(MillerColumnsControlRight, mode);
+            ApplyCheckboxToItemsControl(MillerColumnsControl, _millerSelectionMode);
+            ApplyCheckboxToItemsControl(MillerColumnsControlRight, _millerSelectionMode);
         }
 
         private void ToggleThumbnails(bool showThumbnails)
@@ -505,10 +531,12 @@ namespace Span
 
         private void RefreshCurrentView()
         {
+            // Refresh only the leaf (last) column in the active pane.
+            // Refreshing ALL columns causes cascading destruction: Children.Clear()
+            // sets SelectedChild=null which removes subsequent columns.
             var explorer = ViewModel.ActiveExplorer;
             if (explorer.Columns.Count > 0)
             {
-                // Refresh the last column (current folder)
                 var lastCol = explorer.Columns[explorer.Columns.Count - 1];
                 _ = lastCol.RefreshAsync();
             }
@@ -558,6 +586,12 @@ namespace Span
                 e.Action == NotifyCollectionChangedAction.Replace)
             {
                 ScrollToLastColumn(ViewModel.LeftExplorer, MillerScrollViewer);
+                // Apply checkbox mode to newly added columns after render
+                if (_millerSelectionMode != ListViewSelectionMode.Extended)
+                {
+                    DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+                        () => ApplyCheckboxToItemsControl(MillerColumnsControl, _millerSelectionMode));
+                }
             }
         }
 
@@ -567,6 +601,11 @@ namespace Span
                 e.Action == NotifyCollectionChangedAction.Replace)
             {
                 ScrollToLastColumn(ViewModel.RightExplorer, MillerScrollViewerRight);
+                if (_millerSelectionMode != ListViewSelectionMode.Extended)
+                {
+                    DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+                        () => ApplyCheckboxToItemsControl(MillerColumnsControlRight, _millerSelectionMode));
+                }
             }
         }
 
@@ -2175,9 +2214,9 @@ namespace Span
                 }
                 else if (selected is FolderViewModel folder && _settings.MillerClickBehavior == "double")
                 {
-                    // In double-click mode, navigate into folder on double-click
+                    // In double-click mode, navigate into folder as next column (preserve existing columns)
                     var explorer = ViewModel.ActiveExplorer;
-                    explorer.NavigateTo(new FolderItem { Name = folder.Name, Path = folder.Path });
+                    explorer.NavigateIntoFolder(folder, folderVm);
                     Helpers.DebugLogger.Log($"[MainWindow] Miller Column DoubleClick: Navigating to folder {folder.Name}");
                 }
             }
@@ -2331,11 +2370,11 @@ namespace Span
         /// <summary>
         /// 브레드크럼 세그먼트 버튼 클릭 → 해당 폴더로 탐색.
         /// </summary>
-        private void OnBreadcrumbSegmentClick(object sender, RoutedEventArgs e)
+        private void OnBreadcrumbItemClicked(BreadcrumbBar sender, BreadcrumbBarItemClickedEventArgs args)
         {
-            if (sender is Button btn && btn.Tag is string fullPath)
+            if (args.Item is Models.PathSegment segment)
             {
-                ViewModel.ActiveExplorer.NavigateToPath(fullPath);
+                ViewModel.ActiveExplorer.NavigateToPath(segment.FullPath);
             }
         }
 
@@ -2347,15 +2386,15 @@ namespace Span
         /// </summary>
         private void OnAddressBarContainerClicked(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
         {
-            // 클릭된 요소가 버튼(또는 버튼 내부 요소)이면 편집 모드로 전환하지 않음
+            // BreadcrumbBar 항목 클릭은 ItemClicked에서 처리하므로
+            // 빈 공간 클릭만 편집 모드로 전환
             var element = e.OriginalSource as DependencyObject;
             while (element != null && element != AddressBarContainer)
             {
-                if (element is Button) return;
+                if (element is Button || element is BreadcrumbBar) return;
                 element = VisualTreeHelper.GetParent(element);
             }
 
-            // 그 외(빈 공간, ScrollViewer 배경 등)를 누르면 편집 모드
             ShowAddressBarEditMode();
         }
 
@@ -2373,7 +2412,7 @@ namespace Span
         /// </summary>
         private void ShowAddressBarEditMode()
         {
-            BreadcrumbScroller.Visibility = Visibility.Collapsed;
+            AddressBreadcrumbBar.Visibility = Visibility.Collapsed;
             AddressBarAutoSuggest.Visibility = Visibility.Visible;
             AddressBarAutoSuggest.Text = ViewModel.ActiveExplorer.CurrentPath;
             AddressBarAutoSuggest.Focus(FocusState.Keyboard);
@@ -2395,7 +2434,7 @@ namespace Span
         {
             AddressBarAutoSuggest.Visibility = Visibility.Collapsed;
             AddressBarAutoSuggest.ItemsSource = null;
-            BreadcrumbScroller.Visibility = Visibility.Visible;
+            AddressBreadcrumbBar.Visibility = Visibility.Visible;
         }
 
         /// <summary>
@@ -2798,6 +2837,12 @@ namespace Span
 
         public Visibility IsHomeMode(Models.ViewMode mode)
             => mode == Models.ViewMode.Home ? Visibility.Visible : Visibility.Collapsed;
+
+        public Visibility IsNotHomeMode(Models.ViewMode mode)
+            => mode != Models.ViewMode.Home ? Visibility.Visible : Visibility.Collapsed;
+
+        public string GetTabDisplayName(Models.ViewMode mode, string folderName)
+            => mode == Models.ViewMode.Home ? "Home" : folderName;
 
         // Sort menu opening - update checkmarks and icons
         private void OnSortMenuOpening(object sender, object e)

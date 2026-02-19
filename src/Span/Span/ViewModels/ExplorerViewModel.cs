@@ -204,8 +204,10 @@ namespace Span.ViewModels
         /// <summary>
         /// Manually navigate into a folder (called from double-click in Details/Icon views).
         /// Bypasses EnableAutoNavigation check.
+        /// When fromColumn is provided, uses it as the parent column (for Miller Columns double-click).
+        /// Otherwise falls back to CurrentFolder (for Details/Icon views).
         /// </summary>
-        public async void NavigateIntoFolder(FolderViewModel folder)
+        public async void NavigateIntoFolder(FolderViewModel folder, FolderViewModel? fromColumn = null)
         {
             if (folder == null) return;
 
@@ -215,7 +217,7 @@ namespace Span.ViewModels
             await folder.EnsureChildrenLoadedAsync();
 
             // Find parent column index
-            var parentFolder = CurrentFolder;
+            var parentFolder = fromColumn ?? CurrentFolder;
             if (parentFolder == null) return;
 
             int parentIndex = Columns.IndexOf(parentFolder);

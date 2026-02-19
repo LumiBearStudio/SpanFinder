@@ -58,21 +58,27 @@ namespace Span.Views
             Bindings.Update();
         }
 
-        private void OnDriveDoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
+        /// <summary>
+        /// Drive single-click via GridView.ItemClick (IsItemClickEnabled=True)
+        /// </summary>
+        private void OnDriveItemClick(object sender, ItemClickEventArgs e)
         {
-            if (sender is FrameworkElement fe && fe.DataContext is DriveItem drive && _mainViewModel != null)
+            if (e.ClickedItem is DriveItem drive && _mainViewModel != null)
             {
                 _mainViewModel.OpenDrive(drive);
-                Helpers.DebugLogger.Log($"[HomeModeView] Drive double-clicked: {drive.Name}");
+                Helpers.DebugLogger.Log($"[HomeModeView] Drive clicked: {drive.Name}");
             }
         }
 
-        private void OnFavoriteDoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
+        /// <summary>
+        /// Favorite single-click via GridView.ItemClick (IsItemClickEnabled=True)
+        /// </summary>
+        private void OnFavoriteItemClick(object sender, ItemClickEventArgs e)
         {
-            if (sender is FrameworkElement fe && fe.DataContext is FavoriteItem favorite && _mainViewModel != null)
+            if (e.ClickedItem is FavoriteItem favorite && _mainViewModel != null)
             {
                 _mainViewModel.NavigateToFavorite(favorite);
-                Helpers.DebugLogger.Log($"[HomeModeView] Favorite double-clicked: {favorite.Name}");
+                Helpers.DebugLogger.Log($"[HomeModeView] Favorite clicked: {favorite.Name}");
             }
         }
 
