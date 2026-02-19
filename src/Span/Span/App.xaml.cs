@@ -37,6 +37,8 @@ namespace Span
             services.AddSingleton<Services.ShellService>();
             services.AddSingleton<Services.LocalizationService>();
             services.AddSingleton<Services.ContextMenuService>();
+            services.AddSingleton<Services.ActionLogService>();
+            services.AddSingleton<Services.SettingsService>();
 
             // ViewModel 등록
             services.AddTransient<MainViewModel>();

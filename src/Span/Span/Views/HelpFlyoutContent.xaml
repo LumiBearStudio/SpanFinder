@@ -1,0 +1,130 @@
+<UserControl
+    x:Class="Span.Views.HelpFlyoutContent"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Width="380"
+    MaxHeight="500">
+
+    <UserControl.Resources>
+        <!-- Shortcut key badge style -->
+        <Style x:Key="ShortcutBadge" TargetType="Border">
+            <Setter Property="Background" Value="{ThemeResource SpanBgLayer2Brush}"/>
+            <Setter Property="BorderBrush" Value="{ThemeResource SpanBorderSubtleBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="6,2"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="ShortcutKeyText" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Consolas"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="{ThemeResource SpanTextPrimaryBrush}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="ShortcutDescText" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="{ThemeResource SpanTextSecondaryBrush}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="CategoryHeader" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="{ThemeResource SpanAccentBrush}"/>
+            <Setter Property="Margin" Value="0,4,0,6"/>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Background="{ThemeResource SpanBgLayer1Brush}" Padding="20,16">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Spacing="16">
+
+                <!-- Title -->
+                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,4">
+                    <FontIcon Glyph="&#xE897;" FontSize="16"
+                              Foreground="{ThemeResource SpanAccentBrush}"
+                              VerticalAlignment="Center"/>
+                    <TextBlock Text="단축키 &amp; 사용법"
+                               FontSize="16" FontWeight="SemiBold"
+                               Foreground="{ThemeResource SpanTextPrimaryBrush}"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- 탐색 (Navigation) -->
+                <StackPanel Spacing="6">
+                    <TextBlock Style="{StaticResource CategoryHeader}" Text="탐색"/>
+                    <Grid ColumnSpacing="12"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="←/→"/></Border>
+                        <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="컬럼 간 이동"/></Grid>
+                    <Grid ColumnSpacing="12"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Enter"/></Border>
+                        <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="폴더 열기 / 파일 실행"/></Grid>
+                    <Grid ColumnSpacing="12"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Backspace"/></Border>
+                        <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="상위 폴더"/></Grid>
+                    <Grid ColumnSpacing="12"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+L"/></Border>
+                        <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="주소창 포커스"/></Grid>
+                    <Grid ColumnSpacing="12"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+F"/></Border>
+                        <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="검색"/></Grid>
+                </StackPanel>
+
+                <!-- 편집 (Edit) -->
+                <StackPanel Spacing="6">
+                    <TextBlock Style="{StaticResource CategoryHeader}" Text="편집"/>
+                    <Grid ColumnSpacing="12"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+C"/></Border>
+                        <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="복사"/></Grid>
+                    <Grid ColumnSpacing="12"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+X"/></Border>
+                        <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="잘라내기"/></Grid>
+                    <Grid ColumnSpacing="12"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+V"/></Border>
+                        <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="붙여넣기"/></Grid>
+                    <Grid ColumnSpacing="12"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+A"/></Border>
+                        <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="전체 선택"/></Grid>
+                    <Grid ColumnSpacing="12"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+Z"/></Border>
+                        <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="실행 취소"/></Grid>
+                    <Grid ColumnSpacing="12"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+Y"/></Border>
+                        <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="다시 실행"/></Grid>
+                    <Grid ColumnSpacing="12"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="F2"/></Border>
+                        <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="이름 변경"/></Grid>
+                    <Grid ColumnSpacing="12"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Delete"/></Border>
+                        <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="삭제 (휴지통)"/></Grid>
+                    <Grid ColumnSpacing="12"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Shift+Del"/></Border>
+                        <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="영구 삭제"/></Grid>
+                </StackPanel>
+
+                <!-- 보기 (View) -->
+                <StackPanel Spacing="6">
+                    <TextBlock Style="{StaticResource CategoryHeader}" Text="보기"/>
+                    <Grid ColumnSpacing="12"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+E"/></Border>
+                        <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="분할 뷰 토글"/></Grid>
+                    <Grid ColumnSpacing="12"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+P"/></Border>
+                        <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="미리보기 패널"/></Grid>
+                    <Grid ColumnSpacing="12"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+Shift+N"/></Border>
+                        <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="새 폴더"/></Grid>
+                    <Grid ColumnSpacing="12"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="F5"/></Border>
+                        <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="새로고침"/></Grid>
+                    <Grid ColumnSpacing="12"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+1/2/3"/></Border>
+                        <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="뷰 모드 전환"/></Grid>
+                </StackPanel>
+
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

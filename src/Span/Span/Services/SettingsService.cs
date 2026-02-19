@@ -115,6 +115,12 @@ public class SettingsService
         set => Set("ShowContextMenu", value);
     }
 
+    public bool MinimizeToTray
+    {
+        get => Get("MinimizeToTray", false);
+        set => Set("MinimizeToTray", value);
+    }
+
     // ── General ──
 
     public int StartupBehavior

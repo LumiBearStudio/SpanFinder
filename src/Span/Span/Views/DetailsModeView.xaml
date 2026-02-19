@@ -167,7 +167,8 @@
             </ListView.ItemContainerStyle>
             <ListView.ItemTemplate>
                 <DataTemplate x:DataType="vm:FileSystemViewModel">
-                    <Grid Height="18" RightTapped="OnItemRightTapped">
+                    <Grid Height="18" RightTapped="OnItemRightTapped"
+                          ToolTipService.ToolTip="{x:Bind TooltipText}">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="40"/>
                             <ColumnDefinition Width="*"/>

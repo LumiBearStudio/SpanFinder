@@ -48,6 +48,21 @@ namespace Span.ViewModels
         public IFileSystemItem Model => _model;
 
         /// <summary>
+        /// Rich tooltip text: Name + Type + Size + DateModified.
+        /// </summary>
+        public string TooltipText
+        {
+            get
+            {
+                if (this is FolderViewModel)
+                    return $"{Name}\n종류: 폴더\n수정한 날짜: {DateModified}";
+                if (this is FileViewModel)
+                    return $"{Name}\n종류: {FileType}\n크기: {Size}\n수정한 날짜: {DateModified}";
+                return Name;
+            }
+        }
+
+        /// <summary>
         /// Whether this item has a thumbnail loaded. Used by XAML to toggle Image vs FontIcon.
         /// </summary>
         public bool HasThumbnail => ThumbnailSource != null;

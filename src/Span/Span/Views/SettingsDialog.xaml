@@ -6,12 +6,16 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
     Title="설정"
-    FullSizeDesired="True"
     CloseButtonText="닫기"
-    MinWidth="780"
-    MinHeight="560">
+    MinWidth="960"
+    MinHeight="640">
 
     <ContentDialog.Resources>
+        <!-- Override ContentDialog default max width (default is 548px) -->
+        <x:Double x:Key="ContentDialogMaxWidth">960</x:Double>
+        <x:Double x:Key="ContentDialogMinWidth">960</x:Double>
+        <Thickness x:Key="ContentDialogPadding">0</Thickness>
+
         <!-- Settings Card Style -->
         <Style x:Key="SettingsCardBorder" TargetType="Border">
             <Setter Property="Background" Value="{ThemeResource SpanBgLayer1Brush}" />
@@ -99,7 +103,7 @@
     </ContentDialog.Resources>
 
     <NavigationView x:Name="SettingsNav"
-                    Width="740" Height="540"
+                    Width="920" Height="560"
                     IsBackButtonVisible="Collapsed"
                     IsSettingsVisible="False"
                     IsPaneToggleButtonVisible="False"

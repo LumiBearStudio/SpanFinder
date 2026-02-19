@@ -65,6 +65,8 @@ public sealed partial class SettingsDialog : ContentDialog
             StartupHome.IsChecked = startup == 1;
             StartupFolder.IsChecked = startup == 2;
 
+            SystemTrayToggle.IsOn = _settings.MinimizeToTray;
+
             // Appearance
             var theme = _settings.Theme;
             ThemeSystem.IsChecked = theme == "system";
@@ -129,6 +131,9 @@ public sealed partial class SettingsDialog : ContentDialog
         StartupRestore.Checked += (s, e) => { if (!_isLoading) _settings.StartupBehavior = 0; };
         StartupHome.Checked += (s, e) => { if (!_isLoading) _settings.StartupBehavior = 1; };
         StartupFolder.Checked += (s, e) => { if (!_isLoading) _settings.StartupBehavior = 2; };
+
+        // General — System Tray
+        SystemTrayToggle.Toggled += (s, e) => { if (!_isLoading) _settings.MinimizeToTray = SystemTrayToggle.IsOn; };
 
         // Appearance — Theme
         ThemeSystem.Checked += (s, e) => { if (!_isLoading) _settings.Theme = "system"; };
