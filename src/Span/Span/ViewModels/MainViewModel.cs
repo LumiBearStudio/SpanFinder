@@ -107,6 +107,16 @@ namespace Span.ViewModels
         [ObservableProperty]
         private string _statusBarText = string.Empty;
 
+        // Status bar — item count, selection count, view mode display
+        [ObservableProperty]
+        private string _statusItemCountText = "";
+
+        [ObservableProperty]
+        private string _statusSelectionText = "";
+
+        [ObservableProperty]
+        private string _statusViewModeText = "";
+
         [ObservableProperty]
         private string _toastMessage = string.Empty;
 
@@ -167,6 +177,43 @@ namespace Span.ViewModels
                 AddRecentFolder(LeftExplorer.CurrentPath);
                 UpdateActiveTabHeader();
             }
+
+            // CurrentFolder/CurrentItems changed → update item count
+            if (e.PropertyName == nameof(ExplorerViewModel.CurrentFolder) ||
+                e.PropertyName == nameof(ExplorerViewModel.CurrentItems))
+            {
+                UpdateStatusBar();
+            }
+        }
+
+        /// <summary>
+        /// 상태바 텍스트 갱신 — item count, selection count, view mode.
+        /// Code-behind에서 선택 변경 시에도 호출 가능.
+        /// </summary>
+        public void UpdateStatusBar()
+        {
+            if (_isCleaningUp) return;
+
+            var explorer = ActiveExplorer;
+            var folder = explorer?.CurrentFolder;
+            int itemCount = folder?.Children?.Count ?? 0;
+
+            // Selection: use SelectedItems (multi) or SelectedChild (single)
+            int selCount = 0;
+            if (folder != null)
+            {
+                if (folder.HasMultiSelection)
+                    selCount = folder.SelectedItems.Count;
+                else if (folder.SelectedChild != null)
+                    selCount = 1;
+            }
+
+            StatusItemCountText = $"{itemCount}개 항목";
+            StatusSelectionText = selCount > 0 ? $"{selCount}개 선택됨" : "";
+
+            var mode = (IsSplitViewEnabled && ActivePane == ActivePane.Right)
+                ? RightViewMode : CurrentViewMode;
+            StatusViewModeText = Helpers.ViewModeExtensions.GetDisplayName(mode);
         }
 
         private void Initialize()
@@ -800,6 +847,7 @@ namespace Span.ViewModels
                 LeftViewMode = ViewMode.Home;
                 SaveViewModePreference();
                 Helpers.DebugLogger.Log($"[MainViewModel] ViewMode changed: Home (always left pane)");
+                UpdateStatusBar();
                 return;
             }
 
@@ -850,6 +898,7 @@ namespace Span.ViewModels
                 ActiveTab.IconSize = CurrentIconSize;
             }
             Helpers.DebugLogger.Log($"[MainViewModel] ViewMode changed: {Helpers.ViewModeExtensions.GetDisplayName(mode)}");
+            UpdateStatusBar();
         }
 
         /// <summary>
@@ -1100,6 +1149,7 @@ namespace Span.ViewModels
                 _leftExplorer.EnableAutoNavigation = ShouldAutoNavigate(Tabs[index].ViewMode);
 
                 Helpers.DebugLogger.Log($"[MainViewModel] Switched to tab {index}: {Tabs[index].Header}");
+                UpdateStatusBar();
             }
             finally
             {

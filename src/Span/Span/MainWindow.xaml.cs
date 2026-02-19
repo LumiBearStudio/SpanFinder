@@ -2457,6 +2457,9 @@ namespace Span
                         ? listView.SelectedItem as FileSystemViewModel
                         : null;
                     UpdatePreviewForSelection(previewItem);
+
+                    // Update status bar selection count
+                    ViewModel.UpdateStatusBar();
                 }
                 finally
                 {

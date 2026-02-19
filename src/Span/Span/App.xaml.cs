@@ -38,7 +38,10 @@ namespace Span
             {
                 _windows.Remove(w);
                 if (_windows.Count == 0)
+                {
+                    Helpers.DebugLogger.Shutdown();
                     Exit();
+                }
             }
         }
 
