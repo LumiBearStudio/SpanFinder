@@ -44,28 +44,59 @@
                 <TextBlock Text="Span" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{StaticResource SpanTextSecondaryBrush}"/>
             </StackPanel>
             
-            <!-- Tabs (Placeholder for now) -->
-            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="1">
-                <Grid Width="200" Height="34" VerticalAlignment="Bottom" Background="{ThemeResource SpanBgLayer1Brush}" CornerRadius="6,6,0,0">
-                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Padding="12,0">
-                        <!-- Home icon (Segoe Fluent Icons) -->
-                        <FontIcon Glyph="&#xE80F;" FontSize="14"
-                                  Foreground="{ThemeResource SpanAccentBrush}"
-                                  Visibility="{x:Bind IsHomeMode(ViewModel.CurrentViewMode), Mode=OneWay}"/>
-                        <!-- Folder icon (RemixIcons) — color matches explorer folder icons -->
-                        <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Folder}" FontSize="14"
-                                  Foreground="#FFD54F"
-                                  Visibility="{x:Bind IsNotHomeMode(ViewModel.CurrentViewMode), Mode=OneWay}"/>
-                        <TextBlock Text="{x:Bind GetTabDisplayName(ViewModel.CurrentViewMode, ViewModel.Explorer.CurrentFolderName), Mode=OneWay}"
-                                   FontSize="12" Foreground="{ThemeResource SpanTextPrimaryBrush}"
-                                   TextTrimming="CharacterEllipsis" MaxLines="1"/>
-                    </StackPanel>
-                    <Rectangle Height="2" VerticalAlignment="Bottom" Margin="12,0" Fill="{ThemeResource SpanAccentBrush}"/>
-                </Grid>
-                <Button Style="{StaticResource UnifiedButtonStyle}" Width="34" Height="34" VerticalAlignment="Bottom" Margin="2,0,0,0">
-                    <FontIcon Glyph="&#xE710;" FontSize="12"/>
-                </Button>
-            </StackPanel>
+            <!-- Dynamic Tabs -->
+            <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
+                          HorizontalScrollMode="Auto" VerticalScrollMode="Disabled">
+                <StackPanel Orientation="Horizontal" Spacing="1">
+                    <ItemsRepeater x:Name="TabRepeater" ItemsSource="{x:Bind ViewModel.Tabs, Mode=OneWay}">
+                        <ItemsRepeater.Layout>
+                            <StackLayout Orientation="Horizontal" Spacing="1"/>
+                        </ItemsRepeater.Layout>
+                        <ItemsRepeater.ItemTemplate>
+                            <DataTemplate x:DataType="models:TabItem">
+                                <Grid Width="200" Height="34" VerticalAlignment="Bottom"
+                                      Background="{ThemeResource SpanBgLayer1Brush}" CornerRadius="6,6,0,0"
+                                      PointerPressed="OnTabItemPointerPressed" Tag="{x:Bind}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Padding="12,0,0,0">
+                                        <!-- Home icon (Segoe Fluent Icons) -->
+                                        <FontIcon Glyph="&#xE80F;" FontSize="14"
+                                                  Foreground="{ThemeResource SpanAccentBrush}"
+                                                  Visibility="{x:Bind IsHomeModeVisible, Mode=OneWay}"/>
+                                        <!-- Folder icon (RemixIcons) -->
+                                        <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Folder}" FontSize="14"
+                                                  Foreground="#FFD54F"
+                                                  Visibility="{x:Bind IsNotHomeModeVisible, Mode=OneWay}"/>
+                                        <TextBlock Text="{x:Bind Header, Mode=OneWay}"
+                                                   FontSize="12" Foreground="{ThemeResource SpanTextPrimaryBrush}"
+                                                   TextTrimming="CharacterEllipsis" MaxLines="1"
+                                                   MaxWidth="120"/>
+                                    </StackPanel>
+                                    <!-- Close button -->
+                                    <Button Grid.Column="1" Style="{StaticResource UnifiedButtonStyle}"
+                                            Width="24" Height="24" Padding="0" MinWidth="0" MinHeight="0"
+                                            Margin="0,0,4,0" VerticalAlignment="Center"
+                                            Click="OnTabCloseClick" Tag="{x:Bind}">
+                                        <FontIcon Glyph="&#xE711;" FontSize="9"/>
+                                    </Button>
+                                    <!-- Active indicator -->
+                                    <Rectangle Grid.ColumnSpan="2" Height="2" VerticalAlignment="Bottom" Margin="12,0"
+                                               Fill="{ThemeResource SpanAccentBrush}"
+                                               Visibility="{x:Bind IsActiveVisible, Mode=OneWay}"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsRepeater.ItemTemplate>
+                    </ItemsRepeater>
+                    <!-- New Tab button -->
+                    <Button Style="{StaticResource UnifiedButtonStyle}" Width="34" Height="34" VerticalAlignment="Bottom"
+                            Margin="2,0,0,0" Click="OnNewTabClick" ToolTipService.ToolTip="New Tab (Ctrl+T)">
+                        <FontIcon Glyph="&#xE710;" FontSize="12"/>
+                    </Button>
+                </StackPanel>
+            </ScrollViewer>
         </Grid>
 
         <!-- 2. Unified Bar -->
@@ -104,7 +135,6 @@
 
                 <!-- 브레드크럼 모드 (BreadcrumbBar: 오버플로우 시 앞부분 ... 축소) -->
                 <BreadcrumbBar x:Name="AddressBreadcrumbBar" Grid.Column="0"
-                               ItemsSource="{x:Bind ViewModel.Explorer.PathSegments, Mode=OneWay}"
                                ItemClicked="OnBreadcrumbItemClicked"
                                VerticalAlignment="Center">
                     <BreadcrumbBar.ItemTemplate>
@@ -416,7 +446,7 @@
 
                     <!-- Left Pane Path Header (split mode, hidden in Home) -->
                     <Grid Grid.Row="0" x:Name="LeftPathHeader" Height="32"
-                          Visibility="{x:Bind IsLeftPaneHeaderVisible(ViewModel.IsSplitViewEnabled, ViewModel.CurrentViewMode), Mode=OneWay}"
+                          Visibility="{x:Bind IsLeftPaneHeaderVisible(ViewModel.IsSplitViewEnabled), Mode=OneWay}"
                           Background="{ThemeResource SpanBgLayer2Brush}"
                           BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="0,0,0,1"
                           Tapped="OnLeftPaneHeaderTapped">
@@ -447,7 +477,7 @@
                         <!-- Breadcrumb -->
                         <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled"
                                       HorizontalScrollMode="Auto" VerticalScrollMode="Disabled" Padding="2,6,2,0">
-                            <ItemsRepeater ItemsSource="{x:Bind ViewModel.LeftExplorer.PathSegments, Mode=OneWay}">
+                            <ItemsRepeater x:Name="LeftPaneBreadcrumbRepeater">
                                 <ItemsRepeater.Layout>
                                     <StackLayout Orientation="Horizontal" Spacing="0"/>
                                 </ItemsRepeater.Layout>
@@ -548,12 +578,13 @@
 
                         <!-- Explorer Views -->
                         <Grid Grid.Column="0">
-                            <!-- Miller Columns View (Left) -->
-                            <ScrollViewer x:Name="MillerScrollViewer"
-                                          HorizontalScrollBarVisibility="Auto"
-                                          VerticalScrollBarVisibility="Disabled"
-                                          Visibility="{x:Bind IsMillerColumnsMode(ViewModel.CurrentViewMode), Mode=OneWay}">
-                                <ItemsControl x:Name="MillerColumnsControl" ItemsSource="{x:Bind ViewModel.LeftExplorer.Columns, Mode=OneWay}">
+                            <!-- Miller Columns Host — 탭별 패널을 Show/Hide로 전환 -->
+                            <Grid x:Name="MillerTabsHost">
+                                <!-- 첫 번째 탭 전용 (XAML 정의) — 추가 탭은 코드에서 동적 생성 -->
+                                <ScrollViewer x:Name="MillerScrollViewer"
+                                              HorizontalScrollBarVisibility="Auto"
+                                              VerticalScrollBarVisibility="Disabled">
+                                    <ItemsControl x:Name="MillerColumnsControl">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>
                                             <StackPanel Orientation="Horizontal"/>
@@ -635,18 +666,21 @@
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
                             </ScrollViewer>
+                            </Grid>
 
-                            <!-- Details View (Left) -->
-                            <views:DetailsModeView x:Name="DetailsView"
-                                                   Visibility="{x:Bind IsDetailsMode(ViewModel.CurrentViewMode), Mode=OneWay}"/>
+                            <!-- Details View Host — 탭별 패널을 Show/Hide로 전환 -->
+                            <Grid x:Name="DetailsTabsHost" Visibility="Collapsed">
+                                <views:DetailsModeView x:Name="DetailsView"/>
+                            </Grid>
 
-                            <!-- Icon View (Left) -->
-                            <views:IconModeView x:Name="IconView"
-                                                Visibility="{x:Bind IsIconMode(ViewModel.CurrentViewMode), Mode=OneWay}"/>
+                            <!-- Icon View Host — 탭별 패널을 Show/Hide로 전환 -->
+                            <Grid x:Name="IconTabsHost" Visibility="Collapsed">
+                                <views:IconModeView x:Name="IconView"/>
+                            </Grid>
 
                             <!-- Home View (Left only) -->
                             <views:HomeModeView x:Name="HomeView"
-                                                Visibility="{x:Bind IsHomeMode(ViewModel.CurrentViewMode), Mode=OneWay}"/>
+                                                Visibility="Collapsed"/>
                         </Grid>
 
                         <!-- Preview Splitter (Left) -->

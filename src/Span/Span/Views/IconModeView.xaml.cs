@@ -16,6 +16,12 @@ namespace Span.Views
         public IntPtr OwnerHwnd { get; set; }
         public bool IsRightPane { get; set; }
 
+        /// <summary>
+        /// true면 Loaded에서 auto-resolve 건너뜀 (코드에서 ViewModel을 직접 설정한 인스턴스).
+        /// XAML 정의 인스턴스(첫 번째 탭)는 false (기본값) → 기존 동작 유지.
+        /// </summary>
+        public bool IsManualViewModel { get; set; }
+
         private ExplorerViewModel? _viewModel;
         public ExplorerViewModel? ViewModel
         {
@@ -41,12 +47,15 @@ namespace Span.Views
                 _isLoaded = true;
                 _isCleanedUp = false; // Allow cleanup on next Unloaded
 
-                // Get ViewModel from MainWindow's DataContext
-                if (this.XamlRoot?.Content is FrameworkElement root &&
-                    root.DataContext is MainViewModel mainVm)
+                if (!IsManualViewModel)
                 {
-                    ViewModel = IsRightPane ? mainVm.RightExplorer : mainVm.Explorer;
-                    UpdateIconSize(mainVm.CurrentIconSize);
+                    // Get ViewModel from MainWindow's DataContext (XAML 정의 인스턴스용)
+                    if (this.XamlRoot?.Content is FrameworkElement root &&
+                        root.DataContext is MainViewModel mainVm)
+                    {
+                        ViewModel = IsRightPane ? mainVm.RightExplorer : mainVm.Explorer;
+                        UpdateIconSize(mainVm.CurrentIconSize);
+                    }
                 }
 
                 // Apply ShowCheckboxes setting

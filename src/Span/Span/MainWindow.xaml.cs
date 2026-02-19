@@ -60,6 +60,23 @@ namespace Span
         // Miller Columns checkbox mode tracking
         private ListViewSelectionMode _millerSelectionMode = ListViewSelectionMode.Extended;
 
+        // H1: FocusActiveView 중복 호출 제거 — UpdateViewModeVisibility 내에서 true로 설정
+        private bool _suppressFocusOnViewModeChange = false;
+
+        // H2: 동일 ViewMode 탭 전환 시 NotifyViewModeChanged 스킵
+        private ViewMode _previousViewMode = ViewMode.MillerColumns;
+
+        // ── Per-Tab Miller Panels (Show/Hide pattern for instant tab switching) ──
+        // 각 탭마다 별도 ScrollViewer+ItemsControl 쌍 유지 — Visibility 토글로 즉시 전환
+        private readonly Dictionary<string, (ScrollViewer scroller, ItemsControl items)> _tabMillerPanels = new();
+        private string? _activeMillerTabId;
+
+        // ── Per-Tab Details/Icon Panels (Show/Hide pattern — Miller와 동일 패턴) ──
+        private readonly Dictionary<string, Views.DetailsModeView> _tabDetailsPanels = new();
+        private readonly Dictionary<string, Views.IconModeView> _tabIconPanels = new();
+        private string? _activeDetailsTabId;
+        private string? _activeIconTabId;
+
         // Clipboard
         private readonly List<string> _clipboardPaths = new();
         private bool _isCutOperation = false;
@@ -106,8 +123,22 @@ namespace Span
             SetTitleBar(AppTitleBar);
 
             // Auto-scroll on column change (both panes)
+            _subscribedLeftExplorer = ViewModel.Explorer;
             ViewModel.Explorer.Columns.CollectionChanged += OnColumnsChanged;
             ViewModel.RightExplorer.Columns.CollectionChanged += OnRightColumnsChanged;
+
+            // ── Per-Tab Miller Panel 초기화 ──
+            // XAML에서 ItemsSource가 제거되었으므로 코드에서 설정
+            MillerColumnsControl.ItemsSource = ViewModel.Explorer.Columns;
+            var firstTabId = ViewModel.Tabs.Count > 0 ? ViewModel.Tabs[0].Id : "_default";
+            _tabMillerPanels[firstTabId] = (MillerScrollViewer, MillerColumnsControl);
+            _activeMillerTabId = firstTabId;
+
+            // ── Per-Tab Details/Icon Panel 초기화 ──
+            _tabDetailsPanels[firstTabId] = DetailsView;
+            _tabIconPanels[firstTabId] = IconView;
+            _activeDetailsTabId = firstTabId;
+            _activeIconTabId = firstTabId;
 
             // Focus management on ViewMode change
             ViewModel.PropertyChanged += OnViewModelPropertyChanged;
@@ -116,6 +147,10 @@ namespace Span
             DetailsView.ViewModel = ViewModel.Explorer;
             IconView.ViewModel = ViewModel.Explorer;
             HomeView.MainViewModel = ViewModel;
+
+            // Breadcrumb ItemsSource — x:Bind 제거 후 code-behind에서 직접 설정
+            AddressBreadcrumbBar.ItemsSource = ViewModel.Explorer.PathSegments;
+            LeftPaneBreadcrumbRepeater.ItemsSource = ViewModel.Explorer.PathSegments;
 
             // Set ViewModel for Details and Icon views (right pane)
             DetailsViewRight.IsRightPane = true;
@@ -222,7 +257,14 @@ namespace Span
                         }
                     }
                     RestorePreviewState();
-                    RestoreSessionPath();
+                    ViewModel.LoadTabsFromSettings();
+
+                    // ── Per-Tab Miller Panels: 세션 복원 후 모든 탭에 대해 패널 생성 ──
+                    InitializeTabMillerPanels();
+
+                    // ViewMode Visibility 초기화 (x:Bind 제거 후 코드비하인드에서 관리)
+                    _previousViewMode = ViewModel.CurrentViewMode;
+                    SetViewModeVisibility(ViewModel.CurrentViewMode);
 
                     // Focus the active view after session restore
                     // NavigateTo is async, so delay to ensure items are loaded
@@ -255,8 +297,9 @@ namespace Span
                 // STEP 0: Block all queued DispatcherQueue callbacks and async continuations
                 _isClosed = true;
 
-                // Save current path for session restore
-                SaveSessionPath();
+                // Save tab state for session restore
+                ViewModel.SaveActiveTabState();
+                ViewModel.SaveTabsToSettings();
 
                 // Unsubscribe settings
                 _settings.SettingChanged -= OnSettingChanged;
@@ -268,9 +311,11 @@ namespace Span
 
                 // STEP 2: Unsubscribe MainWindow event handlers BEFORE ViewModel.Cleanup()
                 // so collection Clear() notifications don't reach MainWindow handlers.
-                if (ViewModel?.Explorer != null)
+                if (_subscribedLeftExplorer != null)
                 {
-                    ViewModel.Explorer.Columns.CollectionChanged -= OnColumnsChanged;
+                    _subscribedLeftExplorer.Columns.CollectionChanged -= OnColumnsChanged;
+                    _subscribedLeftExplorer.Columns.CollectionChanged -= OnLeftColumnsChangedForPreview;
+                    _subscribedLeftExplorer = null;
                 }
                 if (ViewModel?.RightExplorer != null)
                 {
@@ -282,9 +327,15 @@ namespace Span
                     ViewModel.PropertyChanged -= OnViewModelPropertyChangedForPreview;
                 }
 
+                // Per-Tab Miller Panels 정리
+                foreach (var kvp in _tabMillerPanels)
+                {
+                    kvp.Value.items.ItemsSource = null;
+                }
+                _tabMillerPanels.Clear();
+
                 // Unsubscribe preview column change handlers
-                if (ViewModel?.LeftExplorer != null)
-                    ViewModel.LeftExplorer.Columns.CollectionChanged -= OnLeftColumnsChangedForPreview;
+                // LeftExplorer preview는 _subscribedLeftExplorer에서 이미 해제됨
                 if (ViewModel?.RightExplorer != null)
                     ViewModel.RightExplorer.Columns.CollectionChanged -= OnRightColumnsChangedForPreview;
 
@@ -303,10 +354,15 @@ namespace Span
                 }
                 catch { }
 
-                // STEP 3: Disconnect view bindings BEFORE ViewModel.Cleanup()
-                // so Favorites.Clear() / RecentFolders.Clear() don't reach disposed UI.
-                try { DetailsView?.Cleanup(); } catch { }
-                try { IconView?.Cleanup(); } catch { }
+                // STEP 3: Per-tab Details/Icon 인스턴스 전체 정리
+                foreach (var kvp in _tabDetailsPanels)
+                    try { kvp.Value?.Cleanup(); } catch { }
+                _tabDetailsPanels.Clear();
+
+                foreach (var kvp in _tabIconPanels)
+                    try { kvp.Value?.Cleanup(); } catch { }
+                _tabIconPanels.Clear();
+
                 try { HomeView?.Cleanup(); } catch { }
                 try { DetailsViewRight?.Cleanup(); } catch { }
                 try { IconViewRight?.Cleanup(); } catch { }
@@ -483,7 +539,9 @@ namespace Span
                 : ListViewSelectionMode.Extended;
 
             // Apply to all visible Miller Column ListViews in both panes
-            ApplyCheckboxToItemsControl(MillerColumnsControl, _millerSelectionMode);
+            // 모든 탭의 Miller 패널에도 적용
+            foreach (var kvp in _tabMillerPanels)
+                ApplyCheckboxToItemsControl(kvp.Value.items, _millerSelectionMode);
             ApplyCheckboxToItemsControl(MillerColumnsControlRight, _millerSelectionMode);
         }
 
@@ -547,79 +605,24 @@ namespace Span
             }
         }
 
-        private void SaveSessionPath()
-        {
-            try
-            {
-                // Save the current ViewMode for session restore (including Home)
-                _settings.LastSessionViewMode = ViewModel.CurrentViewMode.ToString();
-
-                // In Home mode, clear the path (no folder to restore)
-                if (ViewModel.CurrentViewMode == Models.ViewMode.Home)
-                {
-                    _settings.LastSessionPath = "";
-                    return;
-                }
-
-                // Save the navigation ROOT folder (first column), not the deepest column.
-                // In Miller Columns: Columns[0] = E:\ even if user drilled into E:\sub\deep
-                // In Details/Icon: Columns[0] = the single current folder
-                // This matches Finder behavior: restore the window's starting folder.
-                var columns = ViewModel.ActiveExplorer?.Columns;
-                var rootPath = columns?.Count > 0 ? columns[0].Path : null;
-                if (!string.IsNullOrEmpty(rootPath) && rootPath != "PC")
-                {
-                    _settings.LastSessionPath = rootPath;
-                }
-            }
-            catch { /* ignore save errors during close */ }
-        }
-
-        private void RestoreSessionPath()
-        {
-            var behavior = _settings.StartupBehavior;
-            switch (behavior)
-            {
-                case 0: // Restore last session
-                    var lastViewMode = _settings.LastSessionViewMode;
-                    if (lastViewMode == Models.ViewMode.Home.ToString())
-                    {
-                        ViewModel.SwitchViewMode(Models.ViewMode.Home);
-                        Helpers.DebugLogger.Log("[MainWindow] Restored session: Home mode");
-                        return;
-                    }
-
-                    var lastPath = _settings.LastSessionPath;
-                    if (!string.IsNullOrEmpty(lastPath) && System.IO.Directory.Exists(lastPath))
-                    {
-                        var folder = new FolderItem { Name = System.IO.Path.GetFileName(lastPath), Path = lastPath };
-                        ViewModel.Explorer.NavigateTo(folder);
-                        Helpers.DebugLogger.Log($"[MainWindow] Restored session path: {lastPath}");
-                    }
-                    break;
-                case 1: // Home
-                    ViewModel.SwitchViewMode(Models.ViewMode.Home);
-                    break;
-                case 2: // Custom folder — future: add CustomStartupFolder setting
-                    break;
-            }
-        }
-
         // =================================================================
         //  Auto Scroll
         // =================================================================
 
         private void OnColumnsChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
+            // 탭 전환 중에는 ScrollToLastColumn + UpdateLayout 비용 회피
+            if (ViewModel?.IsSwitchingTab == true) return;
+
             if (e.Action == NotifyCollectionChangedAction.Add ||
                 e.Action == NotifyCollectionChangedAction.Replace)
             {
-                ScrollToLastColumn(ViewModel.LeftExplorer, MillerScrollViewer);
+                ScrollToLastColumn(ViewModel.LeftExplorer, GetActiveMillerScrollViewer());
                 // Apply checkbox mode to newly added columns after render
                 if (_millerSelectionMode != ListViewSelectionMode.Extended)
                 {
                     DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
-                        () => ApplyCheckboxToItemsControl(MillerColumnsControl, _millerSelectionMode));
+                        () => ApplyCheckboxToItemsControl(GetActiveMillerColumnsControl(), _millerSelectionMode));
                 }
             }
         }
@@ -638,12 +641,24 @@ namespace Span
             }
         }
 
+        /// <summary>
+        /// 이전 LeftExplorer 참조 — 탭 전환 시 구독 해제용
+        /// </summary>
+        private ExplorerViewModel? _subscribedLeftExplorer;
+
         private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
             if (e.PropertyName == nameof(MainViewModel.CurrentViewMode) ||
                 e.PropertyName == nameof(MainViewModel.RightViewMode))
             {
-                FocusActiveView();
+                // 탭 전환 중이거나 UpdateViewModeVisibility 내부에서는 FocusActiveView 억제
+                if (!ViewModel.IsSwitchingTab && !_suppressFocusOnViewModeChange)
+                    FocusActiveView();
+            }
+            else if (e.PropertyName == nameof(MainViewModel.Explorer))
+            {
+                // LeftExplorer가 교체됨 — Columns 구독 재연결 및 View 업데이트
+                ResubscribeLeftExplorer();
             }
             else if (e.PropertyName == nameof(MainViewModel.IsToastVisible))
             {
@@ -656,6 +671,116 @@ namespace Span
                     if (!string.IsNullOrEmpty(ViewModel.ToastMessage))
                         ToastText.Text = ViewModel.ToastMessage;
                 });
+            }
+        }
+
+        /// <summary>
+        /// LeftExplorer 교체 시 Columns.CollectionChanged 구독 재연결 + View ViewModel 갱신
+        /// </summary>
+        private void ResubscribeLeftExplorer()
+        {
+            if (_isClosed) return;
+
+            // 이전 Explorer 구독 해제
+            if (_subscribedLeftExplorer != null)
+            {
+                _subscribedLeftExplorer.Columns.CollectionChanged -= OnColumnsChanged;
+                _subscribedLeftExplorer.Columns.CollectionChanged -= OnLeftColumnsChangedForPreview;
+            }
+
+            // 새 Explorer 구독
+            var newExplorer = ViewModel.Explorer;
+            if (newExplorer != null)
+            {
+                newExplorer.Columns.CollectionChanged += OnColumnsChanged;
+                newExplorer.Columns.CollectionChanged += OnLeftColumnsChangedForPreview;
+
+                // Breadcrumb ItemsSource — 보이는 컨트롤만 갱신 (Collapsed 컨테이너 재생성 방지)
+                if (!ViewModel.IsSplitViewEnabled && ViewModel.CurrentViewMode != ViewMode.Home)
+                    AddressBreadcrumbBar.ItemsSource = newExplorer.PathSegments;
+                if (ViewModel.IsSplitViewEnabled)
+                    LeftPaneBreadcrumbRepeater.ItemsSource = newExplorer.PathSegments;
+
+                // Per-tab 인스턴스가 자체 ViewModel을 보유하므로 DetailsView/IconView 교체 불필요
+                // Miller Columns는 Per-Tab Panel이, Home은 MainViewModel 바인딩이 처리
+            }
+
+            _subscribedLeftExplorer = newExplorer;
+
+            // M3: Preview 구독 갱신 — 크리티컬 패스에서 분리
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                UnsubscribePreviewSelection(isLeft: true);
+                if (ViewModel.IsLeftPreviewEnabled)
+                    SubscribePreviewToLastColumn(isLeft: true);
+            });
+        }
+
+        /// <summary>
+        /// SwitchToTab이 PropertyChanged를 우회했으므로,
+        /// XAML x:Bind가 관찰하는 ViewMode 관련 프로퍼티의 변경을 일괄 통지한다.
+        /// IsSwitchingTab=false 이후에 호출되므로 OnViewModelPropertyChanged의 FocusActiveView가 정상 동작.
+        /// </summary>
+        private void UpdateViewModeVisibility()
+        {
+            _suppressFocusOnViewModeChange = true;
+            try
+            {
+                var newMode = ViewModel.CurrentViewMode;
+                if (_previousViewMode != newMode)
+                {
+                    _previousViewMode = newMode;
+                    // x:Bind 파이프라인 우회: 직접 Visibility 할당 (PropertyChanged → x:Bind 재평가 제거)
+                    SetViewModeVisibility(newMode);
+                    // IsSingleNonHomeVisible 등 남은 바인딩용 (경량)
+                    ViewModel.NotifyViewModeChanged();
+                }
+            }
+            finally
+            {
+                _suppressFocusOnViewModeChange = false;
+            }
+        }
+
+        /// <summary>
+        /// x:Bind 바인딩 대신 코드비하인드에서 직접 4개 뷰의 Visibility를 설정.
+        /// PropertyChanged 파이프라인을 거치지 않으므로 레이아웃 재계산 최소화.
+        /// 또한 뷰 모드 전환 시 해당 뷰의 ViewModel을 lazy 갱신.
+        /// </summary>
+        private void SetViewModeVisibility(ViewMode mode)
+        {
+            // HOST 단위 Visibility
+            MillerTabsHost.Visibility = mode == ViewMode.MillerColumns ? Visibility.Visible : Visibility.Collapsed;
+            DetailsTabsHost.Visibility = mode == ViewMode.Details ? Visibility.Visible : Visibility.Collapsed;
+            IconTabsHost.Visibility = Helpers.ViewModeExtensions.IsIconMode(mode) ? Visibility.Visible : Visibility.Collapsed;
+            HomeView.Visibility = mode == ViewMode.Home ? Visibility.Visible : Visibility.Collapsed;
+
+            // Lazy 패널 생성 + 활성 패널 Visible 보장
+            var tabId = ViewModel.ActiveTab?.Id;
+            if (tabId != null && mode == ViewMode.Details)
+            {
+                if (!_tabDetailsPanels.ContainsKey(tabId))
+                    CreateDetailsPanelForTab(ViewModel.ActiveTab!);
+                // 활성 탭 패널을 Visible로 (CreateDetailsPanelForTab은 Collapsed로 생성)
+                if (_tabDetailsPanels.TryGetValue(tabId, out var dp))
+                    dp.Visibility = Visibility.Visible;
+                _activeDetailsTabId = tabId;
+            }
+            if (tabId != null && Helpers.ViewModeExtensions.IsIconMode(mode))
+            {
+                if (!_tabIconPanels.ContainsKey(tabId))
+                    CreateIconPanelForTab(ViewModel.ActiveTab!);
+                if (_tabIconPanels.TryGetValue(tabId, out var ip))
+                    ip.Visibility = Visibility.Visible;
+                _activeIconTabId = tabId;
+            }
+
+            // Breadcrumb lazy 갱신 (ResubscribeLeftExplorer에서 skip된 경우 보정)
+            var explorer = ViewModel.Explorer;
+            if (!ViewModel.IsSplitViewEnabled && mode != ViewMode.Home)
+            {
+                if (AddressBreadcrumbBar.ItemsSource != explorer?.PathSegments)
+                    AddressBreadcrumbBar.ItemsSource = explorer?.PathSegments;
             }
         }
 
@@ -715,18 +840,16 @@ namespace Span
                         var columns = ViewModel.ActiveExplorer.Columns;
                         if (columns.Count > 0)
                         {
-                            int activeIndex = GetActiveColumnIndex();
-                            if (activeIndex < 0) activeIndex = columns.Count - 1;
-                            FocusColumnAsync(activeIndex);
+                            // H3: 동기 스크롤 (이미 Low priority 내부이므로 추가 디스패치 불필요)
+                            ScrollToLastColumnSync(ViewModel.LeftExplorer, GetActiveMillerScrollViewer());
+                            // 마지막 컬럼으로 포커스 (GetActiveColumnIndex 비주얼트리 순회 생략)
+                            FocusColumnAsync(columns.Count - 1);
                         }
                         Helpers.DebugLogger.Log("[MainWindow] Focus: MillerColumns");
                         break;
 
                     case Models.ViewMode.Details:
-                        if (ViewModel.ActivePane == ActivePane.Right && ViewModel.IsSplitViewEnabled)
-                            DetailsViewRight?.FocusListView();
-                        else
-                            DetailsView?.FocusListView();
+                        GetActiveDetailsView()?.FocusListView();
                         Helpers.DebugLogger.Log("[MainWindow] Focus: Details");
                         break;
 
@@ -734,10 +857,7 @@ namespace Span
                     case Models.ViewMode.IconMedium:
                     case Models.ViewMode.IconLarge:
                     case Models.ViewMode.IconExtraLarge:
-                        if (ViewModel.ActivePane == ActivePane.Right && ViewModel.IsSplitViewEnabled)
-                            IconViewRight?.FocusGridView();
-                        else
-                            IconView?.FocusGridView();
+                        GetActiveIconView()?.FocusGridView();
                         Helpers.DebugLogger.Log($"[MainWindow] Focus: Icon ({viewMode})");
                         break;
 
@@ -758,12 +878,26 @@ namespace Span
                 () =>
                 {
                     if (_isClosed) return;
-                    scrollViewer.UpdateLayout();
+                    // UpdateLayout() 제거 — Low priority 디스패치이므로 레이아웃이 이미 완료됨
                     double totalWidth = columns.Count * ColumnWidth;
                     double viewportWidth = scrollViewer.ViewportWidth;
                     double targetScroll = Math.Max(0, totalWidth - viewportWidth);
                     scrollViewer.ChangeView(targetScroll, null, null, false);
                 });
+        }
+
+        /// <summary>
+        /// ScrollToLastColumn의 동기 버전 — 이미 DispatcherQueue Low 내부에서 호출될 때 사용.
+        /// </summary>
+        private void ScrollToLastColumnSync(ExplorerViewModel explorer, ScrollViewer? scrollViewer)
+        {
+            if (scrollViewer == null) return;
+            var columns = explorer.Columns;
+            if (columns.Count == 0) return;
+            double totalWidth = columns.Count * ColumnWidth;
+            double viewportWidth = scrollViewer.ViewportWidth;
+            double targetScroll = Math.Max(0, totalWidth - viewportWidth);
+            scrollViewer.ChangeView(targetScroll, null, null, false);
         }
 
         // =================================================================
@@ -1202,6 +1336,31 @@ namespace Span
                             FocusActivePane();
                             e.Handled = true;
                         }
+                        break;
+
+                    case Windows.System.VirtualKey.T:
+                        ViewModel.AddNewTab();
+                        if (ViewModel.ActiveTab != null)
+                        {
+                            CreateMillerPanelForTab(ViewModel.ActiveTab);
+                            SwitchMillerPanel(ViewModel.ActiveTab.Id);
+                        }
+                        ResubscribeLeftExplorer();
+                        UpdateViewModeVisibility();
+                        FocusActiveView();
+                        e.Handled = true;
+                        break;
+
+                    case Windows.System.VirtualKey.W:
+                        var closingTab = ViewModel.ActiveTab;
+                        if (closingTab != null) RemoveMillerPanel(closingTab.Id);
+                        ViewModel.CloseTab(ViewModel.ActiveTabIndex);
+                        if (ViewModel.ActiveTab != null)
+                            SwitchMillerPanel(ViewModel.ActiveTab.Id);
+                        ResubscribeLeftExplorer();
+                        UpdateViewModeVisibility();
+                        FocusActiveView();
+                        e.Handled = true;
                         break;
 
                     case Windows.System.VirtualKey.L:
@@ -2314,7 +2473,12 @@ namespace Span
 
         private async void FocusColumnAsync(int columnIndex)
         {
-            await System.Threading.Tasks.Task.Delay(50);
+            // Task.Delay(50) 대신 DispatcherQueue Low 우선순위로 XAML 레이아웃 완료 대기
+            // — 50ms 고정 지연을 제거하여 탭 전환 속도 개선
+            var tcs = new System.Threading.Tasks.TaskCompletionSource();
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+                () => tcs.TrySetResult());
+            await tcs.Task;
             if (_isClosed) return;
 
             var listView = GetListViewForColumn(columnIndex);
@@ -2325,8 +2489,17 @@ namespace Span
 
             var column = columns[columnIndex];
 
+            // 포커스용 자동 선택 시 auto-navigation 일시 억제
+            // — 선택이 없을 때 첫 항목을 선택하면 FolderVm_PropertyChanged가 발동하여
+            //   하위 폴더가 자동으로 열리는 부작용 방지
             if (column.SelectedChild == null && column.Children.Count > 0)
+            {
+                var explorer = ViewModel.ActiveExplorer;
+                var savedAutoNav = explorer.EnableAutoNavigation;
+                explorer.EnableAutoNavigation = false;
                 column.SelectedChild = column.Children[0];
+                explorer.EnableAutoNavigation = savedAutoNav;
+            }
 
             if (column.SelectedChild != null)
             {
@@ -2403,7 +2576,7 @@ namespace Span
         {
             if (args.Item is Models.PathSegment segment)
             {
-                ViewModel.ActiveExplorer.NavigateToPath(segment.FullPath);
+                _ = ViewModel.ActiveExplorer.NavigateToPath(segment.FullPath);
             }
         }
 
@@ -2561,7 +2734,7 @@ namespace Span
 
             if (System.IO.Directory.Exists(path))
             {
-                ViewModel.ActiveExplorer.NavigateToPath(path);
+                _ = ViewModel.ActiveExplorer.NavigateToPath(path);
             }
             else if (System.IO.File.Exists(path))
             {
@@ -2569,7 +2742,7 @@ namespace Span
                 var parent = System.IO.Path.GetDirectoryName(path);
                 if (!string.IsNullOrEmpty(parent))
                 {
-                    ViewModel.ActiveExplorer.NavigateToPath(parent);
+                    _ = ViewModel.ActiveExplorer.NavigateToPath(parent);
                 }
             }
 
@@ -2851,7 +3024,18 @@ namespace Span
         {
             if (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
                 return IconViewRight;
-            return IconView;
+            if (_activeIconTabId != null && _tabIconPanels.TryGetValue(_activeIconTabId, out var view))
+                return view;
+            return null;
+        }
+
+        private Views.DetailsModeView? GetActiveDetailsView()
+        {
+            if (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
+                return DetailsViewRight;
+            if (_activeDetailsTabId != null && _tabDetailsPanels.TryGetValue(_activeDetailsTabId, out var view))
+                return view;
+            return null;
         }
 
         // Visibility helper functions for x:Bind
@@ -2872,6 +3056,376 @@ namespace Span
 
         public string GetTabDisplayName(Models.ViewMode mode, string folderName)
             => mode == Models.ViewMode.Home ? "Home" : folderName;
+
+        // =================================================================
+        //  Per-Tab Miller Panel Management (Show/Hide pattern)
+        // =================================================================
+
+        /// <summary>
+        /// LoadTabsFromSettings 후 모든 탭에 대한 Miller 패널 초기화.
+        /// 기존 패널을 정리하고, 각 탭에 대해 패널을 (재)생성한다.
+        /// 활성 탭 패널만 Visible, 나머지는 Collapsed.
+        /// </summary>
+        private void InitializeTabMillerPanels()
+        {
+            // 기존 동적 패널 정리 (XAML 정의 MillerScrollViewer 제외)
+            foreach (var kvp in _tabMillerPanels)
+            {
+                if (kvp.Value.scroller != MillerScrollViewer)
+                {
+                    kvp.Value.items.ItemsSource = null;
+                    MillerTabsHost.Children.Remove(kvp.Value.scroller);
+                }
+            }
+            _tabMillerPanels.Clear();
+
+            // M4: 활성 탭만 즉시 패널 할당 — 비활성 탭은 SwitchMillerPanel에서 Lazy 생성
+            for (int i = 0; i < ViewModel.Tabs.Count; i++)
+            {
+                var tab = ViewModel.Tabs[i];
+                if (i == ViewModel.ActiveTabIndex)
+                {
+                    // 활성 탭은 XAML 정의 패널 재사용
+                    MillerColumnsControl.ItemsSource = tab.Explorer?.Columns;
+                    MillerScrollViewer.Visibility = Visibility.Visible;
+                    _tabMillerPanels[tab.Id] = (MillerScrollViewer, MillerColumnsControl);
+                    _activeMillerTabId = tab.Id;
+                }
+                // 비활성 탭은 SwitchMillerPanel 호출 시 Lazy 생성
+            }
+
+            // ── Per-Tab Details/Icon Panels 초기화 ──
+            // 기존 동적 패널 정리 (XAML 정의 인스턴스 제외)
+            foreach (var kvp in _tabDetailsPanels)
+            {
+                if (kvp.Value != DetailsView)
+                {
+                    try { kvp.Value?.Cleanup(); } catch { }
+                    DetailsTabsHost.Children.Remove(kvp.Value);
+                }
+            }
+            _tabDetailsPanels.Clear();
+
+            foreach (var kvp in _tabIconPanels)
+            {
+                if (kvp.Value != IconView)
+                {
+                    try { kvp.Value?.Cleanup(); } catch { }
+                    IconTabsHost.Children.Remove(kvp.Value);
+                }
+            }
+            _tabIconPanels.Clear();
+
+            // 활성 탭에 XAML 정의 인스턴스 할당
+            var activeTab = ViewModel.Tabs.Count > 0 ? ViewModel.Tabs[ViewModel.ActiveTabIndex] : null;
+            if (activeTab != null)
+            {
+                _tabDetailsPanels[activeTab.Id] = DetailsView;
+                _tabIconPanels[activeTab.Id] = IconView;
+                _activeDetailsTabId = activeTab.Id;
+                _activeIconTabId = activeTab.Id;
+            }
+
+            Helpers.DebugLogger.Log($"[MillerPanel] Initialized {_tabMillerPanels.Count} panels (active: {_activeMillerTabId})");
+        }
+
+        /// <summary>
+        /// 새 탭에 대한 Miller Columns 패널(ScrollViewer + ItemsControl) 생성.
+        /// XAML 정의 MillerColumnsControl의 Template을 재사용하여 이벤트 핸들러 호환성 보장.
+        /// </summary>
+        private (ScrollViewer scroller, ItemsControl items) CreateMillerPanelForTab(Models.TabItem tab)
+        {
+            var itemsControl = new ItemsControl
+            {
+                ItemTemplate = MillerColumnsControl.ItemTemplate,
+                ItemsPanel = MillerColumnsControl.ItemsPanel,
+                ItemsSource = tab.Explorer?.Columns
+            };
+
+            // 키보드 이벤트 핸들러 등록 (XAML 정의 컨트롤과 동일)
+            itemsControl.AddHandler(
+                UIElement.KeyDownEvent,
+                new KeyEventHandler(OnMillerKeyDown),
+                true
+            );
+
+            var scrollViewer = new ScrollViewer
+            {
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                HorizontalScrollMode = ScrollMode.Auto,
+                VerticalScrollMode = ScrollMode.Disabled,
+                Content = itemsControl,
+                Visibility = Visibility.Collapsed // 생성 시 숨김, 전환 시 표시
+            };
+
+            // MillerTabsHost Grid에 추가
+            MillerTabsHost.Children.Add(scrollViewer);
+            _tabMillerPanels[tab.Id] = (scrollViewer, itemsControl);
+
+            Helpers.DebugLogger.Log($"[MillerPanel] Created panel for tab {tab.Id} ({tab.Header})");
+            return (scrollViewer, itemsControl);
+        }
+
+        /// <summary>
+        /// 활성 탭의 Miller 패널로 전환 — Visibility 토글만으로 즉시 전환.
+        /// </summary>
+        private void SwitchMillerPanel(string newTabId)
+        {
+            if (_activeMillerTabId == newTabId) return;
+
+            // 이전 패널 숨기기
+            if (_activeMillerTabId != null && _tabMillerPanels.TryGetValue(_activeMillerTabId, out var oldPanel))
+            {
+                oldPanel.scroller.Visibility = Visibility.Collapsed;
+            }
+
+            // M4: 새 패널 — 없으면 Lazy 생성
+            if (!_tabMillerPanels.TryGetValue(newTabId, out var newPanel))
+            {
+                var tab = ViewModel.Tabs.FirstOrDefault(t => t.Id == newTabId);
+                if (tab != null)
+                {
+                    newPanel = CreateMillerPanelForTab(tab);
+                }
+            }
+
+            if (newPanel.scroller != null)
+            {
+                newPanel.scroller.Visibility = Visibility.Visible;
+                _activeMillerTabId = newTabId;
+            }
+        }
+
+        /// <summary>
+        /// 탭 닫힐 때 해당 Miller 패널 제거.
+        /// </summary>
+        private void RemoveMillerPanel(string tabId)
+        {
+            if (_tabMillerPanels.TryGetValue(tabId, out var panel))
+            {
+                // 키보드 이벤트 해제
+                panel.items.RemoveHandler(UIElement.KeyDownEvent, new KeyEventHandler(OnMillerKeyDown));
+                panel.items.ItemsSource = null;
+                MillerTabsHost.Children.Remove(panel.scroller);
+                _tabMillerPanels.Remove(tabId);
+                Helpers.DebugLogger.Log($"[MillerPanel] Removed panel for tab {tabId}");
+            }
+        }
+
+        // =================================================================
+        //  Per-Tab Details Panel Management (Show/Hide pattern)
+        // =================================================================
+
+        /// <summary>
+        /// 새 탭에 대한 DetailsModeView 인스턴스 생성.
+        /// ContextMenu, HWND 등 설정 후 DetailsTabsHost에 추가.
+        /// </summary>
+        private Views.DetailsModeView CreateDetailsPanelForTab(Models.TabItem tab)
+        {
+            var detailsView = new Views.DetailsModeView
+            {
+                IsManualViewModel = true,
+                ViewModel = tab.Explorer,
+                ContextMenuService = _contextMenuService,
+                ContextMenuHost = this,
+                OwnerHwnd = _hwnd,
+                Visibility = Visibility.Collapsed
+            };
+
+            DetailsTabsHost.Children.Add(detailsView);
+            _tabDetailsPanels[tab.Id] = detailsView;
+
+            Helpers.DebugLogger.Log($"[DetailsPanel] Created panel for tab {tab.Id} ({tab.Header})");
+            return detailsView;
+        }
+
+        /// <summary>
+        /// 활성 탭의 Details 패널로 전환 — Visibility 토글만으로 즉시 전환.
+        /// shouldCreate=true면 패널이 없을 때 lazy 생성.
+        /// </summary>
+        private void SwitchDetailsPanel(string newTabId, bool shouldCreate)
+        {
+            if (_activeDetailsTabId == newTabId) return;
+
+            // 이전 패널 숨기기
+            if (_activeDetailsTabId != null && _tabDetailsPanels.TryGetValue(_activeDetailsTabId, out var oldPanel))
+            {
+                oldPanel.Visibility = Visibility.Collapsed;
+            }
+
+            // 새 패널 — 없으면 shouldCreate일 때만 Lazy 생성
+            if (_tabDetailsPanels.TryGetValue(newTabId, out var newPanel))
+            {
+                newPanel.Visibility = Visibility.Visible;
+            }
+            else if (shouldCreate)
+            {
+                var tab = ViewModel.Tabs.FirstOrDefault(t => t.Id == newTabId);
+                if (tab != null)
+                {
+                    newPanel = CreateDetailsPanelForTab(tab);
+                    newPanel.Visibility = Visibility.Visible;
+                }
+            }
+
+            _activeDetailsTabId = newTabId;
+        }
+
+        /// <summary>
+        /// 탭 닫힐 때 해당 Details 패널 제거.
+        /// </summary>
+        private void RemoveDetailsPanel(string tabId)
+        {
+            if (_tabDetailsPanels.TryGetValue(tabId, out var panel))
+            {
+                try { panel.Cleanup(); } catch { }
+                DetailsTabsHost.Children.Remove(panel);
+                _tabDetailsPanels.Remove(tabId);
+                Helpers.DebugLogger.Log($"[DetailsPanel] Removed panel for tab {tabId}");
+            }
+        }
+
+        // =================================================================
+        //  Per-Tab Icon Panel Management (Show/Hide pattern)
+        // =================================================================
+
+        /// <summary>
+        /// 새 탭에 대한 IconModeView 인스턴스 생성.
+        /// ContextMenu, HWND 등 설정 후 IconTabsHost에 추가.
+        /// </summary>
+        private Views.IconModeView CreateIconPanelForTab(Models.TabItem tab)
+        {
+            var iconView = new Views.IconModeView
+            {
+                IsManualViewModel = true,
+                ViewModel = tab.Explorer,
+                ContextMenuService = _contextMenuService,
+                ContextMenuHost = this,
+                OwnerHwnd = _hwnd,
+                Visibility = Visibility.Collapsed
+            };
+
+            IconTabsHost.Children.Add(iconView);
+            _tabIconPanels[tab.Id] = iconView;
+
+            Helpers.DebugLogger.Log($"[IconPanel] Created panel for tab {tab.Id} ({tab.Header})");
+            return iconView;
+        }
+
+        /// <summary>
+        /// 활성 탭의 Icon 패널로 전환 — Visibility 토글만으로 즉시 전환.
+        /// shouldCreate=true면 패널이 없을 때 lazy 생성.
+        /// </summary>
+        private void SwitchIconPanel(string newTabId, bool shouldCreate)
+        {
+            if (_activeIconTabId == newTabId) return;
+
+            // 이전 패널 숨기기
+            if (_activeIconTabId != null && _tabIconPanels.TryGetValue(_activeIconTabId, out var oldPanel))
+            {
+                oldPanel.Visibility = Visibility.Collapsed;
+            }
+
+            // 새 패널 — 없으면 shouldCreate일 때만 Lazy 생성
+            if (_tabIconPanels.TryGetValue(newTabId, out var newPanel))
+            {
+                newPanel.Visibility = Visibility.Visible;
+            }
+            else if (shouldCreate)
+            {
+                var tab = ViewModel.Tabs.FirstOrDefault(t => t.Id == newTabId);
+                if (tab != null)
+                {
+                    newPanel = CreateIconPanelForTab(tab);
+                    newPanel.Visibility = Visibility.Visible;
+                }
+            }
+
+            _activeIconTabId = newTabId;
+        }
+
+        /// <summary>
+        /// 탭 닫힐 때 해당 Icon 패널 제거.
+        /// </summary>
+        private void RemoveIconPanel(string tabId)
+        {
+            if (_tabIconPanels.TryGetValue(tabId, out var panel))
+            {
+                try { panel.Cleanup(); } catch { }
+                IconTabsHost.Children.Remove(panel);
+                _tabIconPanels.Remove(tabId);
+                Helpers.DebugLogger.Log($"[IconPanel] Removed panel for tab {tabId}");
+            }
+        }
+
+        // =================================================================
+        //  Tab Event Handlers
+        // =================================================================
+
+        private void OnTabItemPointerPressed(object sender, PointerRoutedEventArgs e)
+        {
+            if (sender is FrameworkElement fe && fe.Tag is Models.TabItem tab)
+            {
+                int index = ViewModel.Tabs.IndexOf(tab);
+                if (index >= 0)
+                {
+                    // Show/Hide 패널 전환 (ViewModel.SwitchToTab 전에 실행하여 바인딩 재평가 방지)
+                    SwitchMillerPanel(tab.Id);
+                    SwitchDetailsPanel(tab.Id, tab.ViewMode == ViewMode.Details);
+                    SwitchIconPanel(tab.Id, Helpers.ViewModeExtensions.IsIconMode(tab.ViewMode));
+                    ViewModel.SwitchToTab(index);
+                    // LeftExplorer 변경 후 수동으로 필요한 것만 갱신 (PropertyChanged 미발생이므로)
+                    ResubscribeLeftExplorer();
+                    UpdateViewModeVisibility();
+                    FocusActiveView();
+                }
+            }
+        }
+
+        private void OnTabCloseClick(object sender, RoutedEventArgs e)
+        {
+            if (sender is FrameworkElement fe && fe.Tag is Models.TabItem tab)
+            {
+                int index = ViewModel.Tabs.IndexOf(tab);
+                if (index >= 0)
+                {
+                    // 패널 제거 (닫히는 탭)
+                    RemoveMillerPanel(tab.Id);
+                    RemoveDetailsPanel(tab.Id);
+                    RemoveIconPanel(tab.Id);
+                    ViewModel.CloseTab(index);
+                    // CloseTab이 SwitchToTab을 호출하면 활성 탭이 변경됨 — 패널 전환
+                    if (ViewModel.ActiveTab != null)
+                    {
+                        SwitchMillerPanel(ViewModel.ActiveTab.Id);
+                        SwitchDetailsPanel(ViewModel.ActiveTab.Id, ViewModel.ActiveTab.ViewMode == ViewMode.Details);
+                        SwitchIconPanel(ViewModel.ActiveTab.Id, Helpers.ViewModeExtensions.IsIconMode(ViewModel.ActiveTab.ViewMode));
+                    }
+                    ResubscribeLeftExplorer();
+                    UpdateViewModeVisibility();
+                    FocusActiveView();
+                }
+            }
+        }
+
+        private void OnNewTabClick(object sender, RoutedEventArgs e)
+        {
+            ViewModel.AddNewTab();
+            // 새 탭의 패널 생성 및 전환
+            var newTab = ViewModel.ActiveTab;
+            if (newTab != null)
+            {
+                CreateMillerPanelForTab(newTab);
+                SwitchMillerPanel(newTab.Id);
+                // Details/Icon은 ViewMode 전환 시 lazy 생성 (새 탭은 보통 Home 또는 Miller)
+                SwitchDetailsPanel(newTab.Id, newTab.ViewMode == ViewMode.Details);
+                SwitchIconPanel(newTab.Id, Helpers.ViewModeExtensions.IsIconMode(newTab.ViewMode));
+            }
+            ResubscribeLeftExplorer();
+            UpdateViewModeVisibility();
+            FocusActiveView();
+        }
 
         // Sort menu opening - update checkmarks and icons
         private void OnSortMenuOpening(object sender, object e)
@@ -2938,6 +3492,9 @@ namespace Span
         {
             if (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
                 return MillerColumnsControlRight;
+            // 활성 탭의 Miller ItemsControl 반환
+            if (_activeMillerTabId != null && _tabMillerPanels.TryGetValue(_activeMillerTabId, out var panel))
+                return panel.items;
             return MillerColumnsControl;
         }
 
@@ -2948,6 +3505,9 @@ namespace Span
         {
             if (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
                 return MillerScrollViewerRight;
+            // 활성 탭의 ScrollViewer 반환
+            if (_activeMillerTabId != null && _tabMillerPanels.TryGetValue(_activeMillerTabId, out var panel))
+                return panel.scroller;
             return MillerScrollViewer;
         }
 
@@ -2968,7 +3528,7 @@ namespace Span
         /// <summary>
         /// Left pane header (split mode): visible when split enabled (including Home mode for accent bar)
         /// </summary>
-        public Visibility IsLeftPaneHeaderVisible(bool isSplitViewEnabled, Models.ViewMode mode)
+        public Visibility IsLeftPaneHeaderVisible(bool isSplitViewEnabled)
             => isSplitViewEnabled ? Visibility.Visible : Visibility.Collapsed;
 
         public SolidColorBrush LeftPaneAccentBrush(ActivePane activePane)
@@ -3079,12 +3639,12 @@ namespace Span
                 if (IsDescendant(RightPaneContainer, btn))
                 {
                     ViewModel.ActivePane = ActivePane.Right;
-                    ViewModel.RightExplorer.NavigateToPath(fullPath);
+                    _ = ViewModel.RightExplorer.NavigateToPath(fullPath);
                 }
                 else
                 {
                     ViewModel.ActivePane = ActivePane.Left;
-                    ViewModel.LeftExplorer.NavigateToPath(fullPath);
+                    _ = ViewModel.LeftExplorer.NavigateToPath(fullPath);
                 }
             }
         }
@@ -3141,7 +3701,7 @@ namespace Span
             if (string.IsNullOrEmpty(name))
                 name = path; // Drive root like "C:\"
 
-            ViewModel.RightExplorer.NavigateTo(new FolderItem { Name = name, Path = path });
+            _ = ViewModel.RightExplorer.NavigateTo(new FolderItem { Name = name, Path = path });
             Helpers.DebugLogger.Log($"[MainWindow] Right pane navigated to: {path}");
         }
 
@@ -3207,20 +3767,14 @@ namespace Span
                         break;
 
                     case Models.ViewMode.Details:
-                        if (ViewModel.ActivePane == ActivePane.Right && ViewModel.IsSplitViewEnabled)
-                            DetailsViewRight?.FocusListView();
-                        else
-                            DetailsView?.FocusListView();
+                        GetActiveDetailsView()?.FocusListView();
                         break;
 
                     case Models.ViewMode.IconSmall:
                     case Models.ViewMode.IconMedium:
                     case Models.ViewMode.IconLarge:
                     case Models.ViewMode.IconExtraLarge:
-                        if (ViewModel.ActivePane == ActivePane.Right && ViewModel.IsSplitViewEnabled)
-                            IconViewRight?.FocusGridView();
-                        else
-                            IconView?.FocusGridView();
+                        GetActiveIconView()?.FocusGridView();
                         break;
                 }
             });
