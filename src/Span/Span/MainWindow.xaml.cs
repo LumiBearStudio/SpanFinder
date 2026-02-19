@@ -3547,7 +3547,10 @@ namespace Span
                     tab.Id, tab.Header, tab.Path,
                     (int)tab.ViewMode, (int)tab.IconSize);
 
-                // 2. Get cursor position for new window placement
+                // 2. 원본 창의 Win32 사이즈 (물리 픽셀) + 커서 위치 캡처
+                Helpers.NativeMethods.GetWindowRect(_hwnd, out var srcRect);
+                int srcW = srcRect.Right - srcRect.Left;
+                int srcH = srcRect.Bottom - srcRect.Top;
                 Helpers.NativeMethods.GetCursorPos(out var cursorPos);
 
                 // 3. Remove tab from current window (panels + ViewModel)
@@ -3570,33 +3573,140 @@ namespace Span
                 UpdateViewModeVisibility();
                 FocusActiveView();
 
-                // 4. Create new window with single tab
+                // 4. 새 창 생성 + HWND 확보
                 var newWindow = new MainWindow();
                 newWindow._pendingTearOff = dto;
+                var newHwnd = WinRT.Interop.WindowNative.GetWindowHandle(newWindow);
+
+                // 5. DWMWA_CLOAK — 창을 DWM에서 합성하되 화면에 숨김 (깜빡임 방지)
+                int cloakOn = 1;
+                Helpers.NativeMethods.DwmSetWindowAttribute(newHwnd,
+                    Helpers.NativeMethods.DWMWA_CLOAK, ref cloakOn, sizeof(int));
+                int transOff = 1;
+                Helpers.NativeMethods.DwmSetWindowAttribute(newHwnd,
+                    Helpers.NativeMethods.DWMWA_TRANSITIONS_FORCEDISABLED, ref transOff, sizeof(int));
+
+                // 6. Activate — XAML 파이프라인 시작 (클로킹 상태라 화면에 안 보임)
                 App.Current.RegisterWindow(newWindow);
-
-                // 5. Position window at cursor
-                newWindow.AppWindow.MoveAndResize(new Windows.Graphics.RectInt32(
-                    cursorPos.X - 400, cursorPos.Y - 20, 1000, 700));
-
                 newWindow.Activate();
 
-                // 6. Start OS drag on the new window (SC_DRAGMOVE via PostMessage-like approach)
-                var newHwnd = WinRT.Interop.WindowNative.GetWindowHandle(newWindow);
-                DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
-                {
-                    Helpers.NativeMethods.ReleaseCapture();
-                    Helpers.NativeMethods.SendMessage(newHwnd,
-                        Helpers.NativeMethods.WM_SYSCOMMAND,
-                        (IntPtr)Helpers.NativeMethods.SC_DRAGMOVE, IntPtr.Zero);
-                });
+                // 7. 초기 위치/크기 설정 + DPI 로깅
+                int offsetX = srcW / 4;  // 커서가 타이틀바 왼쪽 25% 지점
+                int offsetY = 15;         // 커서가 타이틀바 상단 근처
 
-                Helpers.DebugLogger.Log($"[TearOff] Tab '{dto.Header}' torn off to new window at ({cursorPos.X}, {cursorPos.Y})");
+                uint srcDpi = Helpers.NativeMethods.GetDpiForWindow(_hwnd);
+                uint newDpi = Helpers.NativeMethods.GetDpiForWindow(newHwnd);
+                Helpers.DebugLogger.Log($"[TearOff] srcDpi={srcDpi}, newDpi={newDpi}, srcSize={srcW}x{srcH}");
+
+                // SetWindowPos로 초기 위치/크기 (Activate 후 재적용은 타이머에서)
+                Helpers.NativeMethods.SetWindowPos(newHwnd, Helpers.NativeMethods.HWND_TOP,
+                    cursorPos.X - offsetX,
+                    cursorPos.Y - offsetY,
+                    srcW, srcH,
+                    Helpers.NativeMethods.SWP_NOACTIVATE);
+
+                // 8. 수동 드래그 시작 — 타이머 첫 틱에서 크기도 재적용 (Activate 레이아웃 덮어쓰기 방지)
+                StartManualWindowDrag(newHwnd, offsetX, offsetY, srcW, srcH);
             }
             catch (Exception ex)
             {
                 Helpers.DebugLogger.Log($"[TearOff] Error: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// 수동 창 드래그: DispatcherTimer로 커서를 추적하여 SetWindowPos로 창 이동.
+        /// SC_DRAGMOVE를 대체 (WinUI 3에서 NC 메시지가 필터링되어 SC_DRAGMOVE 동작 안함).
+        /// 타이머는 원본 창의 DispatcherQueue에서 실행 (새 창은 아직 초기화 중일 수 있음).
+        /// </summary>
+        private void StartManualWindowDrag(IntPtr targetHwnd, int dragOffsetX, int dragOffsetY,
+            int targetWidth, int targetHeight)
+        {
+            var dragTimer = new DispatcherTimer();
+            dragTimer.Interval = TimeSpan.FromMilliseconds(8); // ~120Hz 부드러운 추적
+
+            bool uncloaked = false;
+            bool sizeApplied = false;
+            int frameCount = 0;
+
+            dragTimer.Tick += (s, e) =>
+            {
+                if (_isClosed)
+                {
+                    dragTimer.Stop();
+                    return;
+                }
+
+                // 1. 마우스 왼쪽 버튼 하드웨어 상태 확인 (메시지 큐와 무관)
+                bool mouseDown = (Helpers.NativeMethods.GetAsyncKeyState(
+                    Helpers.NativeMethods.VK_LBUTTON) & 0x8000) != 0;
+
+                if (!mouseDown)
+                {
+                    // 마우스 놓음 → 드래그 종료
+                    dragTimer.Stop();
+
+                    // 최종 크기 보정 (Activate 레이아웃이 덮어썼을 수 있음)
+                    if (!sizeApplied)
+                    {
+                        Helpers.NativeMethods.GetCursorPos(out var finalPos);
+                        Helpers.NativeMethods.SetWindowPos(
+                            targetHwnd, Helpers.NativeMethods.HWND_TOP,
+                            finalPos.X - dragOffsetX, finalPos.Y - dragOffsetY,
+                            targetWidth, targetHeight, 0);
+                    }
+
+                    if (!uncloaked)
+                    {
+                        int cloakOff = 0;
+                        Helpers.NativeMethods.DwmSetWindowAttribute(targetHwnd,
+                            Helpers.NativeMethods.DWMWA_CLOAK, ref cloakOff, sizeof(int));
+                    }
+                    Helpers.NativeMethods.SetForegroundWindow(targetHwnd);
+                    return;
+                }
+
+                // 2. 현재 커서 위치
+                if (!Helpers.NativeMethods.GetCursorPos(out var pos))
+                    return;
+
+                frameCount++;
+
+                // 3. 첫 몇 프레임: 크기 포함하여 SetWindowPos (Activate의 기본 크기를 강제 덮어씀)
+                if (!sizeApplied && frameCount <= 3)
+                {
+                    Helpers.NativeMethods.SetWindowPos(
+                        targetHwnd, Helpers.NativeMethods.HWND_TOP,
+                        pos.X - dragOffsetX,
+                        pos.Y - dragOffsetY,
+                        targetWidth, targetHeight,
+                        Helpers.NativeMethods.SWP_NOACTIVATE);
+
+                    if (frameCount == 3) sizeApplied = true;
+                }
+                else
+                {
+                    // 이후: 위치만 이동 (크기는 확정됨)
+                    Helpers.NativeMethods.SetWindowPos(
+                        targetHwnd, Helpers.NativeMethods.HWND_TOP,
+                        pos.X - dragOffsetX,
+                        pos.Y - dragOffsetY,
+                        0, 0,
+                        Helpers.NativeMethods.SWP_NOSIZE | Helpers.NativeMethods.SWP_NOACTIVATE);
+                }
+
+                // 4. 몇 프레임 후 클로킹 해제 (XAML이 첫 프레임을 렌더링할 시간 확보)
+                if (!uncloaked && frameCount >= 5) // ~40ms
+                {
+                    uncloaked = true;
+                    int cloakOff = 0;
+                    Helpers.NativeMethods.DwmSetWindowAttribute(targetHwnd,
+                        Helpers.NativeMethods.DWMWA_CLOAK, ref cloakOff, sizeof(int));
+                    Helpers.NativeMethods.SetForegroundWindow(targetHwnd);
+                }
+            };
+
+            dragTimer.Start();
         }
 
         /// <summary>
