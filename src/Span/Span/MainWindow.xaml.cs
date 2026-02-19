@@ -224,6 +224,11 @@ namespace Span
                     RestorePreviewState();
                     RestoreSessionPath();
 
+                    // Focus the active view after session restore
+                    // NavigateTo is async, so delay to ensure items are loaded
+                    DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+                        () => FocusActiveView());
+
                     // Apply ShowCheckboxes to Miller Columns after initial render
                     if (_settings.ShowCheckboxes)
                     {
@@ -546,10 +551,25 @@ namespace Span
         {
             try
             {
-                var currentPath = ViewModel.ActiveExplorer.CurrentPath;
-                if (!string.IsNullOrEmpty(currentPath) && currentPath != "PC")
+                // Save the current ViewMode for session restore (including Home)
+                _settings.LastSessionViewMode = ViewModel.CurrentViewMode.ToString();
+
+                // In Home mode, clear the path (no folder to restore)
+                if (ViewModel.CurrentViewMode == Models.ViewMode.Home)
                 {
-                    _settings.LastSessionPath = currentPath;
+                    _settings.LastSessionPath = "";
+                    return;
+                }
+
+                // Save the navigation ROOT folder (first column), not the deepest column.
+                // In Miller Columns: Columns[0] = E:\ even if user drilled into E:\sub\deep
+                // In Details/Icon: Columns[0] = the single current folder
+                // This matches Finder behavior: restore the window's starting folder.
+                var columns = ViewModel.ActiveExplorer?.Columns;
+                var rootPath = columns?.Count > 0 ? columns[0].Path : null;
+                if (!string.IsNullOrEmpty(rootPath) && rootPath != "PC")
+                {
+                    _settings.LastSessionPath = rootPath;
                 }
             }
             catch { /* ignore save errors during close */ }
@@ -561,6 +581,14 @@ namespace Span
             switch (behavior)
             {
                 case 0: // Restore last session
+                    var lastViewMode = _settings.LastSessionViewMode;
+                    if (lastViewMode == Models.ViewMode.Home.ToString())
+                    {
+                        ViewModel.SwitchViewMode(Models.ViewMode.Home);
+                        Helpers.DebugLogger.Log("[MainWindow] Restored session: Home mode");
+                        return;
+                    }
+
                     var lastPath = _settings.LastSessionPath;
                     if (!string.IsNullOrEmpty(lastPath) && System.IO.Directory.Exists(lastPath))
                     {
@@ -569,7 +597,8 @@ namespace Span
                         Helpers.DebugLogger.Log($"[MainWindow] Restored session path: {lastPath}");
                     }
                     break;
-                case 1: // Home — do nothing (default behavior)
+                case 1: // Home
+                    ViewModel.SwitchViewMode(Models.ViewMode.Home);
                     break;
                 case 2: // Custom folder — future: add CustomStartupFolder setting
                     break;

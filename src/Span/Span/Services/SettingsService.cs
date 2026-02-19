@@ -135,6 +135,12 @@ public class SettingsService
         set => Set("LastSessionPath", value);
     }
 
+    public string LastSessionViewMode
+    {
+        get => Get("LastSessionViewMode", "");
+        set => Set("LastSessionViewMode", value);
+    }
+
     public string Language
     {
         get => Get("Language", "system");
