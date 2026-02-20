@@ -5654,18 +5654,54 @@ namespace Span
 
         /// <summary>
         /// Auto-scroll breadcrumb to the right end so the last segment is fully visible.
+        /// Also defers overflow indicator update after scroll completes.
         /// </summary>
         private void OnBreadcrumbScrollerSizeChanged(object sender, SizeChangedEventArgs e)
         {
             if (sender is ScrollViewer sv)
+            {
                 sv.ChangeView(sv.ScrollableWidth, null, null, true);
+                DispatcherQueue.TryEnqueue(() => UpdateBreadcrumbOverflow(sv));
+            }
         }
 
         private void OnBreadcrumbContentSizeChanged(object sender, SizeChangedEventArgs e)
         {
             // When breadcrumb content changes, scroll to show the last segment
             if (sender is FrameworkElement fe && fe.Parent is ScrollViewer sv)
+            {
                 sv.ChangeView(sv.ScrollableWidth, null, null, true);
+                DispatcherQueue.TryEnqueue(() => UpdateBreadcrumbOverflow(sv));
+            }
+        }
+
+        /// <summary>
+        /// Update overflow indicator visibility when breadcrumb is scrolled.
+        /// Shows "…" at the left edge when earlier path segments are hidden.
+        /// </summary>
+        private void OnBreadcrumbScrollerViewChanged(object? sender, ScrollViewerViewChangedEventArgs e)
+        {
+            if (sender is ScrollViewer sv)
+                UpdateBreadcrumbOverflow(sv);
+        }
+
+        /// <summary>
+        /// Show/hide the overflow "…" indicator based on scroll position.
+        /// When HorizontalOffset > 0, leftmost segments are hidden → show indicator.
+        /// </summary>
+        private static void UpdateBreadcrumbOverflow(ScrollViewer sv)
+        {
+            if (sv.Parent is not Grid grid) return;
+            foreach (var child in grid.Children)
+            {
+                if (child is Border border && border.Tag as string == "overflow")
+                {
+                    border.Visibility = sv.HorizontalOffset > 0
+                        ? Visibility.Visible
+                        : Visibility.Collapsed;
+                    break;
+                }
+            }
         }
 
         /// <summary>

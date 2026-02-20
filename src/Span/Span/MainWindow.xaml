@@ -146,7 +146,8 @@
                 <ScrollViewer x:Name="AddressBreadcrumbScroller" Grid.Column="0"
                               HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled"
                               HorizontalScrollMode="Auto" VerticalScrollMode="Disabled"
-                              SizeChanged="OnBreadcrumbScrollerSizeChanged">
+                              SizeChanged="OnBreadcrumbScrollerSizeChanged"
+                              ViewChanged="OnBreadcrumbScrollerViewChanged">
                     <ItemsRepeater x:Name="AddressBreadcrumbBar" VerticalAlignment="Center"
                                    SizeChanged="OnBreadcrumbContentSizeChanged">
                         <ItemsRepeater.Layout>
@@ -155,16 +156,12 @@
                         <ItemsRepeater.ItemTemplate>
                             <DataTemplate x:DataType="models:PathSegment">
                                 <StackPanel Orientation="Horizontal">
-                                    <Button Tag="{x:Bind FullPath}"
+                                    <Button Content="{x:Bind Name}" Tag="{x:Bind FullPath}"
                                             Click="OnPaneBreadcrumbClick"
                                             Background="Transparent" BorderThickness="0"
                                             Padding="6,4" MinWidth="0" MinHeight="0" CornerRadius="3"
-                                            VerticalAlignment="Center"
-                                            ToolTipService.ToolTip="{x:Bind Name}">
-                                        <TextBlock Text="{x:Bind Name}" FontSize="12"
-                                                   Foreground="{ThemeResource SpanTextSecondaryBrush}"
-                                                   MaxWidth="180" TextTrimming="CharacterEllipsis"/>
-                                    </Button>
+                                            FontSize="12" VerticalAlignment="Center"
+                                            Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
                                     <Button Tag="{x:Bind FullPath}"
                                             Click="OnBreadcrumbChevronClick"
                                             Background="Transparent" BorderThickness="0"
@@ -180,6 +177,20 @@
                         </ItemsRepeater.ItemTemplate>
                     </ItemsRepeater>
                 </ScrollViewer>
+                <!-- Breadcrumb overflow indicator (left fade + ellipsis) -->
+                <Border Grid.Column="0" Tag="overflow" HorizontalAlignment="Left"
+                        VerticalAlignment="Stretch" Visibility="Collapsed"
+                        IsHitTestVisible="False" Padding="4,0,12,0">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
+                            <GradientStop Color="{StaticResource SpanBgLayer2Color}" Offset="0"/>
+                            <GradientStop Color="{StaticResource SpanBgLayer2Color}" Offset="0.5"/>
+                            <GradientStop Color="#00383838" Offset="1"/>
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    <TextBlock Text="&#x2026;" FontSize="12" VerticalAlignment="Center"
+                               Foreground="{ThemeResource SpanTextTertiaryBrush}"/>
+                </Border>
 
                 <!-- 텍스트 편집 모드 (클릭 시 전환) — AutoSuggestBox for path autocomplete -->
                 <AutoSuggestBox x:Name="AddressBarAutoSuggest" Grid.Column="0" Visibility="Collapsed"
@@ -524,24 +535,23 @@
                         </StackPanel>
                         <!-- Breadcrumb -->
                         <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled"
-                                      HorizontalScrollMode="Auto" VerticalScrollMode="Disabled" Padding="2,6,2,0">
-                            <ItemsRepeater x:Name="LeftPaneBreadcrumbRepeater">
+                                      HorizontalScrollMode="Auto" VerticalScrollMode="Disabled" Padding="2,6,2,0"
+                                      SizeChanged="OnBreadcrumbScrollerSizeChanged"
+                                      ViewChanged="OnBreadcrumbScrollerViewChanged">
+                            <ItemsRepeater x:Name="LeftPaneBreadcrumbRepeater"
+                                           SizeChanged="OnBreadcrumbContentSizeChanged">
                                 <ItemsRepeater.Layout>
                                     <StackLayout Orientation="Horizontal" Spacing="0"/>
                                 </ItemsRepeater.Layout>
                                 <ItemsRepeater.ItemTemplate>
                                     <DataTemplate x:DataType="models:PathSegment">
                                         <StackPanel Orientation="Horizontal">
-                                            <Button Tag="{x:Bind FullPath}"
+                                            <Button Content="{x:Bind Name}" Tag="{x:Bind FullPath}"
                                                     Click="OnPaneBreadcrumbClick"
                                                     Background="Transparent" BorderThickness="0"
                                                     Padding="6,2" MinWidth="0" MinHeight="0" CornerRadius="3"
-                                                    VerticalAlignment="Center"
-                                                    ToolTipService.ToolTip="{x:Bind Name}">
-                                                <TextBlock Text="{x:Bind Name}" FontSize="11"
-                                                           Foreground="{ThemeResource SpanTextSecondaryBrush}"
-                                                           MaxWidth="140" TextTrimming="CharacterEllipsis"/>
-                                            </Button>
+                                                    FontSize="11" VerticalAlignment="Center"
+                                                    Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
                                             <Button Tag="{x:Bind FullPath}"
                                                     Click="OnBreadcrumbChevronClick"
                                                     Background="Transparent" BorderThickness="0"
@@ -557,6 +567,20 @@
                                 </ItemsRepeater.ItemTemplate>
                             </ItemsRepeater>
                         </ScrollViewer>
+                        <!-- Breadcrumb overflow indicator -->
+                        <Border Grid.Column="1" Tag="overflow" HorizontalAlignment="Left"
+                                VerticalAlignment="Stretch" Visibility="Collapsed"
+                                IsHitTestVisible="False" Padding="2,0,10,0" Margin="0,6,0,0">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
+                                    <GradientStop Color="{StaticResource SpanBgLayer2Color}" Offset="0"/>
+                                    <GradientStop Color="{StaticResource SpanBgLayer2Color}" Offset="0.5"/>
+                                    <GradientStop Color="#00383838" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <TextBlock Text="&#x2026;" FontSize="11" VerticalAlignment="Center"
+                                       Foreground="{ThemeResource SpanTextTertiaryBrush}"/>
+                        </Border>
                         <!-- Pane actions: CopyPath | Sort, ViewMode, Preview -->
                         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="0" VerticalAlignment="Center" Margin="0,0,2,0">
                             <!-- CopyPath -->
@@ -948,24 +972,23 @@
                         </StackPanel>
                         <!-- Breadcrumb -->
                         <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled"
-                                      HorizontalScrollMode="Auto" VerticalScrollMode="Disabled" Padding="2,6,2,0">
-                            <ItemsRepeater ItemsSource="{x:Bind ViewModel.RightExplorer.PathSegments, Mode=OneWay}">
+                                      HorizontalScrollMode="Auto" VerticalScrollMode="Disabled" Padding="2,6,2,0"
+                                      SizeChanged="OnBreadcrumbScrollerSizeChanged"
+                                      ViewChanged="OnBreadcrumbScrollerViewChanged">
+                            <ItemsRepeater ItemsSource="{x:Bind ViewModel.RightExplorer.PathSegments, Mode=OneWay}"
+                                           SizeChanged="OnBreadcrumbContentSizeChanged">
                                 <ItemsRepeater.Layout>
                                     <StackLayout Orientation="Horizontal" Spacing="0"/>
                                 </ItemsRepeater.Layout>
                                 <ItemsRepeater.ItemTemplate>
                                     <DataTemplate x:DataType="models:PathSegment">
                                         <StackPanel Orientation="Horizontal">
-                                            <Button Tag="{x:Bind FullPath}"
+                                            <Button Content="{x:Bind Name}" Tag="{x:Bind FullPath}"
                                                     Click="OnPaneBreadcrumbClick"
                                                     Background="Transparent" BorderThickness="0"
                                                     Padding="6,2" MinWidth="0" MinHeight="0" CornerRadius="3"
-                                                    VerticalAlignment="Center"
-                                                    ToolTipService.ToolTip="{x:Bind Name}">
-                                                <TextBlock Text="{x:Bind Name}" FontSize="11"
-                                                           Foreground="{ThemeResource SpanTextSecondaryBrush}"
-                                                           MaxWidth="140" TextTrimming="CharacterEllipsis"/>
-                                            </Button>
+                                                    FontSize="11" VerticalAlignment="Center"
+                                                    Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
                                             <Button Tag="{x:Bind FullPath}"
                                                     Click="OnBreadcrumbChevronClick"
                                                     Background="Transparent" BorderThickness="0"
@@ -981,6 +1004,20 @@
                                 </ItemsRepeater.ItemTemplate>
                             </ItemsRepeater>
                         </ScrollViewer>
+                        <!-- Breadcrumb overflow indicator -->
+                        <Border Grid.Column="1" Tag="overflow" HorizontalAlignment="Left"
+                                VerticalAlignment="Stretch" Visibility="Collapsed"
+                                IsHitTestVisible="False" Padding="2,0,10,0" Margin="0,6,0,0">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
+                                    <GradientStop Color="{StaticResource SpanBgLayer2Color}" Offset="0"/>
+                                    <GradientStop Color="{StaticResource SpanBgLayer2Color}" Offset="0.5"/>
+                                    <GradientStop Color="#00383838" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <TextBlock Text="&#x2026;" FontSize="11" VerticalAlignment="Center"
+                                       Foreground="{ThemeResource SpanTextTertiaryBrush}"/>
+                        </Border>
                         <!-- Pane actions: CopyPath | Sort, ViewMode, Preview -->
                         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="0" VerticalAlignment="Center" Margin="0,0,2,0">
                             <!-- CopyPath -->
