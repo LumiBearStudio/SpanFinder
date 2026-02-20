@@ -5653,6 +5653,22 @@ namespace Span
         }
 
         /// <summary>
+        /// Auto-scroll breadcrumb to the right end so the last segment is fully visible.
+        /// </summary>
+        private void OnBreadcrumbScrollerSizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            if (sender is ScrollViewer sv)
+                sv.ChangeView(sv.ScrollableWidth, null, null, true);
+        }
+
+        private void OnBreadcrumbContentSizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            // When breadcrumb content changes, scroll to show the last segment
+            if (sender is FrameworkElement fe && fe.Parent is ScrollViewer sv)
+                sv.ChangeView(sv.ScrollableWidth, null, null, true);
+        }
+
+        /// <summary>
         /// Breadcrumb click in per-pane path header.
         /// Detects which pane the button belongs to and navigates accordingly.
         /// </summary>

@@ -650,6 +650,8 @@ namespace Span.ViewModels
         /// </summary>
         private void UpdatePathHighlights()
         {
+            var accentBrush = FileSystemViewModel.GetAccentDimBrush();
+
             for (int i = 0; i < Columns.Count; i++)
             {
                 var column = Columns[i];
@@ -657,7 +659,9 @@ namespace Span.ViewModels
 
                 foreach (var child in column.Children)
                 {
-                    child.IsOnPath = isParentColumn && child == column.SelectedChild;
+                    bool onPath = isParentColumn && child == column.SelectedChild;
+                    child.IsOnPath = onPath;
+                    child.PathBackground = onPath ? accentBrush : FileSystemViewModel.TransparentBrush;
                 }
             }
         }

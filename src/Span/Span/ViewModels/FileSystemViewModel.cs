@@ -19,7 +19,6 @@ namespace Span.ViewModels
         /// Used to show a dimmed highlight in non-active columns for breadcrumb trail visualization.
         /// </summary>
         [ObservableProperty]
-        [NotifyPropertyChangedFor(nameof(PathBackground))]
         private bool _isOnPath;
 
         [ObservableProperty]
@@ -270,31 +269,29 @@ namespace Span.ViewModels
         public static Microsoft.UI.Xaml.Visibility NotRenaming(bool isRenaming)
             => isRenaming ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible;
 
-        private static Microsoft.UI.Xaml.Media.Brush? _cachedAccentDimBrush;
-        private static readonly Microsoft.UI.Xaml.Media.SolidColorBrush _transparentBrush = new(Microsoft.UI.Colors.Transparent);
-
         /// <summary>
-        /// Direct property for path highlight background.
-        /// Returns SpanAccentDimBrush for on-path items, Transparent otherwise.
-        /// Bound directly in XAML (more reliable than x:Bind function parameter tracking).
+        /// Brush for path highlight background, set directly by UpdatePathHighlights().
+        /// Using [ObservableProperty] for reliable PropertyChanged notification.
         /// </summary>
-        public Microsoft.UI.Xaml.Media.Brush PathBackground
+        [ObservableProperty]
+        private Microsoft.UI.Xaml.Media.Brush _pathBackground = TransparentBrush;
+
+        private static Microsoft.UI.Xaml.Media.Brush? _cachedAccentDimBrush;
+        internal static readonly Microsoft.UI.Xaml.Media.SolidColorBrush TransparentBrush = new(Microsoft.UI.Colors.Transparent);
+
+        internal static Microsoft.UI.Xaml.Media.Brush GetAccentDimBrush()
         {
-            get
+            if (_cachedAccentDimBrush != null) return _cachedAccentDimBrush;
+            try
             {
-                if (!IsOnPath) return _transparentBrush;
-                if (_cachedAccentDimBrush != null) return _cachedAccentDimBrush;
-                try
+                if (Microsoft.UI.Xaml.Application.Current.Resources.TryGetValue("SpanAccentDimBrush", out var brush))
                 {
-                    if (Microsoft.UI.Xaml.Application.Current.Resources.TryGetValue("SpanAccentDimBrush", out var brush))
-                    {
-                        _cachedAccentDimBrush = (Microsoft.UI.Xaml.Media.Brush)brush;
-                        return _cachedAccentDimBrush;
-                    }
+                    _cachedAccentDimBrush = (Microsoft.UI.Xaml.Media.Brush)brush;
+                    return _cachedAccentDimBrush;
                 }
-                catch { }
-                return _transparentBrush;
             }
+            catch { }
+            return TransparentBrush;
         }
 
         /// <summary>

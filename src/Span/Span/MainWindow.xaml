@@ -145,8 +145,10 @@
                 <!-- Breadcrumb with clickable chevron dropdowns -->
                 <ScrollViewer x:Name="AddressBreadcrumbScroller" Grid.Column="0"
                               HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled"
-                              HorizontalScrollMode="Auto" VerticalScrollMode="Disabled">
-                    <ItemsRepeater x:Name="AddressBreadcrumbBar" VerticalAlignment="Center">
+                              HorizontalScrollMode="Auto" VerticalScrollMode="Disabled"
+                              SizeChanged="OnBreadcrumbScrollerSizeChanged">
+                    <ItemsRepeater x:Name="AddressBreadcrumbBar" VerticalAlignment="Center"
+                                   SizeChanged="OnBreadcrumbContentSizeChanged">
                         <ItemsRepeater.Layout>
                             <StackLayout Orientation="Horizontal" Spacing="0"/>
                         </ItemsRepeater.Layout>
