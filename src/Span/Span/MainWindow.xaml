@@ -153,12 +153,16 @@
                         <ItemsRepeater.ItemTemplate>
                             <DataTemplate x:DataType="models:PathSegment">
                                 <StackPanel Orientation="Horizontal">
-                                    <Button Content="{x:Bind Name}" Tag="{x:Bind FullPath}"
+                                    <Button Tag="{x:Bind FullPath}"
                                             Click="OnPaneBreadcrumbClick"
                                             Background="Transparent" BorderThickness="0"
                                             Padding="6,4" MinWidth="0" MinHeight="0" CornerRadius="3"
-                                            FontSize="12" VerticalAlignment="Center"
-                                            Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
+                                            VerticalAlignment="Center"
+                                            ToolTipService.ToolTip="{x:Bind Name}">
+                                        <TextBlock Text="{x:Bind Name}" FontSize="12"
+                                                   Foreground="{ThemeResource SpanTextSecondaryBrush}"
+                                                   MaxWidth="180" TextTrimming="CharacterEllipsis"/>
+                                    </Button>
                                     <Button Tag="{x:Bind FullPath}"
                                             Click="OnBreadcrumbChevronClick"
                                             Background="Transparent" BorderThickness="0"
@@ -526,12 +530,16 @@
                                 <ItemsRepeater.ItemTemplate>
                                     <DataTemplate x:DataType="models:PathSegment">
                                         <StackPanel Orientation="Horizontal">
-                                            <Button Content="{x:Bind Name}" Tag="{x:Bind FullPath}"
+                                            <Button Tag="{x:Bind FullPath}"
                                                     Click="OnPaneBreadcrumbClick"
                                                     Background="Transparent" BorderThickness="0"
                                                     Padding="6,2" MinWidth="0" MinHeight="0" CornerRadius="3"
-                                                    FontSize="11" VerticalAlignment="Center"
-                                                    Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
+                                                    VerticalAlignment="Center"
+                                                    ToolTipService.ToolTip="{x:Bind Name}">
+                                                <TextBlock Text="{x:Bind Name}" FontSize="11"
+                                                           Foreground="{ThemeResource SpanTextSecondaryBrush}"
+                                                           MaxWidth="140" TextTrimming="CharacterEllipsis"/>
+                                            </Button>
                                             <Button Tag="{x:Bind FullPath}"
                                                     Click="OnBreadcrumbChevronClick"
                                                     Background="Transparent" BorderThickness="0"
@@ -675,7 +683,7 @@
                                                                             <DataTemplate x:DataType="viewmodels:FolderViewModel">
                                                                                 <Grid Padding="12,4" RightTapped="OnFolderRightTapped"
                                                                                       ToolTipService.ToolTip="{x:Bind TooltipText}"
-                                                                                      Background="{x:Bind viewmodels:FileSystemViewModel.PathHighlightBrush(IsOnPath), Mode=OneWay}"
+                                                                                      Background="{x:Bind PathBackground, Mode=OneWay}"
                                                                                       CornerRadius="4" Margin="2,0"
                                                                                       AllowDrop="True" DragOver="OnFolderItemDragOver" Drop="OnFolderItemDrop" DragLeave="OnFolderItemDragLeave">
                                                                                     <Grid.ColumnDefinitions>
@@ -703,7 +711,7 @@
                                                                             <DataTemplate x:DataType="viewmodels:FileViewModel">
                                                                                 <Grid Padding="12,4" RightTapped="OnFileRightTapped"
                                                                                       ToolTipService.ToolTip="{x:Bind TooltipText}"
-                                                                                      Background="{x:Bind viewmodels:FileSystemViewModel.PathHighlightBrush(IsOnPath), Mode=OneWay}"
+                                                                                      Background="{x:Bind PathBackground, Mode=OneWay}"
                                                                                       CornerRadius="4" Margin="2,0">
                                                                                     <Grid.ColumnDefinitions>
                                                                                         <ColumnDefinition Width="Auto"/>
@@ -946,12 +954,16 @@
                                 <ItemsRepeater.ItemTemplate>
                                     <DataTemplate x:DataType="models:PathSegment">
                                         <StackPanel Orientation="Horizontal">
-                                            <Button Content="{x:Bind Name}" Tag="{x:Bind FullPath}"
+                                            <Button Tag="{x:Bind FullPath}"
                                                     Click="OnPaneBreadcrumbClick"
                                                     Background="Transparent" BorderThickness="0"
                                                     Padding="6,2" MinWidth="0" MinHeight="0" CornerRadius="3"
-                                                    FontSize="11" VerticalAlignment="Center"
-                                                    Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
+                                                    VerticalAlignment="Center"
+                                                    ToolTipService.ToolTip="{x:Bind Name}">
+                                                <TextBlock Text="{x:Bind Name}" FontSize="11"
+                                                           Foreground="{ThemeResource SpanTextSecondaryBrush}"
+                                                           MaxWidth="140" TextTrimming="CharacterEllipsis"/>
+                                            </Button>
                                             <Button Tag="{x:Bind FullPath}"
                                                     Click="OnBreadcrumbChevronClick"
                                                     Background="Transparent" BorderThickness="0"
@@ -1092,7 +1104,7 @@
                                                                             <DataTemplate x:DataType="viewmodels:FolderViewModel">
                                                                                 <Grid Padding="12,4" RightTapped="OnFolderRightTapped"
                                                                                       ToolTipService.ToolTip="{x:Bind TooltipText}"
-                                                                                      Background="{x:Bind viewmodels:FileSystemViewModel.PathHighlightBrush(IsOnPath), Mode=OneWay}"
+                                                                                      Background="{x:Bind PathBackground, Mode=OneWay}"
                                                                                       CornerRadius="4" Margin="2,0"
                                                                                       AllowDrop="True" DragOver="OnFolderItemDragOver" Drop="OnFolderItemDrop" DragLeave="OnFolderItemDragLeave">
                                                                                     <Grid.ColumnDefinitions>
@@ -1120,7 +1132,7 @@
                                                                             <DataTemplate x:DataType="viewmodels:FileViewModel">
                                                                                 <Grid Padding="12,4" RightTapped="OnFileRightTapped"
                                                                                       ToolTipService.ToolTip="{x:Bind TooltipText}"
-                                                                                      Background="{x:Bind viewmodels:FileSystemViewModel.PathHighlightBrush(IsOnPath), Mode=OneWay}"
+                                                                                      Background="{x:Bind PathBackground, Mode=OneWay}"
                                                                                       CornerRadius="4" Margin="2,0">
                                                                                     <Grid.ColumnDefinitions>
                                                                                         <ColumnDefinition Width="Auto"/>

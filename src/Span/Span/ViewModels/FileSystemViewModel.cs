@@ -19,6 +19,7 @@ namespace Span.ViewModels
         /// Used to show a dimmed highlight in non-active columns for breadcrumb trail visualization.
         /// </summary>
         [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(PathBackground))]
         private bool _isOnPath;
 
         [ObservableProperty]
@@ -269,23 +270,31 @@ namespace Span.ViewModels
         public static Microsoft.UI.Xaml.Visibility NotRenaming(bool isRenaming)
             => isRenaming ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible;
 
+        private static Microsoft.UI.Xaml.Media.Brush? _cachedAccentDimBrush;
+        private static readonly Microsoft.UI.Xaml.Media.SolidColorBrush _transparentBrush = new(Microsoft.UI.Colors.Transparent);
+
         /// <summary>
-        /// XAML x:Bind: show path highlight background when item is on the active navigation path.
+        /// Direct property for path highlight background.
         /// Returns SpanAccentDimBrush for on-path items, Transparent otherwise.
+        /// Bound directly in XAML (more reliable than x:Bind function parameter tracking).
         /// </summary>
-        public static Microsoft.UI.Xaml.Media.Brush PathHighlightBrush(bool isOnPath)
+        public Microsoft.UI.Xaml.Media.Brush PathBackground
         {
-            if (isOnPath)
+            get
             {
+                if (!IsOnPath) return _transparentBrush;
+                if (_cachedAccentDimBrush != null) return _cachedAccentDimBrush;
                 try
                 {
                     if (Microsoft.UI.Xaml.Application.Current.Resources.TryGetValue("SpanAccentDimBrush", out var brush))
-                        return (Microsoft.UI.Xaml.Media.Brush)brush;
+                    {
+                        _cachedAccentDimBrush = (Microsoft.UI.Xaml.Media.Brush)brush;
+                        return _cachedAccentDimBrush;
+                    }
                 }
                 catch { }
-                return new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
+                return _transparentBrush;
             }
-            return new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
         }
 
         /// <summary>

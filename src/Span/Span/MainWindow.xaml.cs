@@ -6165,6 +6165,15 @@ namespace Span
                 return;
             }
 
+            // Don't show inline preview when the right-side preview panel is already active
+            bool previewPaneActive = (ViewModel.ActivePane == ActivePane.Left && ViewModel.IsLeftPreviewEnabled)
+                                  || (ViewModel.ActivePane == ActivePane.Right && ViewModel.IsRightPreviewEnabled);
+            if (previewPaneActive)
+            {
+                InlinePreviewColumn.Visibility = Visibility.Collapsed;
+                return;
+            }
+
             // Show the column and populate basic info
             InlinePreviewColumn.Visibility = Visibility.Visible;
 
