@@ -1,3 +1,5 @@
+using System.Threading;
+
 namespace Span.Services.FileOperations;
 
 /// <summary>
@@ -31,4 +33,18 @@ public interface IFileOperation
     /// <param name="cancellationToken">Token to cancel the undo operation.</param>
     /// <returns>The result of the undo operation.</returns>
     Task<OperationResult> UndoAsync(CancellationToken cancellationToken = default);
+}
+
+/// <summary>
+/// Interface for file operations that support pausing via ManualResetEventSlim.
+/// The pause event is injected by the FileOperationManager before execution begins.
+/// </summary>
+public interface IPausableOperation
+{
+    /// <summary>
+    /// Sets the pause event that this operation should check between I/O chunks.
+    /// When the event is reset (not signaled), the operation blocks until resumed.
+    /// </summary>
+    /// <param name="pauseEvent">The ManualResetEventSlim controlling pause/resume.</param>
+    void SetPauseEvent(ManualResetEventSlim pauseEvent);
 }

@@ -8,6 +8,7 @@
     xmlns:views="using:Span.Views"
     xmlns:helpers="using:Span.Helpers"
     xmlns:controls="using:CommunityToolkit.WinUI.Controls"
+    xmlns:spancontrols="using:Span.Views.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
@@ -313,8 +314,9 @@
                 </Button>
 
                 <Rectangle Width="1" Height="20" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="4,0"/>
-                <TextBox x:Name="SearchBox" Width="200" Height="28" FontSize="12"
-                         PlaceholderText="검색 (Ctrl+F)"
+                <TextBox x:Name="SearchBox" Width="220" Height="28" FontSize="12"
+                         PlaceholderText="Search (kind: size: ext: date:)"
+                         ToolTipService.ToolTip="Advanced search syntax:&#x0a;  kind:image  kind:video  kind:document&#x0a;  size:&gt;1MB  size:&lt;100KB  size:large&#x0a;  date:today  date:thisweek  date:&gt;2024-01-01&#x0a;  ext:.pdf  ext:.txt&#x0a;Combine: kind:image size:&gt;1MB"
                          KeyDown="OnSearchBoxKeyDown"/>
 
                 <Rectangle Width="1" Height="20" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="4,0"/>
@@ -631,6 +633,7 @@
                                               HorizontalScrollBarVisibility="Auto"
                                               VerticalScrollBarVisibility="Disabled"
                                               >
+                                    <StackPanel Orientation="Horizontal">
                                     <ItemsControl x:Name="MillerColumnsControl">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>
@@ -672,27 +675,36 @@
                                                                             <DataTemplate x:DataType="viewmodels:FolderViewModel">
                                                                                 <Grid Padding="12,4" RightTapped="OnFolderRightTapped"
                                                                                       ToolTipService.ToolTip="{x:Bind TooltipText}"
+                                                                                      Background="{x:Bind viewmodels:FileSystemViewModel.PathHighlightBrush(IsOnPath), Mode=OneWay}"
+                                                                                      CornerRadius="4" Margin="2,0"
                                                                                       AllowDrop="True" DragOver="OnFolderItemDragOver" Drop="OnFolderItemDrop" DragLeave="OnFolderItemDragLeave">
                                                                                     <Grid.ColumnDefinitions>
                                                                                         <ColumnDefinition Width="Auto"/>
                                                                                         <ColumnDefinition Width="*"/>
                                                                                         <ColumnDefinition Width="Auto"/>
+                                                                                        <ColumnDefinition Width="Auto"/>
                                                                                     </Grid.ColumnDefinitions>
                                                                                     <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Folder}" FontSize="16" Foreground="{x:Bind IconBrush}" Margin="0,0,12,0"/>
-                                                                                    <TextBlock Grid.Column="1" Text="{x:Bind DisplayName, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                                                    <TextBlock Grid.Column="1" Text="{x:Bind TruncatedDisplayName, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                                                                                Visibility="{x:Bind viewmodels:FileSystemViewModel.NotRenaming(IsRenaming), Mode=OneWay}"/>
                                                                                     <TextBox Grid.Column="1" Text="{x:Bind EditableName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                                                              Visibility="{x:Bind IsRenaming, Mode=OneWay}"
                                                                                              VerticalAlignment="Center" Padding="2" MinHeight="0" FontSize="13"
                                                                                              LostFocus="OnRenameTextBoxLostFocus" KeyDown="OnRenameTextBoxKeyDown"/>
-                                                                                    <FontIcon Grid.Column="2" FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_ChevronRight}" FontSize="10" Foreground="{ThemeResource SpanTextTertiaryBrush}" Opacity="0.5"/>
+                                                                                    <!-- Item count badge -->
+                                                                                    <TextBlock Grid.Column="2" Text="{x:Bind ChildCountText, Mode=OneWay}" VerticalAlignment="Center"
+                                                                                               FontSize="10" Foreground="{ThemeResource SpanTextTertiaryBrush}" Margin="4,0,4,0"
+                                                                                               Visibility="{x:Bind viewmodels:FileSystemViewModel.NotRenaming(IsRenaming), Mode=OneWay}"/>
+                                                                                    <FontIcon Grid.Column="3" FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_ChevronRight}" FontSize="10" Foreground="{ThemeResource SpanTextTertiaryBrush}" Opacity="0.5"/>
                                                                                 </Grid>
                                                                             </DataTemplate>
                                                                         </local:FileSystemItemTemplateSelector.FolderTemplate>
                                                                         <local:FileSystemItemTemplateSelector.FileTemplate>
                                                                             <DataTemplate x:DataType="viewmodels:FileViewModel">
                                                                                 <Grid Padding="12,4" RightTapped="OnFileRightTapped"
-                                                                                      ToolTipService.ToolTip="{x:Bind TooltipText}">
+                                                                                      ToolTipService.ToolTip="{x:Bind TooltipText}"
+                                                                                      Background="{x:Bind viewmodels:FileSystemViewModel.PathHighlightBrush(IsOnPath), Mode=OneWay}"
+                                                                                      CornerRadius="4" Margin="2,0">
                                                                                     <Grid.ColumnDefinitions>
                                                                                         <ColumnDefinition Width="Auto"/>
                                                                                         <ColumnDefinition Width="*"/>
@@ -703,7 +715,7 @@
                                                                                         <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{x:Bind IconGlyph}" FontSize="16" Foreground="{x:Bind IconBrush}"
                                                                                                   Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfFalse(HasThumbnail), Mode=OneWay}"/>
                                                                                     </Grid>
-                                                                                    <TextBlock Grid.Column="1" Text="{x:Bind DisplayName, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                                                    <TextBlock Grid.Column="1" Text="{x:Bind TruncatedDisplayName, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                                                                                Visibility="{x:Bind viewmodels:FileSystemViewModel.NotRenaming(IsRenaming), Mode=OneWay}"/>
                                                                                     <TextBox Grid.Column="1" Text="{x:Bind EditableName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                                                              Visibility="{x:Bind IsRenaming, Mode=OneWay}"
@@ -728,7 +740,8 @@
                                                            PointerExited="OnColumnResizeGripPointerExited"
                                                            PointerPressed="OnColumnResizeGripPointerPressed"
                                                            PointerMoved="OnColumnResizeGripPointerMoved"
-                                                           PointerReleased="OnColumnResizeGripPointerReleased"/>
+                                                           PointerReleased="OnColumnResizeGripPointerReleased"
+                                                           DoubleTapped="OnColumnResizeGripDoubleTapped"/>
                                                 <!-- Column border line -->
                                                 <Rectangle Grid.Column="1" Width="1" HorizontalAlignment="Center"
                                                            Fill="{ThemeResource SpanBorderSubtleBrush}" IsHitTestVisible="False"/>
@@ -736,6 +749,111 @@
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
+
+                                    <!-- Inline Preview Column (appears when file is selected in Miller Columns) -->
+                                    <Border x:Name="InlinePreviewColumn"
+                                            Width="{StaticResource PreviewWidth}"
+                                            Background="{ThemeResource SpanBgLayer2Brush}"
+                                            BorderBrush="{ThemeResource SpanBorderSubtleBrush}"
+                                            BorderThickness="1,0,0,0"
+                                            Visibility="Collapsed">
+                                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                            <StackPanel x:Name="InlinePreviewContent" Padding="16" Spacing="12">
+                                                <!-- File Icon (large) -->
+                                                <Grid HorizontalAlignment="Center" Margin="0,16,0,4">
+                                                    <Image x:Name="InlinePreviewThumbnail" Stretch="Uniform"
+                                                           MaxWidth="200" MaxHeight="160"
+                                                           HorizontalAlignment="Center"
+                                                           Visibility="Collapsed"/>
+                                                    <FontIcon x:Name="InlinePreviewIcon"
+                                                              FontFamily="{StaticResource RemixIcons}"
+                                                              FontSize="64" HorizontalAlignment="Center"/>
+                                                </Grid>
+
+                                                <!-- File Name -->
+                                                <TextBlock x:Name="InlinePreviewFileName"
+                                                           TextWrapping="Wrap" TextAlignment="Center"
+                                                           FontWeight="SemiBold" FontSize="14"
+                                                           MaxLines="3" TextTrimming="CharacterEllipsis"
+                                                           HorizontalAlignment="Center"/>
+
+                                                <!-- Image Preview (for image files) -->
+                                                <Image x:Name="InlinePreviewImage"
+                                                       Stretch="Uniform" MaxHeight="300"
+                                                       HorizontalAlignment="Center"
+                                                       Visibility="Collapsed"/>
+
+                                                <!-- Text Preview (for text files) -->
+                                                <Border x:Name="InlinePreviewTextBorder"
+                                                        Background="{ThemeResource SpanBgLayer1Brush}"
+                                                        CornerRadius="4" Padding="8" MaxHeight="200"
+                                                        Visibility="Collapsed">
+                                                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                                                  HorizontalScrollBarVisibility="Auto"
+                                                                  MaxHeight="184">
+                                                        <TextBlock x:Name="InlinePreviewText"
+                                                                   FontFamily="Consolas" FontSize="11"
+                                                                   TextWrapping="Wrap"
+                                                                   IsTextSelectionEnabled="True"
+                                                                   Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
+                                                    </ScrollViewer>
+                                                </Border>
+
+                                                <!-- Separator -->
+                                                <Rectangle Height="1" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="0,4"/>
+
+                                                <!-- Metadata -->
+                                                <StackPanel x:Name="InlinePreviewMetadata" Spacing="2">
+                                                    <!-- File Type -->
+                                                    <Grid Height="24">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="72"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Text="Type" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center"/>
+                                                        <TextBlock x:Name="InlinePreviewFileType" Grid.Column="1" FontSize="12" IsTextSelectionEnabled="True" VerticalAlignment="Center"/>
+                                                    </Grid>
+                                                    <!-- Size -->
+                                                    <Grid Height="24">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="72"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Text="Size" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center"/>
+                                                        <TextBlock x:Name="InlinePreviewFileSize" Grid.Column="1" FontSize="12" IsTextSelectionEnabled="True" VerticalAlignment="Center"/>
+                                                    </Grid>
+                                                    <!-- Modified -->
+                                                    <Grid Height="24">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="72"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Text="Modified" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center"/>
+                                                        <TextBlock x:Name="InlinePreviewDateModified" Grid.Column="1" FontSize="12" IsTextSelectionEnabled="True" VerticalAlignment="Center"/>
+                                                    </Grid>
+                                                    <!-- Created -->
+                                                    <Grid Height="24">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="72"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Text="Created" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center"/>
+                                                        <TextBlock x:Name="InlinePreviewDateCreated" Grid.Column="1" FontSize="12" IsTextSelectionEnabled="True" VerticalAlignment="Center"/>
+                                                    </Grid>
+                                                    <!-- Dimensions (for images) -->
+                                                    <Grid x:Name="InlinePreviewDimensionsRow" Height="24" Visibility="Collapsed">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="72"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Text="Dimensions" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center"/>
+                                                        <TextBlock x:Name="InlinePreviewDimensions" Grid.Column="1" FontSize="12" IsTextSelectionEnabled="True" VerticalAlignment="Center"/>
+                                                    </Grid>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </ScrollViewer>
+                                    </Border>
+                                    </StackPanel>
                             </ScrollViewer>
                             </Grid>
 
@@ -974,27 +1092,36 @@
                                                                             <DataTemplate x:DataType="viewmodels:FolderViewModel">
                                                                                 <Grid Padding="12,4" RightTapped="OnFolderRightTapped"
                                                                                       ToolTipService.ToolTip="{x:Bind TooltipText}"
+                                                                                      Background="{x:Bind viewmodels:FileSystemViewModel.PathHighlightBrush(IsOnPath), Mode=OneWay}"
+                                                                                      CornerRadius="4" Margin="2,0"
                                                                                       AllowDrop="True" DragOver="OnFolderItemDragOver" Drop="OnFolderItemDrop" DragLeave="OnFolderItemDragLeave">
                                                                                     <Grid.ColumnDefinitions>
                                                                                         <ColumnDefinition Width="Auto"/>
                                                                                         <ColumnDefinition Width="*"/>
                                                                                         <ColumnDefinition Width="Auto"/>
+                                                                                        <ColumnDefinition Width="Auto"/>
                                                                                     </Grid.ColumnDefinitions>
                                                                                     <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Folder}" FontSize="16" Foreground="{x:Bind IconBrush}" Margin="0,0,12,0"/>
-                                                                                    <TextBlock Grid.Column="1" Text="{x:Bind DisplayName, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                                                    <TextBlock Grid.Column="1" Text="{x:Bind TruncatedDisplayName, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                                                                                Visibility="{x:Bind viewmodels:FileSystemViewModel.NotRenaming(IsRenaming), Mode=OneWay}"/>
                                                                                     <TextBox Grid.Column="1" Text="{x:Bind EditableName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                                                              Visibility="{x:Bind IsRenaming, Mode=OneWay}"
                                                                                              VerticalAlignment="Center" Padding="2" MinHeight="0" FontSize="13"
                                                                                              LostFocus="OnRenameTextBoxLostFocus" KeyDown="OnRenameTextBoxKeyDown"/>
-                                                                                    <FontIcon Grid.Column="2" FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_ChevronRight}" FontSize="10" Foreground="{ThemeResource SpanTextTertiaryBrush}" Opacity="0.5"/>
+                                                                                    <!-- Item count badge -->
+                                                                                    <TextBlock Grid.Column="2" Text="{x:Bind ChildCountText, Mode=OneWay}" VerticalAlignment="Center"
+                                                                                               FontSize="10" Foreground="{ThemeResource SpanTextTertiaryBrush}" Margin="4,0,4,0"
+                                                                                               Visibility="{x:Bind viewmodels:FileSystemViewModel.NotRenaming(IsRenaming), Mode=OneWay}"/>
+                                                                                    <FontIcon Grid.Column="3" FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_ChevronRight}" FontSize="10" Foreground="{ThemeResource SpanTextTertiaryBrush}" Opacity="0.5"/>
                                                                                 </Grid>
                                                                             </DataTemplate>
                                                                         </local:FileSystemItemTemplateSelector.FolderTemplate>
                                                                         <local:FileSystemItemTemplateSelector.FileTemplate>
                                                                             <DataTemplate x:DataType="viewmodels:FileViewModel">
                                                                                 <Grid Padding="12,4" RightTapped="OnFileRightTapped"
-                                                                                      ToolTipService.ToolTip="{x:Bind TooltipText}">
+                                                                                      ToolTipService.ToolTip="{x:Bind TooltipText}"
+                                                                                      Background="{x:Bind viewmodels:FileSystemViewModel.PathHighlightBrush(IsOnPath), Mode=OneWay}"
+                                                                                      CornerRadius="4" Margin="2,0">
                                                                                     <Grid.ColumnDefinitions>
                                                                                         <ColumnDefinition Width="Auto"/>
                                                                                         <ColumnDefinition Width="*"/>
@@ -1005,7 +1132,7 @@
                                                                                         <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{x:Bind IconGlyph}" FontSize="16" Foreground="{x:Bind IconBrush}"
                                                                                                   Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfFalse(HasThumbnail), Mode=OneWay}"/>
                                                                                     </Grid>
-                                                                                    <TextBlock Grid.Column="1" Text="{x:Bind DisplayName, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                                                    <TextBlock Grid.Column="1" Text="{x:Bind TruncatedDisplayName, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                                                                                Visibility="{x:Bind viewmodels:FileSystemViewModel.NotRenaming(IsRenaming), Mode=OneWay}"/>
                                                                                     <TextBox Grid.Column="1" Text="{x:Bind EditableName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                                                              Visibility="{x:Bind IsRenaming, Mode=OneWay}"
@@ -1030,7 +1157,8 @@
                                                            PointerExited="OnColumnResizeGripPointerExited"
                                                            PointerPressed="OnColumnResizeGripPointerPressed"
                                                            PointerMoved="OnColumnResizeGripPointerMoved"
-                                                           PointerReleased="OnColumnResizeGripPointerReleased"/>
+                                                           PointerReleased="OnColumnResizeGripPointerReleased"
+                                                           DoubleTapped="OnColumnResizeGripDoubleTapped"/>
                                                 <!-- Column border line -->
                                                 <Rectangle Grid.Column="1" Width="1" HorizontalAlignment="Center"
                                                            Fill="{ThemeResource SpanBorderSubtleBrush}" IsHitTestVisible="False"/>
@@ -1096,6 +1224,11 @@
                  <TextBlock Text="{x:Bind ViewModel.StatusViewModeText, Mode=OneWay}" FontSize="11" Foreground="{ThemeResource SpanTextSecondaryBrush}" VerticalAlignment="Center"/>
             </StackPanel>
         </Grid>
+
+        <!-- File Operation Progress Panel (floating bottom-right) -->
+        <spancontrols:FileOperationProgressControl x:Name="FileOpProgressControl" Grid.Row="2"
+                                                    HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                                    Margin="0,0,0,4"/>
 
         <!-- Toast Notification Overlay -->
         <Border x:Name="ToastOverlay" Grid.Row="2"

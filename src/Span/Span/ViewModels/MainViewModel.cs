@@ -88,6 +88,7 @@ namespace Span.ViewModels
         private readonly ActionLogService _actionLogService;
         private readonly FileOperationHistory _operationHistory;
         private readonly FileOperationProgressViewModel _progressViewModel;
+        private readonly FileOperationManager _fileOperationManager;
         private readonly System.Threading.CancellationTokenSource _shutdownCts = new();
         private bool _isCleaningUp = false;
         private const int MaxRecentFolders = 20;
@@ -153,6 +154,7 @@ namespace Span.ViewModels
         public bool IsSwitchingTab { get; private set; }
 
         public FileOperationProgressViewModel ProgressViewModel => _progressViewModel;
+        public FileOperationManager FileOperationManager => _fileOperationManager;
 
         public MainViewModel(FileSystemService fileService, FavoritesService favoritesService, ActionLogService actionLogService)
         {
@@ -161,6 +163,8 @@ namespace Span.ViewModels
             _actionLogService = actionLogService;
             _operationHistory = new FileOperationHistory();
             _progressViewModel = new FileOperationProgressViewModel();
+            _fileOperationManager = App.Current.Services.GetRequiredService<FileOperationManager>();
+            _progressViewModel.OperationManager = _fileOperationManager;
 
             // Apply UndoHistorySize setting
             var settings = App.Current.Services.GetRequiredService<Services.SettingsService>();
@@ -626,6 +630,14 @@ namespace Span.ViewModels
             Helpers.DebugLogger.Log($"[ExecuteFileOperationAsync] START - Operation: {operation.Description}, TargetColumnIndex: {targetColumnIndex}");
             Helpers.DebugLogger.Log($"[ExecuteFileOperationAsync] Columns: {string.Join(" > ", ActiveExplorer.Columns.Select(c => c.Name))}");
 
+            // Copy/Move operations go through the FileOperationManager for concurrent execution
+            // with pause/resume/cancel support. Other operations use the legacy synchronous path.
+            if (operation is CopyFileOperation or MoveFileOperation)
+            {
+                await ExecuteViaConcurrentManagerAsync(operation, targetColumnIndex);
+                return;
+            }
+
             _progressViewModel.IsVisible = true;
             _progressViewModel.OperationDescription = operation.Description;
 
@@ -642,22 +654,7 @@ namespace Span.ViewModels
             Helpers.DebugLogger.Log($"[ExecuteFileOperationAsync] Operation result: Success={result.Success}, Error={result.ErrorMessage}");
 
             // Log operation to action log
-            _actionLogService.LogOperation(new Models.ActionLogEntry
-            {
-                OperationType = operation switch
-                {
-                    CopyFileOperation => "Copy",
-                    MoveFileOperation => "Move",
-                    DeleteFileOperation => "Delete",
-                    RenameFileOperation => "Rename",
-                    _ => operation.GetType().Name.Replace("Operation", "")
-                },
-                Description = operation.Description,
-                Success = result.Success,
-                ErrorMessage = result.ErrorMessage,
-                SourcePaths = result.AffectedPaths,
-                ItemCount = result.AffectedPaths.Count
-            });
+            LogOperationResult(operation, result);
 
             if (result.Success)
             {
@@ -681,6 +678,78 @@ namespace Span.ViewModels
             }
 
             Helpers.DebugLogger.Log($"[ExecuteFileOperationAsync] ===== COMPLETE =====");
+        }
+
+        /// <summary>
+        /// Starts a copy/move operation via the FileOperationManager for concurrent,
+        /// pausable execution. The operation runs in the background and the UI is updated
+        /// via the ActiveOperations collection.
+        /// </summary>
+        private async Task ExecuteViaConcurrentManagerAsync(IFileOperation operation, int? targetColumnIndex)
+        {
+            Helpers.DebugLogger.Log($"[ConcurrentManager] Starting: {operation.Description}");
+
+            // Get the dispatcher queue for this thread (UI thread)
+            var dispatcherQueue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
+
+            var entry = _fileOperationManager.StartOperation(operation, dispatcherQueue);
+            entry.DispatcherQueue = dispatcherQueue;
+
+            // Subscribe to completion for this specific operation
+            void OnCompleted(object? sender, OperationCompletedEventArgs e)
+            {
+                if (e.Entry.Id != entry.Id) return;
+                _fileOperationManager.OperationCompleted -= OnCompleted;
+
+                dispatcherQueue.TryEnqueue(async () =>
+                {
+                    LogOperationResult(operation, e.Result);
+
+                    if (e.Result.Success)
+                    {
+                        // Add to undo history for Ctrl+Z support
+                        if (operation.CanUndo)
+                        {
+                            await _operationHistory.ExecuteAsync(
+                                new CompletedOperationWrapper(operation, e.Result),
+                                null,
+                                default);
+                        }
+
+                        await RefreshCurrentFolderAsync(targetColumnIndex);
+                        ShowToast($"Completed: {operation.Description}");
+                    }
+                    else if (e.Entry.Status != Services.OperationStatus.Cancelled)
+                    {
+                        ShowError(e.Result.ErrorMessage ?? "Operation failed");
+                    }
+                });
+            }
+
+            _fileOperationManager.OperationCompleted += OnCompleted;
+
+            // Don't await the background task - the operation runs concurrently
+            Helpers.DebugLogger.Log($"[ConcurrentManager] Operation started in background: ID={entry.Id}");
+        }
+
+        private void LogOperationResult(IFileOperation operation, OperationResult result)
+        {
+            _actionLogService.LogOperation(new Models.ActionLogEntry
+            {
+                OperationType = operation switch
+                {
+                    CopyFileOperation => "Copy",
+                    MoveFileOperation => "Move",
+                    DeleteFileOperation => "Delete",
+                    RenameFileOperation => "Rename",
+                    _ => operation.GetType().Name.Replace("Operation", "")
+                },
+                Description = operation.Description,
+                Success = result.Success,
+                ErrorMessage = result.ErrorMessage,
+                SourcePaths = result.AffectedPaths,
+                ItemCount = result.AffectedPaths.Count
+            });
         }
 
         private async Task RefreshCurrentFolderAsync(int? columnIndex = null, ExplorerViewModel? explorer = null)

@@ -24,6 +24,19 @@ namespace Span.ViewModels
         public string CurrentFolderName => System.IO.Path.GetFileName(CurrentPath) is string s && !string.IsNullOrEmpty(s) ? s : CurrentPath;
 
         /// <summary>
+        /// The currently selected file (when a file is selected in the last column).
+        /// Used to drive the inline preview column in Miller Columns mode.
+        /// </summary>
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(ShowPreviewColumn))]
+        private FileViewModel? _selectedFile;
+
+        /// <summary>
+        /// True when a file is selected in the last column and the inline preview column should be shown.
+        /// </summary>
+        public bool ShowPreviewColumn => _selectedFile != null;
+
+        /// <summary>
         /// 현재 활성 폴더 (Details/Icon 모드용)
         /// Miller Columns의 마지막 컬럼 반환
         /// </summary>
@@ -86,6 +99,7 @@ namespace Span.ViewModels
         partial void OnCurrentPathChanged(string value)
         {
             UpdatePathSegments(value);
+            UpdatePathHighlights();
         }
 
         // ── Back/Forward Navigation History Methods ──
@@ -378,6 +392,7 @@ namespace Span.ViewModels
 
             AddColumn(rootVm);
             CurrentPath = rootVm.Path;
+            SelectedFile = null;
 
             Helpers.DebugLogger.Log($"[NavigateTo] Navigation complete. Current path: {CurrentPath}");
         }
@@ -473,6 +488,7 @@ namespace Span.ViewModels
 
                 // Set current path to the last successfully loaded column
                 CurrentPath = currentVm.Path;
+                SelectedFile = null;
 
                 Helpers.DebugLogger.Log($"[NavigateToPath] Hierarchy built: {string.Join(" > ", Columns.Select(c => c.Name))}");
             }
@@ -522,7 +538,7 @@ namespace Span.ViewModels
 
                 RemoveColumnsFrom(index + 1);
 
-                // 선택된 폴더의 SelectedChild를 null로 초기화 해야 하위가 안보임? 
+                // 선택된 폴더의 SelectedChild를 null로 초기화 해야 하위가 안보임?
                 // 아니, NavigateTo 로직상 보통 부모에서 얘를 선택한 상태여야 하는데...
                 // 브레드크럼 클릭은 "그 폴더로 이동" 이므로, 그 폴더의 내용을 보여주는게 목적이 아니라
                 // 그 폴더가 "선택된 상태" (= 그 폴더의 내용이 다음 컬럼에 나와야 함?)
@@ -533,6 +549,7 @@ namespace Span.ViewModels
                 // 즉 C로 이동.
 
                 CurrentPath = segment.FullPath;
+                SelectedFile = null;
 
                 // UI 갱신을 위해 PropertyChanged 알림이 필요할 수 있음.
                 // RemoveColumnsFrom 내부에서 CollectionChanged가 발생하므로 UI는 줄어듦.
@@ -599,6 +616,7 @@ namespace Span.ViewModels
             }
 
             CurrentPath = folder.Path;
+            SelectedFile = null;
             Helpers.DebugLogger.Log($"[NavigateIntoFolder] Navigation complete to: {folder.Path}");
         }
 
@@ -624,6 +642,24 @@ namespace Span.ViewModels
         {
             folderVm.PropertyChanged += FolderVm_PropertyChanged;
             Columns.Add(folderVm);
+        }
+
+        /// <summary>
+        /// Update IsOnPath for all items in all columns.
+        /// Items that are the SelectedChild of a non-last column are "on the path".
+        /// </summary>
+        private void UpdatePathHighlights()
+        {
+            for (int i = 0; i < Columns.Count; i++)
+            {
+                var column = Columns[i];
+                bool isParentColumn = i < Columns.Count - 1;
+
+                foreach (var child in column.Children)
+                {
+                    child.IsOnPath = isParentColumn && child == column.SelectedChild;
+                }
+            }
         }
 
         /// <summary>
@@ -704,6 +740,7 @@ namespace Span.ViewModels
                 Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] File selected: {fileVm.Name} - removing columns from {nextIndex}");
                 RemoveColumnsFrom(nextIndex);
                 CurrentPath = fileVm.Path;
+                SelectedFile = fileVm;
                 Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] ===== FILE SELECTION COMPLETE =====");
                 return;
             }
@@ -713,6 +750,7 @@ namespace Span.ViewModels
                 Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Null selection - removing columns from {nextIndex}");
                 RemoveColumnsFrom(nextIndex);
                 CurrentPath = parentFolder.Path;
+                SelectedFile = null;
                 Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] ===== NULL SELECTION COMPLETE =====");
                 return;
             }
@@ -798,6 +836,7 @@ namespace Span.ViewModels
                     }
 
                     CurrentPath = selectedFolder.Path;
+                    SelectedFile = null;
                     Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] CurrentPath updated to: {CurrentPath}");
                     Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Columns: {string.Join(" > ", Columns.Select(c => c.Name))}");
                     Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] ===== FOLDER SELECTION COMPLETE =====");
@@ -847,6 +886,9 @@ namespace Span.ViewModels
                 }
                 Columns.Clear();
             }
+
+            // Clear inline preview state
+            SelectedFile = null;
 
             // Clear navigation history
             _backStack.Clear();

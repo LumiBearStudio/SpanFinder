@@ -23,7 +23,8 @@
               x:Name="HeaderGrid"
               Background="{ThemeResource SpanBgLayer2Brush}"
               BorderBrush="{ThemeResource SpanBorderSubtleBrush}"
-              BorderThickness="0,0,0,1">
+              BorderThickness="0,0,0,1"
+              RightTapped="OnHeaderRightTapped">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="40"/>
                 <ColumnDefinition Width="*" MinWidth="180"/>
@@ -36,27 +37,45 @@
             </Grid.ColumnDefinitions>
 
             <!-- Name Header -->
-            <Button Grid.Column="1"
-                    Content="Name"
-                    Click="OnHeaderClick"
-                    Tag="Name"
-                    HorizontalAlignment="Stretch"
-                    HorizontalContentAlignment="Left"
-                    Background="Transparent"
-                    BorderThickness="0"
-                    Padding="6,0"
-                    Height="20"
-                    FontSize="11"
-                    FontWeight="SemiBold"
-                    Foreground="{ThemeResource SpanTextSecondaryBrush}">
-                <Button.Resources>
-                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Transparent"/>
-                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent"/>
-                </Button.Resources>
-            </Button>
+            <Grid Grid.Column="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Button Grid.Column="0"
+                        Content="Name"
+                        Click="OnHeaderClick"
+                        Tag="Name"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Left"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Padding="6,0"
+                        Height="20"
+                        FontSize="11"
+                        FontWeight="SemiBold"
+                        Foreground="{ThemeResource SpanTextSecondaryBrush}">
+                    <Button.Resources>
+                        <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Transparent"/>
+                        <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent"/>
+                    </Button.Resources>
+                </Button>
+                <Button x:Name="NameFilterButton" Grid.Column="1"
+                        Click="OnFilterButtonClick" Tag="Name"
+                        Background="Transparent" BorderThickness="0"
+                        Width="16" Height="16" Padding="0"
+                        VerticalAlignment="Center" Margin="0,0,2,0"
+                        Opacity="0.5" ToolTipService.ToolTip="Filter Name">
+                    <Button.Resources>
+                        <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Transparent"/>
+                        <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent"/>
+                    </Button.Resources>
+                    <FontIcon Glyph="&#xE16E;" FontSize="9"/>
+                </Button>
+            </Grid>
 
             <!-- Splitter 1: between Name and Date -->
-            <controls:GridSplitter Grid.Column="2"
+            <controls:GridSplitter x:Name="Splitter1" Grid.Column="2"
                                    Width="1"
                                    Padding="0"
                                    Margin="0"
@@ -65,27 +84,45 @@
                                    Background="Transparent"/>
 
             <!-- Date Modified Header -->
-            <Button Grid.Column="3"
-                    Content="Date Modified"
-                    Click="OnHeaderClick"
-                    Tag="DateModified"
-                    HorizontalAlignment="Stretch"
-                    HorizontalContentAlignment="Left"
-                    Background="Transparent"
-                    BorderThickness="0"
-                    Padding="6,0"
-                    Height="20"
-                    FontSize="11"
-                    FontWeight="SemiBold"
-                    Foreground="{ThemeResource SpanTextSecondaryBrush}">
-                <Button.Resources>
-                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Transparent"/>
-                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent"/>
-                </Button.Resources>
-            </Button>
+            <Grid Grid.Column="3" x:Name="DateHeaderContainer">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Button Grid.Column="0"
+                        Content="Date Modified"
+                        Click="OnHeaderClick"
+                        Tag="DateModified"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Left"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Padding="6,0"
+                        Height="20"
+                        FontSize="11"
+                        FontWeight="SemiBold"
+                        Foreground="{ThemeResource SpanTextSecondaryBrush}">
+                    <Button.Resources>
+                        <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Transparent"/>
+                        <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent"/>
+                    </Button.Resources>
+                </Button>
+                <Button x:Name="DateFilterButton" Grid.Column="1"
+                        Click="OnFilterButtonClick" Tag="DateModified"
+                        Background="Transparent" BorderThickness="0"
+                        Width="16" Height="16" Padding="0"
+                        VerticalAlignment="Center" Margin="0,0,2,0"
+                        Opacity="0.5" ToolTipService.ToolTip="Filter Date">
+                    <Button.Resources>
+                        <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Transparent"/>
+                        <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent"/>
+                    </Button.Resources>
+                    <FontIcon Glyph="&#xE16E;" FontSize="9"/>
+                </Button>
+            </Grid>
 
             <!-- Splitter 2: between Date and Type -->
-            <controls:GridSplitter Grid.Column="4"
+            <controls:GridSplitter x:Name="Splitter2" Grid.Column="4"
                                    Width="1"
                                    Padding="0"
                                    Margin="0"
@@ -94,27 +131,45 @@
                                    Background="Transparent"/>
 
             <!-- Type Header -->
-            <Button Grid.Column="5"
-                    Content="Type"
-                    Click="OnHeaderClick"
-                    Tag="Type"
-                    HorizontalAlignment="Stretch"
-                    HorizontalContentAlignment="Left"
-                    Background="Transparent"
-                    BorderThickness="0"
-                    Padding="6,0"
-                    Height="20"
-                    FontSize="11"
-                    FontWeight="SemiBold"
-                    Foreground="{ThemeResource SpanTextSecondaryBrush}">
-                <Button.Resources>
-                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Transparent"/>
-                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent"/>
-                </Button.Resources>
-            </Button>
+            <Grid Grid.Column="5" x:Name="TypeHeaderContainer">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Button Grid.Column="0"
+                        Content="Type"
+                        Click="OnHeaderClick"
+                        Tag="Type"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Left"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Padding="6,0"
+                        Height="20"
+                        FontSize="11"
+                        FontWeight="SemiBold"
+                        Foreground="{ThemeResource SpanTextSecondaryBrush}">
+                    <Button.Resources>
+                        <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Transparent"/>
+                        <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent"/>
+                    </Button.Resources>
+                </Button>
+                <Button x:Name="TypeFilterButton" Grid.Column="1"
+                        Click="OnFilterButtonClick" Tag="Type"
+                        Background="Transparent" BorderThickness="0"
+                        Width="16" Height="16" Padding="0"
+                        VerticalAlignment="Center" Margin="0,0,2,0"
+                        Opacity="0.5" ToolTipService.ToolTip="Filter Type">
+                    <Button.Resources>
+                        <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Transparent"/>
+                        <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent"/>
+                    </Button.Resources>
+                    <FontIcon Glyph="&#xE16E;" FontSize="9"/>
+                </Button>
+            </Grid>
 
             <!-- Splitter 3: between Type and Size -->
-            <controls:GridSplitter Grid.Column="6"
+            <controls:GridSplitter x:Name="Splitter3" Grid.Column="6"
                                    Width="1"
                                    Padding="0"
                                    Margin="0"
@@ -123,24 +178,42 @@
                                    Background="Transparent"/>
 
             <!-- Size Header -->
-            <Button Grid.Column="7"
-                    Content="Size"
-                    Click="OnHeaderClick"
-                    Tag="Size"
-                    HorizontalAlignment="Stretch"
-                    HorizontalContentAlignment="Left"
-                    Background="Transparent"
-                    BorderThickness="0"
-                    Padding="6,0"
-                    Height="20"
-                    FontSize="11"
-                    FontWeight="SemiBold"
-                    Foreground="{ThemeResource SpanTextSecondaryBrush}">
-                <Button.Resources>
-                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Transparent"/>
-                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent"/>
-                </Button.Resources>
-            </Button>
+            <Grid Grid.Column="7" x:Name="SizeHeaderContainer">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Button Grid.Column="0"
+                        Content="Size"
+                        Click="OnHeaderClick"
+                        Tag="Size"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Left"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Padding="6,0"
+                        Height="20"
+                        FontSize="11"
+                        FontWeight="SemiBold"
+                        Foreground="{ThemeResource SpanTextSecondaryBrush}">
+                    <Button.Resources>
+                        <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Transparent"/>
+                        <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent"/>
+                    </Button.Resources>
+                </Button>
+                <Button x:Name="SizeFilterButton" Grid.Column="1"
+                        Click="OnFilterButtonClick" Tag="Size"
+                        Background="Transparent" BorderThickness="0"
+                        Width="16" Height="16" Padding="0"
+                        VerticalAlignment="Center" Margin="0,0,2,0"
+                        Opacity="0.5" ToolTipService.ToolTip="Filter Size">
+                    <Button.Resources>
+                        <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Transparent"/>
+                        <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent"/>
+                    </Button.Resources>
+                    <FontIcon Glyph="&#xE16E;" FontSize="9"/>
+                </Button>
+            </Grid>
         </Grid>
 
         <!-- Items List -->
@@ -157,6 +230,30 @@
                   ContainerContentChanging="OnContainerContentChanging"
                   Background="Transparent"
                   Padding="0">
+            <ListView.GroupStyle>
+                <GroupStyle>
+                    <GroupStyle.HeaderTemplate>
+                        <DataTemplate>
+                            <Grid Padding="6,4,6,2" Background="{ThemeResource SpanBgLayer2Brush}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0"
+                                           Text="{Binding Key}"
+                                           FontSize="11"
+                                           FontWeight="SemiBold"
+                                           Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding Count}"
+                                           FontSize="10"
+                                           Foreground="{ThemeResource SpanTextTertiaryBrush}"
+                                           Margin="8,0,0,0"/>
+                            </Grid>
+                        </DataTemplate>
+                    </GroupStyle.HeaderTemplate>
+                </GroupStyle>
+            </ListView.GroupStyle>
             <ListView.ItemContainerStyle>
                 <Style TargetType="ListViewItem">
                     <Setter Property="Padding" Value="0"/>
@@ -194,7 +291,7 @@
 
                         <!-- Name -->
                         <TextBlock Grid.Column="1"
-                                   Text="{x:Bind DisplayName, Mode=OneWay}"
+                                   Text="{x:Bind TruncatedDisplayName, Mode=OneWay}"
                                    VerticalAlignment="Center"
                                    TextTrimming="CharacterEllipsis"
                                    FontSize="11"

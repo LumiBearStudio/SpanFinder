@@ -1,9 +1,12 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Data;
+using Microsoft.UI.Xaml.Media;
 using Span.Services;
 using Span.ViewModels;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using Windows.Storage;
 
@@ -40,7 +43,7 @@ namespace Span.Views
 
                 if (_viewModel != null && _isLoaded && !SuppressSortOnAssign)
                 {
-                    SortItems(_currentSortBy, _isAscending);
+                    ApplyCurrentView();
                 }
                 SuppressSortOnAssign = false;
             }
@@ -64,6 +67,26 @@ namespace Span.Views
 
         // Guard against double cleanup (Cleanup() from OnClosed + OnUnloaded from visual tree teardown)
         private bool _isCleanedUp = false;
+
+        // ── Feature #29: Group By ──
+        private string _currentGroupBy = "None";
+
+        // ── Feature #30: Column Visibility ──
+        private bool _dateColumnVisible = true;
+        private bool _typeColumnVisible = true;
+        private bool _sizeColumnVisible = true;
+        private GridLength _savedDateWidth = new GridLength(200);
+        private GridLength _savedTypeWidth = new GridLength(150);
+        private GridLength _savedSizeWidth = new GridLength(100);
+
+        // ── Feature #31: Column Filters ──
+        private string _nameFilter = string.Empty;
+        private string _dateFilter = string.Empty; // "Today", "ThisWeek", "ThisMonth", "ThisYear", "Older", or ""
+        private string _typeFilter = string.Empty;
+        private string _sizeFilter = string.Empty; // "Empty", "Tiny", "Small", "Medium", "Large", "Huge", or ""
+
+        // Unfiltered items cache (for re-applying filters)
+        private List<FileSystemViewModel>? _unfilteredItems;
 
         public DetailsModeView()
         {
@@ -100,6 +123,9 @@ namespace Span.Views
 
                 // Restore sort settings
                 RestoreSortSettings();
+
+                // Restore column visibility
+                RestoreColumnVisibility();
 
                 // Subscribe to ColumnDefinition.Width changes via RegisterPropertyChangedCallback.
                 // CRITICAL: HeaderGrid.SizeChanged does NOT fire when GridSplitter rearranges
@@ -175,6 +201,7 @@ namespace Span.Views
 
         /// <summary>
         /// Apply current column widths to a single item Grid's cell Borders.
+        /// Also applies column visibility (Width=0 for hidden columns).
         /// Note: FindName() does NOT work inside DataTemplate namescope in WinUI 3.
         /// Instead, we find Border elements by their Grid.Column attached property.
         /// </summary>
@@ -187,9 +214,18 @@ namespace Span.Views
                     int col = Grid.GetColumn(border);
                     switch (col)
                     {
-                        case 3: border.Width = _dateColumnWidth; break;  // Date
-                        case 5: border.Width = _typeColumnWidth; break;  // Type
-                        case 7: border.Width = _sizeColumnWidth; break;  // Size
+                        case 3: // Date
+                            border.Width = _dateColumnVisible ? _dateColumnWidth : 0;
+                            border.Visibility = _dateColumnVisible ? Visibility.Visible : Visibility.Collapsed;
+                            break;
+                        case 5: // Type
+                            border.Width = _typeColumnVisible ? _typeColumnWidth : 0;
+                            border.Visibility = _typeColumnVisible ? Visibility.Visible : Visibility.Collapsed;
+                            break;
+                        case 7: // Size
+                            border.Width = _sizeColumnVisible ? _sizeColumnWidth : 0;
+                            border.Visibility = _sizeColumnVisible ? Visibility.Visible : Visibility.Collapsed;
+                            break;
                     }
                 }
             }
@@ -445,6 +481,12 @@ namespace Span.Views
                     column.SelectedChild = savedSelection;
                 }
 
+                // Cache unfiltered items after sorting
+                _unfilteredItems = sortedList.ToList();
+
+                // Re-apply filters and grouping
+                ApplyFiltersAndGrouping();
+
                 Helpers.DebugLogger.Log($"[DetailsModeView] Sorted {sortedList.Count} items");
             }
             finally
@@ -464,7 +506,11 @@ namespace Span.Views
                 var composite = new ApplicationDataCompositeValue
                 {
                     ["SortColumn"] = _currentSortBy,
-                    ["SortAscending"] = _isAscending
+                    ["SortAscending"] = _isAscending,
+                    ["GroupBy"] = _currentGroupBy,
+                    ["DateColumnVisible"] = _dateColumnVisible,
+                    ["TypeColumnVisible"] = _typeColumnVisible,
+                    ["SizeColumnVisible"] = _sizeColumnVisible
                 };
                 _localSettings.Values["DetailsViewSort"] = composite;
                 Helpers.DebugLogger.Log("[DetailsModeView] Sort settings saved");
@@ -488,6 +534,10 @@ namespace Span.Views
                     if (composite.TryGetValue("SortAscending", out var ascObj) && ascObj is bool ascending)
                     {
                         _isAscending = ascending;
+                    }
+                    if (composite.TryGetValue("GroupBy", out var groupObj) && groupObj is string groupBy)
+                    {
+                        _currentGroupBy = groupBy;
                     }
 
                     SortItems(_currentSortBy, _isAscending);
@@ -541,6 +591,581 @@ namespace Span.Views
 
         #endregion
 
+        #region Feature #29: Group By
+
+        private void OnHeaderRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
+        {
+            e.Handled = true; // Prevent empty area context menu
+
+            var flyout = new MenuFlyout();
+
+            // ── Column Visibility (Feature #30) ──
+            var dateToggle = new ToggleMenuFlyoutItem
+            {
+                Text = "Date Modified",
+                IsChecked = _dateColumnVisible
+            };
+            dateToggle.Click += (s, _) => ToggleColumnVisibility("DateModified", !_dateColumnVisible);
+
+            var typeToggle = new ToggleMenuFlyoutItem
+            {
+                Text = "Type",
+                IsChecked = _typeColumnVisible
+            };
+            typeToggle.Click += (s, _) => ToggleColumnVisibility("Type", !_typeColumnVisible);
+
+            var sizeToggle = new ToggleMenuFlyoutItem
+            {
+                Text = "Size",
+                IsChecked = _sizeColumnVisible
+            };
+            sizeToggle.Click += (s, _) => ToggleColumnVisibility("Size", !_sizeColumnVisible);
+
+            flyout.Items.Add(new MenuFlyoutSubItem
+            {
+                Text = "Show Columns",
+                Items =
+                {
+                    new ToggleMenuFlyoutItem { Text = "Name", IsChecked = true, IsEnabled = false },
+                    dateToggle,
+                    typeToggle,
+                    sizeToggle
+                }
+            });
+
+            flyout.Items.Add(new MenuFlyoutSeparator());
+
+            // ── Group By (Feature #29) ──
+            var groupByNone = new ToggleMenuFlyoutItem { Text = "None", IsChecked = _currentGroupBy == "None" };
+            groupByNone.Click += (s, _) => SetGroupBy("None");
+
+            var groupByName = new ToggleMenuFlyoutItem { Text = "Name", IsChecked = _currentGroupBy == "Name" };
+            groupByName.Click += (s, _) => SetGroupBy("Name");
+
+            var groupByType = new ToggleMenuFlyoutItem { Text = "Type", IsChecked = _currentGroupBy == "Type" };
+            groupByType.Click += (s, _) => SetGroupBy("Type");
+
+            var groupByDate = new ToggleMenuFlyoutItem { Text = "Date Modified", IsChecked = _currentGroupBy == "DateModified" };
+            groupByDate.Click += (s, _) => SetGroupBy("DateModified");
+
+            var groupBySize = new ToggleMenuFlyoutItem { Text = "Size", IsChecked = _currentGroupBy == "Size" };
+            groupBySize.Click += (s, _) => SetGroupBy("Size");
+
+            flyout.Items.Add(new MenuFlyoutSubItem
+            {
+                Text = "Group By",
+                Items = { groupByNone, groupByName, groupByType, groupByDate, groupBySize }
+            });
+
+            flyout.ShowAt(HeaderGrid, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
+            {
+                Position = e.GetPosition(HeaderGrid)
+            });
+        }
+
+        private void SetGroupBy(string groupBy)
+        {
+            _currentGroupBy = groupBy;
+            ApplyFiltersAndGrouping();
+            SaveSortSettings();
+            Helpers.DebugLogger.Log($"[DetailsModeView] Group By set to: {groupBy}");
+        }
+
+        private string GetGroupKey(FileSystemViewModel item, string groupBy)
+        {
+            switch (groupBy)
+            {
+                case "Name":
+                    // Group by first letter
+                    var firstChar = !string.IsNullOrEmpty(item.Name)
+                        ? char.ToUpperInvariant(item.Name[0]).ToString()
+                        : "#";
+                    return char.IsLetter(firstChar[0]) ? firstChar : "#";
+
+                case "Type":
+                    if (item is FolderViewModel) return "Folder";
+                    return string.IsNullOrEmpty(item.FileType) ? "Unknown" : item.FileType.ToUpperInvariant();
+
+                case "DateModified":
+                    var date = item.DateModifiedValue;
+                    var now = DateTime.Now;
+                    if (date.Date == now.Date) return "Today";
+                    if (date.Date == now.Date.AddDays(-1)) return "Yesterday";
+                    if (date >= now.Date.AddDays(-(int)now.DayOfWeek)) return "This Week";
+                    if (date.Year == now.Year && date.Month == now.Month) return "This Month";
+                    if (date.Year == now.Year) return "This Year";
+                    return date.Year > 0 ? date.Year.ToString() : "Unknown";
+
+                case "Size":
+                    if (item is FolderViewModel) return "Folders";
+                    var size = item.SizeValue;
+                    if (size == 0) return "Empty (0 B)";
+                    if (size < 16 * 1024) return "Tiny (< 16 KB)";
+                    if (size < 1024 * 1024) return "Small (< 1 MB)";
+                    if (size < 128 * 1024 * 1024) return "Medium (< 128 MB)";
+                    if (size < 1024L * 1024 * 1024) return "Large (< 1 GB)";
+                    return "Huge (> 1 GB)";
+
+                default:
+                    return string.Empty;
+            }
+        }
+
+        /// <summary>
+        /// Helper class for grouped items displayed in ListView.
+        /// Implements IGrouping-like interface for data binding.
+        /// </summary>
+        private class ItemGroup : List<FileSystemViewModel>
+        {
+            public string Key { get; }
+            public new int Count => base.Count;
+
+            public ItemGroup(string key, IEnumerable<FileSystemViewModel> items) : base(items)
+            {
+                Key = key;
+            }
+        }
+
+        #endregion
+
+        #region Feature #30: Column Visibility
+
+        private void ToggleColumnVisibility(string column, bool visible)
+        {
+            switch (column)
+            {
+                case "DateModified":
+                    if (!visible) _savedDateWidth = DateColumnDef.Width;
+                    _dateColumnVisible = visible;
+                    DateColumnDef.Width = visible ? _savedDateWidth : new GridLength(0);
+                    DateColumnDef.MinWidth = visible ? 140 : 0;
+                    DateHeaderContainer.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+                    Splitter1.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+                    DateFilterButton.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+                    break;
+
+                case "Type":
+                    if (!visible) _savedTypeWidth = TypeColumnDef.Width;
+                    _typeColumnVisible = visible;
+                    TypeColumnDef.Width = visible ? _savedTypeWidth : new GridLength(0);
+                    TypeColumnDef.MinWidth = visible ? 90 : 0;
+                    TypeHeaderContainer.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+                    Splitter2.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+                    TypeFilterButton.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+                    break;
+
+                case "Size":
+                    if (!visible) _savedSizeWidth = SizeColumnDef.Width;
+                    _sizeColumnVisible = visible;
+                    SizeColumnDef.Width = visible ? _savedSizeWidth : new GridLength(0);
+                    SizeColumnDef.MinWidth = visible ? 80 : 0;
+                    SizeHeaderContainer.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+                    Splitter3.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+                    SizeFilterButton.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+                    break;
+            }
+
+            // Update item cell widths to reflect visibility change
+            UpdateAllVisibleContainerWidths();
+            SaveSortSettings();
+
+            Helpers.DebugLogger.Log($"[DetailsModeView] Column '{column}' visibility: {visible}");
+        }
+
+        private void RestoreColumnVisibility()
+        {
+            try
+            {
+                if (_localSettings.Values["DetailsViewSort"] is ApplicationDataCompositeValue composite)
+                {
+                    if (composite.TryGetValue("DateColumnVisible", out var dateObj) && dateObj is bool dateVis)
+                    {
+                        if (!dateVis) ToggleColumnVisibility("DateModified", false);
+                    }
+                    if (composite.TryGetValue("TypeColumnVisible", out var typeObj) && typeObj is bool typeVis)
+                    {
+                        if (!typeVis) ToggleColumnVisibility("Type", false);
+                    }
+                    if (composite.TryGetValue("SizeColumnVisible", out var sizeObj) && sizeObj is bool sizeVis)
+                    {
+                        if (!sizeVis) ToggleColumnVisibility("Size", false);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[DetailsModeView] Error restoring column visibility: {ex.Message}");
+            }
+        }
+
+        #endregion
+
+        #region Feature #31: Column Filters
+
+        private void OnFilterButtonClick(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Button button || button.Tag is not string column) return;
+
+            var flyout = new Flyout();
+            var panel = new StackPanel { Spacing = 6, MinWidth = 180, Padding = new Thickness(4) };
+
+            switch (column)
+            {
+                case "Name":
+                    BuildNameFilterUI(panel);
+                    break;
+                case "DateModified":
+                    BuildDateFilterUI(panel);
+                    break;
+                case "Type":
+                    BuildTypeFilterUI(panel);
+                    break;
+                case "Size":
+                    BuildSizeFilterUI(panel);
+                    break;
+            }
+
+            flyout.Content = panel;
+            flyout.ShowAt(button);
+        }
+
+        private void BuildNameFilterUI(StackPanel panel)
+        {
+            var header = new TextBlock
+            {
+                Text = "Filter by Name",
+                FontSize = 12,
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                Margin = new Thickness(0, 0, 0, 4)
+            };
+            panel.Children.Add(header);
+
+            var textBox = new TextBox
+            {
+                PlaceholderText = "Type to filter...",
+                Text = _nameFilter,
+                MinWidth = 160
+            };
+            textBox.TextChanged += (s, _) =>
+            {
+                _nameFilter = textBox.Text;
+                ApplyFiltersAndGrouping();
+                UpdateFilterIndicator("Name", !string.IsNullOrEmpty(_nameFilter));
+            };
+            panel.Children.Add(textBox);
+
+            var clearButton = new Button
+            {
+                Content = "Clear",
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(0, 4, 0, 0)
+            };
+            clearButton.Click += (s, _) =>
+            {
+                textBox.Text = string.Empty;
+                _nameFilter = string.Empty;
+                ApplyFiltersAndGrouping();
+                UpdateFilterIndicator("Name", false);
+            };
+            panel.Children.Add(clearButton);
+        }
+
+        private void BuildDateFilterUI(StackPanel panel)
+        {
+            var header = new TextBlock
+            {
+                Text = "Filter by Date",
+                FontSize = 12,
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                Margin = new Thickness(0, 0, 0, 4)
+            };
+            panel.Children.Add(header);
+
+            var dateRanges = new[] { "", "Today", "ThisWeek", "ThisMonth", "ThisYear", "Older" };
+            var dateLabels = new[] { "All", "Today", "This Week", "This Month", "This Year", "Older" };
+
+            for (int i = 0; i < dateRanges.Length; i++)
+            {
+                var range = dateRanges[i];
+                var radio = new RadioButton
+                {
+                    Content = dateLabels[i],
+                    IsChecked = _dateFilter == range,
+                    GroupName = "DateFilter",
+                    FontSize = 12,
+                    MinHeight = 24,
+                    Padding = new Thickness(4, 0, 0, 0)
+                };
+                radio.Checked += (s, _) =>
+                {
+                    _dateFilter = range;
+                    ApplyFiltersAndGrouping();
+                    UpdateFilterIndicator("DateModified", !string.IsNullOrEmpty(range));
+                };
+                panel.Children.Add(radio);
+            }
+        }
+
+        private void BuildTypeFilterUI(StackPanel panel)
+        {
+            var header = new TextBlock
+            {
+                Text = "Filter by Type",
+                FontSize = 12,
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                Margin = new Thickness(0, 0, 0, 4)
+            };
+            panel.Children.Add(header);
+
+            // Get unique types from current items
+            var items = _unfilteredItems ?? GetCurrentItemsList();
+            var types = items
+                .Select(x => x is FolderViewModel ? "Folder" : (string.IsNullOrEmpty(x.FileType) ? "Unknown" : x.FileType))
+                .Distinct()
+                .OrderBy(x => x)
+                .ToList();
+
+            // "All" option
+            var allRadio = new RadioButton
+            {
+                Content = "All",
+                IsChecked = string.IsNullOrEmpty(_typeFilter),
+                GroupName = "TypeFilter",
+                FontSize = 12,
+                MinHeight = 24,
+                Padding = new Thickness(4, 0, 0, 0)
+            };
+            allRadio.Checked += (s, _) =>
+            {
+                _typeFilter = string.Empty;
+                ApplyFiltersAndGrouping();
+                UpdateFilterIndicator("Type", false);
+            };
+            panel.Children.Add(allRadio);
+
+            // Wrap in a ScrollViewer if many types
+            var scrollPanel = new StackPanel { Spacing = 2 };
+
+            foreach (var type in types)
+            {
+                var radio = new RadioButton
+                {
+                    Content = type,
+                    IsChecked = _typeFilter == type,
+                    GroupName = "TypeFilter",
+                    FontSize = 12,
+                    MinHeight = 24,
+                    Padding = new Thickness(4, 0, 0, 0)
+                };
+                var captured = type;
+                radio.Checked += (s, _) =>
+                {
+                    _typeFilter = captured;
+                    ApplyFiltersAndGrouping();
+                    UpdateFilterIndicator("Type", true);
+                };
+                scrollPanel.Children.Add(radio);
+            }
+
+            var scrollViewer = new ScrollViewer
+            {
+                Content = scrollPanel,
+                MaxHeight = 200,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+            };
+            panel.Children.Add(scrollViewer);
+        }
+
+        private void BuildSizeFilterUI(StackPanel panel)
+        {
+            var header = new TextBlock
+            {
+                Text = "Filter by Size",
+                FontSize = 12,
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                Margin = new Thickness(0, 0, 0, 4)
+            };
+            panel.Children.Add(header);
+
+            var sizeRanges = new[] { "", "Empty", "Tiny", "Small", "Medium", "Large", "Huge" };
+            var sizeLabels = new[] { "All", "Empty (0 B)", "Tiny (< 16 KB)", "Small (< 1 MB)", "Medium (< 128 MB)", "Large (< 1 GB)", "Huge (> 1 GB)" };
+
+            for (int i = 0; i < sizeRanges.Length; i++)
+            {
+                var range = sizeRanges[i];
+                var radio = new RadioButton
+                {
+                    Content = sizeLabels[i],
+                    IsChecked = _sizeFilter == range,
+                    GroupName = "SizeFilter",
+                    FontSize = 12,
+                    MinHeight = 24,
+                    Padding = new Thickness(4, 0, 0, 0)
+                };
+                radio.Checked += (s, _) =>
+                {
+                    _sizeFilter = range;
+                    ApplyFiltersAndGrouping();
+                    UpdateFilterIndicator("Size", !string.IsNullOrEmpty(range));
+                };
+                panel.Children.Add(radio);
+            }
+        }
+
+        private void UpdateFilterIndicator(string column, bool active)
+        {
+            Button? filterButton = column switch
+            {
+                "Name" => NameFilterButton,
+                "DateModified" => DateFilterButton,
+                "Type" => TypeFilterButton,
+                "Size" => SizeFilterButton,
+                _ => null
+            };
+
+            if (filterButton != null)
+            {
+                filterButton.Opacity = active ? 1.0 : 0.5;
+
+                if (filterButton.Content is FontIcon icon)
+                {
+                    // Filled funnel when active, outline when inactive
+                    icon.Glyph = active ? "\uE71C" : "\uE16E";
+                }
+            }
+        }
+
+        private bool PassesFilter(FileSystemViewModel item)
+        {
+            // Name filter
+            if (!string.IsNullOrEmpty(_nameFilter))
+            {
+                if (item.Name == null || !item.Name.Contains(_nameFilter, StringComparison.OrdinalIgnoreCase))
+                    return false;
+            }
+
+            // Date filter
+            if (!string.IsNullOrEmpty(_dateFilter))
+            {
+                var date = item.DateModifiedValue;
+                var now = DateTime.Now;
+                bool passes = _dateFilter switch
+                {
+                    "Today" => date.Date == now.Date,
+                    "ThisWeek" => date >= now.Date.AddDays(-(int)now.DayOfWeek),
+                    "ThisMonth" => date.Year == now.Year && date.Month == now.Month,
+                    "ThisYear" => date.Year == now.Year,
+                    "Older" => date.Year < now.Year,
+                    _ => true
+                };
+                if (!passes) return false;
+            }
+
+            // Type filter
+            if (!string.IsNullOrEmpty(_typeFilter))
+            {
+                var itemType = item is FolderViewModel ? "Folder" :
+                    (string.IsNullOrEmpty(item.FileType) ? "Unknown" : item.FileType);
+                if (!string.Equals(itemType, _typeFilter, StringComparison.OrdinalIgnoreCase))
+                    return false;
+            }
+
+            // Size filter
+            if (!string.IsNullOrEmpty(_sizeFilter))
+            {
+                var size = item.SizeValue;
+                bool passes = _sizeFilter switch
+                {
+                    "Empty" => item is FolderViewModel || size == 0,
+                    "Tiny" => item is FolderViewModel || (size > 0 && size < 16 * 1024),
+                    "Small" => item is FolderViewModel || (size >= 16 * 1024 && size < 1024 * 1024),
+                    "Medium" => item is FolderViewModel || (size >= 1024 * 1024 && size < 128 * 1024 * 1024),
+                    "Large" => item is FolderViewModel || (size >= 128 * 1024 * 1024 && size < 1024L * 1024 * 1024),
+                    "Huge" => item is FolderViewModel || size >= 1024L * 1024 * 1024,
+                    _ => true
+                };
+                if (!passes) return false;
+            }
+
+            return true;
+        }
+
+        private bool HasAnyFilter => !string.IsNullOrEmpty(_nameFilter) ||
+                                     !string.IsNullOrEmpty(_dateFilter) ||
+                                     !string.IsNullOrEmpty(_typeFilter) ||
+                                     !string.IsNullOrEmpty(_sizeFilter);
+
+        #endregion
+
+        #region Combined Filter + Grouping Application
+
+        /// <summary>
+        /// Applies the current filter settings and grouping to the ListView.
+        /// Call this after any filter or grouping change.
+        /// </summary>
+        private void ApplyFiltersAndGrouping()
+        {
+            if (ViewModel?.CurrentFolder == null) return;
+
+            // Get the base items (from unfiltered cache or current children)
+            var allItems = _unfilteredItems ?? GetCurrentItemsList();
+
+            // Apply filters
+            var filtered = HasAnyFilter
+                ? allItems.Where(PassesFilter).ToList()
+                : allItems;
+
+            // Apply grouping
+            if (_currentGroupBy != "None" && !string.IsNullOrEmpty(_currentGroupBy))
+            {
+                var groups = filtered
+                    .GroupBy(item => GetGroupKey(item, _currentGroupBy))
+                    .OrderBy(g => g.Key)
+                    .Select(g => new ItemGroup(g.Key + " (" + g.Count() + ")", g))
+                    .ToList();
+
+                var cvs = new CollectionViewSource
+                {
+                    Source = groups,
+                    IsSourceGrouped = true
+                };
+
+                DetailsListView.ItemsSource = cvs.View;
+            }
+            else if (HasAnyFilter)
+            {
+                // Filters active but no grouping — set filtered list directly
+                DetailsListView.ItemsSource = filtered;
+            }
+            else
+            {
+                // No filters, no grouping — bind back to ViewModel
+                DetailsListView.SetBinding(
+                    ListView.ItemsSourceProperty,
+                    new Binding { Path = new PropertyPath("CurrentItems"), Mode = BindingMode.OneWay });
+            }
+        }
+
+        /// <summary>
+        /// Gets a snapshot of current items for filtering/grouping.
+        /// </summary>
+        private List<FileSystemViewModel> GetCurrentItemsList()
+        {
+            if (ViewModel?.CurrentFolder?.Children == null)
+                return new List<FileSystemViewModel>();
+            return ViewModel.CurrentFolder.Children.ToList();
+        }
+
+        /// <summary>
+        /// Called when ViewModel changes or sort completes. Re-applies all view settings.
+        /// </summary>
+        private void ApplyCurrentView()
+        {
+            SortItems(_currentSortBy, _isAscending);
+        }
+
+        #endregion
+
         #region Cleanup
 
         /// <summary>
@@ -586,6 +1211,7 @@ namespace Span.Views
                     DetailsListView.SelectedItem = null;
                 }
 
+                _unfilteredItems = null;
                 _viewModel = null;
                 RootGrid.DataContext = null;
 

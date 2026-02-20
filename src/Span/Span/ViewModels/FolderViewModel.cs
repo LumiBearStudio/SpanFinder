@@ -47,6 +47,20 @@ namespace Span.ViewModels
         public override string IconGlyph => Services.IconService.Current.FolderIcon;
         public override Microsoft.UI.Xaml.Media.Brush IconBrush => Services.IconService.Current.FolderBrush;
 
+        /// <summary>
+        /// Item count text for folder badge display.
+        /// Shows the number of child items once loaded, empty string if not loaded or zero.
+        /// </summary>
+        public string ChildCountText
+        {
+            get
+            {
+                if (!_isLoaded || Children.Count == 0)
+                    return string.Empty;
+                return Children.Count.ToString();
+            }
+        }
+
         public FolderViewModel(FolderItem model, FileSystemService fileService) : base(model)
         {
             _folderModel = model;
@@ -198,6 +212,8 @@ namespace Span.ViewModels
                 Children.Add(item);
 
             Helpers.DebugLogger.Log($"[FolderViewModel] Children populated: {sortedItems.Count} items");
+
+            OnPropertyChanged(nameof(ChildCountText));
 
             _ = LoadThumbnailsAsync(sortedItems, token);
         }

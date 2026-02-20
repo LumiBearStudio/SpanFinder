@@ -14,6 +14,13 @@ namespace Span.ViewModels
         [ObservableProperty]
         private bool _isRenaming;
 
+        /// <summary>
+        /// True when this item is on the active navigation path (selected in a parent column).
+        /// Used to show a dimmed highlight in non-active columns for breadcrumb trail visualization.
+        /// </summary>
+        [ObservableProperty]
+        private bool _isOnPath;
+
         [ObservableProperty]
         private string _editableName = string.Empty;
 
@@ -41,6 +48,63 @@ namespace Span.ViewModels
                 catch { /* fallback to full name */ }
                 return Name;
             }
+        }
+
+        /// <summary>
+        /// Display name with middle truncation for files.
+        /// For files with extensions longer than MaxTruncateChars: "VeryLong...name.txt"
+        /// For folders or short names: returns DisplayName as-is.
+        /// </summary>
+        public virtual string TruncatedDisplayName
+        {
+            get
+            {
+                var name = DisplayName;
+
+                // Only truncate file names (not folders)
+                if (this is FolderViewModel)
+                    return name;
+
+                return MiddleTruncate(name, 28);
+            }
+        }
+
+        /// <summary>
+        /// Middle-truncates a filename preserving extension.
+        /// "VeryLongFileName.txt" -> "VeryLo...ame.txt"
+        /// </summary>
+        private static string MiddleTruncate(string name, int maxChars)
+        {
+            if (string.IsNullOrEmpty(name) || name.Length <= maxChars)
+                return name;
+
+            var ext = System.IO.Path.GetExtension(name);
+            var nameWithoutExt = System.IO.Path.GetFileNameWithoutExtension(name);
+
+            // If no extension, use simple end truncation
+            if (string.IsNullOrEmpty(ext))
+                return name;
+
+            // Keep at least 3 chars of the ellipsis
+            const string ellipsis = "\u2026"; // Unicode horizontal ellipsis
+            int extLen = ext.Length;
+
+            // Reserve space for extension + ellipsis + at least a few chars on each side
+            int availableChars = maxChars - extLen - 1; // -1 for ellipsis character
+            if (availableChars < 6)
+                return name; // Too short to truncate meaningfully
+
+            // Split available chars: more at the beginning, some at the end (before extension)
+            int prefixLen = (int)(availableChars * 0.6);
+            int suffixLen = availableChars - prefixLen;
+
+            if (prefixLen >= nameWithoutExt.Length)
+                return name; // No truncation needed
+
+            string prefix = nameWithoutExt.Substring(0, prefixLen);
+            string suffix = nameWithoutExt.Substring(nameWithoutExt.Length - suffixLen);
+
+            return prefix + ellipsis + suffix + ext;
         }
 
         public virtual string IconGlyph => _model.IconGlyph;
@@ -204,6 +268,25 @@ namespace Span.ViewModels
         /// </summary>
         public static Microsoft.UI.Xaml.Visibility NotRenaming(bool isRenaming)
             => isRenaming ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible;
+
+        /// <summary>
+        /// XAML x:Bind: show path highlight background when item is on the active navigation path.
+        /// Returns SpanAccentDimBrush for on-path items, Transparent otherwise.
+        /// </summary>
+        public static Microsoft.UI.Xaml.Media.Brush PathHighlightBrush(bool isOnPath)
+        {
+            if (isOnPath)
+            {
+                try
+                {
+                    if (Microsoft.UI.Xaml.Application.Current.Resources.TryGetValue("SpanAccentDimBrush", out var brush))
+                        return (Microsoft.UI.Xaml.Media.Brush)brush;
+                }
+                catch { }
+                return new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
+            }
+            return new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
+        }
 
         /// <summary>
         /// XAML x:Bind: show thumbnail Image when HasThumbnail is true.

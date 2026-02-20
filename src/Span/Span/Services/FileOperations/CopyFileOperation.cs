@@ -1,9 +1,12 @@
+using System.Threading;
+
 namespace Span.Services.FileOperations;
 
 /// <summary>
-/// Represents a file or directory copy operation with progress reporting.
+/// Represents a file or directory copy operation with progress reporting and pause support.
+/// Implements IPausableOperation so the FileOperationManager can inject a pause event.
 /// </summary>
-public class CopyFileOperation : IFileOperation
+public class CopyFileOperation : IFileOperation, IPausableOperation
 {
     private const int BufferSize = 81920; // 80KB buffer for large file copying
 
@@ -12,6 +15,7 @@ public class CopyFileOperation : IFileOperation
     private readonly List<string> _copiedPaths = new();
     private ConflictResolution _conflictResolution = ConflictResolution.Prompt;
     private bool _applyToAll = false;
+    private ManualResetEventSlim? _pauseEvent;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CopyFileOperation"/> class.
@@ -25,10 +29,32 @@ public class CopyFileOperation : IFileOperation
     }
 
     /// <inheritdoc/>
-    public string Description => $"Copy {_sourcePaths.Count} item(s) to {Path.GetFileName(_destinationDirectory)}";
+    public string Description => _sourcePaths.Count == 1
+        ? $"Copy \"{Path.GetFileName(_sourcePaths[0])}\" to {Path.GetFileName(_destinationDirectory)}"
+        : $"Copy {_sourcePaths.Count} item(s) to {Path.GetFileName(_destinationDirectory)}";
 
     /// <inheritdoc/>
     public bool CanUndo => true;
+
+    /// <inheritdoc/>
+    public void SetPauseEvent(ManualResetEventSlim pauseEvent)
+    {
+        _pauseEvent = pauseEvent;
+    }
+
+    /// <summary>
+    /// Waits if the operation is paused, and checks for cancellation.
+    /// Called between I/O operations to allow responsive pause/cancel.
+    /// </summary>
+    private void WaitIfPaused(CancellationToken cancellationToken)
+    {
+        if (_pauseEvent != null)
+        {
+            // Wait until the event is signaled (resumed) or cancellation
+            _pauseEvent.Wait(cancellationToken);
+        }
+        cancellationToken.ThrowIfCancellationRequested();
+    }
 
     /// <inheritdoc/>
     public async Task<OperationResult> ExecuteAsync(
@@ -51,7 +77,7 @@ public class CopyFileOperation : IFileOperation
 
             for (int i = 0; i < _sourcePaths.Count; i++)
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                WaitIfPaused(cancellationToken);
 
                 var sourcePath = _sourcePaths[i];
                 var fileName = Path.GetFileName(sourcePath);
@@ -92,22 +118,25 @@ public class CopyFileOperation : IFileOperation
                     if (File.Exists(sourcePath))
                     {
                         var fileSize = new FileInfo(sourcePath).Length;
+                        long localProcessed = processedBytes; // capture for closure
+                        int fileIndex = i; // capture for closure
                         await CopyFileWithProgressAsync(
                             sourcePath,
                             destPath,
                             new Progress<long>(bytes =>
                             {
                                 var elapsed = DateTime.Now - startTime;
-                                var speed = elapsed.TotalSeconds > 0 ? processedBytes / elapsed.TotalSeconds : 0;
-                                var remaining = speed > 0 ? TimeSpan.FromSeconds((totalBytes - processedBytes) / speed) : TimeSpan.Zero;
+                                var currentTotal = localProcessed + bytes;
+                                var speed = elapsed.TotalSeconds > 0 ? currentTotal / elapsed.TotalSeconds : 0;
+                                var remaining = speed > 0 ? TimeSpan.FromSeconds((totalBytes - currentTotal) / speed) : TimeSpan.Zero;
 
                                 progress?.Report(new FileOperationProgress
                                 {
                                     CurrentFile = fileName,
-                                    CurrentFileIndex = i + 1,
+                                    CurrentFileIndex = fileIndex + 1,
                                     TotalFileCount = _sourcePaths.Count,
                                     TotalBytes = totalBytes,
-                                    ProcessedBytes = processedBytes + bytes,
+                                    ProcessedBytes = currentTotal,
                                     SpeedBytesPerSecond = speed,
                                     EstimatedTimeRemaining = remaining
                                 });
@@ -118,8 +147,32 @@ public class CopyFileOperation : IFileOperation
                     }
                     else if (Directory.Exists(sourcePath))
                     {
-                        await CopyDirectoryAsync(sourcePath, destPath, cancellationToken);
-                        processedBytes += GetFileOrDirectorySize(sourcePath);
+                        var dirSize = GetFileOrDirectorySize(sourcePath);
+                        long localProcessed = processedBytes;
+                        int fileIndex = i;
+                        await CopyDirectoryWithProgressAsync(
+                            sourcePath,
+                            destPath,
+                            new Progress<long>(bytes =>
+                            {
+                                var elapsed = DateTime.Now - startTime;
+                                var currentTotal = localProcessed + bytes;
+                                var speed = elapsed.TotalSeconds > 0 ? currentTotal / elapsed.TotalSeconds : 0;
+                                var remaining = speed > 0 ? TimeSpan.FromSeconds((totalBytes - currentTotal) / speed) : TimeSpan.Zero;
+
+                                progress?.Report(new FileOperationProgress
+                                {
+                                    CurrentFile = Path.GetFileName(sourcePath),
+                                    CurrentFileIndex = fileIndex + 1,
+                                    TotalFileCount = _sourcePaths.Count,
+                                    TotalBytes = totalBytes,
+                                    ProcessedBytes = currentTotal,
+                                    SpeedBytesPerSecond = speed,
+                                    EstimatedTimeRemaining = remaining
+                                });
+                            }),
+                            cancellationToken);
+                        processedBytes += dirSize;
                     }
                     else
                     {
@@ -129,6 +182,10 @@ public class CopyFileOperation : IFileOperation
 
                     _copiedPaths.Add(destPath);
                     result.AffectedPaths.Add(destPath);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw; // propagate cancellation
                 }
                 catch (Exception ex)
                 {
@@ -241,9 +298,6 @@ public class CopyFileOperation : IFileOperation
         IProgress<long> progress,
         CancellationToken cancellationToken)
     {
-        long totalBytes = new FileInfo(source).Length;
-        long copiedBytes = 0;
-
         using var sourceStream = new FileStream(
             source,
             FileMode.Open,
@@ -261,39 +315,68 @@ public class CopyFileOperation : IFileOperation
             useAsync: true);
 
         var buffer = new byte[BufferSize];
+        long copiedBytes = 0;
         int bytesRead;
 
         while ((bytesRead = await sourceStream.ReadAsync(buffer, cancellationToken)) > 0)
         {
+            // Check pause state between buffer writes - this is the key pause point
+            WaitIfPaused(cancellationToken);
+
             await destStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
             copiedBytes += bytesRead;
             progress?.Report(copiedBytes);
         }
     }
 
-    private async Task CopyDirectoryAsync(
+    /// <summary>
+    /// Copies a directory recursively with progress reporting and pause support.
+    /// Unlike the old CopyDirectoryAsync, this streams each file through CopyFileWithProgressAsync.
+    /// </summary>
+    private async Task CopyDirectoryWithProgressAsync(
         string source,
         string destination,
+        IProgress<long> overallProgress,
         CancellationToken cancellationToken)
     {
-        // Create destination directory
-        Directory.CreateDirectory(destination);
+        long bytesCopied = 0;
 
-        // Copy all files
-        foreach (var file in Directory.GetFiles(source))
+        async Task CopyDirRecursive(string src, string dest)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            var destFile = Path.Combine(destination, Path.GetFileName(file));
-            File.Copy(file, destFile, overwrite: true);
+            Directory.CreateDirectory(dest);
+
+            foreach (var file in Directory.GetFiles(src))
+            {
+                WaitIfPaused(cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var destFile = Path.Combine(dest, Path.GetFileName(file));
+                var fileSize = new FileInfo(file).Length;
+
+                await CopyFileWithProgressAsync(
+                    file,
+                    destFile,
+                    new Progress<long>(_ =>
+                    {
+                        // report cumulative bytes for the whole directory
+                    }),
+                    cancellationToken);
+
+                bytesCopied += fileSize;
+                overallProgress?.Report(bytesCopied);
+            }
+
+            foreach (var dir in Directory.GetDirectories(src))
+            {
+                WaitIfPaused(cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var destDir = Path.Combine(dest, Path.GetFileName(dir));
+                await CopyDirRecursive(dir, destDir);
+            }
         }
 
-        // Recursively copy subdirectories
-        foreach (var dir in Directory.GetDirectories(source))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var destDir = Path.Combine(destination, Path.GetFileName(dir));
-            await CopyDirectoryAsync(dir, destDir, cancellationToken);
-        }
+        await CopyDirRecursive(source, destination);
     }
 
     private long GetFileOrDirectorySize(string path)

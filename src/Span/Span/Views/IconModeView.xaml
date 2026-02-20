@@ -28,7 +28,7 @@
                 </Grid>
 
                 <TextBlock Grid.Column="1"
-                           Text="{x:Bind DisplayName, Mode=OneWay}"
+                           Text="{x:Bind TruncatedDisplayName, Mode=OneWay}"
                            VerticalAlignment="Center"
                            TextTrimming="CharacterEllipsis"
                            FontSize="13"/>
@@ -55,7 +55,7 @@
                 </Grid>
 
                 <TextBlock Grid.Column="1"
-                           Text="{x:Bind DisplayName, Mode=OneWay}"
+                           Text="{x:Bind TruncatedDisplayName, Mode=OneWay}"
                            VerticalAlignment="Center"
                            TextTrimming="CharacterEllipsis"
                            TextWrapping="Wrap"
@@ -84,7 +84,7 @@
                 </Grid>
 
                 <TextBlock Grid.Row="1"
-                           Text="{x:Bind DisplayName, Mode=OneWay}"
+                           Text="{x:Bind TruncatedDisplayName, Mode=OneWay}"
                            HorizontalAlignment="Center"
                            TextAlignment="Center"
                            TextTrimming="CharacterEllipsis"
@@ -115,7 +115,7 @@
                 </Grid>
 
                 <TextBlock Grid.Row="1"
-                           Text="{x:Bind DisplayName, Mode=OneWay}"
+                           Text="{x:Bind TruncatedDisplayName, Mode=OneWay}"
                            HorizontalAlignment="Center"
                            TextAlignment="Center"
                            TextTrimming="CharacterEllipsis"

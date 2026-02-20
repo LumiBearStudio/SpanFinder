@@ -13,6 +13,7 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
 using Microsoft.UI.Input;
 using Windows.ApplicationModel.DataTransfer;
 
@@ -92,6 +93,10 @@ namespace Span
         private FolderViewModel? _leftPreviewSubscribedColumn;
         private FolderViewModel? _rightPreviewSubscribedColumn;
 
+        // Inline preview column (Miller Columns mode)
+        private CancellationTokenSource? _inlinePreviewCts;
+        private PreviewService? _inlinePreviewService;
+
         // Sort state
         private string _currentSortField = "Name"; // Name, Date, Size, Type
         private bool _currentSortAscending = true;
@@ -132,6 +137,10 @@ namespace Span
             _contextMenuService = App.Current.Services.GetRequiredService<Services.ContextMenuService>();
             _loc = App.Current.Services.GetRequiredService<Services.LocalizationService>();
             _settings = App.Current.Services.GetRequiredService<Services.SettingsService>();
+
+            // Wire up file operation progress panel
+            var fileOpManager = App.Current.Services.GetRequiredService<Services.FileOperationManager>();
+            FileOpProgressControl.SetOperationManager(fileOpManager);
 
             // Mica
             SystemBackdrop = new Microsoft.UI.Xaml.Media.MicaBackdrop();
@@ -456,6 +465,9 @@ namespace Span
                 try { RightPreviewPanel?.Cleanup(); } catch { }
                 UnsubscribePreviewSelection(isLeft: true);
                 UnsubscribePreviewSelection(isLeft: false);
+
+                // Cleanup inline preview column
+                try { CleanupInlinePreview(); } catch { }
 
                 // Save preview panel widths
                 try
@@ -834,6 +846,9 @@ namespace Span
                 // Per-tab 인스턴스가 자체 ViewModel을 보유하므로 DetailsView/IconView 교체 불필요
                 // Miller Columns는 Per-Tab Panel이, Home은 MainViewModel 바인딩이 처리
             }
+
+            // Inline preview: re-subscribe to new explorer's SelectedFile
+            ResubscribeInlinePreview(_subscribedLeftExplorer, newExplorer!);
 
             _subscribedLeftExplorer = newExplorer;
 
@@ -1843,6 +1858,25 @@ namespace Span
                 newWidth = Math.Min(600, newWidth); // max width cap
                 _resizingColumnGrid.Width = newWidth;
 
+                // Ctrl+drag: apply the same width to ALL columns simultaneously
+                var ctrl = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control)
+                           .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+                if (ctrl)
+                {
+                    var control = GetActiveMillerColumnsControl();
+                    var columns = ViewModel.ActiveExplorer.Columns;
+                    for (int i = 0; i < columns.Count; i++)
+                    {
+                        var container = control.ContainerFromIndex(i) as ContentPresenter;
+                        if (container == null) continue;
+                        var grid = FindChild<Grid>(container);
+                        if (grid != null && grid != _resizingColumnGrid)
+                        {
+                            grid.Width = newWidth;
+                        }
+                    }
+                }
+
                 // Force parent StackPanel and ScrollViewer to recalculate scroll extent
                 if (VisualTreeHelper.GetParent(_resizingColumnGrid) is FrameworkElement parent)
                     parent.InvalidateMeasure();
@@ -1879,6 +1913,173 @@ namespace Span
 
                 e.Handled = true;
             }
+        }
+
+        /// <summary>
+        /// Double-click on column resize grip: auto-fit column width to its content.
+        /// Measures the widest item name in the column and resizes to fit.
+        /// </summary>
+        private void OnColumnResizeGripDoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
+        {
+            if (sender is not Microsoft.UI.Xaml.Shapes.Rectangle rect) return;
+
+            var parentGrid = VisualTreeHelper.GetParent(rect) as Grid;
+            if (parentGrid == null) return;
+
+            // Find the column index by locating this grid in the ItemsControl
+            var control = GetActiveMillerColumnsControl();
+            var columns = ViewModel.ActiveExplorer.Columns;
+            int columnIndex = -1;
+
+            for (int i = 0; i < columns.Count; i++)
+            {
+                var container = control.ContainerFromIndex(i) as ContentPresenter;
+                if (container == null) continue;
+                var grid = FindChild<Grid>(container);
+                if (grid == parentGrid)
+                {
+                    columnIndex = i;
+                    break;
+                }
+            }
+
+            if (columnIndex < 0 || columnIndex >= columns.Count) return;
+
+            double fittedWidth = MeasureColumnContentWidth(columns[columnIndex]);
+            parentGrid.Width = fittedWidth;
+
+            // Check if Ctrl is held: apply to all columns
+            var ctrl = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control)
+                       .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+            if (ctrl)
+            {
+                ApplyWidthToAllColumns(fittedWidth);
+            }
+
+            // Invalidate layout
+            control.InvalidateMeasure();
+            control.UpdateLayout();
+            var scrollViewer = GetActiveMillerScrollViewer();
+            scrollViewer.InvalidateMeasure();
+            scrollViewer.UpdateLayout();
+
+            e.Handled = true;
+        }
+
+        /// <summary>
+        /// Measure the ideal width for a column based on its content.
+        /// Estimates text width from item display names plus icon/padding/chevron.
+        /// Returns clamped width between 120 and 600 pixels.
+        /// </summary>
+        private double MeasureColumnContentWidth(FolderViewModel column)
+        {
+            const double iconWidth = 16;
+            const double iconMargin = 12;
+            const double itemPadding = 12 * 2;   // left + right padding on item grid
+            const double chevronWidth = 14;       // chevron icon + opacity area
+            const double countBadgeExtra = 30;    // child count text badge
+            const double gripWidth = 4;           // resize grip
+            const double scrollBarBuffer = 8;     // scrollbar safety margin
+            const double minWidth = 120;
+            const double maxWidth = 600;
+
+            double maxItemWidth = 0;
+
+            foreach (var child in column.Children)
+            {
+                string displayName = child.DisplayName;
+                // Measure text using a TextBlock for accurate font metrics
+                double textWidth = MeasureTextWidth(displayName, 14); // default font size 14
+
+                double itemWidth = itemPadding + iconWidth + iconMargin + textWidth;
+
+                // Folders have count badge + chevron
+                if (child is FolderViewModel folderChild)
+                {
+                    itemWidth += countBadgeExtra + chevronWidth;
+                }
+
+                if (itemWidth > maxItemWidth)
+                    maxItemWidth = itemWidth;
+            }
+
+            // Add grip width and buffer
+            double totalWidth = maxItemWidth + gripWidth + scrollBarBuffer;
+
+            return Math.Clamp(totalWidth, minWidth, maxWidth);
+        }
+
+        /// <summary>
+        /// Measure the pixel width of a string using WinUI text rendering.
+        /// </summary>
+        private static double MeasureTextWidth(string text, double fontSize)
+        {
+            if (string.IsNullOrEmpty(text)) return 0;
+
+            var tb = new TextBlock
+            {
+                Text = text,
+                FontSize = fontSize,
+                TextWrapping = TextWrapping.NoWrap
+            };
+            tb.Measure(new Windows.Foundation.Size(double.PositiveInfinity, double.PositiveInfinity));
+            return tb.DesiredSize.Width;
+        }
+
+        /// <summary>
+        /// Apply a given width to all column grids in the active Miller Columns control.
+        /// Used by Ctrl+drag and Ctrl+Shift+= shortcut.
+        /// </summary>
+        private void ApplyWidthToAllColumns(double width)
+        {
+            width = Math.Clamp(width, 150, 600);
+
+            var control = GetActiveMillerColumnsControl();
+            var columns = ViewModel.ActiveExplorer.Columns;
+
+            for (int i = 0; i < columns.Count; i++)
+            {
+                var container = control.ContainerFromIndex(i) as ContentPresenter;
+                if (container == null) continue;
+                var grid = FindChild<Grid>(container);
+                if (grid != null)
+                {
+                    grid.Width = width;
+                }
+            }
+
+            // Invalidate layout
+            if (VisualTreeHelper.GetParent(control) is FrameworkElement parent)
+                parent.InvalidateMeasure();
+        }
+
+        /// <summary>
+        /// Auto-fit all column widths to their individual content.
+        /// Each column gets its own optimal width based on the widest item it contains.
+        /// </summary>
+        private void AutoFitAllColumns()
+        {
+            var control = GetActiveMillerColumnsControl();
+            var columns = ViewModel.ActiveExplorer.Columns;
+
+            for (int i = 0; i < columns.Count; i++)
+            {
+                double fittedWidth = MeasureColumnContentWidth(columns[i]);
+                var container = control.ContainerFromIndex(i) as ContentPresenter;
+                if (container == null) continue;
+                var grid = FindChild<Grid>(container);
+                if (grid != null)
+                {
+                    grid.Width = fittedWidth;
+                }
+            }
+
+            // Invalidate layout
+            control.InvalidateMeasure();
+            control.UpdateLayout();
+            var scrollViewer = GetActiveMillerScrollViewer();
+            scrollViewer.InvalidateMeasure();
+            scrollViewer.UpdateLayout();
         }
 
         /// <summary>
@@ -2035,6 +2236,11 @@ namespace Span
                             HandleNewFolder();
                             e.Handled = true;
                         }
+                        else
+                        {
+                            OpenNewWindow();
+                            e.Handled = true;
+                        }
                         break;
 
                     case Windows.System.VirtualKey.A:
@@ -2097,6 +2303,36 @@ namespace Span
                         ViewModel.SwitchViewMode(ViewModel.CurrentIconSize);
                         GetActiveIconView()?.UpdateIconSize(ViewModel.CurrentIconSize);
                         e.Handled = true;
+                        break;
+
+                    case (Windows.System.VirtualKey)187: // VK_OEM_PLUS = =/+ key
+                        if (shift)
+                        {
+                            // Ctrl+Shift+=: Equalize all columns to the same width (220 default)
+                            if (ViewModel.CurrentViewMode == Models.ViewMode.MillerColumns)
+                            {
+                                ApplyWidthToAllColumns(ColumnWidth);
+                                var eqCtl = GetActiveMillerColumnsControl();
+                                eqCtl.InvalidateMeasure();
+                                eqCtl.UpdateLayout();
+                                GetActiveMillerScrollViewer().InvalidateMeasure();
+                                ViewModel.ShowToast("All columns equalized to default width");
+                            }
+                            e.Handled = true;
+                        }
+                        break;
+
+                    case (Windows.System.VirtualKey)189: // VK_OEM_MINUS = -/_ key
+                        if (shift)
+                        {
+                            // Ctrl+Shift+-: Auto-fit all columns to their content
+                            if (ViewModel.CurrentViewMode == Models.ViewMode.MillerColumns)
+                            {
+                                AutoFitAllColumns();
+                                ViewModel.ShowToast("All columns auto-fitted to content");
+                            }
+                            e.Handled = true;
+                        }
                         break;
                 }
             }
@@ -3106,13 +3342,19 @@ namespace Span
         {
             if (e.Key == Windows.System.VirtualKey.Escape)
             {
+                // Clear search and restore original column contents if filtered
+                if (_isSearchFiltered)
+                {
+                    RestoreSearchFilter();
+                }
+                SearchBox.Text = string.Empty;
                 GetActiveMillerColumnsControl().Focus(FocusState.Keyboard);
                 e.Handled = true;
             }
             else if (e.Key == Windows.System.VirtualKey.Enter)
             {
-                string query = SearchBox.Text.Trim();
-                if (string.IsNullOrEmpty(query)) return;
+                string queryText = SearchBox.Text.Trim();
+                if (string.IsNullOrEmpty(queryText)) return;
 
                 var columns = ViewModel.ActiveExplorer.Columns;
                 int activeIndex = GetActiveColumnIndex();
@@ -3120,18 +3362,105 @@ namespace Span
                 if (activeIndex < 0 || activeIndex >= columns.Count) return;
 
                 var column = columns[activeIndex];
-                var match = column.Children.FirstOrDefault(c =>
-                    c.Name.Contains(query, StringComparison.OrdinalIgnoreCase));
 
-                if (match != null)
+                // Parse the query using Advanced Query Syntax
+                var query = Helpers.SearchQueryParser.Parse(queryText);
+
+                if (query.IsEmpty) return;
+
+                // Check if query has advanced filters (kind:, size:, date:, ext:)
+                bool hasAdvancedFilters = query.KindFilter.HasValue ||
+                                          query.SizeFilter.HasValue ||
+                                          query.DateFilter.HasValue ||
+                                          !string.IsNullOrEmpty(query.ExtensionFilter);
+
+                if (hasAdvancedFilters)
                 {
-                    column.SelectedChild = match;
-                    var listView = GetListViewForColumn(activeIndex);
-                    listView?.ScrollIntoView(match);
+                    // Advanced search: filter the column's children in-place
+                    ApplySearchFilter(column, query, activeIndex);
+                }
+                else
+                {
+                    // Simple name search: find first match and select it (existing behavior)
+                    var source = _isSearchFiltered && _searchOriginalChildren != null
+                        ? _searchOriginalChildren
+                        : column.Children.ToList();
+
+                    var match = Helpers.SearchFilter.FindFirst(query, source);
+                    if (match != null)
+                    {
+                        // If filtered, restore first so we can select the match
+                        if (_isSearchFiltered)
+                        {
+                            RestoreSearchFilter();
+                        }
+                        column.SelectedChild = match;
+                        var listView = GetListViewForColumn(activeIndex);
+                        listView?.ScrollIntoView(match);
+                    }
                 }
 
                 e.Handled = true;
             }
+        }
+
+        // ── Search Filter State ──
+        private bool _isSearchFiltered = false;
+        private List<FileSystemViewModel>? _searchOriginalChildren = null;
+        private int _searchFilteredColumnIndex = -1;
+
+        /// <summary>
+        /// Apply advanced search filter: replace column children with filtered results.
+        /// Stores original children for restoration on Escape.
+        /// </summary>
+        private void ApplySearchFilter(FolderViewModel column, SearchQuery query, int columnIndex)
+        {
+            // Save original children if not already saved (allow re-filtering)
+            var source = _isSearchFiltered && _searchOriginalChildren != null
+                ? _searchOriginalChildren
+                : column.Children.ToList();
+
+            if (!_isSearchFiltered)
+            {
+                _searchOriginalChildren = column.Children.ToList();
+                _searchFilteredColumnIndex = columnIndex;
+            }
+
+            var filtered = Helpers.SearchFilter.Apply(query, source);
+
+            column.Children.Clear();
+            foreach (var item in filtered)
+                column.Children.Add(item);
+
+            _isSearchFiltered = true;
+
+            // Update status bar with search result count
+            ViewModel.StatusItemCountText = $"Search: {filtered.Count} result{(filtered.Count != 1 ? "s" : "")}";
+            if (filtered.Count == 0)
+            {
+                ViewModel.StatusSelectionText = "Esc to clear";
+            }
+        }
+
+        /// <summary>
+        /// Restore original column children after search filter is cleared.
+        /// </summary>
+        private void RestoreSearchFilter()
+        {
+            if (!_isSearchFiltered || _searchOriginalChildren == null) return;
+
+            var columns = ViewModel.ActiveExplorer.Columns;
+            if (_searchFilteredColumnIndex >= 0 && _searchFilteredColumnIndex < columns.Count)
+            {
+                var column = columns[_searchFilteredColumnIndex];
+                column.Children.Clear();
+                foreach (var item in _searchOriginalChildren)
+                    column.Children.Add(item);
+            }
+
+            _isSearchFiltered = false;
+            _searchOriginalChildren = null;
+            _searchFilteredColumnIndex = -1;
         }
 
         // =================================================================
@@ -3143,6 +3472,13 @@ namespace Span
             // 리네임 TextBox로 포커스가 간 경우는 제외 (GotFocus 버블링)
             if (e.OriginalSource is not TextBox)
                 CancelAnyActiveRename();
+
+            // Clear any active search filter when user focuses a different column
+            if (_isSearchFiltered)
+            {
+                RestoreSearchFilter();
+                ViewModel.UpdateStatusBar();
+            }
 
             if (sender is FrameworkElement fe && fe.DataContext is FolderViewModel folderVm)
             {
@@ -3280,9 +3616,9 @@ namespace Span
             double viewportRight = viewportLeft + scrollViewer.ViewportWidth;
 
             if (columnLeft < viewportLeft)
-                scrollViewer.ChangeView(columnLeft, null, null, true);
+                scrollViewer.ChangeView(columnLeft, null, null, false); // false = enable smooth animation
             else if (columnRight > viewportRight)
-                scrollViewer.ChangeView(columnRight - scrollViewer.ViewportWidth, null, null, true);
+                scrollViewer.ChangeView(columnRight - scrollViewer.ViewportWidth, null, null, false); // false = enable smooth animation
         }
 
         private int GetActiveColumnIndex()
@@ -4599,6 +4935,40 @@ namespace Span
                    cursorPos.Y > windowRect.Bottom;
         }
 
+        /// <summary>
+        /// Open a new window at the current path (Ctrl+N).
+        /// </summary>
+        private void OpenNewWindow()
+        {
+            try
+            {
+                // Build a TabStateDto from the current active tab state
+                ViewModel.SaveActiveTabState();
+                var activeTab = ViewModel.ActiveTab;
+                var currentPath = ViewModel.ActiveExplorer?.CurrentPath ?? string.Empty;
+                var header = activeTab?.Header ?? "Home";
+                var viewMode = activeTab != null ? (int)activeTab.ViewMode : (int)ViewMode.MillerColumns;
+                var iconSize = activeTab != null ? (int)activeTab.IconSize : (int)ViewMode.IconMedium;
+
+                var dto = new Models.TabStateDto(
+                    System.Guid.NewGuid().ToString("N")[..8],
+                    header,
+                    currentPath,
+                    viewMode,
+                    iconSize);
+
+                var newWindow = new MainWindow();
+                newWindow._pendingTearOff = dto;
+
+                App.Current.RegisterWindow(newWindow);
+                newWindow.Activate();
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[OpenNewWindow] Error: {ex.Message}");
+            }
+        }
+
         private void TearOffTab(Models.TabItem tab)
         {
             try
@@ -5545,6 +5915,9 @@ namespace Span
 
             // Subscribe to ViewModel property changes for preview state
             ViewModel.PropertyChanged += OnViewModelPropertyChangedForPreview;
+
+            // Initialize inline preview column
+            InitializeInlinePreview();
         }
 
         /// <summary>
@@ -5730,6 +6103,188 @@ namespace Span
             {
                 Helpers.DebugLogger.Log($"[MainWindow] RestorePreviewState error: {ex.Message}");
             }
+        }
+
+        // =================================================================
+        //  Inline Preview Column (inside Miller Columns)
+        // =================================================================
+
+        /// <summary>
+        /// Initialize inline preview column by subscribing to SelectedFile changes on the active explorer.
+        /// Called from InitializePreviewPanels and when explorer changes (tab switch, etc.).
+        /// </summary>
+        private void InitializeInlinePreview()
+        {
+            _inlinePreviewService ??= App.Current.Services.GetRequiredService<PreviewService>();
+
+            // Subscribe to SelectedFile changes on the left explorer
+            ViewModel.LeftExplorer.PropertyChanged += OnExplorerSelectedFileChanged;
+        }
+
+        /// <summary>
+        /// Re-subscribe inline preview when explorer changes (tab switch).
+        /// </summary>
+        private void ResubscribeInlinePreview(ExplorerViewModel? oldExplorer, ExplorerViewModel newExplorer)
+        {
+            if (oldExplorer != null)
+                oldExplorer.PropertyChanged -= OnExplorerSelectedFileChanged;
+
+            newExplorer.PropertyChanged += OnExplorerSelectedFileChanged;
+
+            // Update inline preview immediately with new explorer state
+            UpdateInlinePreviewColumn(newExplorer.SelectedFile);
+        }
+
+        private void OnExplorerSelectedFileChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName != nameof(ExplorerViewModel.SelectedFile) &&
+                e.PropertyName != nameof(ExplorerViewModel.ShowPreviewColumn))
+                return;
+            if (_isClosed) return;
+
+            if (sender is ExplorerViewModel explorer)
+            {
+                UpdateInlinePreviewColumn(explorer.SelectedFile);
+            }
+        }
+
+        /// <summary>
+        /// Update the inline preview column content and visibility.
+        /// Shows/hides the column and populates file info.
+        /// </summary>
+        private async void UpdateInlinePreviewColumn(FileViewModel? fileVm)
+        {
+            if (_isClosed) return;
+
+            // Cancel any pending preview load
+            _inlinePreviewCts?.Cancel();
+
+            if (fileVm == null)
+            {
+                InlinePreviewColumn.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            // Show the column and populate basic info
+            InlinePreviewColumn.Visibility = Visibility.Visible;
+
+            // Basic info (synchronous)
+            InlinePreviewFileName.Text = fileVm.Name;
+            InlinePreviewIcon.Glyph = fileVm.IconGlyph;
+            InlinePreviewIcon.Foreground = fileVm.IconBrush;
+            InlinePreviewFileType.Text = fileVm.FileType;
+            InlinePreviewDateModified.Text = fileVm.DateModified;
+
+            // Get metadata from PreviewService
+            var metadata = _inlinePreviewService!.GetBasicMetadata(fileVm.Path);
+            InlinePreviewFileSize.Text = metadata.SizeFormatted;
+            InlinePreviewDateCreated.Text = metadata.Created.ToString("yyyy-MM-dd HH:mm");
+
+            // Reset type-specific previews
+            InlinePreviewImage.Visibility = Visibility.Collapsed;
+            InlinePreviewImage.Source = null;
+            InlinePreviewTextBorder.Visibility = Visibility.Collapsed;
+            InlinePreviewText.Text = "";
+            InlinePreviewThumbnail.Visibility = Visibility.Collapsed;
+            InlinePreviewThumbnail.Source = null;
+            InlinePreviewIcon.Visibility = Visibility.Visible;
+            InlinePreviewDimensionsRow.Visibility = Visibility.Collapsed;
+            InlinePreviewDimensions.Text = "";
+
+            // Determine preview type and load async content
+            var previewType = _inlinePreviewService.GetPreviewType(fileVm.Path, false);
+
+            _inlinePreviewCts = new CancellationTokenSource();
+            var ct = _inlinePreviewCts.Token;
+
+            try
+            {
+                switch (previewType)
+                {
+                    case Models.PreviewType.Image:
+                        var imageBitmap = await _inlinePreviewService.LoadImagePreviewAsync(fileVm.Path, 512, ct);
+                        if (ct.IsCancellationRequested) return;
+                        if (imageBitmap != null)
+                        {
+                            InlinePreviewImage.Source = imageBitmap;
+                            InlinePreviewImage.Visibility = Visibility.Visible;
+                            // Hide icon, show thumbnail in the header area
+                            InlinePreviewIcon.Visibility = Visibility.Collapsed;
+                            InlinePreviewThumbnail.Source = imageBitmap;
+                            InlinePreviewThumbnail.Visibility = Visibility.Visible;
+                        }
+                        // Load dimensions
+                        var imgMeta = await _inlinePreviewService.GetImageMetadataAsync(fileVm.Path, ct);
+                        if (ct.IsCancellationRequested) return;
+                        if (imgMeta != null)
+                        {
+                            InlinePreviewDimensions.Text = $"{imgMeta.Width} x {imgMeta.Height}";
+                            InlinePreviewDimensionsRow.Visibility = Visibility.Visible;
+                        }
+                        break;
+
+                    case Models.PreviewType.Text:
+                        var text = await _inlinePreviewService.LoadTextPreviewAsync(fileVm.Path, ct);
+                        if (ct.IsCancellationRequested) return;
+                        if (text != null)
+                        {
+                            // Show only first ~2000 chars for inline preview
+                            InlinePreviewText.Text = text.Length > 2000 ? text.Substring(0, 2000) + "\n..." : text;
+                            InlinePreviewTextBorder.Visibility = Visibility.Visible;
+                        }
+                        break;
+
+                    case Models.PreviewType.Pdf:
+                        var pdfBitmap = await _inlinePreviewService.LoadPdfPreviewAsync(fileVm.Path, ct);
+                        if (ct.IsCancellationRequested) return;
+                        if (pdfBitmap != null)
+                        {
+                            InlinePreviewImage.Source = pdfBitmap;
+                            InlinePreviewImage.Visibility = Visibility.Visible;
+                        }
+                        break;
+
+                    case Models.PreviewType.Generic:
+                    default:
+                        // No additional preview content for generic files
+                        break;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Normal — user selected another file quickly
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[InlinePreview] Error loading preview: {ex.Message}");
+            }
+
+            // Scroll the inline preview column into view
+            if (!ct.IsCancellationRequested && InlinePreviewColumn.Visibility == Visibility.Visible)
+            {
+                DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+                {
+                    try
+                    {
+                        var scrollViewer = GetActiveMillerScrollViewer();
+                        scrollViewer?.ChangeView(scrollViewer.ScrollableWidth, null, null);
+                    }
+                    catch { }
+                });
+            }
+        }
+
+        /// <summary>
+        /// Clean up inline preview resources.
+        /// </summary>
+        private void CleanupInlinePreview()
+        {
+            _inlinePreviewCts?.Cancel();
+            _inlinePreviewCts?.Dispose();
+            _inlinePreviewCts = null;
+
+            if (ViewModel?.LeftExplorer != null)
+                ViewModel.LeftExplorer.PropertyChanged -= OnExplorerSelectedFileChanged;
         }
 
         // =================================================================

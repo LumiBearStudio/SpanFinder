@@ -105,6 +105,7 @@ namespace Span
             services.AddSingleton<Services.ActionLogService>();
             services.AddSingleton<Services.SettingsService>();
             services.AddSingleton<Services.FolderContentCache>();
+            services.AddSingleton<Services.FileOperationManager>();
 
             // ViewModel 등록
             services.AddTransient<MainViewModel>();
