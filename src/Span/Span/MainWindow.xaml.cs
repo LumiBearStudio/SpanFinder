@@ -109,6 +109,22 @@ namespace Span
 
         private const double ColumnWidth = 220;
 
+        // Column resize state
+        private bool _isResizingColumn = false;
+        private Grid? _resizingColumnGrid = null;
+
+        // F2 rename selection cycling: 0=name only, 1=all, 2=extension only
+        private int _renameSelectionCycle = 0;
+        private string? _renameTargetPath = null;
+        private double _resizeStartX;
+        private double _resizeStartWidth;
+
+        // Spring-loaded folders: auto-open folder after drag hover delay
+        private DispatcherTimer? _springLoadTimer;
+        private FolderViewModel? _springLoadTarget;
+        private Grid? _springLoadGrid;
+        private const int SPRING_LOAD_DELAY_MS = 700;
+
         public MainWindow()
         {
             this.InitializeComponent();
@@ -212,6 +228,20 @@ namespace Span
                 true  // Handled 된 이벤트도 받음
             );
 
+            // ★ Mouse Back/Forward buttons (XButton1=Back, XButton2=Forward)
+            this.Content.AddHandler(
+                UIElement.PointerPressedEvent,
+                new PointerEventHandler(OnGlobalPointerPressed),
+                true
+            );
+
+            // ★ Ctrl+Mouse Wheel view mode cycling (global — works in ALL views)
+            this.Content.AddHandler(
+                UIElement.PointerWheelChangedEvent,
+                new PointerEventHandler(OnGlobalPointerWheelChanged),
+                true  // handledEventsToo: catches events even after ScrollViewer/ListView consume them
+            );
+
             // Type-ahead timer
             _typeAheadTimer = new DispatcherTimer();
             _typeAheadTimer.Interval = TimeSpan.FromMilliseconds(800);
@@ -303,6 +333,10 @@ namespace Span
                         TabBarContent.SizeChanged += (_, __) => UpdateTitleBarRegions();
                         this.SizeChanged += (_, __) => UpdateTitleBarRegions();
 
+                        // Populate favorites tree for tear-off window
+                        PopulateFavoritesTree();
+                        ViewModel.Favorites.CollectionChanged += OnFavoritesCollectionChanged;
+
                         DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
                             () => FocusActiveView());
                         return;
@@ -326,6 +360,10 @@ namespace Span
 
                     // ── Per-Tab Miller Panels: 세션 복원 후 모든 탭에 대해 패널 생성 ──
                     InitializeTabMillerPanels();
+
+                    // ── Populate Favorites Tree and observe changes ──
+                    PopulateFavoritesTree();
+                    ViewModel.Favorites.CollectionChanged += OnFavoritesCollectionChanged;
 
                     // Set tab bar as passthrough so pointer events work for tab tear-off
                     UpdateTitleBarRegions();
@@ -442,7 +480,11 @@ namespace Span
                 try { IconViewRight?.Cleanup(); } catch { }
 
                 // Disconnect sidebar bindings
-                try { FavoritesItemsControl.ItemsSource = null; }
+                try
+                {
+                    FavoritesTreeView.RootNodes.Clear();
+                    ViewModel.Favorites.CollectionChanged -= OnFavoritesCollectionChanged;
+                }
                 catch { /* ignore */ }
 
                 // STEP 4: NOW safe to clear collections — UI bindings disconnected
@@ -457,6 +499,8 @@ namespace Span
                 if (this.Content != null)
                 {
                     this.Content.RemoveHandler(UIElement.KeyDownEvent, (KeyEventHandler)OnGlobalKeyDown);
+                    this.Content.RemoveHandler(UIElement.PointerPressedEvent, (PointerEventHandler)OnGlobalPointerPressed);
+                    this.Content.RemoveHandler(UIElement.PointerWheelChangedEvent, (PointerEventHandler)OnGlobalPointerWheelChanged);
                 }
                 if (MillerColumnsControl != null)
                 {
@@ -964,8 +1008,7 @@ namespace Span
                 () =>
                 {
                     if (_isClosed) return;
-                    // UpdateLayout() 제거 — Low priority 디스패치이므로 레이아웃이 이미 완료됨
-                    double totalWidth = columns.Count * ColumnWidth;
+                    double totalWidth = GetTotalColumnsActualWidth(columns.Count);
                     double viewportWidth = scrollViewer.ViewportWidth;
                     double targetScroll = Math.Max(0, totalWidth - viewportWidth);
                     scrollViewer.ChangeView(targetScroll, null, null, false);
@@ -980,10 +1023,49 @@ namespace Span
             if (scrollViewer == null) return;
             var columns = explorer.Columns;
             if (columns.Count == 0) return;
-            double totalWidth = columns.Count * ColumnWidth;
+            double totalWidth = GetTotalColumnsActualWidth(columns.Count);
             double viewportWidth = scrollViewer.ViewportWidth;
             double targetScroll = Math.Max(0, totalWidth - viewportWidth);
             scrollViewer.ChangeView(targetScroll, null, null, false);
+        }
+
+        /// <summary>
+        /// 렌더링된 컬럼의 실제 너비 합산 (리사이즈 반영).
+        /// </summary>
+        private double GetTotalColumnsActualWidth(int columnCount)
+        {
+            var control = GetActiveMillerColumnsControl();
+            double total = 0;
+            for (int i = 0; i < columnCount; i++)
+            {
+                var container = control.ContainerFromIndex(i) as FrameworkElement;
+                if (container != null && container.ActualWidth > 0)
+                    total += container.ActualWidth;
+                else
+                    total += ColumnWidth;
+            }
+            return total;
+        }
+
+        /// <summary>
+        /// 현재 활성 탐색기에서 진행 중인 리네임을 모두 취소.
+        /// 다른 항목 선택, 탐색 등 새로운 동작 시작 시 호출.
+        /// </summary>
+        private void CancelAnyActiveRename()
+        {
+            var explorer = ViewModel?.ActiveExplorer;
+            if (explorer == null) return;
+            foreach (var col in explorer.Columns)
+            {
+                foreach (var child in col.Children)
+                {
+                    if (child.IsRenaming)
+                    {
+                        child.CancelRename();
+                    }
+                }
+            }
+            _renameTargetPath = null;
         }
 
         // =================================================================
@@ -1018,24 +1100,271 @@ namespace Span
             Helpers.DebugLogger.Log("[Sidebar] Home tapped");
         }
 
-        private void OnFavoriteItemTapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
+        // =================================================================
+        //  Sidebar Favorites Tree (TreeView with lazy-loaded subfolders)
+        // =================================================================
+
+        /// <summary>
+        /// Populate the favorites TreeView from ViewModel.Favorites.
+        /// Each root node is a FavoriteItem; child nodes (subfolders) are lazily loaded on expand.
+        /// </summary>
+        private void PopulateFavoritesTree()
         {
-            if (sender is Grid grid && grid.DataContext is FavoriteItem favorite)
+            FavoritesTreeView.RootNodes.Clear();
+            foreach (var fav in ViewModel.Favorites)
             {
-                ViewModel.NavigateToFavorite(favorite);
-                FocusColumnAsync(0);
-                Helpers.DebugLogger.Log($"[Sidebar] Favorite tapped: {favorite.Name}");
+                var node = new TreeViewNode
+                {
+                    Content = fav,
+                    HasUnrealizedChildren = HasSubfolders(fav.Path)
+                };
+                FavoritesTreeView.RootNodes.Add(node);
             }
         }
 
-        private void OnFavoriteRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
+        /// <summary>
+        /// Repopulate the tree when the Favorites collection changes (add/remove).
+        /// </summary>
+        private void OnFavoritesCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
-            if (sender is Grid grid && grid.DataContext is FavoriteItem favorite)
+            if (_isClosed) return;
+            PopulateFavoritesTree();
+        }
+
+        /// <summary>
+        /// Check if a directory path has any visible subfolders (for expand chevron).
+        /// </summary>
+        private static bool HasSubfolders(string path)
+        {
+            try
+            {
+                if (!System.IO.Directory.Exists(path)) return false;
+                foreach (var dir in System.IO.Directory.EnumerateDirectories(path))
+                {
+                    try
+                    {
+                        var info = new System.IO.DirectoryInfo(dir);
+                        if ((info.Attributes & System.IO.FileAttributes.Hidden) != 0) continue;
+                        if ((info.Attributes & System.IO.FileAttributes.System) != 0) continue;
+                        return true; // Found at least one visible subfolder
+                    }
+                    catch { continue; }
+                }
+            }
+            catch { }
+            return false;
+        }
+
+        /// <summary>
+        /// Lazy-load child subfolders when a tree node is expanded.
+        /// </summary>
+        private void OnFavoritesTreeExpanding(TreeView sender, TreeViewExpandingEventArgs args)
+        {
+            if (!args.Node.HasUnrealizedChildren) return;
+            args.Node.HasUnrealizedChildren = false;
+
+            var path = GetPathFromNode(args.Node);
+            if (string.IsNullOrEmpty(path)) return;
+
+            try
+            {
+                var dirs = System.IO.Directory.GetDirectories(path);
+                Array.Sort(dirs, StringComparer.OrdinalIgnoreCase);
+                foreach (var dir in dirs)
+                {
+                    try
+                    {
+                        var info = new System.IO.DirectoryInfo(dir);
+                        if ((info.Attributes & System.IO.FileAttributes.Hidden) != 0) continue;
+                        if ((info.Attributes & System.IO.FileAttributes.System) != 0) continue;
+
+                        var childNode = new TreeViewNode
+                        {
+                            Content = new SidebarFolderNode
+                            {
+                                Name = info.Name,
+                                Path = dir
+                            },
+                            HasUnrealizedChildren = true // Assume subfolders may exist; checked lazily on next expand
+                        };
+                        args.Node.Children.Add(childNode);
+                    }
+                    catch { /* Skip inaccessible directories */ }
+                }
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// Navigate to the folder when a tree item is invoked (clicked).
+        /// </summary>
+        private void OnFavoritesTreeItemInvoked(TreeView sender, TreeViewItemInvokedEventArgs args)
+        {
+            var path = "";
+            // InvokedItem may be the TreeViewNode (manual RootNodes mode) or the Content directly
+            if (args.InvokedItem is TreeViewNode node)
+            {
+                path = GetPathFromNode(node);
+            }
+            else if (args.InvokedItem is FavoriteItem fav)
+            {
+                path = fav.Path;
+            }
+            else if (args.InvokedItem is SidebarFolderNode sfn)
+            {
+                path = sfn.Path;
+            }
+
+            if (!string.IsNullOrEmpty(path) && System.IO.Directory.Exists(path))
+            {
+                // Switch away from Home mode if needed
+                var activeViewMode = (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
+                    ? ViewModel.RightViewMode : ViewModel.CurrentViewMode;
+                if (activeViewMode == ViewMode.Home)
+                {
+                    ViewModel.SwitchViewMode(ViewMode.MillerColumns);
+                }
+
+                var folder = new FolderItem
+                {
+                    Name = System.IO.Path.GetFileName(path) ?? path,
+                    Path = path
+                };
+                _ = ViewModel.ActiveExplorer.NavigateTo(folder);
+                FocusColumnAsync(0);
+                Helpers.DebugLogger.Log($"[Sidebar] Favorites tree item invoked: {path}");
+            }
+        }
+
+        /// <summary>
+        /// Extract the file system path from a TreeViewNode's content.
+        /// </summary>
+        private static string GetPathFromNode(TreeViewNode node)
+        {
+            if (node.Content is FavoriteItem fav)
+                return fav.Path;
+            if (node.Content is SidebarFolderNode sfn)
+                return sfn.Path;
+            return string.Empty;
+        }
+
+        /// <summary>
+        /// Right-click context menu for favorites tree items.
+        /// Root items (FavoriteItem) show the favorite context menu.
+        /// Child items (SidebarFolderNode) navigate to the folder and offer basic folder actions.
+        /// </summary>
+        private void OnFavoritesTreeRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
+        {
+            // Find the TreeViewItem that was right-clicked
+            var element = e.OriginalSource as DependencyObject;
+            TreeViewItem? treeViewItem = null;
+            while (element != null)
+            {
+                if (element is TreeViewItem tvi)
+                {
+                    treeViewItem = tvi;
+                    break;
+                }
+                element = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(element);
+            }
+
+            if (treeViewItem == null) return;
+
+            // Find the corresponding TreeViewNode from the TreeViewItem
+            // The TreeViewItem's DataContext is the Content of the TreeViewNode
+            var content = treeViewItem.DataContext;
+
+            if (content is FavoriteItem favorite)
             {
                 var flyout = _contextMenuService.BuildFavoriteMenu(favorite, this);
-                flyout.ShowAt(grid, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
+                flyout.ShowAt(treeViewItem, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
                 {
-                    Position = e.GetPosition(grid)
+                    Position = e.GetPosition(treeViewItem)
+                });
+                e.Handled = true;
+            }
+            else if (content is SidebarFolderNode folderNode)
+            {
+                // Build a simple context menu for subfolder nodes
+                var menu = new MenuFlyout();
+
+                var openItem = new MenuFlyoutItem
+                {
+                    Text = _loc.Get("Open"),
+                    Icon = new FontIcon { Glyph = "\uE8E5" }
+                };
+                openItem.Click += (s, a) =>
+                {
+                    if (System.IO.Directory.Exists(folderNode.Path))
+                    {
+                        var folder = new FolderItem
+                        {
+                            Name = folderNode.Name,
+                            Path = folderNode.Path
+                        };
+                        _ = ViewModel.ActiveExplorer.NavigateTo(folder);
+                        FocusColumnAsync(0);
+                    }
+                };
+                menu.Items.Add(openItem);
+                menu.Items.Add(new MenuFlyoutSeparator());
+
+                var addFavItem = new MenuFlyoutItem
+                {
+                    Text = _loc.Get("AddToFavorites"),
+                    Icon = new FontIcon { Glyph = "\uE734" }
+                };
+                addFavItem.Click += (s, a) => ViewModel.AddToFavorites(folderNode.Path);
+                menu.Items.Add(addFavItem);
+                menu.Items.Add(new MenuFlyoutSeparator());
+
+                var copyPathItem = new MenuFlyoutItem
+                {
+                    Text = _loc.Get("CopyPath"),
+                    Icon = new FontIcon { Glyph = "\uE8C8" }
+                };
+                copyPathItem.Click += (s, a) =>
+                {
+                    var shellService = App.Current.Services.GetRequiredService<ShellService>();
+                    shellService.CopyPathToClipboard(folderNode.Path);
+                };
+                menu.Items.Add(copyPathItem);
+
+                var openExplorerItem = new MenuFlyoutItem
+                {
+                    Text = _loc.Get("OpenInExplorer"),
+                    Icon = new FontIcon { Glyph = "\uED25" }
+                };
+                openExplorerItem.Click += (s, a) =>
+                {
+                    var shellService = App.Current.Services.GetRequiredService<ShellService>();
+                    shellService.OpenInExplorer(folderNode.Path);
+                };
+                menu.Items.Add(openExplorerItem);
+
+                menu.ShowAt(treeViewItem, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
+                {
+                    Position = e.GetPosition(treeViewItem)
+                });
+                e.Handled = true;
+            }
+        }
+
+        /// <summary>
+        /// Miller Column ListView 빈 공간 우클릭 → 빈 영역 컨텍스트 메뉴.
+        /// 아이템 위에서의 우클릭은 OnFolderRightTapped/OnFileRightTapped에서 e.Handled=true 처리됨.
+        /// </summary>
+        private void OnMillerColumnEmptyAreaRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
+        {
+            if (e.Handled) return; // 아이템 핸들러가 이미 처리함
+            if (!_settings.ShowContextMenu) return;
+
+            if (sender is ListView listView && listView.DataContext is FolderViewModel folderVm)
+            {
+                var flyout = _contextMenuService.BuildEmptyAreaMenu(folderVm.Path, this);
+                flyout.ShowAt(listView, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
+                {
+                    Position = e.GetPosition(listView)
                 });
                 e.Handled = true;
             }
@@ -1155,15 +1484,23 @@ namespace Span
                 }
             }
 
-            var shift = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Shift)
-                        .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+            bool isMove = ResolveDragDropOperation(e, targetFolder.Path);
 
-            e.AcceptedOperation = shift ? DataPackageOperation.Move : DataPackageOperation.Copy;
-            e.DragUIOverride.Caption = shift ? $"Move to {targetFolder.Name}" : $"Copy to {targetFolder.Name}";
+            e.AcceptedOperation = isMove ? DataPackageOperation.Move : DataPackageOperation.Copy;
+            e.DragUIOverride.Caption = isMove ? $"Move to {targetFolder.Name}" : $"Copy to {targetFolder.Name}";
             e.DragUIOverride.IsCaptionVisible = true;
 
             // Visual feedback: highlight background
             grid.Background = new SolidColorBrush(Microsoft.UI.Colors.White) { Opacity = 0.08 };
+
+            // Spring-loaded folder: start timer if hovering over a new folder
+            if (_springLoadTarget != targetFolder)
+            {
+                StopSpringLoadTimer();
+                _springLoadTarget = targetFolder;
+                _springLoadGrid = grid;
+                StartSpringLoadTimer();
+            }
 
             e.Handled = true;
         }
@@ -1172,16 +1509,15 @@ namespace Span
         {
             if (sender is not Grid grid || grid.DataContext is not FolderViewModel targetFolder) return;
 
-            // Reset highlight
+            // Reset highlight and cancel spring-load
             grid.Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+            StopSpringLoadTimer();
 
             var paths = await ExtractDropPaths(e);
             if (paths.Count == 0) return;
 
-            var shift = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Shift)
-                        .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
-
-            await HandleDropAsync(paths, targetFolder.Path, isMove: shift);
+            bool isMove = ResolveDragDropOperation(e, targetFolder.Path);
+            await HandleDropAsync(paths, targetFolder.Path, isMove: isMove);
             e.Handled = true;
         }
 
@@ -1190,6 +1526,60 @@ namespace Span
             if (sender is Grid grid)
             {
                 grid.Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+            }
+
+            // Cancel spring-loaded timer when leaving the target folder
+            if (sender is Grid g && g.DataContext is FolderViewModel leavingFolder
+                && leavingFolder == _springLoadTarget)
+            {
+                StopSpringLoadTimer();
+            }
+        }
+
+        // =================================================================
+        //  Spring-loaded folders: auto-open folder after drag hover delay
+        // =================================================================
+
+        private void StartSpringLoadTimer()
+        {
+            _springLoadTimer = new DispatcherTimer();
+            _springLoadTimer.Interval = TimeSpan.FromMilliseconds(SPRING_LOAD_DELAY_MS);
+            _springLoadTimer.Tick += OnSpringLoadTimerTick;
+            _springLoadTimer.Start();
+        }
+
+        private void StopSpringLoadTimer()
+        {
+            if (_springLoadTimer != null)
+            {
+                _springLoadTimer.Stop();
+                _springLoadTimer.Tick -= OnSpringLoadTimerTick;
+                _springLoadTimer = null;
+            }
+            _springLoadTarget = null;
+            _springLoadGrid = null;
+        }
+
+        private void OnSpringLoadTimerTick(object? sender, object e)
+        {
+            var folder = _springLoadTarget;
+            StopSpringLoadTimer(); // One-shot: stop and clear state
+
+            if (folder == null) return;
+
+            // Navigate into the folder by selecting it in its parent column
+            var explorer = ViewModel.ActiveExplorer;
+            if (explorer != null)
+            {
+                foreach (var col in explorer.Columns)
+                {
+                    if (col.Children.Contains(folder))
+                    {
+                        col.SelectedChild = folder;
+                        break;
+                    }
+                }
+                Helpers.DebugLogger.Log($"[SpringLoad] Auto-opened folder: {folder.Name}");
             }
         }
 
@@ -1213,11 +1603,10 @@ namespace Span
                 }
             }
 
-            var shift = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Shift)
-                        .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+            bool isMove = ResolveDragDropOperation(e, folderVm.Path);
 
-            e.AcceptedOperation = shift ? DataPackageOperation.Move : DataPackageOperation.Copy;
-            e.DragUIOverride.Caption = shift ? $"Move to {folderVm.Name}" : $"Copy to {folderVm.Name}";
+            e.AcceptedOperation = isMove ? DataPackageOperation.Move : DataPackageOperation.Copy;
+            e.DragUIOverride.Caption = isMove ? $"Move to {folderVm.Name}" : $"Copy to {folderVm.Name}";
             e.DragUIOverride.IsCaptionVisible = true;
         }
 
@@ -1228,10 +1617,8 @@ namespace Span
             var paths = await ExtractDropPaths(e);
             if (paths.Count == 0) return;
 
-            var shift = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Shift)
-                        .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
-
-            await HandleDropAsync(paths, folderVm.Path, isMove: shift);
+            bool isMove = ResolveDragDropOperation(e, folderVm.Path);
+            await HandleDropAsync(paths, folderVm.Path, isMove: isMove);
         }
 
         // =================================================================
@@ -1251,6 +1638,34 @@ namespace Span
             }
 
             return new List<string>();
+        }
+
+        /// <summary>
+        /// Resolves drag-drop operation based on modifier keys and drive comparison.
+        /// Windows Explorer convention: same drive = Move, different drive = Copy.
+        /// Shift forces Move, Ctrl forces Copy.
+        /// </summary>
+        private bool ResolveDragDropOperation(DragEventArgs e, string destFolder)
+        {
+            var shift = InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Shift)
+                        .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+            var ctrl = InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control)
+                       .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+
+            // Explicit modifier keys override default behavior
+            if (shift) return true;   // Shift = force Move
+            if (ctrl) return false;   // Ctrl = force Copy
+
+            // Default: same drive root = Move, different drive = Copy
+            if (e.DataView.Properties.TryGetValue("SourcePaths", out var srcObj) && srcObj is List<string> srcPaths && srcPaths.Count > 0)
+            {
+                var srcRoot = System.IO.Path.GetPathRoot(srcPaths[0]);
+                var destRoot = System.IO.Path.GetPathRoot(destFolder);
+                if (!string.IsNullOrEmpty(srcRoot) && !string.IsNullOrEmpty(destRoot))
+                    return srcRoot.Equals(destRoot, StringComparison.OrdinalIgnoreCase);
+            }
+
+            return false; // fallback: Copy
         }
 
         private async System.Threading.Tasks.Task HandleDropAsync(List<string> sourcePaths, string destFolder, bool isMove)
@@ -1294,12 +1709,14 @@ namespace Span
                 return;
             }
 
-            e.AcceptedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Copy
-                                | Windows.ApplicationModel.DataTransfer.DataPackageOperation.Move;
+            var targetExplorer = isLeftTarget ? ViewModel.Explorer : ViewModel.RightExplorer;
+            var destFolder = targetExplorer?.CurrentFolder?.Path ?? "";
+            bool isMove = ResolveDragDropOperation(e, destFolder);
 
-            var shift = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Shift)
-                        .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
-            e.DragUIOverride.Caption = shift ? "이동" : "복사";
+            e.AcceptedOperation = isMove
+                ? Windows.ApplicationModel.DataTransfer.DataPackageOperation.Move
+                : Windows.ApplicationModel.DataTransfer.DataPackageOperation.Copy;
+            e.DragUIOverride.Caption = isMove ? _loc.Get("Move") : _loc.Get("Copy");
             e.DragUIOverride.IsCaptionVisible = true;
             e.DragUIOverride.IsGlyphVisible = true;
 
@@ -1336,10 +1753,8 @@ namespace Span
             var destFolder = targetExplorer?.CurrentFolder?.Path;
             if (string.IsNullOrEmpty(destFolder)) return;
 
-            var shift = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Shift)
-                        .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
-
-            await HandleDropAsync(paths, destFolder, isMove: shift);
+            bool isMove = ResolveDragDropOperation(e, destFolder);
+            await HandleDropAsync(paths, destFolder, isMove: isMove);
             e.Handled = true;
         }
 
@@ -1378,20 +1793,160 @@ namespace Span
         }
 
         // =================================================================
+        //  Column Resize Grip Handlers (Miller Columns drag-to-resize)
+        // =================================================================
+
+        private void OnColumnResizeGripPointerEntered(object sender, PointerRoutedEventArgs e)
+        {
+            if (sender is Microsoft.UI.Xaml.Shapes.Rectangle rect)
+            {
+                rect.Fill = new SolidColorBrush(Microsoft.UI.Colors.Gray) { Opacity = 0.3 };
+                // Set resize cursor via InputSystemCursor (reliable in WinUI 3)
+                SetGripCursor(rect, true);
+            }
+        }
+
+        private void OnColumnResizeGripPointerExited(object sender, PointerRoutedEventArgs e)
+        {
+            if (!_isResizingColumn && sender is Microsoft.UI.Xaml.Shapes.Rectangle rect)
+            {
+                rect.Fill = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+                SetGripCursor(rect, false);
+            }
+        }
+
+        private void OnColumnResizeGripPointerPressed(object sender, PointerRoutedEventArgs e)
+        {
+            if (sender is Microsoft.UI.Xaml.Shapes.Rectangle rect)
+            {
+                // Walk up to find the parent Grid that has the Width
+                var parentGrid = VisualTreeHelper.GetParent(rect) as Grid;
+                if (parentGrid == null) return;
+
+                _isResizingColumn = true;
+                _resizingColumnGrid = parentGrid;
+                _resizeStartX = e.GetCurrentPoint(null).Position.X;
+                _resizeStartWidth = parentGrid.Width;
+
+                rect.CapturePointer(e.Pointer);
+                e.Handled = true;
+            }
+        }
+
+        private void OnColumnResizeGripPointerMoved(object sender, PointerRoutedEventArgs e)
+        {
+            if (_isResizingColumn && _resizingColumnGrid != null)
+            {
+                double currentX = e.GetCurrentPoint(null).Position.X;
+                double delta = currentX - _resizeStartX;
+                double newWidth = Math.Max(150, _resizeStartWidth + delta);
+                newWidth = Math.Min(600, newWidth); // max width cap
+                _resizingColumnGrid.Width = newWidth;
+
+                // Force parent StackPanel and ScrollViewer to recalculate scroll extent
+                if (VisualTreeHelper.GetParent(_resizingColumnGrid) is FrameworkElement parent)
+                    parent.InvalidateMeasure();
+
+                e.Handled = true;
+            }
+        }
+
+        private void OnColumnResizeGripPointerReleased(object sender, PointerRoutedEventArgs e)
+        {
+            if (_isResizingColumn)
+            {
+                var grid = _resizingColumnGrid;
+                _isResizingColumn = false;
+                _resizingColumnGrid = null;
+
+                if (sender is Microsoft.UI.Xaml.Shapes.Rectangle rect)
+                {
+                    rect.ReleasePointerCapture(e.Pointer);
+                    rect.Fill = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+                    SetGripCursor(rect, false);
+                }
+
+                // Final layout pass: invalidate ItemsControl → StackPanel → ScrollViewer
+                if (grid != null)
+                {
+                    var control = GetActiveMillerColumnsControl();
+                    control.InvalidateMeasure();
+                    control.UpdateLayout();
+                    var scrollViewer = GetActiveMillerScrollViewer();
+                    scrollViewer.InvalidateMeasure();
+                    scrollViewer.UpdateLayout();
+                }
+
+                e.Handled = true;
+            }
+        }
+
+        /// <summary>
+        /// Set cursor on resize grip element using WinUI 3 ProtectedCursor (via reflection).
+        /// This is more reliable than Win32 SetCursor which gets overridden by WinUI message loop.
+        /// </summary>
+        private static void SetGripCursor(UIElement element, bool resize)
+        {
+            try
+            {
+                var cursor = resize
+                    ? Microsoft.UI.Input.InputSystemCursor.Create(Microsoft.UI.Input.InputSystemCursorShape.SizeWestEast)
+                    : Microsoft.UI.Input.InputSystemCursor.Create(Microsoft.UI.Input.InputSystemCursorShape.Arrow);
+                // ProtectedCursor is protected; use reflection to bypass
+                typeof(UIElement).GetProperty("ProtectedCursor",
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                    ?.SetValue(element, cursor);
+            }
+            catch
+            {
+                // Fallback: ignore on older platforms
+            }
+        }
+
+        // =================================================================
         //  Global Keyboard (Ctrl 조합, F키 등)
         //  handledEventsToo: true로 등록하여 항상 수신
         // =================================================================
 
         private void OnGlobalKeyDown(object sender, KeyRoutedEventArgs e)
         {
-            // 이름 변경 중이면 글로벌 단축키 무시
+            // 이름 변경 중이면 F2(선택 영역 순환)만 허용, 나머지 글로벌 단축키 무시
             var selected = GetCurrentSelected();
-            if (selected != null && selected.IsRenaming) return;
+            if (selected != null && selected.IsRenaming && e.Key != Windows.System.VirtualKey.F2) return;
 
             var ctrl = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control)
                        .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
             var shift = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Shift)
                         .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+            var alt = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Menu)
+                      .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+
+            // Alt+Left/Right: Back/Forward navigation (highest priority)
+            // Alt+Enter: Show Properties dialog
+            if (alt && !ctrl && !shift)
+            {
+                switch (e.Key)
+                {
+                    case Windows.System.VirtualKey.Left:
+                        _ = ViewModel.GoBackAsync().ContinueWith(_ =>
+                            DispatcherQueue.TryEnqueue(() => FocusLastColumnAfterNavigation()),
+                            System.Threading.Tasks.TaskScheduler.Default);
+                        e.Handled = true;
+                        return;
+
+                    case Windows.System.VirtualKey.Right:
+                        _ = ViewModel.GoForwardAsync().ContinueWith(_ =>
+                            DispatcherQueue.TryEnqueue(() => FocusLastColumnAfterNavigation()),
+                            System.Threading.Tasks.TaskScheduler.Default);
+                        e.Handled = true;
+                        return;
+
+                    case Windows.System.VirtualKey.Enter:
+                        HandleShowProperties();
+                        e.Handled = true;
+                        return;
+                }
+            }
 
             if (ctrl)
             {
@@ -1483,7 +2038,27 @@ namespace Span
                         break;
 
                     case Windows.System.VirtualKey.A:
-                        HandleSelectAll();
+                        if (shift)
+                        {
+                            // Ctrl+Shift+A: Select None
+                            HandleSelectNone();
+                        }
+                        else
+                        {
+                            HandleSelectAll();
+                        }
+                        e.Handled = true;
+                        break;
+
+                    case Windows.System.VirtualKey.I:
+                        // Ctrl+I: Invert Selection
+                        HandleInvertSelection();
+                        e.Handled = true;
+                        break;
+
+                    case Windows.System.VirtualKey.D:
+                        // Ctrl+D: Duplicate selected file/folder
+                        HandleDuplicateFile();
                         e.Handled = true;
                         break;
 
@@ -1555,6 +2130,31 @@ namespace Span
                         e.Handled = true;
                         break;
                 }
+            }
+        }
+
+        // =================================================================
+        //  Mouse Back/Forward Buttons (XButton1/XButton2)
+        // =================================================================
+
+        private void OnGlobalPointerPressed(object sender, PointerRoutedEventArgs e)
+        {
+            var properties = e.GetCurrentPoint(this.Content).Properties;
+            if (properties.IsXButton1Pressed)
+            {
+                // Mouse Back button (XButton1)
+                _ = ViewModel.GoBackAsync().ContinueWith(_ =>
+                    DispatcherQueue.TryEnqueue(() => FocusLastColumnAfterNavigation()),
+                    System.Threading.Tasks.TaskScheduler.Default);
+                e.Handled = true;
+            }
+            else if (properties.IsXButton2Pressed)
+            {
+                // Mouse Forward button (XButton2)
+                _ = ViewModel.GoForwardAsync().ContinueWith(_ =>
+                    DispatcherQueue.TryEnqueue(() => FocusLastColumnAfterNavigation()),
+                    System.Threading.Tasks.TaskScheduler.Default);
+                e.Handled = true;
             }
         }
 
@@ -1911,6 +2511,90 @@ namespace Span
         }
 
         // =================================================================
+        //  Select None (Ctrl+Shift+A)
+        // =================================================================
+
+        private void HandleSelectNone()
+        {
+            var viewMode = (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
+                ? ViewModel.RightViewMode : ViewModel.CurrentViewMode;
+
+            if (viewMode == ViewMode.MillerColumns)
+            {
+                int activeIndex = GetActiveColumnIndex();
+                if (activeIndex < 0) activeIndex = ViewModel.ActiveExplorer.Columns.Count - 1;
+                if (activeIndex < 0) return;
+
+                var listView = GetListViewForColumn(activeIndex);
+                if (listView != null)
+                {
+                    listView.SelectedItems.Clear();
+                    // Also clear the ViewModel selection
+                    var columns = ViewModel.ActiveExplorer.Columns;
+                    if (activeIndex < columns.Count)
+                    {
+                        columns[activeIndex].SelectedChild = null;
+                        columns[activeIndex].SelectedItems.Clear();
+                    }
+                }
+            }
+        }
+
+        // =================================================================
+        //  Invert Selection (Ctrl+I)
+        // =================================================================
+
+        private void HandleInvertSelection()
+        {
+            var viewMode = (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
+                ? ViewModel.RightViewMode : ViewModel.CurrentViewMode;
+
+            if (viewMode == ViewMode.MillerColumns)
+            {
+                int activeIndex = GetActiveColumnIndex();
+                if (activeIndex < 0) activeIndex = ViewModel.ActiveExplorer.Columns.Count - 1;
+                if (activeIndex < 0) return;
+
+                var listView = GetListViewForColumn(activeIndex);
+                if (listView == null) return;
+
+                var columns = ViewModel.ActiveExplorer.Columns;
+                if (activeIndex >= columns.Count) return;
+
+                var column = columns[activeIndex];
+                var allItems = column.Children.ToList();
+
+                // Collect currently selected indices
+                var selectedIndices = new HashSet<int>();
+                foreach (var item in listView.SelectedItems)
+                {
+                    int idx = allItems.IndexOf(item as FileSystemViewModel);
+                    if (idx >= 0) selectedIndices.Add(idx);
+                }
+
+                // Clear and invert
+                _isSyncingSelection = true;
+                try
+                {
+                    listView.SelectedItems.Clear();
+                    for (int i = 0; i < allItems.Count; i++)
+                    {
+                        if (!selectedIndices.Contains(i))
+                        {
+                            listView.SelectedItems.Add(allItems[i]);
+                        }
+                    }
+                }
+                finally
+                {
+                    _isSyncingSelection = false;
+                }
+
+                ViewModel.UpdateStatusBar();
+            }
+        }
+
+        // =================================================================
         //  Helper: Get current selected items (multi or single)
         // =================================================================
 
@@ -2125,6 +2809,23 @@ namespace Span
 
             if (selected == null) return;
 
+            // F2 cycling: if already renaming the same item, advance selection cycle
+            var itemPath = (selected as FolderViewModel)?.Path ?? (selected as FileViewModel)?.Path;
+            if (selected.IsRenaming && itemPath == _renameTargetPath)
+            {
+                // Cycle: 0(name) → 1(all) → 2(extension) → 0(name) ...
+                _renameSelectionCycle = (_renameSelectionCycle + 1) % 3;
+                DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+                {
+                    if (_isClosed) return;
+                    FocusRenameTextBox(activeIndex);
+                });
+                return;
+            }
+
+            // First F2 press: start rename with name-only selection
+            _renameSelectionCycle = 0;
+            _renameTargetPath = itemPath;
             selected.BeginRename();
 
             // TextBox에 포커스
@@ -2136,7 +2837,9 @@ namespace Span
         }
 
         /// <summary>
-        /// 인라인 rename TextBox에 포커스를 맞추고 텍스트 전체 선택.
+        /// 인라인 rename TextBox에 포커스를 맞추고 선택 영역 적용.
+        /// Windows Explorer 방식 F2 cycling: 파일명만 → 전체 → 확장자만 → 파일명만 ...
+        /// 폴더이거나 확장자가 없으면 항상 전체 선택.
         /// </summary>
         private void FocusRenameTextBox(int columnIndex)
         {
@@ -2159,7 +2862,36 @@ namespace Span
             if (textBox != null)
             {
                 textBox.Focus(FocusState.Keyboard);
-                textBox.SelectAll();
+
+                bool isFolder = column.SelectedChild is FolderViewModel;
+                if (!isFolder && !string.IsNullOrEmpty(textBox.Text))
+                {
+                    int dotIndex = textBox.Text.LastIndexOf('.');
+                    if (dotIndex > 0)
+                    {
+                        // F2 cycling: 0=name only, 1=all, 2=extension only
+                        switch (_renameSelectionCycle)
+                        {
+                            case 0: // Name only (exclude extension)
+                                textBox.Select(0, dotIndex);
+                                break;
+                            case 1: // All (including extension)
+                                textBox.SelectAll();
+                                break;
+                            case 2: // Extension only
+                                textBox.Select(dotIndex + 1, textBox.Text.Length - dotIndex - 1);
+                                break;
+                        }
+                    }
+                    else
+                    {
+                        textBox.SelectAll();
+                    }
+                }
+                else
+                {
+                    textBox.SelectAll();
+                }
             }
         }
 
@@ -2173,6 +2905,7 @@ namespace Span
             {
                 vm.CommitRename();
                 _justFinishedRename = true; // OnMillerKeyDown이 이 Enter를 파일 실행으로 처리하지 않도록
+                _renameTargetPath = null; // Reset F2 cycle state
                 e.Handled = true;
                 FocusSelectedItem();
             }
@@ -2180,6 +2913,7 @@ namespace Span
             {
                 vm.CancelRename();
                 _justFinishedRename = true;
+                _renameTargetPath = null; // Reset F2 cycle state
                 e.Handled = true;
                 FocusSelectedItem();
             }
@@ -2191,9 +2925,10 @@ namespace Span
             var vm = textBox.DataContext as FileSystemViewModel;
             if (vm == null || !vm.IsRenaming) return;
 
-            // 포커스 잃으면 취소 (ESC와 동일한 동작)
+            // 포커스 잃으면 취소 (ESC와 동일)
             vm.CancelRename();
             _justFinishedRename = true;
+            _renameTargetPath = null; // Reset F2 cycle state
         }
 
         /// <summary>
@@ -2405,6 +3140,10 @@ namespace Span
 
         private void OnMillerColumnGotFocus(object sender, RoutedEventArgs e)
         {
+            // 리네임 TextBox로 포커스가 간 경우는 제외 (GotFocus 버블링)
+            if (e.OriginalSource is not TextBox)
+                CancelAnyActiveRename();
+
             if (sender is FrameworkElement fe && fe.DataContext is FolderViewModel folderVm)
             {
                 // Detect which pane and set ActivePane + SetActiveColumn
@@ -2428,6 +3167,9 @@ namespace Span
         private void OnMillerColumnSelectionChanged(object sender, Microsoft.UI.Xaml.Controls.SelectionChangedEventArgs e)
         {
             if (_isSyncingSelection) return; // Prevent circular updates
+
+            // 다른 항목 선택 시 진행 중인 리네임 취소
+            CancelAnyActiveRename();
 
             if (sender is ListView listView && listView.DataContext is FolderViewModel folderVm)
             {
@@ -2511,8 +3253,29 @@ namespace Span
         private void EnsureColumnVisible(int columnIndex)
         {
             var scrollViewer = GetActiveMillerScrollViewer();
-            double columnLeft = columnIndex * ColumnWidth;
-            double columnRight = columnLeft + ColumnWidth;
+            var control = GetActiveMillerColumnsControl();
+
+            // Calculate actual column position by summing rendered widths (handles resized columns)
+            double columnLeft = 0;
+            double columnWidth = ColumnWidth;
+            for (int i = 0; i <= columnIndex; i++)
+            {
+                var container = control.ContainerFromIndex(i) as UIElement;
+                if (container is FrameworkElement fe && fe.ActualWidth > 0)
+                {
+                    if (i < columnIndex)
+                        columnLeft += fe.ActualWidth;
+                    else
+                        columnWidth = fe.ActualWidth;
+                }
+                else
+                {
+                    if (i < columnIndex)
+                        columnLeft += ColumnWidth;
+                }
+            }
+
+            double columnRight = columnLeft + columnWidth;
             double viewportLeft = scrollViewer.HorizontalOffset;
             double viewportRight = viewportLeft + scrollViewer.ViewportWidth;
 
@@ -2682,7 +3445,7 @@ namespace Span
             var element = e.OriginalSource as DependencyObject;
             while (element != null && element != AddressBarContainer)
             {
-                if (element is Button || element is BreadcrumbBar) return;
+                if (element is Button || element is ItemsRepeater) return;
                 element = VisualTreeHelper.GetParent(element);
             }
 
@@ -2699,11 +3462,216 @@ namespace Span
         }
 
         /// <summary>
+        /// Navigate back in history (Back button clicked - single mode).
+        /// </summary>
+        private async void OnGoBackClick(object sender, RoutedEventArgs e)
+        {
+            await ViewModel.GoBackAsync();
+            FocusLastColumnAfterNavigation();
+            Helpers.DebugLogger.Log("[MainWindow] Back button clicked");
+        }
+
+        /// <summary>
+        /// Navigate forward in history (Forward button clicked - single mode).
+        /// </summary>
+        private async void OnGoForwardClick(object sender, RoutedEventArgs e)
+        {
+            await ViewModel.GoForwardAsync();
+            FocusLastColumnAfterNavigation();
+            Helpers.DebugLogger.Log("[MainWindow] Forward button clicked");
+        }
+
+        /// <summary>
+        /// Navigate back in history (Back button clicked - split pane mode).
+        /// </summary>
+        private async void OnPaneGoBackClick(object sender, RoutedEventArgs e)
+        {
+            var tag = (sender as FrameworkElement)?.Tag as string;
+            var explorer = (tag == "Right") ? ViewModel.RightExplorer : ViewModel.ActiveExplorer;
+            if (explorer != null && explorer.CanGoBack)
+            {
+                await explorer.GoBack();
+                ViewModel.SyncNavigationHistoryState();
+            }
+            FocusLastColumnAfterNavigation();
+            Helpers.DebugLogger.Log($"[MainWindow] Pane back button clicked (pane: {tag})");
+        }
+
+        /// <summary>
+        /// Navigate forward in history (Forward button clicked - split pane mode).
+        /// </summary>
+        private async void OnPaneGoForwardClick(object sender, RoutedEventArgs e)
+        {
+            var tag = (sender as FrameworkElement)?.Tag as string;
+            var explorer = (tag == "Right") ? ViewModel.RightExplorer : ViewModel.ActiveExplorer;
+            if (explorer != null && explorer.CanGoForward)
+            {
+                await explorer.GoForward();
+                ViewModel.SyncNavigationHistoryState();
+            }
+            FocusLastColumnAfterNavigation();
+            Helpers.DebugLogger.Log($"[MainWindow] Pane forward button clicked (pane: {tag})");
+        }
+
+        // =================================================================
+        //  Back/Forward History Dropdown (right-click on nav buttons)
+        // =================================================================
+
+        /// <summary>
+        /// Right-click on Back button (single mode) shows history dropdown.
+        /// </summary>
+        private void OnBackButtonRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
+        {
+            ShowHistoryDropdown(sender as FrameworkElement, isBack: true, ViewModel.ActiveExplorer);
+            e.Handled = true;
+        }
+
+        /// <summary>
+        /// Right-click on Forward button (single mode) shows history dropdown.
+        /// </summary>
+        private void OnForwardButtonRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
+        {
+            ShowHistoryDropdown(sender as FrameworkElement, isBack: false, ViewModel.ActiveExplorer);
+            e.Handled = true;
+        }
+
+        /// <summary>
+        /// Right-click on Back button (split pane mode) shows history dropdown.
+        /// </summary>
+        private void OnPaneBackButtonRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
+        {
+            var tag = (sender as FrameworkElement)?.Tag as string;
+            var explorer = (tag == "Right") ? ViewModel.RightExplorer : ViewModel.ActiveExplorer;
+            ShowHistoryDropdown(sender as FrameworkElement, isBack: true, explorer);
+            e.Handled = true;
+        }
+
+        /// <summary>
+        /// Right-click on Forward button (split pane mode) shows history dropdown.
+        /// </summary>
+        private void OnPaneForwardButtonRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
+        {
+            var tag = (sender as FrameworkElement)?.Tag as string;
+            var explorer = (tag == "Right") ? ViewModel.RightExplorer : ViewModel.ActiveExplorer;
+            ShowHistoryDropdown(sender as FrameworkElement, isBack: false, explorer);
+            e.Handled = true;
+        }
+
+        /// <summary>
+        /// Build and show a MenuFlyout with navigation history entries.
+        /// Includes the current location (bold with checkmark) and history items with folder icons.
+        /// </summary>
+        private void ShowHistoryDropdown(FrameworkElement? target, bool isBack, ExplorerViewModel? explorer)
+        {
+            if (target == null || explorer == null) return;
+
+            var history = isBack ? explorer.GetBackHistory() : explorer.GetForwardHistory();
+            if (history.Count == 0) return;
+
+            var flyout = new MenuFlyout();
+
+            // Add current location at the top with bold text and checkmark
+            var currentPath = explorer.CurrentPath;
+            if (!string.IsNullOrEmpty(currentPath))
+            {
+                var currentName = System.IO.Path.GetFileName(currentPath);
+                if (string.IsNullOrEmpty(currentName))
+                    currentName = currentPath; // Drive root like "C:\"
+
+                var currentItem = new MenuFlyoutItem
+                {
+                    Text = currentName,
+                    Icon = new FontIcon { Glyph = "\uE73E", FontSize = 14 }, // Checkmark
+                    FontWeight = Microsoft.UI.Text.FontWeights.Bold,
+                    IsEnabled = false
+                };
+                ToolTipService.SetToolTip(currentItem, currentPath);
+                flyout.Items.Add(currentItem);
+
+                flyout.Items.Add(new MenuFlyoutSeparator());
+            }
+
+            // Show up to 15 most recent history entries
+            int maxItems = Math.Min(history.Count, 15);
+            for (int i = 0; i < maxItems; i++)
+            {
+                var path = history[i];
+                var folderName = System.IO.Path.GetFileName(path);
+                if (string.IsNullOrEmpty(folderName))
+                    folderName = path; // Drive root like "C:\"
+
+                var item = new MenuFlyoutItem
+                {
+                    Text = folderName,
+                    Tag = i,
+                    Icon = new FontIcon { Glyph = "\uE8B7", FontSize = 14 } // Folder glyph
+                };
+
+                // Set tooltip to full path for disambiguation
+                ToolTipService.SetToolTip(item, path);
+
+                var capturedIndex = i;
+                var capturedExplorer = explorer;
+                item.Click += async (s, args) =>
+                {
+                    if (isBack)
+                        await capturedExplorer.NavigateToBackHistoryEntry(capturedIndex);
+                    else
+                        await capturedExplorer.NavigateToForwardHistoryEntry(capturedIndex);
+
+                    ViewModel.SyncNavigationHistoryState();
+                    FocusLastColumnAfterNavigation();
+                };
+
+                flyout.Items.Add(item);
+            }
+
+            flyout.ShowAt(target);
+        }
+
+        /// <summary>
+        /// After Back/Forward navigation, focus the last column so keyboard nav works.
+        /// Retries until the ListView container is available (handles async column loading).
+        /// </summary>
+        private void FocusLastColumnAfterNavigation()
+        {
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, async () =>
+            {
+                if (_isClosed) return;
+
+                // Retry up to 5 times (50ms each) to wait for column rendering
+                for (int attempt = 0; attempt < 5; attempt++)
+                {
+                    var columns = ViewModel.ActiveExplorer?.Columns;
+                    if (columns == null || columns.Count == 0) break;
+
+                    int targetIndex = columns.Count - 1;
+                    var listView = GetListViewForColumn(targetIndex);
+                    if (listView != null)
+                    {
+                        FocusColumnAsync(targetIndex);
+                        return;
+                    }
+
+                    await Task.Delay(50);
+                    if (_isClosed) return;
+                }
+
+                // Last resort: try focusing anyway
+                var cols = ViewModel.ActiveExplorer?.Columns;
+                if (cols != null && cols.Count > 0)
+                {
+                    FocusColumnAsync(cols.Count - 1);
+                }
+            });
+        }
+
+        /// <summary>
         /// 편집 모드 표시: 브레드크럼 숨기고 AutoSuggestBox 표시.
         /// </summary>
         private void ShowAddressBarEditMode()
         {
-            AddressBreadcrumbBar.Visibility = Visibility.Collapsed;
+            AddressBreadcrumbScroller.Visibility = Visibility.Collapsed;
             AddressBarAutoSuggest.Visibility = Visibility.Visible;
             AddressBarAutoSuggest.Text = ViewModel.ActiveExplorer.CurrentPath;
             AddressBarAutoSuggest.Focus(FocusState.Keyboard);
@@ -2725,7 +3693,7 @@ namespace Span
         {
             AddressBarAutoSuggest.Visibility = Visibility.Collapsed;
             AddressBarAutoSuggest.ItemsSource = null;
-            AddressBreadcrumbBar.Visibility = Visibility.Visible;
+            AddressBreadcrumbScroller.Visibility = Visibility.Visible;
         }
 
         /// <summary>
@@ -3107,6 +4075,55 @@ namespace Span
         {
             ViewModel.SwitchViewMode(Models.ViewMode.IconSmall);
             GetActiveIconView()?.UpdateIconSize(Models.ViewMode.IconSmall);
+        }
+
+        // =================================================================
+        //  Ctrl+Mouse Wheel — Cycle through ALL view modes (global window-level handler)
+        //  Sequence: Miller → Details → IconSmall → IconMedium → IconLarge → IconExtraLarge
+        //  Registered on this.Content with handledEventsToo=true so it works
+        //  even when ScrollViewer/ListView consume the wheel event internally.
+        // =================================================================
+
+        private static readonly Models.ViewMode[] _allViewModes = new[]
+        {
+            Models.ViewMode.MillerColumns,
+            Models.ViewMode.Details,
+            Models.ViewMode.IconSmall,
+            Models.ViewMode.IconMedium,
+            Models.ViewMode.IconLarge,
+            Models.ViewMode.IconExtraLarge
+        };
+
+        private void OnGlobalPointerWheelChanged(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            var ctrl = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control)
+                       .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+            if (!ctrl) return;
+
+            var delta = e.GetCurrentPoint(null).Properties.MouseWheelDelta;
+            if (delta == 0) return;
+
+            // Dynamically find current position in the mode sequence
+            var currentMode = ViewModel.CurrentViewMode;
+            int currentIndex = Array.IndexOf(_allViewModes, currentMode);
+            if (currentIndex < 0) currentIndex = 0; // fallback to Miller
+
+            int newIndex = delta > 0
+                ? Math.Min(currentIndex + 1, _allViewModes.Length - 1)  // scroll up = more visual
+                : Math.Max(currentIndex - 1, 0);                         // scroll down = less visual
+
+            if (newIndex == currentIndex) { e.Handled = true; return; }
+
+            var newMode = _allViewModes[newIndex];
+            ViewModel.SwitchViewMode(newMode);
+
+            // If switching to icon mode, update icon size
+            if (Helpers.ViewModeExtensions.IsIconMode(newMode))
+            {
+                GetActiveIconView()?.UpdateIconSize(newMode);
+            }
+
+            e.Handled = true;
         }
 
         private Views.IconModeView? GetActiveIconView()
@@ -3497,7 +4514,7 @@ namespace Span
                 _isTabDragging = true;
             }
 
-            // Check if cursor is outside the window
+            // Check if cursor is outside the window → tear off
             if (IsCursorOutsideWindow())
             {
                 // Don't tear off the last tab
@@ -3514,6 +4531,21 @@ namespace Span
                 }
 
                 TearOffTab(tabToTearOff);
+                return;
+            }
+
+            // Cursor is inside the window → handle tab reorder
+            var tabIndex = GetTabIndexAtPoint(currentPoint);
+            if (tabIndex >= 0)
+            {
+                int currentIndex = ViewModel.Tabs.IndexOf(_draggingTab!);
+                if (currentIndex >= 0 && currentIndex != tabIndex)
+                {
+                    ViewModel.Tabs.Move(currentIndex, tabIndex);
+                    // Update active tab index to follow the moved tab
+                    ViewModel.ActiveTabIndex = tabIndex;
+                    Helpers.DebugLogger.Log($"[TabReorder] Moved tab from {currentIndex} to {tabIndex}");
+                }
             }
         }
 
@@ -3524,6 +4556,33 @@ namespace Span
             if (sender is UIElement element)
             {
                 try { element.ReleasePointerCaptures(); } catch { }
+            }
+            // Update title bar input regions since tabs may have been reordered
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, UpdateTitleBarRegions);
+        }
+
+        /// <summary>
+        /// Returns the tab index at the given point (relative to the window).
+        /// Tab width is 200px with 1px spacing between tabs.
+        /// </summary>
+        private int GetTabIndexAtPoint(Windows.Foundation.Point windowPoint)
+        {
+            try
+            {
+                // Convert window point to position relative to the TabRepeater
+                var transform = TabRepeater.TransformToVisual(null);
+                var tabBarOrigin = transform.TransformPoint(new Windows.Foundation.Point(0, 0));
+
+                double relativeX = windowPoint.X - tabBarOrigin.X;
+                if (relativeX < 0) return 0;
+
+                // Each tab is 200px wide + 1px spacing
+                int index = (int)(relativeX / 201);
+                return Math.Clamp(index, 0, ViewModel.Tabs.Count - 1);
+            }
+            catch
+            {
+                return -1;
             }
         }
 
@@ -3649,13 +4708,52 @@ namespace Span
                     // 마우스 놓음 → 드래그 종료
                     dragTimer.Stop();
 
+                    // Check for re-docking: is the cursor over another Span window's tab bar?
+                    Helpers.NativeMethods.GetCursorPos(out var dropPos);
+                    var targetWindow = App.Current.FindWindowAtPoint(dropPos.X, dropPos.Y, this);
+
+                    // Find the new torn-off window by HWND
+                    MainWindow? newWindow = null;
+                    foreach (var w in ((App)App.Current).GetRegisteredWindows())
+                    {
+                        if (w is MainWindow mw && WinRT.Interop.WindowNative.GetWindowHandle(mw) == targetHwnd)
+                        {
+                            newWindow = mw;
+                            break;
+                        }
+                    }
+
+                    if (targetWindow != null && newWindow != null && newWindow.ViewModel.Tabs.Count > 0)
+                    {
+                        // Re-dock: transfer tab from new window to target window
+                        var tab = newWindow.ViewModel.ActiveTab;
+                        if (tab != null)
+                        {
+                            newWindow.ViewModel.SaveActiveTabState();
+                            var dockDto = new Models.TabStateDto(
+                                tab.Id, tab.Header, tab.Path,
+                                (int)tab.ViewMode, (int)tab.IconSize);
+
+                            // Close the new (torn-off) window
+                            newWindow._forceClose = true;
+                            newWindow._isClosed = true;
+                            App.Current.UnregisterWindow(newWindow);
+                            newWindow.Close();
+
+                            // Dock the tab into the target window
+                            targetWindow.DockTab(dockDto);
+                            Helpers.DebugLogger.Log($"[ReDock] Tab '{dockDto.Header}' merged into target window");
+                            return;
+                        }
+                    }
+
                     // 최종 크기 보정 (Activate 레이아웃이 덮어썼을 수 있음)
                     if (!sizeApplied)
                     {
-                        Helpers.NativeMethods.GetCursorPos(out var finalPos);
+                        Helpers.NativeMethods.GetCursorPos(out var finalPos2);
                         Helpers.NativeMethods.SetWindowPos(
                             targetHwnd, Helpers.NativeMethods.HWND_TOP,
-                            finalPos.X - dragOffsetX, finalPos.Y - dragOffsetY,
+                            finalPos2.X - dragOffsetX, finalPos2.Y - dragOffsetY,
                             targetWidth, targetHeight, 0);
                     }
 
@@ -3848,6 +4946,139 @@ namespace Span
             UpdateViewModeVisibility();
             FocusActiveView();
             // Tab count changed — update passthrough region
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, UpdateTitleBarRegions);
+        }
+
+        // =================================================================
+        //  Tab Context Menu (Right-click on tab)
+        // =================================================================
+
+        private void OnTabRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
+        {
+            if (sender is FrameworkElement fe && fe.Tag is Models.TabItem tab)
+            {
+                e.Handled = true;
+
+                var flyout = new MenuFlyout();
+
+                // Close Tab
+                var closeItem = new MenuFlyoutItem
+                {
+                    Text = _loc.Get("CloseTab"),
+                    Icon = new FontIcon { Glyph = "\uE711" }
+                };
+                closeItem.Click += (s, args) =>
+                {
+                    int index = ViewModel.Tabs.IndexOf(tab);
+                    if (index >= 0 && ViewModel.Tabs.Count > 1)
+                    {
+                        RemoveMillerPanel(tab.Id);
+                        RemoveDetailsPanel(tab.Id);
+                        RemoveIconPanel(tab.Id);
+                        ViewModel.CloseTab(index);
+                        if (ViewModel.ActiveTab != null)
+                        {
+                            SwitchMillerPanel(ViewModel.ActiveTab.Id);
+                            SwitchDetailsPanel(ViewModel.ActiveTab.Id, ViewModel.ActiveTab.ViewMode == ViewMode.Details);
+                            SwitchIconPanel(ViewModel.ActiveTab.Id, Helpers.ViewModeExtensions.IsIconMode(ViewModel.ActiveTab.ViewMode));
+                        }
+                        ResubscribeLeftExplorer();
+                        UpdateViewModeVisibility();
+                        FocusActiveView();
+                        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, UpdateTitleBarRegions);
+                    }
+                };
+                closeItem.IsEnabled = ViewModel.Tabs.Count > 1;
+                flyout.Items.Add(closeItem);
+
+                // Close Other Tabs
+                var closeOthersItem = new MenuFlyoutItem
+                {
+                    Text = _loc.Get("CloseOtherTabs"),
+                };
+                closeOthersItem.Click += (s, args) =>
+                {
+                    var closedIds = ViewModel.CloseOtherTabs(tab);
+                    foreach (var id in closedIds)
+                    {
+                        RemoveMillerPanel(id);
+                        RemoveDetailsPanel(id);
+                        RemoveIconPanel(id);
+                    }
+                    if (ViewModel.ActiveTab != null)
+                    {
+                        SwitchMillerPanel(ViewModel.ActiveTab.Id);
+                        SwitchDetailsPanel(ViewModel.ActiveTab.Id, ViewModel.ActiveTab.ViewMode == ViewMode.Details);
+                        SwitchIconPanel(ViewModel.ActiveTab.Id, Helpers.ViewModeExtensions.IsIconMode(ViewModel.ActiveTab.ViewMode));
+                    }
+                    ResubscribeLeftExplorer();
+                    UpdateViewModeVisibility();
+                    FocusActiveView();
+                    DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, UpdateTitleBarRegions);
+                };
+                closeOthersItem.IsEnabled = ViewModel.Tabs.Count > 1;
+                flyout.Items.Add(closeOthersItem);
+
+                // Close Tabs to Right
+                var closeRightItem = new MenuFlyoutItem
+                {
+                    Text = _loc.Get("CloseTabsToRight"),
+                };
+                int tabIndex = ViewModel.Tabs.IndexOf(tab);
+                closeRightItem.Click += (s, args) =>
+                {
+                    var closedIds = ViewModel.CloseTabsToRight(tab);
+                    foreach (var id in closedIds)
+                    {
+                        RemoveMillerPanel(id);
+                        RemoveDetailsPanel(id);
+                        RemoveIconPanel(id);
+                    }
+                    if (ViewModel.ActiveTab != null)
+                    {
+                        SwitchMillerPanel(ViewModel.ActiveTab.Id);
+                        SwitchDetailsPanel(ViewModel.ActiveTab.Id, ViewModel.ActiveTab.ViewMode == ViewMode.Details);
+                        SwitchIconPanel(ViewModel.ActiveTab.Id, Helpers.ViewModeExtensions.IsIconMode(ViewModel.ActiveTab.ViewMode));
+                    }
+                    ResubscribeLeftExplorer();
+                    UpdateViewModeVisibility();
+                    FocusActiveView();
+                    DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, UpdateTitleBarRegions);
+                };
+                closeRightItem.IsEnabled = tabIndex < ViewModel.Tabs.Count - 1;
+                flyout.Items.Add(closeRightItem);
+
+                flyout.Items.Add(new MenuFlyoutSeparator());
+
+                // Duplicate Tab
+                var duplicateItem = new MenuFlyoutItem
+                {
+                    Text = _loc.Get("DuplicateTab"),
+                    Icon = new FontIcon { Glyph = "\uE8C8" }
+                };
+                duplicateItem.Click += (s, args) =>
+                {
+                    HandleDuplicateTab(tab);
+                };
+                flyout.Items.Add(duplicateItem);
+
+                flyout.ShowAt(fe, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
+                {
+                    Position = e.GetPosition(fe)
+                });
+            }
+        }
+
+        private void HandleDuplicateTab(Models.TabItem sourceTab)
+        {
+            var newTab = ViewModel.DuplicateTab(sourceTab);
+            CreateMillerPanelForTab(newTab);
+            SwitchMillerPanel(newTab.Id);
+            SwitchDetailsPanel(newTab.Id, newTab.ViewMode == ViewMode.Details);
+            SwitchIconPanel(newTab.Id, Helpers.ViewModeExtensions.IsIconMode(newTab.ViewMode));
+            ResubscribeLeftExplorer();
+            UpdateViewModeVisibility();
+            FocusActiveView();
             DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, UpdateTitleBarRegions);
         }
 
@@ -4070,6 +5301,87 @@ namespace Span
                     ViewModel.ActivePane = ActivePane.Left;
                     _ = ViewModel.LeftExplorer.NavigateToPath(fullPath);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Breadcrumb chevron click: show subfolders of this segment as a dropdown.
+        /// Clicking a subfolder navigates into it, replacing the path from this point onward.
+        /// </summary>
+        private void OnBreadcrumbChevronClick(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Button btn || btn.Tag is not string fullPath) return;
+
+            try
+            {
+                // Show children (subfolders) of the clicked segment's path.
+                if (!System.IO.Directory.Exists(fullPath)) return;
+
+                string[] dirs;
+                try
+                {
+                    dirs = System.IO.Directory.GetDirectories(fullPath);
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    return;
+                }
+
+                if (dirs.Length == 0) return;
+
+                Array.Sort(dirs, StringComparer.OrdinalIgnoreCase);
+
+                // Determine which pane this breadcrumb belongs to
+                bool isRight = IsDescendant(RightPaneContainer, btn);
+                var explorer = isRight ? ViewModel.RightExplorer : ViewModel.Explorer;
+
+                // Figure out which child is currently selected (the next segment in the path)
+                string? currentChildPath = null;
+                if (!string.IsNullOrEmpty(explorer.CurrentPath) &&
+                    explorer.CurrentPath.StartsWith(fullPath, StringComparison.OrdinalIgnoreCase) &&
+                    explorer.CurrentPath.Length > fullPath.TrimEnd('\\').Length + 1)
+                {
+                    // Extract the immediate child folder from the current path
+                    string remainder = explorer.CurrentPath.Substring(fullPath.TrimEnd('\\').Length + 1);
+                    string childName = remainder.Split('\\')[0];
+                    currentChildPath = System.IO.Path.Combine(fullPath, childName);
+                }
+
+                var flyout = new MenuFlyout();
+
+                foreach (var dir in dirs)
+                {
+                    var item = new MenuFlyoutItem { Text = System.IO.Path.GetFileName(dir) };
+                    string dirPath = dir;
+
+                    // Mark the currently active child with a checkmark
+                    if (currentChildPath != null &&
+                        dir.Equals(currentChildPath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        item.Icon = new FontIcon { Glyph = "\uE73E" };
+                    }
+
+                    item.Click += (s, args) =>
+                    {
+                        if (isRight)
+                        {
+                            ViewModel.ActivePane = ActivePane.Right;
+                            _ = ViewModel.RightExplorer.NavigateToPath(dirPath);
+                        }
+                        else
+                        {
+                            ViewModel.ActivePane = ActivePane.Left;
+                            _ = ViewModel.Explorer.NavigateToPath(dirPath);
+                        }
+                    };
+                    flyout.Items.Add(item);
+                }
+
+                flyout.ShowAt(btn);
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[Breadcrumb] Chevron error: {ex.Message}");
             }
         }
 
@@ -4614,6 +5926,168 @@ namespace Span
             }
         }
 
+        async void Services.IContextMenuHost.PerformNewFile(string parentFolderPath, string fileName)
+        {
+            string baseName = System.IO.Path.GetFileNameWithoutExtension(fileName);
+            string ext = System.IO.Path.GetExtension(fileName);
+            string newPath = System.IO.Path.Combine(parentFolderPath, fileName);
+
+            int count = 1;
+            while (System.IO.File.Exists(newPath))
+            {
+                newPath = System.IO.Path.Combine(parentFolderPath, $"{baseName} ({count}){ext}");
+                count++;
+            }
+
+            try
+            {
+                var op = new Span.Services.FileOperations.NewFileOperation(newPath);
+                var result = await op.ExecuteAsync();
+                if (!result.Success) return;
+
+                // Refresh column and start rename
+                var columns = ViewModel.ActiveExplorer.Columns;
+                var parentColumn = columns.FirstOrDefault(c =>
+                    c.Path.Equals(parentFolderPath, StringComparison.OrdinalIgnoreCase));
+                if (parentColumn != null)
+                {
+                    await parentColumn.ReloadAsync();
+                    var newFile = parentColumn.Children.FirstOrDefault(c =>
+                        c.Path.Equals(newPath, StringComparison.OrdinalIgnoreCase));
+                    if (newFile != null)
+                    {
+                        parentColumn.SelectedChild = newFile;
+                        newFile.BeginRename();
+                        await System.Threading.Tasks.Task.Delay(100);
+                        int colIndex = columns.IndexOf(parentColumn);
+                        if (colIndex >= 0)
+                            FocusRenameTextBox(colIndex);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[ContextMenu] NewFile error: {ex.Message}");
+            }
+        }
+
+        async void Services.IContextMenuHost.PerformCompress(string[] paths)
+        {
+            if (paths == null || paths.Length == 0) return;
+
+            try
+            {
+                // ZIP name: first item name + .zip
+                string firstPath = paths[0];
+                string parentDir = System.IO.Path.GetDirectoryName(firstPath)!;
+                string zipName = System.IO.Path.GetFileNameWithoutExtension(firstPath) + ".zip";
+                string zipPath = System.IO.Path.Combine(parentDir, zipName);
+
+                int count = 1;
+                while (System.IO.File.Exists(zipPath))
+                {
+                    zipPath = System.IO.Path.Combine(parentDir,
+                        System.IO.Path.GetFileNameWithoutExtension(firstPath) + $" ({count}).zip");
+                    count++;
+                }
+
+                var op = new Span.Services.FileOperations.CompressOperation(paths, zipPath);
+                var result = await op.ExecuteAsync();
+
+                if (result.Success)
+                {
+                    // Refresh the active column
+                    var columns = ViewModel.ActiveExplorer.Columns;
+                    var parentColumn = columns.FirstOrDefault(c =>
+                        c.Path.Equals(parentDir, StringComparison.OrdinalIgnoreCase));
+                    if (parentColumn != null)
+                        await parentColumn.ReloadAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[ContextMenu] Compress error: {ex.Message}");
+            }
+        }
+
+        async void Services.IContextMenuHost.PerformExtractHere(string zipPath)
+        {
+            if (string.IsNullOrEmpty(zipPath)) return;
+
+            try
+            {
+                string parentDir = System.IO.Path.GetDirectoryName(zipPath)!;
+                string folderName = System.IO.Path.GetFileNameWithoutExtension(zipPath);
+                string destPath = System.IO.Path.Combine(parentDir, folderName);
+
+                int count = 1;
+                while (System.IO.Directory.Exists(destPath))
+                {
+                    destPath = System.IO.Path.Combine(parentDir, $"{folderName} ({count})");
+                    count++;
+                }
+
+                var op = new Span.Services.FileOperations.ExtractOperation(zipPath, destPath);
+                var result = await op.ExecuteAsync();
+
+                if (result.Success)
+                {
+                    var columns = ViewModel.ActiveExplorer.Columns;
+                    var parentColumn = columns.FirstOrDefault(c =>
+                        c.Path.Equals(parentDir, StringComparison.OrdinalIgnoreCase));
+                    if (parentColumn != null)
+                        await parentColumn.ReloadAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[ContextMenu] ExtractHere error: {ex.Message}");
+            }
+        }
+
+        async void Services.IContextMenuHost.PerformExtractTo(string zipPath)
+        {
+            if (string.IsNullOrEmpty(zipPath)) return;
+
+            try
+            {
+                // Use FolderPicker
+                var picker = new Windows.Storage.Pickers.FolderPicker();
+                picker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.Desktop;
+                picker.FileTypeFilter.Add("*");
+
+                // Initialize with window handle
+                var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+                WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
+
+                var folder = await picker.PickSingleFolderAsync();
+                if (folder == null) return;
+
+                string folderName = System.IO.Path.GetFileNameWithoutExtension(zipPath);
+                string destPath = System.IO.Path.Combine(folder.Path, folderName);
+
+                int count = 1;
+                while (System.IO.Directory.Exists(destPath))
+                {
+                    destPath = System.IO.Path.Combine(folder.Path, $"{folderName} ({count})");
+                    count++;
+                }
+
+                var op = new Span.Services.FileOperations.ExtractOperation(zipPath, destPath);
+                var result = await op.ExecuteAsync();
+
+                if (result.Success)
+                {
+                    // Navigate to extracted folder
+                    ViewModel.ActiveExplorer.NavigateToPath(destPath);
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[ContextMenu] ExtractTo error: {ex.Message}");
+            }
+        }
+
         void Services.IContextMenuHost.AddToFavorites(string path)
         {
             ViewModel.AddToFavorites(path);
@@ -4646,6 +6120,21 @@ namespace Span
         {
             _currentSortAscending = ascending;
             SortCurrentColumn(_currentSortField, _currentSortAscending);
+        }
+
+        void Services.IContextMenuHost.PerformSelectAll()
+        {
+            HandleSelectAll();
+        }
+
+        void Services.IContextMenuHost.PerformSelectNone()
+        {
+            HandleSelectNone();
+        }
+
+        void Services.IContextMenuHost.PerformInvertSelection()
+        {
+            HandleInvertSelection();
         }
 
         // =================================================================
@@ -4721,6 +6210,175 @@ namespace Span
 
             LogButton.Flyout.ShowAt(LogButton);
             _isLogOpen = true;
+        }
+
+        // =================================================================
+        //  P1 #12: Tab Re-docking — Merge torn-off tab back into window
+        // =================================================================
+
+        /// <summary>
+        /// Accept a tab from another window and add it to this window's tab bar.
+        /// Called by the drag timer when a torn-off window is dropped onto this window's tab bar.
+        /// </summary>
+        public void DockTab(Models.TabStateDto dto)
+        {
+            try
+            {
+                // Create a new tab from the DTO
+                var root = new FolderItem { Name = "PC", Path = "PC" };
+                var fileService = App.Current.Services.GetRequiredService<Services.FileSystemService>();
+                var explorer = new ExplorerViewModel(root, fileService);
+
+                var newTab = new TabItem
+                {
+                    Header = dto.Header,
+                    Path = dto.Path,
+                    ViewMode = (ViewMode)dto.ViewMode,
+                    IconSize = (ViewMode)dto.IconSize,
+                    IsActive = false,
+                    Explorer = explorer
+                };
+
+                // Navigate if path is not empty
+                if (!string.IsNullOrEmpty(dto.Path) && (ViewMode)dto.ViewMode != ViewMode.Home)
+                {
+                    explorer.EnableAutoNavigation = true;
+                    _ = explorer.NavigateToPath(dto.Path);
+                }
+
+                // Add the tab and switch to it
+                ViewModel.Tabs.Add(newTab);
+                CreateMillerPanelForTab(newTab);
+                SwitchMillerPanel(newTab.Id);
+                SwitchDetailsPanel(newTab.Id, newTab.ViewMode == ViewMode.Details);
+                SwitchIconPanel(newTab.Id, Helpers.ViewModeExtensions.IsIconMode(newTab.ViewMode));
+                ViewModel.SwitchToTab(ViewModel.Tabs.Count - 1);
+                ResubscribeLeftExplorer();
+                UpdateViewModeVisibility();
+                FocusActiveView();
+
+                DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, UpdateTitleBarRegions);
+
+                Helpers.DebugLogger.Log($"[ReDock] Tab '{dto.Header}' docked into window (total: {ViewModel.Tabs.Count})");
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[ReDock] Error docking tab: {ex.Message}");
+            }
+        }
+
+        // =================================================================
+        //  P1 #15: Ctrl+D — Duplicate selected file/folder
+        // =================================================================
+
+        private async void HandleDuplicateFile()
+        {
+            var selectedItems = GetCurrentSelectedItems();
+            if (selectedItems.Count == 0)
+            {
+                var sel = GetCurrentSelected();
+                if (sel != null) selectedItems = new List<FileSystemViewModel> { sel };
+            }
+            if (selectedItems.Count == 0) return;
+
+            var suffix = _loc.Get("DuplicateSuffix"); // " - Copy" / " - 복사본" / " - コピー"
+            var paths = selectedItems.Select(item => item.Path).ToList();
+
+            foreach (var srcPath in paths)
+            {
+                try
+                {
+                    bool isDir = System.IO.Directory.Exists(srcPath);
+                    string dir = System.IO.Path.GetDirectoryName(srcPath) ?? "";
+                    string nameWithoutExt = System.IO.Path.GetFileNameWithoutExtension(srcPath);
+                    string ext = System.IO.Path.GetExtension(srcPath);
+
+                    // Generate unique name: "file - Copy.txt", "file - Copy (2).txt", ...
+                    string destPath;
+                    if (isDir)
+                    {
+                        destPath = System.IO.Path.Combine(dir, nameWithoutExt + suffix);
+                        int counter = 2;
+                        while (System.IO.Directory.Exists(destPath))
+                        {
+                            destPath = System.IO.Path.Combine(dir, $"{nameWithoutExt}{suffix} ({counter})");
+                            counter++;
+                        }
+                        await System.Threading.Tasks.Task.Run(() => CopyDirectoryRecursive(srcPath, destPath));
+                    }
+                    else
+                    {
+                        destPath = System.IO.Path.Combine(dir, nameWithoutExt + suffix + ext);
+                        int counter = 2;
+                        while (System.IO.File.Exists(destPath))
+                        {
+                            destPath = System.IO.Path.Combine(dir, $"{nameWithoutExt}{suffix} ({counter}){ext}");
+                            counter++;
+                        }
+                        await System.Threading.Tasks.Task.Run(() => System.IO.File.Copy(srcPath, destPath));
+                    }
+
+                    Helpers.DebugLogger.Log($"[Duplicate] {srcPath} → {destPath}");
+                }
+                catch (Exception ex)
+                {
+                    Helpers.DebugLogger.Log($"[Duplicate] Error: {ex.Message}");
+                }
+            }
+
+            // Refresh current folder
+            var explorer = ViewModel.ActiveExplorer;
+            int colIndex = GetCurrentColumnIndex();
+            if (colIndex >= 0 && colIndex < explorer.Columns.Count)
+            {
+                await explorer.Columns[colIndex].RefreshAsync();
+            }
+
+            ViewModel.ShowToast(paths.Count == 1
+                ? $"\"{System.IO.Path.GetFileName(paths[0])}\" {_loc.Get("Duplicated") ?? "duplicated"}"
+                : $"{paths.Count} items duplicated");
+        }
+
+        private static void CopyDirectoryRecursive(string sourceDir, string destDir)
+        {
+            System.IO.Directory.CreateDirectory(destDir);
+            foreach (var file in System.IO.Directory.GetFiles(sourceDir))
+            {
+                System.IO.File.Copy(file, System.IO.Path.Combine(destDir, System.IO.Path.GetFileName(file)));
+            }
+            foreach (var dir in System.IO.Directory.GetDirectories(sourceDir))
+            {
+                CopyDirectoryRecursive(dir, System.IO.Path.Combine(destDir, System.IO.Path.GetFileName(dir)));
+            }
+        }
+
+        // =================================================================
+        //  P1 #18: Alt+Enter — Show Windows Properties dialog
+        // =================================================================
+
+        private void HandleShowProperties()
+        {
+            var selectedItems = GetCurrentSelectedItems();
+            if (selectedItems.Count == 0)
+            {
+                var sel = GetCurrentSelected();
+                if (sel != null) selectedItems = new List<FileSystemViewModel> { sel };
+            }
+
+            var shellService = App.Current.Services.GetRequiredService<Services.ShellService>();
+
+            if (selectedItems.Count > 0)
+            {
+                // Show properties for first selected item
+                shellService.ShowProperties(selectedItems[0].Path);
+            }
+            else
+            {
+                // No selection: show properties for current folder
+                var folderPath = ViewModel.ActiveExplorer?.CurrentFolder?.Path;
+                if (!string.IsNullOrEmpty(folderPath))
+                    shellService.ShowProperties(folderPath);
+            }
         }
 
     }

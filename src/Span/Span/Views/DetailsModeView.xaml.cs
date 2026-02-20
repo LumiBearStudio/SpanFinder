@@ -96,6 +96,8 @@ namespace Span.Views
                 }
                 catch { }
 
+                // Ctrl+Wheel view mode cycling is handled globally by MainWindow.OnGlobalPointerWheelChanged
+
                 // Restore sort settings
                 RestoreSortSettings();
 
@@ -499,6 +501,8 @@ namespace Span.Views
         }
 
         #endregion
+
+        // Ctrl+Mouse Wheel view mode cycling is handled globally by MainWindow.OnGlobalPointerWheelChanged
 
         #region Focus Management
 

@@ -11,7 +11,7 @@ namespace Span.Models
         public long AvailableFreeSpace { get; set; }
         public string DriveFormat { get; set; } = string.Empty;
         public string DriveType { get; set; } = string.Empty;
-        public string IconGlyph { get; set; } = "\uEEA1"; // RemixIcon: HardDrive2Fill
+        public string IconGlyph { get; set; } = "\uEC65"; // RemixIcon: ri-drive-fill
 
         public bool IsNetworkDrive => DriveType == "Network";
 

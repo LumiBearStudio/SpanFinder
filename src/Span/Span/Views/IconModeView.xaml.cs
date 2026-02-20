@@ -280,6 +280,8 @@ namespace Span.Views
             }
         }
 
+        // Ctrl+Mouse Wheel view mode cycling is handled globally by MainWindow.OnGlobalPointerWheelChanged
+
         /// <summary>
         /// Focus the Icon GridView (called from MainWindow on view switch)
         /// </summary>

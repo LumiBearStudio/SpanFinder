@@ -145,6 +145,7 @@
             SelectionMode="Extended"
             CanDragItems="True"
             AllowDrop="True"
+            Background="Transparent"
             DragItemsStarting="OnDragItemsStarting"
             DoubleTapped="OnItemDoubleClick"
             KeyDown="OnIconKeyDown"

@@ -51,6 +51,12 @@ namespace Span.Services
                 ["Ascending"] = "Ascending",
                 ["Descending"] = "Descending",
 
+                // Selection submenu
+                ["Select"] = "Select",
+                ["SelectAll"] = "Select all",
+                ["SelectNone"] = "Select none",
+                ["InvertSelection"] = "Invert selection",
+
                 // Shell extensions section
                 ["ShellExtensions"] = "More options",
 
@@ -63,6 +69,34 @@ namespace Span.Services
                 ["Cancel"] = "Cancel",
                 ["NewFolderBaseName"] = "New folder",
                 ["FolderItemCount"] = "{0} items",
+
+                // New file types
+                ["New"] = "New",
+                ["NewTextDocument"] = "Text Document",
+                ["NewWordDocument"] = "Word Document",
+                ["NewExcelSpreadsheet"] = "Excel Spreadsheet",
+                ["NewPowerPoint"] = "PowerPoint Presentation",
+                ["NewBitmapImage"] = "Bitmap Image",
+                ["NewRichTextDocument"] = "Rich Text Document",
+                ["NewZipArchive"] = "Compressed (zipped) Folder",
+
+                // Compress/Extract
+                ["CompressToZip"] = "Compress to ZIP",
+                ["ExtractHere"] = "Extract here",
+                ["ExtractTo"] = "Extract to folder...",
+
+                // Tab context menu
+                ["CloseTab"] = "Close Tab",
+                ["CloseOtherTabs"] = "Close Other Tabs",
+                ["CloseTabsToRight"] = "Close Tabs to Right",
+                ["DuplicateTab"] = "Duplicate Tab",
+
+                // Duplicate file
+                ["DuplicateSuffix"] = " - Copy",
+                ["Duplicated"] = "duplicated",
+
+                // Drag-drop
+                ["Move"] = "Move",
             },
             ["ko"] = new Dictionary<string, string>
             {
@@ -99,6 +133,12 @@ namespace Span.Services
                 ["Ascending"] = "\uc624\ub984\ucc28\uc21c",
                 ["Descending"] = "\ub0b4\ub9bc\ucc28\uc21c",
 
+                // Selection submenu
+                ["Select"] = "\uc120\ud0dd",
+                ["SelectAll"] = "\ubaa8\ub450 \uc120\ud0dd",
+                ["SelectNone"] = "\uc120\ud0dd \ud574\uc81c",
+                ["InvertSelection"] = "\uc120\ud0dd \ubc18\uc804",
+
                 // Shell extensions section
                 ["ShellExtensions"] = "\ucd94\uac00 \uc635\uc158",
 
@@ -111,6 +151,34 @@ namespace Span.Services
                 ["Cancel"] = "\ucde8\uc18c",
                 ["NewFolderBaseName"] = "\uc0c8 \ud3f4\ub354",
                 ["FolderItemCount"] = "{0}\uac1c \ud56d\ubaa9",
+
+                // New file types
+                ["New"] = "\uc0c8\ub85c \ub9cc\ub4e4\uae30",
+                ["NewTextDocument"] = "\ud14d\uc2a4\ud2b8 \ubb38\uc11c",
+                ["NewWordDocument"] = "Word \ubb38\uc11c",
+                ["NewExcelSpreadsheet"] = "Excel \uc2a4\ud504\ub808\ub4dc\uc2dc\ud2b8",
+                ["NewPowerPoint"] = "PowerPoint \ud504\ub808\uc820\ud14c\uc774\uc158",
+                ["NewBitmapImage"] = "\ube44\ud2b8\ub9f5 \uc774\ubbf8\uc9c0",
+                ["NewRichTextDocument"] = "\uc11c\uc2dd \uc788\ub294 \ud14d\uc2a4\ud2b8 \ubb38\uc11c",
+                ["NewZipArchive"] = "\uc555\ucd95(zip) \ud3f4\ub354",
+
+                // Compress/Extract
+                ["CompressToZip"] = "ZIP\uc73c\ub85c \uc555\ucd95",
+                ["ExtractHere"] = "\uc5ec\uae30\uc5d0 \uc555\ucd95 \ud480\uae30",
+                ["ExtractTo"] = "\ud3f4\ub354\uc5d0 \uc555\ucd95 \ud480\uae30...",
+
+                // Tab context menu
+                ["CloseTab"] = "\ud0ed \ub2eb\uae30",
+                ["CloseOtherTabs"] = "\ub2e4\ub978 \ud0ed \ubaa8\ub450 \ub2eb\uae30",
+                ["CloseTabsToRight"] = "\uc624\ub978\ucabd \ud0ed \ub2eb\uae30",
+                ["DuplicateTab"] = "\ud0ed \ubcf5\uc81c",
+
+                // Duplicate file
+                ["DuplicateSuffix"] = " - \ubcf5\uc0ac\ubcf8",
+                ["Duplicated"] = "\ubcf5\uc81c\ub428",
+
+                // Drag-drop
+                ["Move"] = "\uc774\ub3d9",
             },
             ["ja"] = new Dictionary<string, string>
             {
@@ -143,6 +211,12 @@ namespace Span.Services
                 ["Descending"] = "\u964d\u9806",
                 ["ShellExtensions"] = "\u305d\u306e\u4ed6\u306e\u30aa\u30d7\u30b7\u30e7\u30f3",
 
+                // Selection submenu
+                ["Select"] = "\u9078\u629e",
+                ["SelectAll"] = "\u3059\u3079\u3066\u9078\u629e",
+                ["SelectNone"] = "\u9078\u629e\u89e3\u9664",
+                ["InvertSelection"] = "\u9078\u629e\u306e\u53cd\u8ee2",
+
                 // Dialog strings
                 ["DeleteConfirmTitle"] = "\u524a\u9664\u306e\u78ba\u8a8d",
                 ["DeleteConfirmContent"] = "'{0}'\u3092\u3054\u307f\u7bb1\u306b\u79fb\u52d5\u3057\u307e\u3059\u304b\uff1f",
@@ -152,6 +226,34 @@ namespace Span.Services
                 ["Cancel"] = "\u30ad\u30e3\u30f3\u30bb\u30eb",
                 ["NewFolderBaseName"] = "\u65b0\u3057\u3044\u30d5\u30a9\u30eb\u30c0\u30fc",
                 ["FolderItemCount"] = "{0}\u500b\u306e\u9805\u76ee",
+
+                // New file types
+                ["New"] = "\u65b0\u898f\u4f5c\u6210",
+                ["NewTextDocument"] = "\u30c6\u30ad\u30b9\u30c8 \u30c9\u30ad\u30e5\u30e1\u30f3\u30c8",
+                ["NewWordDocument"] = "Word \u30c9\u30ad\u30e5\u30e1\u30f3\u30c8",
+                ["NewExcelSpreadsheet"] = "Excel \u30b9\u30d7\u30ec\u30c3\u30c9\u30b7\u30fc\u30c8",
+                ["NewPowerPoint"] = "PowerPoint \u30d7\u30ec\u30bc\u30f3\u30c6\u30fc\u30b7\u30e7\u30f3",
+                ["NewBitmapImage"] = "\u30d3\u30c3\u30c8\u30de\u30c3\u30d7 \u30a4\u30e1\u30fc\u30b8",
+                ["NewRichTextDocument"] = "\u30ea\u30c3\u30c1\u30c6\u30ad\u30b9\u30c8 \u30c9\u30ad\u30e5\u30e1\u30f3\u30c8",
+                ["NewZipArchive"] = "\u5727\u7e2e(zip)\u30d5\u30a9\u30eb\u30c0\u30fc",
+
+                // Compress/Extract
+                ["CompressToZip"] = "ZIP\u306b\u5727\u7e2e",
+                ["ExtractHere"] = "\u3053\u3053\u306b\u5c55\u958b",
+                ["ExtractTo"] = "\u30d5\u30a9\u30eb\u30c0\u30fc\u306b\u5c55\u958b...",
+
+                // Tab context menu
+                ["CloseTab"] = "\u30bf\u30d6\u3092\u9589\u3058\u308b",
+                ["CloseOtherTabs"] = "\u4ed6\u306e\u30bf\u30d6\u3092\u3059\u3079\u3066\u9589\u3058\u308b",
+                ["CloseTabsToRight"] = "\u53f3\u5074\u306e\u30bf\u30d6\u3092\u9589\u3058\u308b",
+                ["DuplicateTab"] = "\u30bf\u30d6\u3092\u8907\u88fd",
+
+                // Duplicate file
+                ["DuplicateSuffix"] = " - \u30b3\u30d4\u30fc",
+                ["Duplicated"] = "\u8907\u88fd\u3057\u307e\u3057\u305f",
+
+                // Drag-drop
+                ["Move"] = "\u79fb\u52d5",
             }
         };
 

@@ -59,7 +59,7 @@ namespace Span.Views
             "Move" => "\uE8DE",
             "Delete" => "\uE74D",
             "Rename" => "\uE8AC",
-            "NewFolder" => "\uED41",
+            "NewFolder" => "\uE8B7",
             _ => "\uE946"
         };
 

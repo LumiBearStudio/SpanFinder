@@ -14,11 +14,18 @@ namespace Span.Services
         void PerformOpenDrive(DriveItem drive);
         void PerformOpenFavorite(FavoriteItem fav);
         void PerformNewFolder(string parentFolderPath);
+        void PerformNewFile(string parentFolderPath, string fileName);
+        void PerformCompress(string[] paths);
+        void PerformExtractHere(string zipPath);
+        void PerformExtractTo(string zipPath);
         void AddToFavorites(string path);
         void RemoveFromFavorites(string path);
         bool IsFavorite(string path);
         void SwitchViewMode(ViewMode mode);
         void ApplySort(string field);
         void ApplySortDirection(bool ascending);
+        void PerformSelectAll();
+        void PerformSelectNone();
+        void PerformInvertSelection();
     }
 }

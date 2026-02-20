@@ -45,6 +45,44 @@ namespace Span
             }
         }
 
+        /// <summary>
+        /// Get a snapshot of all registered windows (for cross-window tab operations).
+        /// </summary>
+        public IReadOnlyList<Window> GetRegisteredWindows()
+        {
+            lock (_windowLock)
+            {
+                return _windows.ToList().AsReadOnly();
+            }
+        }
+
+        /// <summary>
+        /// Find another MainWindow whose tab bar area contains the given screen point.
+        /// Used for tab re-docking (merging a torn-off tab back into another window).
+        /// </summary>
+        public MainWindow? FindWindowAtPoint(int screenX, int screenY, Window exclude)
+        {
+            lock (_windowLock)
+            {
+                foreach (var w in _windows)
+                {
+                    if (w == exclude || w is not MainWindow mw) continue;
+
+                    var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(w);
+                    if (Helpers.NativeMethods.GetWindowRect(hwnd, out var rect))
+                    {
+                        // Check if point is within the window's tab bar area (top 50px)
+                        if (screenX >= rect.Left && screenX <= rect.Right &&
+                            screenY >= rect.Top && screenY <= rect.Top + 50)
+                        {
+                            return mw;
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
         private void OnUnhandledException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs e)
         {
             // Log the exception

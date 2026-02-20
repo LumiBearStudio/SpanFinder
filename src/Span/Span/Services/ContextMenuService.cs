@@ -36,6 +36,17 @@ namespace Span.Services
             menu.Items.Add(CreateItem(_loc.Get("Copy"), "\uE8C8", () => host.PerformCopy(file.Path)));
             menu.Items.Add(new MenuFlyoutSeparator());
 
+            // Compress / Extract
+            string ext = System.IO.Path.GetExtension(file.Path).ToLowerInvariant();
+            if (ext == ".zip")
+            {
+                menu.Items.Add(CreateItem(_loc.Get("ExtractHere"), "\uE8B7", () => host.PerformExtractHere(file.Path)));
+                menu.Items.Add(CreateItem(_loc.Get("ExtractTo"), "\uE8B7", () => host.PerformExtractTo(file.Path)));
+                menu.Items.Add(new MenuFlyoutSeparator());
+            }
+            menu.Items.Add(CreateItem(_loc.Get("CompressToZip"), "\uE8C5", () => host.PerformCompress(new[] { file.Path })));
+            menu.Items.Add(new MenuFlyoutSeparator());
+
             menu.Items.Add(CreateItem(_loc.Get("Delete"), "\uE74D", () => host.PerformDelete(file.Path, file.Name)));
             menu.Items.Add(CreateItem(_loc.Get("Rename"), "\uE70F", () => host.PerformRename(file)));
             menu.Items.Add(new MenuFlyoutSeparator());
@@ -65,6 +76,10 @@ namespace Span.Services
             menu.Items.Add(CreateItem(_loc.Get("Cut"), "\uE8C6", () => host.PerformCut(folder.Path)));
             menu.Items.Add(CreateItem(_loc.Get("Copy"), "\uE8C8", () => host.PerformCopy(folder.Path)));
             menu.Items.Add(CreateItem(_loc.Get("Paste"), "\uE77F", () => host.PerformPaste(folder.Path)));
+            menu.Items.Add(new MenuFlyoutSeparator());
+
+            // Compress
+            menu.Items.Add(CreateItem(_loc.Get("CompressToZip"), "\uE8C5", () => host.PerformCompress(new[] { folder.Path })));
             menu.Items.Add(new MenuFlyoutSeparator());
 
             menu.Items.Add(CreateItem(_loc.Get("Delete"), "\uE74D", () => host.PerformDelete(folder.Path, folder.Name)));
@@ -131,7 +146,20 @@ namespace Span.Services
         {
             var menu = new MenuFlyout();
 
-            menu.Items.Add(CreateItem(_loc.Get("NewFolder"), "\uE8B7", () => host.PerformNewFolder(folderPath)));
+            // New submenu: folder + common file types
+            var newSub = new MenuFlyoutSubItem { Text = _loc.Get("New"), Icon = new FontIcon { Glyph = "\uE710" } };
+            newSub.Items.Add(CreateItem(_loc.Get("NewFolder"), "\uE8B7", () => host.PerformNewFolder(folderPath)));
+            newSub.Items.Add(new MenuFlyoutSeparator());
+            newSub.Items.Add(CreateItem(_loc.Get("NewTextDocument"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Text Document.txt")));
+            newSub.Items.Add(CreateItem(_loc.Get("NewWordDocument"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Document.docx")));
+            newSub.Items.Add(CreateItem(_loc.Get("NewExcelSpreadsheet"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Spreadsheet.xlsx")));
+            newSub.Items.Add(CreateItem(_loc.Get("NewPowerPoint"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Presentation.pptx")));
+            newSub.Items.Add(new MenuFlyoutSeparator());
+            newSub.Items.Add(CreateItem(_loc.Get("NewBitmapImage"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Bitmap Image.bmp")));
+            newSub.Items.Add(CreateItem(_loc.Get("NewRichTextDocument"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Rich Text Document.rtf")));
+            newSub.Items.Add(CreateItem(_loc.Get("NewZipArchive"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Compressed (zipped) Folder.zip")));
+            menu.Items.Add(newSub);
+
             menu.Items.Add(CreateItem(_loc.Get("Paste"), "\uE77F", () => host.PerformPaste(folderPath)));
             menu.Items.Add(new MenuFlyoutSeparator());
 
@@ -156,6 +184,15 @@ namespace Span.Services
             sortSub.Items.Add(CreateItem(_loc.Get("Ascending"), "\uE74A", () => host.ApplySortDirection(true)));
             sortSub.Items.Add(CreateItem(_loc.Get("Descending"), "\uE74B", () => host.ApplySortDirection(false)));
             menu.Items.Add(sortSub);
+
+            menu.Items.Add(new MenuFlyoutSeparator());
+
+            // Selection submenu
+            var selectSub = new MenuFlyoutSubItem { Text = _loc.Get("Select"), Icon = new FontIcon { Glyph = "\uE762" } };
+            selectSub.Items.Add(CreateItem(_loc.Get("SelectAll") + "  Ctrl+A", "\uE8B3", () => host.PerformSelectAll()));
+            selectSub.Items.Add(CreateItem(_loc.Get("SelectNone") + "  Ctrl+Shift+A", null, () => host.PerformSelectNone()));
+            selectSub.Items.Add(CreateItem(_loc.Get("InvertSelection") + "  Ctrl+I", null, () => host.PerformInvertSelection()));
+            menu.Items.Add(selectSub);
 
             return menu;
         }

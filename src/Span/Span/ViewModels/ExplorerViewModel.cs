@@ -52,6 +52,18 @@ namespace Span.ViewModels
         /// </summary>
         public bool EnableAutoNavigation { get; set; } = true;
 
+        // ── Back/Forward Navigation History ──
+        private const int MaxHistorySize = 50;
+        private readonly Stack<string> _backStack = new();
+        private readonly Stack<string> _forwardStack = new();
+        private bool _isNavigatingHistory = false;
+
+        [ObservableProperty]
+        private bool _canGoBack = false;
+
+        [ObservableProperty]
+        private bool _canGoForward = false;
+
         public ExplorerViewModel(FolderItem rootItem, FileSystemService fileService)
         {
             Columns = new ObservableCollection<FolderViewModel>();
@@ -74,6 +86,249 @@ namespace Span.ViewModels
         partial void OnCurrentPathChanged(string value)
         {
             UpdatePathSegments(value);
+        }
+
+        // ── Back/Forward Navigation History Methods ──
+
+        /// <summary>
+        /// Push the current path to the back stack before navigating to a new path.
+        /// Clears the forward stack (standard browser/explorer behavior).
+        /// Called by navigation methods BEFORE changing CurrentPath.
+        /// </summary>
+        private void PushToHistory(string newPath)
+        {
+            // Don't push during GoBack/GoForward operations
+            if (_isNavigatingHistory) return;
+
+            var current = CurrentPath;
+
+            // Don't push empty/null/identical paths
+            if (string.IsNullOrEmpty(current)) return;
+            if (string.Equals(current, newPath, System.StringComparison.OrdinalIgnoreCase)) return;
+
+            // Push current to back stack
+            _backStack.Push(current);
+
+            // Trim to max size
+            if (_backStack.Count > MaxHistorySize)
+            {
+                var temp = _backStack.ToArray();
+                _backStack.Clear();
+                for (int i = 0; i < MaxHistorySize; i++)
+                    _backStack.Push(temp[MaxHistorySize - 1 - i]);
+            }
+
+            // Clear forward stack on normal navigation
+            _forwardStack.Clear();
+
+            UpdateHistoryState();
+        }
+
+        /// <summary>
+        /// Navigate to the previous path in the back stack.
+        /// </summary>
+        public async Task GoBack()
+        {
+            if (_backStack.Count == 0) return;
+
+            var previousPath = _backStack.Pop();
+
+            // Push current path to forward stack
+            if (!string.IsNullOrEmpty(CurrentPath))
+            {
+                _forwardStack.Push(CurrentPath);
+            }
+
+            UpdateHistoryState();
+
+            // Navigate without affecting history stacks
+            _isNavigatingHistory = true;
+            try
+            {
+                if (System.IO.Directory.Exists(previousPath))
+                {
+                    await NavigateToPath(previousPath);
+                }
+                else
+                {
+                    Helpers.DebugLogger.Log($"[GoBack] Path no longer exists: {previousPath}");
+                    // Try the next entry
+                    _isNavigatingHistory = false;
+                    await GoBack();
+                    return;
+                }
+            }
+            finally
+            {
+                _isNavigatingHistory = false;
+            }
+
+            Helpers.DebugLogger.Log($"[GoBack] Navigated to: {previousPath} (back={_backStack.Count}, forward={_forwardStack.Count})");
+        }
+
+        /// <summary>
+        /// Navigate to the next path in the forward stack.
+        /// </summary>
+        public async Task GoForward()
+        {
+            if (_forwardStack.Count == 0) return;
+
+            var nextPath = _forwardStack.Pop();
+
+            // Push current path to back stack
+            if (!string.IsNullOrEmpty(CurrentPath))
+            {
+                _backStack.Push(CurrentPath);
+            }
+
+            UpdateHistoryState();
+
+            // Navigate without affecting history stacks
+            _isNavigatingHistory = true;
+            try
+            {
+                if (System.IO.Directory.Exists(nextPath))
+                {
+                    await NavigateToPath(nextPath);
+                }
+                else
+                {
+                    Helpers.DebugLogger.Log($"[GoForward] Path no longer exists: {nextPath}");
+                    // Try the next entry
+                    _isNavigatingHistory = false;
+                    await GoForward();
+                    return;
+                }
+            }
+            finally
+            {
+                _isNavigatingHistory = false;
+            }
+
+            Helpers.DebugLogger.Log($"[GoForward] Navigated to: {nextPath} (back={_backStack.Count}, forward={_forwardStack.Count})");
+        }
+
+        /// <summary>
+        /// Update CanGoBack/CanGoForward properties from stack state.
+        /// </summary>
+        private void UpdateHistoryState()
+        {
+            CanGoBack = _backStack.Count > 0;
+            CanGoForward = _forwardStack.Count > 0;
+        }
+
+        /// <summary>
+        /// Returns the back history as a list (most recent first).
+        /// Used by the Back button dropdown menu.
+        /// </summary>
+        public List<string> GetBackHistory()
+        {
+            return _backStack.ToList();
+        }
+
+        /// <summary>
+        /// Returns the forward history as a list (most recent first).
+        /// Used by the Forward button dropdown menu.
+        /// </summary>
+        public List<string> GetForwardHistory()
+        {
+            return _forwardStack.ToList();
+        }
+
+        /// <summary>
+        /// Navigate to a specific entry in the back history.
+        /// Pops entries up to and including the target, pushes current + intermediate to forward.
+        /// </summary>
+        public async Task NavigateToBackHistoryEntry(int index)
+        {
+            if (index < 0 || index >= _backStack.Count) return;
+
+            // Push current path to forward stack
+            if (!string.IsNullOrEmpty(CurrentPath))
+            {
+                _forwardStack.Push(CurrentPath);
+            }
+
+            // Pop entries from back stack; entries before the target go to forward stack
+            string targetPath = string.Empty;
+            for (int i = 0; i <= index; i++)
+            {
+                var path = _backStack.Pop();
+                if (i == index)
+                {
+                    targetPath = path;
+                }
+                else
+                {
+                    // Intermediate entries go to forward stack
+                    _forwardStack.Push(path);
+                }
+            }
+
+            UpdateHistoryState();
+
+            _isNavigatingHistory = true;
+            try
+            {
+                if (System.IO.Directory.Exists(targetPath))
+                {
+                    await NavigateToPath(targetPath);
+                }
+            }
+            finally
+            {
+                _isNavigatingHistory = false;
+            }
+
+            Helpers.DebugLogger.Log($"[NavigateToBackHistoryEntry] Navigated to index {index}: {targetPath}");
+        }
+
+        /// <summary>
+        /// Navigate to a specific entry in the forward history.
+        /// Pops entries up to and including the target, pushes current + intermediate to back.
+        /// </summary>
+        public async Task NavigateToForwardHistoryEntry(int index)
+        {
+            if (index < 0 || index >= _forwardStack.Count) return;
+
+            // Push current path to back stack
+            if (!string.IsNullOrEmpty(CurrentPath))
+            {
+                _backStack.Push(CurrentPath);
+            }
+
+            // Pop entries from forward stack; entries before the target go to back stack
+            string targetPath = string.Empty;
+            for (int i = 0; i <= index; i++)
+            {
+                var path = _forwardStack.Pop();
+                if (i == index)
+                {
+                    targetPath = path;
+                }
+                else
+                {
+                    // Intermediate entries go to back stack
+                    _backStack.Push(path);
+                }
+            }
+
+            UpdateHistoryState();
+
+            _isNavigatingHistory = true;
+            try
+            {
+                if (System.IO.Directory.Exists(targetPath))
+                {
+                    await NavigateToPath(targetPath);
+                }
+            }
+            finally
+            {
+                _isNavigatingHistory = false;
+            }
+
+            Helpers.DebugLogger.Log($"[NavigateToForwardHistoryEntry] Navigated to index {index}: {targetPath}");
         }
 
         private void UpdatePathSegments(string path)
@@ -106,6 +361,9 @@ namespace Span.ViewModels
         {
             Helpers.DebugLogger.Log($"[NavigateTo] Navigating to: {folder.Name}, clearing {Columns.Count} columns");
 
+            // Push current path to history before navigating
+            PushToHistory(folder.Path);
+
             // 경량 정리 — Children 유지 (캐시 효과), 구독만 해제
             foreach (var col in Columns)
             {
@@ -137,6 +395,9 @@ namespace Span.ViewModels
             // Normalize path
             path = System.IO.Path.GetFullPath(path);
 
+            // Push current path to history before navigating
+            PushToHistory(path);
+
             // Get root and relative parts
             var root = System.IO.Path.GetPathRoot(path);
             if (string.IsNullOrEmpty(root)) return;
@@ -147,10 +408,20 @@ namespace Span.ViewModels
                 : relative.Split(System.IO.Path.DirectorySeparatorChar, System.StringSplitOptions.RemoveEmptyEntries);
 
             // If only root drive, use simple NavigateTo
+            // Use _isNavigatingHistory to prevent NavigateTo from pushing duplicate history
             if (parts.Length == 0)
             {
                 var folderItem = new FolderItem { Name = root.TrimEnd('\\'), Path = root };
-                await NavigateTo(folderItem);
+                var wasNavigating = _isNavigatingHistory;
+                _isNavigatingHistory = true;
+                try
+                {
+                    await NavigateTo(folderItem);
+                }
+                finally
+                {
+                    _isNavigatingHistory = wasNavigating;
+                }
                 return;
             }
 
@@ -246,6 +517,9 @@ namespace Span.ViewModels
                     return;
                 }
 
+                // Push current path to history for column-truncation navigation
+                PushToHistory(segment.FullPath);
+
                 RemoveColumnsFrom(index + 1);
 
                 // 선택된 폴더의 SelectedChild를 null로 초기화 해야 하위가 안보임? 
@@ -289,6 +563,9 @@ namespace Span.ViewModels
             if (folder == null) return;
 
             Helpers.DebugLogger.Log($"[NavigateIntoFolder] Manual navigation to: {folder.Name}");
+
+            // Push current path to history before navigating
+            PushToHistory(folder.Path);
 
             // Load children first
             await folder.EnsureChildrenLoadedAsync();
@@ -339,6 +616,7 @@ namespace Span.ViewModels
             if (!System.IO.Directory.Exists(parentPath)) return;
 
             Helpers.DebugLogger.Log($"[NavigateUp] Navigating from '{CurrentFolder.Path}' to '{parentPath}'");
+            // NavigateToPath will handle PushToHistory internally
             _ = NavigateToPath(parentPath);
         }
 
@@ -493,6 +771,10 @@ namespace Span.ViewModels
                     }
 
                     Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Removing columns from {nextIndex + 1}");
+
+                    // Push current path to history before changing (Miller auto-navigation)
+                    PushToHistory(selectedFolder.Path);
+
                     RemoveColumnsFrom(nextIndex + 1);
 
                     // Replace or Add
@@ -565,6 +847,10 @@ namespace Span.ViewModels
                 }
                 Columns.Clear();
             }
+
+            // Clear navigation history
+            _backStack.Clear();
+            _forwardStack.Clear();
 
             Helpers.DebugLogger.Log("[ExplorerViewModel.Cleanup] Cleanup complete");
         }

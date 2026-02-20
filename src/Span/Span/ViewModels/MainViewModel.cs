@@ -104,6 +104,13 @@ namespace Span.ViewModels
         [ObservableProperty]
         private string? _redoDescription;
 
+        // Navigation history — forwarded from ActiveExplorer
+        [ObservableProperty]
+        private bool _canGoBack = false;
+
+        [ObservableProperty]
+        private bool _canGoForward = false;
+
         [ObservableProperty]
         private string _statusBarText = string.Empty;
 
@@ -116,6 +123,9 @@ namespace Span.ViewModels
 
         [ObservableProperty]
         private string _statusViewModeText = "";
+
+        [ObservableProperty]
+        private string _statusDiskSpaceText = "";
 
         [ObservableProperty]
         private string _toastMessage = string.Empty;
@@ -184,6 +194,13 @@ namespace Span.ViewModels
             {
                 UpdateStatusBar();
             }
+
+            // Forward navigation history state from ActiveExplorer
+            if (e.PropertyName == nameof(ExplorerViewModel.CanGoBack) ||
+                e.PropertyName == nameof(ExplorerViewModel.CanGoForward))
+            {
+                SyncNavigationHistoryState();
+            }
         }
 
         /// <summary>
@@ -214,6 +231,76 @@ namespace Span.ViewModels
             var mode = (IsSplitViewEnabled && ActivePane == ActivePane.Right)
                 ? RightViewMode : CurrentViewMode;
             StatusViewModeText = Helpers.ViewModeExtensions.GetDisplayName(mode);
+
+            // Disk space info
+            StatusDiskSpaceText = GetDiskSpaceText(explorer?.CurrentPath);
+        }
+
+        /// <summary>
+        /// Get disk space text for the drive containing the given path.
+        /// Returns empty string if path is null or drive info cannot be determined.
+        /// </summary>
+        private static string GetDiskSpaceText(string? path)
+        {
+            if (string.IsNullOrEmpty(path)) return "";
+
+            try
+            {
+                var root = System.IO.Path.GetPathRoot(path);
+                if (string.IsNullOrEmpty(root)) return "";
+
+                var driveInfo = new System.IO.DriveInfo(root);
+                if (!driveInfo.IsReady) return "";
+
+                return $"{FormatDiskSize(driveInfo.AvailableFreeSpace)} free / {FormatDiskSize(driveInfo.TotalSize)}";
+            }
+            catch
+            {
+                // Network paths, invalid drives, etc.
+                return "";
+            }
+        }
+
+        private static string FormatDiskSize(long bytes)
+        {
+            if (bytes >= 1L << 40) return $"{bytes / (double)(1L << 40):F1} TB";
+            if (bytes >= 1L << 30) return $"{bytes / (double)(1L << 30):F1} GB";
+            if (bytes >= 1L << 20) return $"{bytes / (double)(1L << 20):F1} MB";
+            return $"{bytes / (double)(1L << 10):F1} KB";
+        }
+
+        /// <summary>
+        /// Sync CanGoBack/CanGoForward from the current ActiveExplorer.
+        /// Called when explorer changes or when history state changes.
+        /// </summary>
+        public void SyncNavigationHistoryState()
+        {
+            if (_isCleaningUp) return;
+            var explorer = ActiveExplorer;
+            CanGoBack = explorer?.CanGoBack ?? false;
+            CanGoForward = explorer?.CanGoForward ?? false;
+        }
+
+        /// <summary>
+        /// Navigate back in the active explorer's history.
+        /// </summary>
+        public async Task GoBackAsync()
+        {
+            var explorer = ActiveExplorer;
+            if (explorer == null || !explorer.CanGoBack) return;
+            await explorer.GoBack();
+            SyncNavigationHistoryState();
+        }
+
+        /// <summary>
+        /// Navigate forward in the active explorer's history.
+        /// </summary>
+        public async Task GoForwardAsync()
+        {
+            var explorer = ActiveExplorer;
+            if (explorer == null || !explorer.CanGoForward) return;
+            await explorer.GoForward();
+            SyncNavigationHistoryState();
         }
 
         private void Initialize()
@@ -422,7 +509,7 @@ namespace Span.ViewModels
                                 AvailableFreeSpace = (long)(driveData["AvailableFreeSpace"] ?? 0L),
                                 DriveFormat = driveData["DriveFormat"] as string ?? "",
                                 DriveType = driveData["DriveType"] as string ?? "",
-                                IconGlyph = driveData["IconGlyph"] as string ?? "\uEEA1"
+                                IconGlyph = driveData["IconGlyph"] as string ?? "\uEC65"
                             };
                             drives.Add(drive);
                         }
@@ -763,7 +850,7 @@ namespace Span.ViewModels
                             {
                                 Name = name,
                                 Path = path,
-                                IconGlyph = "\uED93",
+                                IconGlyph = "\uEEA7",
                                 IconColor = "#A0A0A0",
                                 Order = i
                             });
@@ -817,7 +904,7 @@ namespace Span.ViewModels
             {
                 Name = System.IO.Path.GetFileName(path),
                 Path = path,
-                IconGlyph = "\uED93",
+                IconGlyph = "\uEEA7",
                 IconColor = "#A0A0A0",
                 Order = 0
             });
@@ -1150,6 +1237,7 @@ namespace Span.ViewModels
 
                 Helpers.DebugLogger.Log($"[MainViewModel] Switched to tab {index}: {Tabs[index].Header}");
                 UpdateStatusBar();
+                SyncNavigationHistoryState();
             }
             finally
             {
@@ -1185,6 +1273,93 @@ namespace Span.ViewModels
             }
 
             Helpers.DebugLogger.Log($"[MainViewModel] Closed tab {index} (remaining: {Tabs.Count})");
+        }
+
+        /// <summary>
+        /// Close all tabs except the specified one.
+        /// Returns list of closed tab IDs so the caller can clean up panels.
+        /// </summary>
+        public List<string> CloseOtherTabs(TabItem keepTab)
+        {
+            var closedIds = new List<string>();
+            // Close from right to left to maintain indices
+            for (int i = Tabs.Count - 1; i >= 0; i--)
+            {
+                if (Tabs[i] == keepTab) continue;
+                closedIds.Add(Tabs[i].Id);
+                Tabs[i].Explorer?.Cleanup();
+                Tabs.RemoveAt(i);
+            }
+
+            int newIndex = Tabs.IndexOf(keepTab);
+            ActiveTabIndex = -1; // Force switch
+            SwitchToTab(newIndex);
+            Helpers.DebugLogger.Log($"[MainViewModel] Closed other tabs, remaining: {Tabs.Count}");
+            return closedIds;
+        }
+
+        /// <summary>
+        /// Close all tabs to the right of the specified tab.
+        /// Returns list of closed tab IDs so the caller can clean up panels.
+        /// </summary>
+        public List<string> CloseTabsToRight(TabItem tab)
+        {
+            int tabIndex = Tabs.IndexOf(tab);
+            if (tabIndex < 0) return new List<string>();
+
+            var closedIds = new List<string>();
+            for (int i = Tabs.Count - 1; i > tabIndex; i--)
+            {
+                closedIds.Add(Tabs[i].Id);
+                Tabs[i].Explorer?.Cleanup();
+                Tabs.RemoveAt(i);
+            }
+
+            // If active tab was removed, switch to the kept tab
+            if (ActiveTabIndex > tabIndex)
+            {
+                ActiveTabIndex = -1;
+                SwitchToTab(tabIndex);
+            }
+
+            Helpers.DebugLogger.Log($"[MainViewModel] Closed tabs to right of {tabIndex}, remaining: {Tabs.Count}");
+            return closedIds;
+        }
+
+        /// <summary>
+        /// Duplicate a tab: create a new tab with the same path, view mode, and icon size.
+        /// Insert it right after the source tab.
+        /// </summary>
+        public TabItem DuplicateTab(TabItem sourceTab)
+        {
+            SaveActiveTabState();
+
+            var root = new FolderItem { Name = "PC", Path = "PC" };
+            var explorer = new ExplorerViewModel(root, _fileService);
+            explorer.EnableAutoNavigation = ShouldAutoNavigate(sourceTab.ViewMode);
+
+            var newTab = new TabItem
+            {
+                Header = sourceTab.Header,
+                Path = sourceTab.Path,
+                ViewMode = sourceTab.ViewMode,
+                IconSize = sourceTab.IconSize,
+                IsActive = false,
+                Explorer = explorer
+            };
+
+            int insertIndex = Tabs.IndexOf(sourceTab) + 1;
+            Tabs.Insert(insertIndex, newTab);
+
+            // Navigate the new explorer to the source path
+            if (!string.IsNullOrEmpty(sourceTab.Path) && sourceTab.ViewMode != ViewMode.Home)
+            {
+                _ = explorer.NavigateToPath(sourceTab.Path);
+            }
+
+            SwitchToTab(insertIndex);
+            Helpers.DebugLogger.Log($"[MainViewModel] Duplicated tab '{sourceTab.Header}' at index {insertIndex}");
+            return newTab;
         }
 
         /// <summary>

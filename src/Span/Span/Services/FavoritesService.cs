@@ -22,7 +22,7 @@ namespace Span.Services
                 {
                     Name = "Desktop",
                     Path = desktopPath,
-                    IconGlyph = "\uECBE",
+                    IconGlyph = "\uEEA7",  // RemixIcon: FolderFill
                     IconColor = "#6FA8DC",
                     Order = order++
                 });
@@ -36,7 +36,7 @@ namespace Span.Services
                 {
                     Name = "Downloads",
                     Path = downloadsPath,
-                    IconGlyph = "\uEDA2",
+                    IconGlyph = "\uEEA7",  // RemixIcon: FolderFill
                     IconColor = "#FFA066",
                     Order = order++
                 });
@@ -49,7 +49,7 @@ namespace Span.Services
                 {
                     Name = "Documents",
                     Path = documentsPath,
-                    IconGlyph = "\uF07B",
+                    IconGlyph = "\uEEA7",  // RemixIcon: FolderFill
                     IconColor = "#6FA8DC",
                     Order = order++
                 });
@@ -62,7 +62,7 @@ namespace Span.Services
                 {
                     Name = "Pictures",
                     Path = picturesPath,
-                    IconGlyph = "\uF16B",
+                    IconGlyph = "\uEEA7",  // RemixIcon: FolderFill
                     IconColor = "#93C47D",
                     Order = order++
                 });
@@ -93,6 +93,15 @@ namespace Span.Services
                         });
                     }
 
+                    // Always apply correct RemixIcons glyphs (migrates from any old font glyphs)
+                    foreach (var fav in favorites)
+                    {
+                        var (glyph, color) = GetIconForPath(fav.Path);
+                        fav.IconGlyph = glyph;
+                        fav.IconColor = color;
+                    }
+                    SaveFavorites(favorites);
+
                     return favorites;
                 }
             }
@@ -102,6 +111,38 @@ namespace Span.Services
             }
 
             return GetDefaultFavorites();
+        }
+
+        /// <summary>
+        /// Determine the correct Segoe Fluent Icons glyph and color for a given path.
+        /// Special folders get unique icons; all others get the standard folder icon.
+        /// </summary>
+        private static (string Glyph, string Color) GetIconForPath(string path)
+        {
+            var desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+            var downloadsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
+            var documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            var picturesPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Pictures");
+            var musicPath = Environment.GetFolderPath(Environment.SpecialFolder.MyMusic);
+            var videosPath = Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
+
+            // All glyphs are RemixIcons (bundled font — guaranteed to render)
+            // Special folders get unique colors; all use FolderFill icon
+            if (path.Equals(desktopPath, StringComparison.OrdinalIgnoreCase))
+                return ("\uEEA7", "#6FA8DC");   // FolderFill - blue
+            if (path.Equals(downloadsPath, StringComparison.OrdinalIgnoreCase))
+                return ("\uEEA7", "#FFA066");   // FolderFill - orange
+            if (path.Equals(documentsPath, StringComparison.OrdinalIgnoreCase))
+                return ("\uEEA7", "#6FA8DC");   // FolderFill - blue
+            if (path.Equals(picturesPath, StringComparison.OrdinalIgnoreCase))
+                return ("\uEEA7", "#93C47D");   // FolderFill - green
+            if (path.Equals(musicPath, StringComparison.OrdinalIgnoreCase))
+                return ("\uEEA7", "#B07CD8");   // FolderFill - purple
+            if (path.Equals(videosPath, StringComparison.OrdinalIgnoreCase))
+                return ("\uEEA7", "#E06666");   // FolderFill - red
+
+            // Default: same folder icon as miller columns (FolderItem.IconGlyph)
+            return ("\uEEA7", "#FFC857");       // FolderFill - yellow
         }
 
         public void SaveFavorites(List<FavoriteItem> favorites)
@@ -136,12 +177,13 @@ namespace Span.Services
             var updated = new List<FavoriteItem>(existing);
             int maxOrder = updated.Count > 0 ? updated.Max(f => f.Order) : -1;
 
+            var (glyph, color) = GetIconForPath(path);
             updated.Add(new FavoriteItem
             {
                 Name = Path.GetFileName(path),
                 Path = path,
-                IconGlyph = "\uED93",
-                IconColor = "#FFC857",
+                IconGlyph = glyph,
+                IconColor = color,
                 Order = maxOrder + 1
             });
 

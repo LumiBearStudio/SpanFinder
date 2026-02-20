@@ -153,16 +153,12 @@ namespace Span.ViewModels
 
         /// <summary>
         /// F2 인라인 이름 변경 시작.
+        /// Windows Explorer 방식: 파일도 확장자 포함한 전체 이름 표시 (선택 영역만 파일명).
         /// </summary>
         public void BeginRename()
         {
-            // 폴더는 전체 이름 사용 (.claude 같은 dot-prefixed 폴더 지원)
-            // 파일은 확장자를 제외한 이름 사용
-            if (this is FolderViewModel)
-                EditableName = Name;
-            else
-                EditableName = System.IO.Path.GetFileNameWithoutExtension(Name);
-
+            // 폴더, 파일 모두 전체 이름 사용 (Windows Explorer 동작)
+            EditableName = Name;
             IsRenaming = true;
         }
 
@@ -174,23 +170,10 @@ namespace Span.ViewModels
             IsRenaming = false;
             string newName = EditableName.Trim();
 
-            // 폴더와 파일 구분하여 처리
-            string fullNewName;
-            if (this is FolderViewModel)
-            {
-                // 폴더: 전체 이름 비교 및 사용 (.claude 같은 dot-prefixed 폴더 지원)
-                if (string.IsNullOrEmpty(newName) || newName == Name)
-                    return false;
-                fullNewName = newName;
-            }
-            else
-            {
-                // 파일: 확장자 제외하고 비교, 확장자 유지
-                if (string.IsNullOrEmpty(newName) || newName == System.IO.Path.GetFileNameWithoutExtension(Name))
-                    return false;
-                string ext = System.IO.Path.GetExtension(Name);
-                fullNewName = newName + ext;
-            }
+            // Windows Explorer 방식: 전체 이름(확장자 포함) 그대로 사용
+            if (string.IsNullOrEmpty(newName) || newName == Name)
+                return false;
+            string fullNewName = newName;
 
             string dir = System.IO.Path.GetDirectoryName(Path)!;
             string newPath = System.IO.Path.Combine(dir, fullNewName);
