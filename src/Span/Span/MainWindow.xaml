@@ -1225,10 +1225,11 @@
             </StackPanel>
         </Grid>
 
-        <!-- File Operation Progress Panel (floating bottom-right) -->
+        <!-- File Operation Progress Panel (floating bottom-right, above content) -->
         <spancontrols:FileOperationProgressControl x:Name="FileOpProgressControl" Grid.Row="2"
                                                     HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                                                    Margin="0,0,0,4"/>
+                                                    Canvas.ZIndex="100"
+                                                    Margin="0,0,16,8"/>
 
         <!-- Toast Notification Overlay -->
         <Border x:Name="ToastOverlay" Grid.Row="2"

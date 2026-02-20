@@ -741,6 +741,7 @@ namespace Span.ViewModels
                 RemoveColumnsFrom(nextIndex);
                 CurrentPath = fileVm.Path;
                 SelectedFile = fileVm;
+                UpdatePathHighlights();
                 Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] ===== FILE SELECTION COMPLETE =====");
                 return;
             }
@@ -751,6 +752,7 @@ namespace Span.ViewModels
                 RemoveColumnsFrom(nextIndex);
                 CurrentPath = parentFolder.Path;
                 SelectedFile = null;
+                UpdatePathHighlights();
                 Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] ===== NULL SELECTION COMPLETE =====");
                 return;
             }
@@ -837,6 +839,7 @@ namespace Span.ViewModels
 
                     CurrentPath = selectedFolder.Path;
                     SelectedFile = null;
+                    UpdatePathHighlights();
                     Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] CurrentPath updated to: {CurrentPath}");
                     Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Columns: {string.Join(" > ", Columns.Select(c => c.Name))}");
                     Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] ===== FOLDER SELECTION COMPLETE =====");

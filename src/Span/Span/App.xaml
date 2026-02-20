@@ -22,8 +22,8 @@
             
             <Color x:Key="SpanAccentColor">#60cdff</Color>
             <Color x:Key="SpanAccentHoverColor">#7ed8ff</Color>
-            <!-- Accent Dim: rgba(96, 205, 255, 0.15) -> #2660CDFF -->
-            <Color x:Key="SpanAccentDimColor">#2660CDFF</Color> 
+            <!-- Accent Dim: rgba(96, 205, 255, 0.25) for path highlighting -->
+            <Color x:Key="SpanAccentDimColor">#4060CDFF</Color>
 
             <Color x:Key="SpanTextPrimaryColor">#ffffff</Color>
             <Color x:Key="SpanTextSecondaryColor">#ababab</Color>
