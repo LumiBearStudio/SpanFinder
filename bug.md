@@ -25,3 +25,13 @@
 ## Bug 4: Sidebar 드라이브 아이콘
 - **증상**: Bug 3과 동일 원인. 드라이브 아이콘도 RemixIcons 전환 후 검증 필요.
 - **관련 파일**: `MainWindow.xaml` (drive template), `DriveItem.cs`, `FileSystemService.cs`
+
+## Bug 5: 밀러 컬럼 경로 하이라이트 — 배경색 미표시
+- **증상**: 밀러 컬럼에서 폴더 선택 시 부모 컬럼의 선택된 항목에 연한 배경색(AccentDim)이 표시되지 않음
+- **기대 동작**: 현재 경로 상의 부모 컬럼 폴더에 연한 파란 배경(`SpanAccentDimBrush`)으로 경로 시각화
+- **관련 파일**: `FileSystemViewModel.cs` (PathBackground, IsOnPath), `ExplorerViewModel.cs` (UpdatePathHighlights), `MainWindow.xaml` (Background="{x:Bind PathBackground}")
+- **시도한 방법**:
+  1. x:Bind 함수 바인딩 `PathHighlightBrush(IsOnPath)` → WinUI3에서 파라미터 변경 추적 실패
+  2. 계산 프로퍼티 + `[NotifyPropertyChangedFor]` → PropertyChanged 발생했으나 UI 미반영
+  3. `[ObservableProperty] Brush _pathBackground` 직접 설정 → UI 미반영
+- **추정 원인**: WinUI3 ListView DataTemplate 내 x:Bind OneWay가 ObservableCollection 아이템의 PropertyChanged를 정상 구독하지 않을 가능성. 또는 ListView ItemContainerStyle이 DataTemplate 내부 Grid Background를 덮어쓸 가능성. 런타임 디버거(Visual Studio Live Visual Tree)로 실제 바인딩 상태 확인 필요.
