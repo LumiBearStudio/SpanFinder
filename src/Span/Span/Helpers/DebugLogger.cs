@@ -53,6 +53,30 @@ namespace Span.Helpers
         public static string GetLogFilePath() => LogFilePath;
 
         /// <summary>
+        /// Synchronous crash-time logging. Writes directly to file (bypasses async channel)
+        /// because the process may die before the channel consumer flushes.
+        /// </summary>
+        public static void LogCrash(string context, Exception? ex)
+        {
+            var timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
+            var message = $"[{timestamp}] *** CRASH *** [{context}] {ex?.GetType().Name}: {ex?.Message}\n" +
+                          $"  StackTrace: {ex?.StackTrace}\n" +
+                          (ex?.InnerException != null
+                              ? $"  Inner: {ex.InnerException.GetType().Name}: {ex.InnerException.Message}\n" +
+                                $"  InnerTrace: {ex.InnerException.StackTrace}\n"
+                              : "");
+
+            System.Diagnostics.Debug.WriteLine(message);
+
+            // Synchronous write — must succeed before process dies
+            try
+            {
+                File.AppendAllText(LogFilePath, message + "\n");
+            }
+            catch { /* last resort — nothing we can do */ }
+        }
+
+        /// <summary>
         /// Flush pending log entries. Call on app shutdown.
         /// </summary>
         public static void Shutdown()

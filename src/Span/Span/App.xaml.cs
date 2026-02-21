@@ -2,6 +2,7 @@
 using Microsoft.UI.Xaml;
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Span.ViewModels;
 
 namespace Span
@@ -20,7 +21,12 @@ namespace Span
             this.InitializeComponent();
             Services = ConfigureServices();
 
+            // UI thread unhandled exceptions
             this.UnhandledException += OnUnhandledException;
+
+            // Background thread / Task exceptions
+            AppDomain.CurrentDomain.UnhandledException += OnDomainUnhandledException;
+            TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
         }
 
         public void RegisterWindow(Window w)
@@ -39,8 +45,13 @@ namespace Span
                 _windows.Remove(w);
                 if (_windows.Count == 0)
                 {
+                    Helpers.DebugLogger.Log("[App] Last window closed — force-exiting to avoid WinUI teardown crash");
                     Helpers.DebugLogger.Shutdown();
-                    Exit();
+
+                    // Force-exit BEFORE WinUI's native teardown can crash.
+                    // Application.Exit() triggers XAML framework cleanup which accesses
+                    // already-disposed visual tree elements — a known WinUI 3 issue.
+                    Environment.Exit(0);
                 }
             }
         }
@@ -85,9 +96,19 @@ namespace Span
 
         private void OnUnhandledException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs e)
         {
-            // Log the exception
-            System.Diagnostics.Debug.WriteLine($"Unhandled Exception: {e.Message}");
-            e.Handled = true; // Prevent crash if possible, or at least suppress JIT dialog
+            Helpers.DebugLogger.LogCrash("UI.UnhandledException", e.Exception);
+            e.Handled = true;
+        }
+
+        private static void OnDomainUnhandledException(object sender, System.UnhandledExceptionEventArgs e)
+        {
+            Helpers.DebugLogger.LogCrash("AppDomain.UnhandledException", e.ExceptionObject as Exception);
+        }
+
+        private static void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
+        {
+            Helpers.DebugLogger.LogCrash("Task.UnobservedException", e.Exception);
+            e.SetObserved(); // Prevent process termination
         }
 
         private static IServiceProvider ConfigureServices()
