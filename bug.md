@@ -35,3 +35,16 @@
   2. 계산 프로퍼티 + `[NotifyPropertyChangedFor]` → PropertyChanged 발생했으나 UI 미반영
   3. `[ObservableProperty] Brush _pathBackground` 직접 설정 → UI 미반영
 - **추정 원인**: WinUI3 ListView DataTemplate 내 x:Bind OneWay가 ObservableCollection 아이템의 PropertyChanged를 정상 구독하지 않을 가능성. 또는 ListView ItemContainerStyle이 DataTemplate 내부 Grid Background를 덮어쓸 가능성. 런타임 디버거(Visual Studio Live Visual Tree)로 실제 바인딩 상태 확인 필요.
+
+## Bug 6: Rubber-band 선택 — 아이템 패딩 영역에서 시작 안 됨 (런타임 검증 필요)
+- **증상**: 밀러 컬럼이 아이템으로 가득 차고 스크롤이 있는 경우, 빈 공간이 없어 러버밴드(마퀴) 멀티 선택을 시작할 수 없음
+- **기대 동작**: 아이템 행의 텍스트/아이콘이 없는 부위(파일명 오른쪽 빈 영역, Grid 패딩)에서 드래그하면 러버밴드 선택이 시작되어야 함 (Windows 탐색기 동작 참고)
+- **수정 적용**: `IsPointerOnItemContent()` — OriginalSource가 TextBlock/FontIcon/Image면 아이템 콘텐츠, Grid/ListViewItem이면 패딩(러버밴드 허용). WinUI TextBlock은 Background 속성이 없어 텍스트 글리프 영역만 히트 테스트됨.
+- **검증 필요**: WinUI3에서 stretched TextBlock의 빈 영역이 실제로 hit-test transparent한지 런타임 확인 필요. 만약 안 되면 item template 수정 접근 필요.
+
+## Bug 7: 탭 전환 시 이전 탭 멀티 선택 해제 여부 (Finder 검증 후 결정)
+- **증상**: 탭 1,2,3,4가 있을 때 3번 탭에서 멀티 선택 후 4번 탭으로 전환하면, 3번 탭의 멀티 선택이 유지됨
+- **기대 동작**: 미정 — macOS Finder의 탭 전환 시 선택 동작을 확인 후 결정
+  - Finder가 탭별 선택 유지 → 현재 동작 유지
+  - Finder가 탭 전환 시 선택 해제 → 동일하게 구현
+- **관련 파일**: `MainWindow.xaml.cs` (탭 전환 핸들러), `FolderViewModel.cs` (SelectedItems)
