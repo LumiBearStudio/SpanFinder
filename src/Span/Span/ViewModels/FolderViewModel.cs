@@ -36,6 +36,12 @@ namespace Span.ViewModels
         [ObservableProperty]
         private bool _isLoading = false;
 
+        /// <summary>
+        /// True when loading completed but the folder has no children.
+        /// </summary>
+        [ObservableProperty]
+        private bool _isEmpty = false;
+
         [ObservableProperty]
         private bool _isActive = false; // Indicates if this column has focus
 
@@ -184,6 +190,7 @@ namespace Span.ViewModels
                 if (!token.IsCancellationRequested)
                 {
                     IsLoading = false;
+                    IsEmpty = Children.Count == 0;
                 }
                 if (_cts?.Token == token)
                 {

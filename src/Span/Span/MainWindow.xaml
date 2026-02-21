@@ -336,28 +336,6 @@
                          ToolTipService.ToolTip="Advanced search syntax:&#x0a;  kind:image  kind:video  kind:document&#x0a;  size:&gt;1MB  size:&lt;100KB  size:large&#x0a;  date:today  date:thisweek  date:&gt;2024-01-01&#x0a;  ext:.pdf  ext:.txt&#x0a;Combine: kind:image size:&gt;1MB"
                          KeyDown="OnSearchBoxKeyDown"/>
 
-                <Rectangle Width="1" Height="20" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="4,0"/>
-
-                <!-- Help -->
-                <Button x:Name="HelpButton" Style="{StaticResource UnifiedButtonStyle}"
-                        ToolTipService.ToolTip="도움말 (F1)"
-                        Click="OnHelpClick">
-                    <FontIcon Glyph="&#xE897;" FontSize="14"/>
-                </Button>
-
-                <!-- Settings -->
-                <Button x:Name="SettingsButton" Style="{StaticResource UnifiedButtonStyle}"
-                        ToolTipService.ToolTip="설정"
-                        Click="OnSettingsClick">
-                    <FontIcon Glyph="&#xE713;" FontSize="14"/>
-                </Button>
-
-                <!-- Action Log -->
-                <Button x:Name="LogButton" Style="{StaticResource UnifiedButtonStyle}"
-                        ToolTipService.ToolTip="작업 로그"
-                        Click="OnLogClick">
-                    <FontIcon Glyph="&#xE81C;" FontSize="14"/>
-                </Button>
             </StackPanel>
         </Grid>
 
@@ -370,7 +348,12 @@
 
             <!-- Sidebar - Hybrid 3-Section Layout -->
             <Border Grid.Column="0" Background="{ThemeResource SpanBgLayer1Brush}" BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="0,0,1,0">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Padding="0,12">
 
                         <!-- Section 1: 홈 -->
@@ -474,6 +457,31 @@
 
                     </StackPanel>
                 </ScrollViewer>
+
+                <!-- Sidebar bottom bar: Help, Log (left) | Settings (right) -->
+                <Grid Grid.Row="1"
+                      BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="0,1,0,0"
+                      Padding="8,4">
+                    <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Left">
+                        <Button x:Name="HelpButton" Style="{StaticResource UnifiedButtonStyle}"
+                                ToolTipService.ToolTip="도움말 (F1)" Click="OnHelpClick"
+                                Padding="6,4" MinWidth="0" MinHeight="0">
+                            <FontIcon Glyph="&#xE897;" FontSize="14"/>
+                        </Button>
+                        <Button x:Name="LogButton" Style="{StaticResource UnifiedButtonStyle}"
+                                ToolTipService.ToolTip="작업 로그" Click="OnLogClick"
+                                Padding="6,4" MinWidth="0" MinHeight="0">
+                            <FontIcon Glyph="&#xE81C;" FontSize="14"/>
+                        </Button>
+                    </StackPanel>
+                    <Button x:Name="SettingsButton" Style="{StaticResource UnifiedButtonStyle}"
+                            ToolTipService.ToolTip="설정" Click="OnSettingsClick"
+                            Padding="6,4" MinWidth="0" MinHeight="0"
+                            HorizontalAlignment="Right">
+                        <FontIcon Glyph="&#xE713;" FontSize="14"/>
+                    </Button>
+                </Grid>
+                </Grid>
             </Border>
 
             <!-- Content (Split View Container) -->
@@ -692,11 +700,12 @@
                                                         </Grid.RowDefinitions>
                                                         <Rectangle Grid.Row="0" Height="2"
                                                                    Fill="{Binding IsActive, Converter={StaticResource BoolToBrushConverter}}"/>
-                                                        <Grid Grid.Row="1">
+                                                        <Grid Grid.Row="1" Loaded="OnMillerColumnContentGridLoaded" Unloaded="OnMillerColumnContentGridUnloaded">
                                                             <ListView ItemsSource="{x:Bind Children}" SelectedItem="{x:Bind SelectedChild, Mode=OneWay}"
                                                                       SelectionMode="Extended" IsItemClickEnabled="False"
                                                                       CanDragItems="True" AllowDrop="True"
                                                                       Background="Transparent"
+                                                                      ItemContainerStyle="{StaticResource MillerColumnItemStyle}"
                                                                       DragItemsStarting="OnDragItemsStarting"
                                                                       DragOver="OnColumnDragOver" Drop="OnColumnDrop"
                                                                       GotFocus="OnMillerColumnGotFocus"
@@ -710,7 +719,6 @@
                                                                                 <Grid Padding="12,4" RightTapped="OnFolderRightTapped"
                                                                                       ToolTipService.ToolTip="{x:Bind TooltipText}"
                                                                                       Background="{x:Bind PathBackground, Mode=OneWay}"
-                                                                                      CornerRadius="4" Margin="2,0"
                                                                                       AllowDrop="True" DragOver="OnFolderItemDragOver" Drop="OnFolderItemDrop" DragLeave="OnFolderItemDragLeave">
                                                                                     <Grid.ColumnDefinitions>
                                                                                         <ColumnDefinition Width="Auto"/>
@@ -737,8 +745,7 @@
                                                                             <DataTemplate x:DataType="viewmodels:FileViewModel">
                                                                                 <Grid Padding="12,4" RightTapped="OnFileRightTapped"
                                                                                       ToolTipService.ToolTip="{x:Bind TooltipText}"
-                                                                                      Background="{x:Bind PathBackground, Mode=OneWay}"
-                                                                                      CornerRadius="4" Margin="2,0">
+                                                                                      Background="{x:Bind PathBackground, Mode=OneWay}">
                                                                                     <Grid.ColumnDefinitions>
                                                                                         <ColumnDefinition Width="Auto"/>
                                                                                         <ColumnDefinition Width="*"/>
@@ -765,6 +772,17 @@
                                                             <ProgressRing IsActive="{x:Bind IsLoading, Mode=OneWay}"
                                                                           Width="20" Height="20"
                                                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                            <!-- Empty folder message -->
+                                                            <StackPanel Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfTrue(IsEmpty), Mode=OneWay}"
+                                                                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                        Spacing="4" Opacity="0.5">
+                                                                <FontIcon Glyph="&#xE8B7;" FontSize="24"
+                                                                          Foreground="{ThemeResource SpanTextTertiaryBrush}"
+                                                                          HorizontalAlignment="Center"/>
+                                                                <TextBlock Text="빈 폴더" FontSize="12"
+                                                                           Foreground="{ThemeResource SpanTextTertiaryBrush}"
+                                                                           HorizontalAlignment="Center"/>
+                                                            </StackPanel>
                                                         </Grid>
                                                     </Grid>
                                                 </Border>
@@ -1126,11 +1144,12 @@
                                                         </Grid.RowDefinitions>
                                                         <Rectangle Grid.Row="0" Height="2"
                                                                    Fill="{Binding IsActive, Converter={StaticResource BoolToBrushConverter}}"/>
-                                                        <Grid Grid.Row="1">
+                                                        <Grid Grid.Row="1" Loaded="OnMillerColumnContentGridLoaded" Unloaded="OnMillerColumnContentGridUnloaded">
                                                             <ListView ItemsSource="{x:Bind Children}" SelectedItem="{x:Bind SelectedChild, Mode=OneWay}"
                                                                       SelectionMode="Extended" IsItemClickEnabled="False"
                                                                       CanDragItems="True" AllowDrop="True"
                                                                       Background="Transparent"
+                                                                      ItemContainerStyle="{StaticResource MillerColumnItemStyle}"
                                                                       DragItemsStarting="OnDragItemsStarting"
                                                                       DragOver="OnColumnDragOver" Drop="OnColumnDrop"
                                                                       GotFocus="OnMillerColumnGotFocus"
@@ -1144,7 +1163,6 @@
                                                                                 <Grid Padding="12,4" RightTapped="OnFolderRightTapped"
                                                                                       ToolTipService.ToolTip="{x:Bind TooltipText}"
                                                                                       Background="{x:Bind PathBackground, Mode=OneWay}"
-                                                                                      CornerRadius="4" Margin="2,0"
                                                                                       AllowDrop="True" DragOver="OnFolderItemDragOver" Drop="OnFolderItemDrop" DragLeave="OnFolderItemDragLeave">
                                                                                     <Grid.ColumnDefinitions>
                                                                                         <ColumnDefinition Width="Auto"/>
@@ -1171,8 +1189,7 @@
                                                                             <DataTemplate x:DataType="viewmodels:FileViewModel">
                                                                                 <Grid Padding="12,4" RightTapped="OnFileRightTapped"
                                                                                       ToolTipService.ToolTip="{x:Bind TooltipText}"
-                                                                                      Background="{x:Bind PathBackground, Mode=OneWay}"
-                                                                                      CornerRadius="4" Margin="2,0">
+                                                                                      Background="{x:Bind PathBackground, Mode=OneWay}">
                                                                                     <Grid.ColumnDefinitions>
                                                                                         <ColumnDefinition Width="Auto"/>
                                                                                         <ColumnDefinition Width="*"/>
@@ -1199,6 +1216,17 @@
                                                             <ProgressRing IsActive="{x:Bind IsLoading, Mode=OneWay}"
                                                                           Width="20" Height="20"
                                                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                            <!-- Empty folder message -->
+                                                            <StackPanel Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfTrue(IsEmpty), Mode=OneWay}"
+                                                                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                        Spacing="4" Opacity="0.5">
+                                                                <FontIcon Glyph="&#xE8B7;" FontSize="24"
+                                                                          Foreground="{ThemeResource SpanTextTertiaryBrush}"
+                                                                          HorizontalAlignment="Center"/>
+                                                                <TextBlock Text="빈 폴더" FontSize="12"
+                                                                           Foreground="{ThemeResource SpanTextTertiaryBrush}"
+                                                                           HorizontalAlignment="Center"/>
+                                                            </StackPanel>
                                                         </Grid>
                                                     </Grid>
                                                 </Border>

@@ -89,6 +89,9 @@ namespace Span
         // Selection synchronization guard (Phase 1)
         private bool _isSyncingSelection = false;
 
+        // Rubber-band (marquee) selection helpers per column Grid
+        private readonly Dictionary<Grid, Helpers.RubberBandSelectionHelper> _rubberBandHelpers = new();
+
         // Preview panel selection subscriptions
         private FolderViewModel? _leftPreviewSubscribedColumn;
         private FolderViewModel? _rightPreviewSubscribedColumn;
@@ -454,6 +457,11 @@ namespace Span
                     kvp.Value.items.ItemsSource = null;
                 }
                 _tabMillerPanels.Clear();
+
+                // Rubber-band selection helpers 정리
+                foreach (var kvp in _rubberBandHelpers)
+                    try { kvp.Value.Detach(); } catch (Exception ex) { Helpers.DebugLogger.LogCrash("OnClosed.RubberBand.Detach", ex); }
+                _rubberBandHelpers.Clear();
 
                 // Unsubscribe preview column change handlers
                 // LeftExplorer preview는 _subscribedLeftExplorer에서 이미 해제됨
@@ -1382,6 +1390,35 @@ namespace Span
                     Position = e.GetPosition(listView)
                 });
                 e.Handled = true;
+            }
+        }
+
+        // ── Rubber-band selection: attach/detach helpers per column ──
+
+        private void OnMillerColumnContentGridLoaded(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Grid grid) return;
+            if (_rubberBandHelpers.ContainsKey(grid)) return;
+
+            var listView = FindChild<ListView>(grid);
+            if (listView == null) return;
+
+            var helper = new Helpers.RubberBandSelectionHelper(
+                grid,
+                listView,
+                () => _isSyncingSelection,
+                val => _isSyncingSelection = val);
+
+            _rubberBandHelpers[grid] = helper;
+        }
+
+        private void OnMillerColumnContentGridUnloaded(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Grid grid) return;
+            if (_rubberBandHelpers.TryGetValue(grid, out var helper))
+            {
+                helper.Detach();
+                _rubberBandHelpers.Remove(grid);
             }
         }
 
