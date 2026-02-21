@@ -490,81 +490,80 @@ namespace Span.ViewModels
         /// </summary>
         private List<DriveItem> LoadDrivesFromCache()
         {
-            var drives = new List<DriveItem>();
-
             try
             {
                 var settings = Windows.Storage.ApplicationData.Current.LocalSettings;
-                if (settings.Values["DrivesCache"] is Windows.Storage.ApplicationDataCompositeValue composite)
+                if (settings.Values["DrivesCacheJson"] is string json && !string.IsNullOrEmpty(json))
                 {
-                    int count = (int)(composite["Count"] ?? 0);
-
-                    for (int i = 0; i < count; i++)
+                    var drives = JsonSerializer.Deserialize<List<DrivesCacheDto>>(json);
+                    if (drives != null)
                     {
-                        var driveKey = $"Drive{i}";
-                        if (composite[driveKey] is Windows.Storage.ApplicationDataCompositeValue driveData)
+                        return drives.Select(d => new DriveItem
                         {
-                            var drive = new DriveItem
-                            {
-                                Name = driveData["Name"] as string ?? "",
-                                Path = driveData["Path"] as string ?? "",
-                                Label = driveData["Label"] as string ?? "",
-                                TotalSize = (long)(driveData["TotalSize"] ?? 0L),
-                                AvailableFreeSpace = (long)(driveData["AvailableFreeSpace"] ?? 0L),
-                                DriveFormat = driveData["DriveFormat"] as string ?? "",
-                                DriveType = driveData["DriveType"] as string ?? "",
-                                IconGlyph = driveData["IconGlyph"] as string ?? "\uEC65"
-                            };
-                            drives.Add(drive);
-                        }
+                            Name = d.Name ?? "",
+                            Path = d.Path ?? "",
+                            Label = d.Label ?? "",
+                            TotalSize = d.TotalSize,
+                            AvailableFreeSpace = d.AvailableFreeSpace,
+                            DriveFormat = d.DriveFormat ?? "",
+                            DriveType = d.DriveType ?? "",
+                            IconGlyph = d.IconGlyph ?? "\uEC65"
+                        }).ToList();
                     }
                 }
+
+                // Clean up old corrupted CompositeValue format if present
+                if (settings.Values.ContainsKey("DrivesCache"))
+                    settings.Values.Remove("DrivesCache");
             }
             catch (Exception ex)
             {
                 Helpers.DebugLogger.Log($"[MainViewModel] Error loading drives from cache: {ex.Message}");
             }
 
-            return drives;
+            return new List<DriveItem>();
         }
 
         /// <summary>
-        /// Save drives to LocalSettings cache
+        /// Save drives to LocalSettings cache (JSON format)
         /// </summary>
         private void SaveDrivesCache(List<DriveItem> drives)
         {
             try
             {
                 var settings = Windows.Storage.ApplicationData.Current.LocalSettings;
-                var composite = new Windows.Storage.ApplicationDataCompositeValue
+                var dtos = drives.Select(d => new DrivesCacheDto
                 {
-                    ["Count"] = drives.Count
-                };
+                    Name = d.Name, Path = d.Path, Label = d.Label,
+                    TotalSize = d.TotalSize, AvailableFreeSpace = d.AvailableFreeSpace,
+                    DriveFormat = d.DriveFormat, DriveType = d.DriveType,
+                    IconGlyph = d.IconGlyph
+                }).ToList();
 
-                for (int i = 0; i < drives.Count; i++)
-                {
-                    var drive = drives[i];
-                    var driveData = new Windows.Storage.ApplicationDataCompositeValue
-                    {
-                        ["Name"] = drive.Name,
-                        ["Path"] = drive.Path,
-                        ["Label"] = drive.Label,
-                        ["TotalSize"] = drive.TotalSize,
-                        ["AvailableFreeSpace"] = drive.AvailableFreeSpace,
-                        ["DriveFormat"] = drive.DriveFormat,
-                        ["DriveType"] = drive.DriveType,
-                        ["IconGlyph"] = drive.IconGlyph
-                    };
-                    composite[$"Drive{i}"] = driveData;
-                }
+                settings.Values["DrivesCacheJson"] = JsonSerializer.Serialize(dtos);
 
-                settings.Values["DrivesCache"] = composite;
-                Helpers.DebugLogger.Log($"[MainViewModel] Saved {drives.Count} drives to cache");
+                // Clean up old corrupted format
+                if (settings.Values.ContainsKey("DrivesCache"))
+                    settings.Values.Remove("DrivesCache");
+
+                Helpers.DebugLogger.Log($"[MainViewModel] Saved {drives.Count} drives to cache (JSON)");
             }
             catch (Exception ex)
             {
                 Helpers.DebugLogger.Log($"[MainViewModel] Error saving drives to cache: {ex.Message}");
             }
+        }
+
+        private record DrivesCacheDto
+        {
+            public string? Name { get; init; }
+            public string? Path { get; init; }
+            public string? Label { get; init; }
+            public long TotalSize { get; init; }
+            public long AvailableFreeSpace { get; init; }
+            public string? DriveFormat { get; init; }
+            public string? DriveType { get; init; }
+            public string? IconGlyph { get; init; }
         }
 
         [RelayCommand]
@@ -905,28 +904,33 @@ namespace Span.ViewModels
             try
             {
                 var settings = Windows.Storage.ApplicationData.Current.LocalSettings;
-                if (settings.Values["RecentFolders"] is Windows.Storage.ApplicationDataCompositeValue composite)
+                if (settings.Values["RecentFoldersJson"] is string json && !string.IsNullOrEmpty(json))
                 {
-                    int count = (int)(composite["Count"] ?? 0);
-                    RecentFolders.Clear();
-                    for (int i = 0; i < count; i++)
+                    var dtos = JsonSerializer.Deserialize<List<RecentFolderDto>>(json);
+                    if (dtos != null)
                     {
-                        var name = composite[$"N{i}"] as string ?? "";
-                        var path = composite[$"P{i}"] as string ?? "";
-                        if (!string.IsNullOrEmpty(path))
+                        RecentFolders.Clear();
+                        for (int i = 0; i < dtos.Count; i++)
                         {
-                            RecentFolders.Add(new FavoriteItem
+                            if (!string.IsNullOrEmpty(dtos[i].Path))
                             {
-                                Name = name,
-                                Path = path,
-                                IconGlyph = "\uEEA7",
-                                IconColor = "#A0A0A0",
-                                Order = i
-                            });
+                                RecentFolders.Add(new FavoriteItem
+                                {
+                                    Name = dtos[i].Name ?? "",
+                                    Path = dtos[i].Path!,
+                                    IconGlyph = "\uEEA7",
+                                    IconColor = "#A0A0A0",
+                                    Order = i
+                                });
+                            }
                         }
+                        Helpers.DebugLogger.Log($"[MainViewModel] Loaded {RecentFolders.Count} recent folders");
                     }
-                    Helpers.DebugLogger.Log($"[MainViewModel] Loaded {RecentFolders.Count} recent folders");
                 }
+
+                // Clean up old CompositeValue format
+                if (settings.Values.ContainsKey("RecentFolders"))
+                    settings.Values.Remove("RecentFolders");
             }
             catch (Exception ex)
             {
@@ -939,21 +943,23 @@ namespace Span.ViewModels
             try
             {
                 var settings = Windows.Storage.ApplicationData.Current.LocalSettings;
-                var composite = new Windows.Storage.ApplicationDataCompositeValue
-                {
-                    ["Count"] = RecentFolders.Count
-                };
-                for (int i = 0; i < RecentFolders.Count; i++)
-                {
-                    composite[$"N{i}"] = RecentFolders[i].Name;
-                    composite[$"P{i}"] = RecentFolders[i].Path;
-                }
-                settings.Values["RecentFolders"] = composite;
+                var dtos = RecentFolders.Select(r => new RecentFolderDto { Name = r.Name, Path = r.Path }).ToList();
+                settings.Values["RecentFoldersJson"] = JsonSerializer.Serialize(dtos);
+
+                // Clean up old format
+                if (settings.Values.ContainsKey("RecentFolders"))
+                    settings.Values.Remove("RecentFolders");
             }
             catch (Exception ex)
             {
                 Helpers.DebugLogger.Log($"[MainViewModel] Error saving recent folders: {ex.Message}");
             }
+        }
+
+        private record RecentFolderDto
+        {
+            public string? Name { get; init; }
+            public string? Path { get; init; }
         }
 
         private void AddRecentFolder(string path)

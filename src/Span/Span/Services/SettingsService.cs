@@ -1,3 +1,4 @@
+using System;
 using Windows.Storage;
 
 namespace Span.Services;
@@ -10,25 +11,60 @@ public class SettingsService
 
     public SettingsService()
     {
-        _localSettings = ApplicationData.Current.LocalSettings;
+        try
+        {
+            _localSettings = ApplicationData.Current.LocalSettings;
+
+            // Probe read to detect corrupted container early
+            _ = _localSettings.Values.Count;
+        }
+        catch (Exception ex)
+        {
+            Helpers.DebugLogger.Log($"[SettingsService] LocalSettings corrupted, clearing: {ex.Message}");
+            try
+            {
+                _localSettings = ApplicationData.Current.LocalSettings;
+                _localSettings.Values.Clear();
+            }
+            catch
+            {
+                // Last resort — settings will be empty but app won't crash
+            }
+        }
     }
 
     // ── Generic Get/Set ──
 
     public T Get<T>(string key, T defaultValue)
     {
-        if (_localSettings.Values.TryGetValue(key, out var value) && value is T typed)
-            return typed;
+        try
+        {
+            if (_localSettings.Values.TryGetValue(key, out var value) && value is T typed)
+                return typed;
+        }
+        catch (Exception ex)
+        {
+            Helpers.DebugLogger.Log($"[SettingsService] Error reading '{key}': {ex.Message}");
+            // Remove corrupted key
+            try { _localSettings.Values.Remove(key); } catch { }
+        }
         return defaultValue;
     }
 
     public void Set<T>(string key, T value)
     {
-        var old = _localSettings.Values.ContainsKey(key) ? _localSettings.Values[key] : null;
-        _localSettings.Values[key] = value;
+        try
+        {
+            var old = _localSettings.Values.ContainsKey(key) ? _localSettings.Values[key] : null;
+            _localSettings.Values[key] = value;
 
-        if (!Equals(old, value))
-            SettingChanged?.Invoke(key, value);
+            if (!Equals(old, value))
+                SettingChanged?.Invoke(key, value);
+        }
+        catch (Exception ex)
+        {
+            Helpers.DebugLogger.Log($"[SettingsService] Error writing '{key}': {ex.Message}");
+        }
     }
 
     // ── Appearance ──
