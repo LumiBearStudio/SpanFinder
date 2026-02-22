@@ -18,7 +18,7 @@ public sealed partial class SettingsDialog : ContentDialog
     // Search keyword map: section index -> list of searchable keywords
     private readonly Dictionary<int, List<string>> _searchKeywords = new()
     {
-        { 0, new() { "일반", "언어", "language", "시작", "startup", "시스템 트레이", "tray" } },
+        { 0, new() { "일반", "언어", "language", "시작", "startup", "시스템 트레이", "tray", "즐겨찾기", "favorites" } },
         { 1, new() { "모양", "테마", "theme", "pro", "밀도", "density", "폰트", "font" } },
         { 2, new() { "탐색", "보기", "숨김", "확장자", "체크박스", "밀러", "썸네일", "quick look", "삭제", "undo", "실행 취소" } },
         { 3, new() { "도구", "터미널", "terminal", "smart run", "명령", "컨텍스트", "context" } },
@@ -65,6 +65,7 @@ public sealed partial class SettingsDialog : ContentDialog
             StartupHome.IsChecked = startup == 1;
             StartupFolder.IsChecked = startup == 2;
 
+            FavoritesTreeToggle.IsOn = _settings.ShowFavoritesTree;
             SystemTrayToggle.IsOn = _settings.MinimizeToTray;
 
             // Appearance
@@ -131,6 +132,9 @@ public sealed partial class SettingsDialog : ContentDialog
         StartupRestore.Checked += (s, e) => { if (!_isLoading) _settings.StartupBehavior = 0; };
         StartupHome.Checked += (s, e) => { if (!_isLoading) _settings.StartupBehavior = 1; };
         StartupFolder.Checked += (s, e) => { if (!_isLoading) _settings.StartupBehavior = 2; };
+
+        // General — Favorites Tree
+        FavoritesTreeToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowFavoritesTree = FavoritesTreeToggle.IsOn; };
 
         // General — System Tray
         SystemTrayToggle.Toggled += (s, e) => { if (!_isLoading) _settings.MinimizeToTray = SystemTrayToggle.IsOn; };

@@ -353,7 +353,8 @@
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
-                <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                              RightTapped="OnSidebarEmptyRightTapped">
                     <StackPanel Padding="0,12">
 
                         <!-- Section 1: 홈 -->
@@ -369,63 +370,66 @@
                             <TextBlock Grid.Column="1" Text="홈" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
                         </Grid>
 
-                        <!-- Separator -->
-                        <Rectangle Height="1" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="12,12"/>
+                        <!-- Favorites sidebar section (toggled via Settings > General) -->
+                        <StackPanel x:Name="FavoritesSidebarSection" Visibility="Collapsed">
+                            <!-- Separator -->
+                            <Rectangle Height="1" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="12,12"/>
 
-                        <!-- Section 2: 즐겨찾기 (Drop Target) -->
-                        <StackPanel AllowDrop="True"
-                                    DragOver="OnFavoritesDragOver"
-                                    Drop="OnFavoritesDrop">
-                        <TextBlock Text="즐겨찾기"
-                                   Style="{StaticResource CaptionTextBlockStyle}"
-                                   Foreground="{ThemeResource SpanTextTertiaryBrush}"
-                                   FontWeight="SemiBold"
-                                   Margin="16,0,16,8"/>
+                            <!-- Section 2: 즐겨찾기 (Drop Target) -->
+                            <StackPanel AllowDrop="True"
+                                        DragOver="OnFavoritesDragOver"
+                                        Drop="OnFavoritesDrop">
+                            <TextBlock Text="즐겨찾기"
+                                       Style="{StaticResource CaptionTextBlockStyle}"
+                                       Foreground="{ThemeResource SpanTextTertiaryBrush}"
+                                       FontWeight="SemiBold"
+                                       Margin="16,0,16,8"/>
 
-                        <!-- Favorites Tree (expandable sidebar tree with lazy-loaded subfolders) -->
-                        <TreeView x:Name="FavoritesTreeView"
-                                  SelectionMode="Single"
-                                  ItemInvoked="OnFavoritesTreeItemInvoked"
-                                  Expanding="OnFavoritesTreeExpanding"
-                                  RightTapped="OnFavoritesTreeRightTapped"
-                                  CanDragItems="False"
-                                  CanReorderItems="False">
-                            <TreeView.ItemContainerStyle>
-                                <Style TargetType="TreeViewItem">
-                                    <Setter Property="Padding" Value="0"/>
-                                    <Setter Property="MinHeight" Value="26"/>
-                                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                                </Style>
-                            </TreeView.ItemContainerStyle>
-                            <TreeView.ItemTemplate>
-                                <DataTemplate x:DataType="TreeViewNode">
-                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <TextBlock Text="{Binding Content.IconGlyph}"
-                                                   FontFamily="/Assets/Fonts/remixicon.ttf#remixicon"
-                                                   FontSize="16"
-                                                   Foreground="{Binding Content.IconBrush}"
-                                                   VerticalAlignment="Center"/>
-                                        <TextBlock Text="{Binding Content.Name}"
-                                                   FontSize="13"
-                                                   VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </DataTemplate>
-                            </TreeView.ItemTemplate>
-                        </TreeView>
+                            <!-- Favorites Tree (expandable sidebar tree with lazy-loaded subfolders) -->
+                            <TreeView x:Name="FavoritesTreeView"
+                                      SelectionMode="Single"
+                                      ItemInvoked="OnFavoritesTreeItemInvoked"
+                                      Expanding="OnFavoritesTreeExpanding"
+                                      RightTapped="OnFavoritesTreeRightTapped"
+                                      CanDragItems="False"
+                                      CanReorderItems="False">
+                                <TreeView.ItemContainerStyle>
+                                    <Style TargetType="TreeViewItem">
+                                        <Setter Property="Padding" Value="0"/>
+                                        <Setter Property="MinHeight" Value="26"/>
+                                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                    </Style>
+                                </TreeView.ItemContainerStyle>
+                                <TreeView.ItemTemplate>
+                                    <DataTemplate x:DataType="TreeViewNode">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBlock Text="{Binding Content.IconGlyph}"
+                                                       FontFamily="/Assets/Fonts/remixicon.ttf#remixicon"
+                                                       FontSize="16"
+                                                       Foreground="{Binding Content.IconBrush}"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding Content.Name}"
+                                                       FontSize="13"
+                                                       VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </TreeView.ItemTemplate>
+                            </TreeView>
+                            </StackPanel>
                         </StackPanel>
 
                         <!-- Separator -->
                         <Rectangle Height="1" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="12,12"/>
 
-                        <!-- Section 3: 로컬 드라이브 -->
-                        <TextBlock Text="로컬 드라이브"
+                        <!-- Section 3: 드라이브 (로컬 + 네트워크 + 원격 통합) -->
+                        <TextBlock Text="드라이브"
                                    Style="{StaticResource CaptionTextBlockStyle}"
                                    Foreground="{ThemeResource SpanTextTertiaryBrush}"
                                    FontWeight="SemiBold"
                                    Margin="16,0,16,8"/>
 
-                        <!-- Drives List -->
-                        <ItemsControl ItemsSource="{x:Bind ViewModel.Drives, Mode=OneWay}">
+                        <!-- Drives List (AllDrives: local + network + remote) -->
+                        <ItemsControl ItemsSource="{x:Bind ViewModel.AllDrives, Mode=OneWay}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="models:DriveItem">
                                     <Grid Height="26"

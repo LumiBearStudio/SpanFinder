@@ -258,13 +258,13 @@
                 <Style TargetType="ListViewItem">
                     <Setter Property="Padding" Value="0"/>
                     <Setter Property="Margin" Value="0"/>
-                    <Setter Property="MinHeight" Value="18"/>
+                    <Setter Property="MinHeight" Value="20"/>
                     <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
                 </Style>
             </ListView.ItemContainerStyle>
             <ListView.ItemTemplate>
                 <DataTemplate x:DataType="vm:FileSystemViewModel">
-                    <Grid Height="18" RightTapped="OnItemRightTapped"
+                    <Grid Height="20" RightTapped="OnItemRightTapped"
                           ToolTipService.ToolTip="{x:Bind TooltipText}">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="40"/>
@@ -278,14 +278,14 @@
                         </Grid.ColumnDefinitions>
 
                         <!-- Icon / Thumbnail -->
-                        <Grid Grid.Column="0" Width="16" Height="16"
+                        <Grid Grid.Column="0" Width="18" Height="18"
                               HorizontalAlignment="Center" VerticalAlignment="Center">
                             <Image Source="{x:Bind ThumbnailSource, Mode=OneWay}" Stretch="UniformToFill"
                                    Visibility="{x:Bind vm:FileSystemViewModel.ShowIfTrue(HasThumbnail), Mode=OneWay}"/>
                             <FontIcon FontFamily="{StaticResource RemixIcons}"
                                       Glyph="{x:Bind IconGlyph, Mode=OneWay}"
                                       Foreground="{x:Bind IconBrush, Mode=OneWay}"
-                                      FontSize="16"
+                                      FontSize="18"
                                       Visibility="{x:Bind vm:FileSystemViewModel.ShowIfFalse(HasThumbnail), Mode=OneWay}"/>
                         </Grid>
 
@@ -294,14 +294,14 @@
                                    Text="{x:Bind TruncatedDisplayName, Mode=OneWay}"
                                    VerticalAlignment="Center"
                                    TextTrimming="CharacterEllipsis"
-                                   FontSize="11"
+                                   FontSize="12"
                                    Padding="6,0"/>
 
                         <!-- Date Modified - Width set by ContainerContentChanging -->
                         <Border Grid.Column="3" x:Name="DateCell" Width="200">
                             <TextBlock Text="{x:Bind DateModified, Mode=OneWay}"
                                        VerticalAlignment="Center"
-                                       FontSize="11"
+                                       FontSize="12"
                                        Padding="6,0"/>
                         </Border>
 
@@ -309,7 +309,7 @@
                         <Border Grid.Column="5" x:Name="TypeCell" Width="150">
                             <TextBlock Text="{x:Bind FileType, Mode=OneWay}"
                                        VerticalAlignment="Center"
-                                       FontSize="11"
+                                       FontSize="12"
                                        Padding="6,0"/>
                         </Border>
 
@@ -317,7 +317,7 @@
                         <Border Grid.Column="7" x:Name="SizeCell" Width="100">
                             <TextBlock Text="{x:Bind Size, Mode=OneWay}"
                                        VerticalAlignment="Center"
-                                       FontSize="11"
+                                       FontSize="12"
                                        Padding="6,0"/>
                         </Border>
                     </Grid>

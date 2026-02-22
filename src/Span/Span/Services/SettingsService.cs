@@ -157,6 +157,12 @@ public class SettingsService
         set => Set("MinimizeToTray", value);
     }
 
+    public bool ShowFavoritesTree
+    {
+        get => Get("ShowFavoritesTree", false);
+        set => Set("ShowFavoritesTree", value);
+    }
+
     // ── General ──
 
     public int StartupBehavior

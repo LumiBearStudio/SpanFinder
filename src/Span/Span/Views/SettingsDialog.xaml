@@ -225,6 +225,25 @@
                                 </StackPanel>
                             </Border>
 
+                            <!-- Favorites Tree -->
+                            <Border Style="{StaticResource SettingsCardBorder}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Style="{StaticResource CardIconContainer}">
+                                        <FontIcon Glyph="&#xE728;" Style="{StaticResource CardIconStyle}" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock Text="즐겨찾기 트리뷰" Style="{StaticResource SettingsCardLabel}" />
+                                        <TextBlock Text="사이드바에 즐겨찾기 폴더 트리 표시" Style="{StaticResource SettingsCardDesc}" />
+                                    </StackPanel>
+                                    <ToggleSwitch x:Name="FavoritesTreeToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="False" />
+                                </Grid>
+                            </Border>
+
                             <!-- System Tray -->
                             <Border Style="{StaticResource SettingsCardBorder}">
                                 <Grid>

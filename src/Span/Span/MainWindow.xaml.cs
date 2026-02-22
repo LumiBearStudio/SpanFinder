@@ -38,6 +38,8 @@ namespace Span
 
         [DllImport("user32.dll")]
         private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+        [DllImport("user32.dll")]
+        private static extern bool IsIconic(IntPtr hWnd);
         private const int SW_HIDE = 0;
         private const int SW_SHOW = 5;
 
@@ -150,9 +152,10 @@ namespace Span
 
             // Minimize to taskbar on close (instead of quitting) when MinimizeToTray enabled
             // Tear-off windows close normally (no tray minimization)
+            // If already minimized (e.g. taskbar right-click → Close), allow actual close
             this.AppWindow.Closing += (s, e) =>
             {
-                if (_settings.MinimizeToTray && !_forceClose && !_isTearOffWindow)
+                if (_settings.MinimizeToTray && !_forceClose && !_isTearOffWindow && !IsIconic(_hwnd))
                 {
                     e.Cancel = true;
                     ShowWindow(_hwnd, 6); // SW_MINIMIZE
@@ -346,6 +349,7 @@ namespace Span
                         this.SizeChanged += (_, __) => UpdateTitleBarRegions();
 
                         // Populate favorites tree for tear-off window
+                        ApplyFavoritesTreeVisibility(_settings.ShowFavoritesTree);
                         PopulateFavoritesTree();
                         ViewModel.Favorites.CollectionChanged += OnFavoritesCollectionChanged;
 
@@ -374,6 +378,7 @@ namespace Span
                     InitializeTabMillerPanels();
 
                     // ── Populate Favorites Tree and observe changes ──
+                    ApplyFavoritesTreeVisibility(_settings.ShowFavoritesTree);
                     PopulateFavoritesTree();
                     ViewModel.Favorites.CollectionChanged += OnFavoritesCollectionChanged;
 
@@ -637,6 +642,10 @@ namespace Span
 
                 case "ShowThumbnails":
                     DispatcherQueue.TryEnqueue(() => ToggleThumbnails(value is bool st && st));
+                    break;
+
+                case "ShowFavoritesTree":
+                    DispatcherQueue.TryEnqueue(() => ApplyFavoritesTreeVisibility(value is bool v && v));
                     break;
             }
         }
@@ -1107,14 +1116,446 @@ namespace Span
         /// <summary>
         /// Handle drive item tap in new hybrid sidebar.
         /// </summary>
-        private void OnDriveItemTapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
+        private async void OnDriveItemTapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
         {
             if (sender is Grid grid && grid.DataContext is DriveItem drive)
             {
-                ViewModel.OpenDrive(drive);
-                FocusColumnAsync(0);
+                if (drive.IsRemoteConnection && drive.ConnectionId != null)
+                {
+                    // 원격 연결: 비밀번호 확인 → 연결
+                    await HandleRemoteConnectionTapped(drive.ConnectionId);
+                }
+                else
+                {
+                    ViewModel.OpenDrive(drive);
+                    FocusColumnAsync(0);
+                }
                 Helpers.DebugLogger.Log($"[Sidebar] Drive tapped: {drive.Name}");
             }
+        }
+
+        private async void OnBrowseNetworkTapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
+        {
+            var networkService = App.Current.Services.GetRequiredService<NetworkBrowserService>();
+
+            // Create dialog content
+            var dialogPanel = new StackPanel { Spacing = 12, MinWidth = 360 };
+
+            // UNC path input section
+            var pathInput = new TextBox
+            {
+                PlaceholderText = @"\\server\share",
+                Header = "UNC 경로 직접 입력",
+                MinWidth = 340
+            };
+            dialogPanel.Children.Add(pathInput);
+
+            // Separator
+            dialogPanel.Children.Add(new TextBlock
+            {
+                Text = "또는 네트워크에서 찾기:",
+                Foreground = (SolidColorBrush)Application.Current.Resources["SpanTextSecondaryBrush"],
+                FontSize = 12,
+                Margin = new Thickness(0, 4, 0, 0)
+            });
+
+            // Network list
+            var networkList = new ListView
+            {
+                Height = 250,
+                SelectionMode = ListViewSelectionMode.Single
+            };
+            networkList.ItemTemplate = (DataTemplate)Microsoft.UI.Xaml.Markup.XamlReader.Load(
+                @"<DataTemplate xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation'
+                               xmlns:x='http://schemas.microsoft.com/winfx/2006/xaml'>
+                    <StackPanel Orientation='Horizontal' Spacing='8' Padding='4,2'>
+                        <TextBlock Text='{Binding IconGlyph}'
+                                   FontFamily='/Assets/Fonts/remixicon.ttf#remixicon'
+                                   FontSize='16' VerticalAlignment='Center'/>
+                        <TextBlock Text='{Binding Name}' FontSize='13' VerticalAlignment='Center'/>
+                    </StackPanel>
+                  </DataTemplate>");
+
+            dialogPanel.Children.Add(networkList);
+
+            // Status text
+            var statusText = new TextBlock
+            {
+                Text = "네트워크 컴퓨터를 검색 중...",
+                FontSize = 12,
+                Foreground = (SolidColorBrush)Application.Current.Resources["SpanTextTertiaryBrush"]
+            };
+            dialogPanel.Children.Add(statusText);
+
+            // State tracking
+            string? selectedPath = null;
+
+            // Load computers asynchronously
+            _ = LoadNetworkComputersAsync();
+
+            async Task LoadNetworkComputersAsync()
+            {
+                var computers = await networkService.GetNetworkComputersAsync();
+                if (computers.Count > 0)
+                {
+                    networkList.ItemsSource = computers;
+                    statusText.Text = $"{computers.Count}개의 컴퓨터를 찾았습니다.";
+                }
+                else
+                {
+                    statusText.Text = "네트워크 컴퓨터를 찾을 수 없습니다. UNC 경로를 직접 입력하세요.";
+                }
+            }
+
+            networkList.DoubleTapped += async (s, args) =>
+            {
+                if (networkList.SelectedItem is NetworkItem item)
+                {
+                    if (item.Type == NetworkItemType.Server)
+                    {
+                        // Load shares for this server
+                        statusText.Text = $"{item.Name} 서버의 공유 폴더를 검색 중...";
+                        networkList.ItemsSource = null;
+
+                        var shares = await networkService.GetServerSharesAsync(item.Name);
+                        if (shares.Count > 0)
+                        {
+                            networkList.ItemsSource = shares;
+                            statusText.Text = $"{shares.Count}개의 공유 폴더를 찾았습니다. (뒤로: 더블클릭 없이 확인)";
+                        }
+                        else
+                        {
+                            statusText.Text = "공유 폴더를 찾을 수 없습니다.";
+                        }
+                    }
+                }
+            };
+
+            networkList.SelectionChanged += (s, args) =>
+            {
+                if (networkList.SelectedItem is NetworkItem item)
+                {
+                    selectedPath = item.Path;
+                    pathInput.Text = item.Path;
+                }
+            };
+
+            var dialog = new ContentDialog
+            {
+                Title = "네트워크 찾아보기",
+                Content = dialogPanel,
+                PrimaryButtonText = "열기",
+                CloseButtonText = "취소",
+                DefaultButton = ContentDialogButton.Primary,
+                XamlRoot = this.Content.XamlRoot
+            };
+
+            var result = await dialog.ShowAsync();
+
+            if (result == ContentDialogResult.Primary)
+            {
+                var targetPath = !string.IsNullOrWhiteSpace(pathInput.Text)
+                    ? pathInput.Text.Trim()
+                    : selectedPath;
+
+                if (!string.IsNullOrEmpty(targetPath))
+                {
+                    Helpers.DebugLogger.Log($"[Network] Navigating to: {targetPath}");
+
+                    // Ensure we're in a navigable view mode
+                    if (ViewModel.CurrentViewMode == ViewMode.Home)
+                    {
+                        ViewModel.SwitchViewMode(ViewMode.MillerColumns);
+                    }
+
+                    await ViewModel.ActiveExplorer.NavigateToPath(targetPath);
+                    FocusColumnAsync(0);
+                }
+            }
+        }
+
+        private async void OnConnectToServerTapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
+        {
+            var connService = App.Current.Services.GetRequiredService<ConnectionManagerService>();
+
+            var dialogPanel = new StackPanel { Spacing = 12, MinWidth = 380 };
+
+            // 프로토콜 선택
+            var protocolCombo = new ComboBox
+            {
+                Header = "프로토콜",
+                ItemsSource = new[] { "SFTP", "FTP", "FTPS" },
+                SelectedIndex = 0,
+                HorizontalAlignment = Microsoft.UI.Xaml.HorizontalAlignment.Stretch
+            };
+            dialogPanel.Children.Add(protocolCombo);
+
+            // 호스트 + 포트
+            var hostPortPanel = new Grid();
+            hostPortPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            hostPortPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
+
+            var hostInput = new TextBox { Header = "호스트", PlaceholderText = "example.com" };
+            Grid.SetColumn(hostInput, 0);
+            hostPortPanel.Children.Add(hostInput);
+
+            var portInput = new NumberBox
+            {
+                Header = "포트",
+                Value = 22,
+                Minimum = 1,
+                Maximum = 65535,
+                SpinButtonPlacementMode = Microsoft.UI.Xaml.Controls.NumberBoxSpinButtonPlacementMode.Compact,
+                Margin = new Thickness(8, 0, 0, 0)
+            };
+            Grid.SetColumn(portInput, 1);
+            hostPortPanel.Children.Add(portInput);
+
+            dialogPanel.Children.Add(hostPortPanel);
+
+            // 포트 자동 변경
+            protocolCombo.SelectionChanged += (s, args) =>
+            {
+                portInput.Value = protocolCombo.SelectedIndex switch
+                {
+                    0 => 22,   // SFTP
+                    1 => 21,   // FTP
+                    2 => 990,  // FTPS
+                    _ => 22
+                };
+            };
+
+            // 사용자명
+            var usernameInput = new TextBox { Header = "사용자명", PlaceholderText = "user" };
+            dialogPanel.Children.Add(usernameInput);
+
+            // 비밀번호
+            var passwordInput = new PasswordBox { Header = "비밀번호", PlaceholderText = "비밀번호" };
+            dialogPanel.Children.Add(passwordInput);
+
+            // 원격 경로
+            var pathInput = new TextBox { Header = "원격 경로", PlaceholderText = "/", Text = "/" };
+            dialogPanel.Children.Add(pathInput);
+
+            // 표시 이름
+            var displayNameInput = new TextBox { Header = "표시 이름 (선택)", PlaceholderText = "내 서버" };
+            dialogPanel.Children.Add(displayNameInput);
+
+            // 연결 저장 체크박스
+            var saveCheckBox = new CheckBox { Content = "이 연결 저장", IsChecked = true };
+            dialogPanel.Children.Add(saveCheckBox);
+
+            var dialog = new ContentDialog
+            {
+                Title = "서버에 연결",
+                Content = dialogPanel,
+                PrimaryButtonText = "연결",
+                CloseButtonText = "취소",
+                DefaultButton = ContentDialogButton.Primary,
+                XamlRoot = this.Content.XamlRoot
+            };
+
+            var result = await dialog.ShowAsync();
+
+            if (result == ContentDialogResult.Primary && !string.IsNullOrWhiteSpace(hostInput.Text))
+            {
+                var protocol = (Models.RemoteProtocol)protocolCombo.SelectedIndex;
+                var connInfo = new Models.ConnectionInfo
+                {
+                    DisplayName = !string.IsNullOrWhiteSpace(displayNameInput.Text)
+                        ? displayNameInput.Text.Trim()
+                        : $"{hostInput.Text.Trim()}:{(int)portInput.Value}",
+                    Protocol = protocol,
+                    Host = hostInput.Text.Trim(),
+                    Port = (int)portInput.Value,
+                    Username = usernameInput.Text.Trim(),
+                    RemotePath = string.IsNullOrWhiteSpace(pathInput.Text) ? "/" : pathInput.Text.Trim(),
+                    LastConnected = DateTime.Now
+                };
+
+                // 연결 저장
+                if (saveCheckBox.IsChecked == true)
+                {
+                    connService.AddConnection(connInfo);
+                    if (!string.IsNullOrEmpty(passwordInput.Password))
+                        connService.SaveCredential(connInfo.Id, passwordInput.Password);
+                }
+
+                Helpers.DebugLogger.Log($"[Network] 서버 연결 시도: {connInfo.ToUri()}");
+
+                // 저장된 연결이면 HandleRemoteConnectionTapped으로, 아니면 직접 연결
+                await HandleRemoteConnectionTapped(connInfo.Id);
+            }
+        }
+
+        private async void OnSavedConnectionTapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
+        {
+            if (sender is Grid grid && grid.DataContext is Models.ConnectionInfo connInfo)
+            {
+                Helpers.DebugLogger.Log($"[Sidebar] 저장된 연결 탭: {connInfo.DisplayName}");
+                await HandleRemoteConnectionTapped(connInfo.Id);
+            }
+        }
+
+        /// <summary>
+        /// 사이드바 빈 공간 우클릭 → 네트워크/서버 연결 컨텍스트 메뉴
+        /// </summary>
+        private void OnSidebarEmptyRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
+        {
+            // 드라이브 아이템 위에서 우클릭한 경우는 스킵 (OnSidebarDriveRightTapped이 처리)
+            if (e.OriginalSource is FrameworkElement fe && fe.DataContext is DriveItem)
+                return;
+
+            var flyout = new MenuFlyout();
+
+            var browseNetwork = new MenuFlyoutItem
+            {
+                Text = "네트워크 찾아보기...",
+                Icon = new FontIcon
+                {
+                    Glyph = "\uEDD4",
+                    FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("/Assets/Fonts/remixicon.ttf#remixicon"),
+                    FontSize = 16
+                }
+            };
+            browseNetwork.Click += (s, args) => OnBrowseNetworkTapped(s, null!);
+            flyout.Items.Add(browseNetwork);
+
+            var connectServer = new MenuFlyoutItem
+            {
+                Text = "서버에 연결...",
+                Icon = new FontIcon
+                {
+                    Glyph = "\uEE71",
+                    FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("/Assets/Fonts/remixicon.ttf#remixicon"),
+                    FontSize = 16
+                }
+            };
+            connectServer.Click += (s, args) => OnConnectToServerTapped(s, null!);
+            flyout.Items.Add(connectServer);
+
+            flyout.ShowAt(sender as FrameworkElement, e.GetPosition(sender as UIElement));
+        }
+
+        /// <summary>
+        /// 원격 연결 드라이브 클릭 처리 (ConnectionId로 저장된 연결 정보 조회 → 비밀번호 확인 → 연결)
+        /// </summary>
+        private async Task HandleRemoteConnectionTapped(string connectionId)
+        {
+            var connService = App.Current.Services.GetRequiredService<ConnectionManagerService>();
+            var connInfo = ViewModel.SavedConnections.FirstOrDefault(c => c.Id == connectionId);
+            if (connInfo == null)
+            {
+                Helpers.DebugLogger.Log($"[Sidebar] 연결 정보를 찾을 수 없음: {connectionId}");
+                ViewModel.ShowToast("연결 정보를 찾을 수 없습니다. 연결이 삭제되었을 수 있습니다.");
+                return;
+            }
+
+            var router = App.Current.Services.GetRequiredService<FileSystemRouter>();
+            var uriPrefix = FileSystemRouter.GetUriPrefix(connInfo.ToUri());
+
+            // 이미 연결된 경우: 바로 네비게이션
+            if (router.GetConnectionForPath(uriPrefix + "/") != null)
+            {
+                Helpers.DebugLogger.Log($"[Sidebar] 기존 연결 재사용: {connInfo.DisplayName}");
+
+                if (ViewModel.CurrentViewMode == ViewMode.Home)
+                    ViewModel.SwitchViewMode(ViewMode.MillerColumns);
+
+                await ViewModel.ActiveExplorer.NavigateToPath(connInfo.ToUri());
+                FocusColumnAsync(0);
+                return;
+            }
+
+            var savedPassword = connService.LoadCredential(connInfo.Id);
+
+            if (string.IsNullOrEmpty(savedPassword))
+            {
+                // 비밀번호 입력 대화상자
+                var passwordInput = new PasswordBox { PlaceholderText = "비밀번호" };
+                var dialog = new ContentDialog
+                {
+                    Title = $"{connInfo.DisplayName} 연결",
+                    Content = passwordInput,
+                    PrimaryButtonText = "연결",
+                    CloseButtonText = "취소",
+                    DefaultButton = ContentDialogButton.Primary,
+                    XamlRoot = this.Content.XamlRoot
+                };
+
+                var result = await dialog.ShowAsync();
+                if (result != ContentDialogResult.Primary) return;
+                savedPassword = passwordInput.Password;
+            }
+
+            Helpers.DebugLogger.Log($"[Sidebar] 원격 연결 시도: {connInfo.DisplayName}");
+
+            // 연결 시도 (provider를 유지!)
+            IFileSystemProvider provider;
+            try
+            {
+                if (connInfo.Protocol == Models.RemoteProtocol.SFTP)
+                {
+                    var sftp = new SftpProvider();
+                    await sftp.ConnectAsync(connInfo, savedPassword);
+                    if (!sftp.IsConnected) throw new Exception("SFTP 연결 실패");
+                    provider = sftp;
+                }
+                else
+                {
+                    var ftp = new FtpProvider();
+                    await ftp.ConnectAsync(connInfo, savedPassword);
+                    if (!ftp.IsConnected) throw new Exception("FTP 연결 실패");
+                    provider = ftp;
+                }
+            }
+            catch (Renci.SshNet.Common.SshAuthenticationException ex)
+            {
+                await ShowRemoteConnectionError(connInfo, $"인증 실패: 사용자명 또는 비밀번호를 확인하세요.\n\n{ex.Message}");
+                return;
+            }
+            catch (System.Net.Sockets.SocketException ex)
+            {
+                await ShowRemoteConnectionError(connInfo, $"서버에 연결할 수 없습니다.\n호스트({connInfo.Host}:{connInfo.Port})에 도달할 수 없거나 연결이 거부되었습니다.\n\n{ex.Message}");
+                return;
+            }
+            catch (TimeoutException ex)
+            {
+                await ShowRemoteConnectionError(connInfo, $"연결 시간 초과: 서버가 응답하지 않습니다.\n\n{ex.Message}");
+                return;
+            }
+            catch (Exception ex)
+            {
+                await ShowRemoteConnectionError(connInfo, $"서버에 연결할 수 없습니다.\n\n오류: {ex.Message}");
+                return;
+            }
+
+            // 연결 성공 → Router에 등록 + 네비게이션
+            router.RegisterConnection(uriPrefix, provider);
+            connInfo.LastConnected = DateTime.Now;
+            _ = connService.SaveConnectionsAsync();
+
+            ViewModel.ShowToast($"{connInfo.DisplayName}에 연결되었습니다.");
+
+            // Home 모드면 Miller로 전환 후 네비게이션
+            if (ViewModel.CurrentViewMode == ViewMode.Home)
+                ViewModel.SwitchViewMode(ViewMode.MillerColumns);
+
+            await ViewModel.ActiveExplorer.NavigateToPath(connInfo.ToUri());
+            FocusColumnAsync(0);
+        }
+
+        private async Task ShowRemoteConnectionError(Models.ConnectionInfo connInfo, string detail)
+        {
+            Helpers.DebugLogger.Log($"[Network] 연결 실패: {connInfo.DisplayName} - {detail}");
+            var errorDialog = new ContentDialog
+            {
+                Title = "연결 실패",
+                Content = detail,
+                CloseButtonText = "확인",
+                XamlRoot = this.Content.XamlRoot
+            };
+            await errorDialog.ShowAsync();
         }
 
         private void OnHomeItemTapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
@@ -1126,6 +1567,13 @@ namespace Span
         // =================================================================
         //  Sidebar Favorites Tree (TreeView with lazy-loaded subfolders)
         // =================================================================
+
+        private void ApplyFavoritesTreeVisibility(bool show)
+        {
+            FavoritesSidebarSection.Visibility = show
+                ? Microsoft.UI.Xaml.Visibility.Visible
+                : Microsoft.UI.Xaml.Visibility.Collapsed;
+        }
 
         /// <summary>
         /// Populate the favorites TreeView from ViewModel.Favorites.
@@ -1730,9 +2178,10 @@ namespace Span
 
             if (sourcePaths.Count == 0) return;
 
+            var router = App.Current.Services.GetRequiredService<FileSystemRouter>();
             IFileOperation op = isMove
-                ? new MoveFileOperation(sourcePaths, destFolder)
-                : new CopyFileOperation(sourcePaths, destFolder);
+                ? new MoveFileOperation(sourcePaths, destFolder, router)
+                : new CopyFileOperation(sourcePaths, destFolder, router);
 
             await ViewModel.ExecuteFileOperationAsync(op);
 
@@ -2978,9 +3427,10 @@ namespace Span
             var targetFolder = columns[activeIndex];
             string destDir = targetFolder.Path;
 
+            var router = App.Current.Services.GetRequiredService<FileSystemRouter>();
             Span.Services.FileOperations.IFileOperation op = _isCutOperation
-                ? new Span.Services.FileOperations.MoveFileOperation(new List<string>(_clipboardPaths), destDir)
-                : new Span.Services.FileOperations.CopyFileOperation(new List<string>(_clipboardPaths), destDir);
+                ? new Span.Services.FileOperations.MoveFileOperation(new List<string>(_clipboardPaths), destDir, router)
+                : new Span.Services.FileOperations.CopyFileOperation(new List<string>(_clipboardPaths), destDir, router);
 
             await ViewModel.ExecuteFileOperationAsync(op, activeIndex);
 
@@ -3010,16 +3460,28 @@ namespace Span
 
             var currentFolder = columns[activeIndex];
             string baseName = _loc.Get("NewFolderBaseName");
-            string newPath = System.IO.Path.Combine(currentFolder.Path, baseName);
+            bool isRemote = Services.FileSystemRouter.IsRemotePath(currentFolder.Path);
 
-            int count = 1;
-            while (System.IO.Directory.Exists(newPath))
+            string newPath;
+            if (isRemote)
             {
-                newPath = System.IO.Path.Combine(currentFolder.Path, $"{baseName} ({count})");
-                count++;
+                // 원격 경로: URI 호환 경로 조합 (Path.Combine 사용 불가)
+                newPath = currentFolder.Path.TrimEnd('/') + "/" + baseName;
+                // 원격 폴더 충돌 검사 스킵 — 서버에서 자동 처리
+            }
+            else
+            {
+                newPath = System.IO.Path.Combine(currentFolder.Path, baseName);
+                int count = 1;
+                while (System.IO.Directory.Exists(newPath))
+                {
+                    newPath = System.IO.Path.Combine(currentFolder.Path, $"{baseName} ({count})");
+                    count++;
+                }
             }
 
-            var op = new Span.Services.FileOperations.NewFolderOperation(newPath);
+            var router = App.Current.Services.GetRequiredService<Services.FileSystemRouter>();
+            var op = new Span.Services.FileOperations.NewFolderOperation(newPath, router);
             await ViewModel.ExecuteFileOperationAsync(op, activeIndex);
 
             // Select the new folder and start inline rename
@@ -3285,7 +3747,8 @@ namespace Span
             Helpers.DebugLogger.Log($"[HandleDelete] Columns before delete: {string.Join(" > ", ViewModel.ActiveExplorer.Columns.Select(c => c.Name))}");
 
             // Execute delete operation (send to Recycle Bin)
-            var operation = new DeleteFileOperation(paths, permanent: false);
+            var router = App.Current.Services.GetRequiredService<Services.FileSystemRouter>();
+            var operation = new DeleteFileOperation(paths, permanent: false, router: router);
             Helpers.DebugLogger.Log($"[HandleDelete] Calling ExecuteFileOperationAsync with targetColumnIndex={activeIndex}");
             await ViewModel.ExecuteFileOperationAsync(operation, activeIndex);
 
@@ -3351,7 +3814,8 @@ namespace Span
 
             // Execute permanent delete operation
             var paths = selectedItems.Select(i => i.Path).ToList();
-            var operation = new DeleteFileOperation(paths, permanent: true);
+            var router = App.Current.Services.GetRequiredService<Services.FileSystemRouter>();
+            var operation = new DeleteFileOperation(paths, permanent: true, router: router);
             await ViewModel.ExecuteFileOperationAsync(operation, activeIndex);
 
             // ★ Smart selection: Select the item at the same index, or the last item if index is out of bounds
@@ -6417,45 +6881,12 @@ namespace Span
         {
             if (_clipboardPaths.Count == 0) return;
 
-            foreach (var srcPath in _clipboardPaths)
-            {
-                try
-                {
-                    string fileName = System.IO.Path.GetFileName(srcPath);
-                    string destPath = System.IO.Path.Combine(targetFolderPath, fileName);
+            var router = App.Current.Services.GetRequiredService<FileSystemRouter>();
+            Span.Services.FileOperations.IFileOperation op = _isCutOperation
+                ? new Span.Services.FileOperations.MoveFileOperation(new List<string>(_clipboardPaths), targetFolderPath, router)
+                : new Span.Services.FileOperations.CopyFileOperation(new List<string>(_clipboardPaths), targetFolderPath, router);
 
-                    int copy = 1;
-                    while (System.IO.File.Exists(destPath) || System.IO.Directory.Exists(destPath))
-                    {
-                        string nameNoExt = System.IO.Path.GetFileNameWithoutExtension(srcPath);
-                        string ext = System.IO.Path.GetExtension(srcPath);
-                        destPath = System.IO.Path.Combine(targetFolderPath, $"{nameNoExt} ({copy}){ext}");
-                        copy++;
-                    }
-
-                    await System.Threading.Tasks.Task.Run(() =>
-                    {
-                        if (System.IO.File.Exists(srcPath))
-                        {
-                            if (_isCutOperation)
-                                System.IO.File.Move(srcPath, destPath);
-                            else
-                                System.IO.File.Copy(srcPath, destPath);
-                        }
-                        else if (System.IO.Directory.Exists(srcPath))
-                        {
-                            if (_isCutOperation)
-                                System.IO.Directory.Move(srcPath, destPath);
-                            else
-                                CopyDirectory(srcPath, destPath);
-                        }
-                    });
-                }
-                catch (Exception ex)
-                {
-                    Helpers.DebugLogger.Log($"[ContextMenu] Paste error: {ex.Message}");
-                }
-            }
+            await ViewModel.ExecuteFileOperationAsync(op);
 
             if (_isCutOperation) _clipboardPaths.Clear();
 
@@ -6482,8 +6913,9 @@ namespace Span
             var result = await dialog.ShowAsync();
             if (result != ContentDialogResult.Primary) return;
 
+            var router = App.Current.Services.GetRequiredService<Services.FileSystemRouter>();
             var operation = new Services.FileOperations.DeleteFileOperation(
-                new List<string> { path }, permanent: false);
+                new List<string> { path }, permanent: false, router: router);
 
             int activeIndex = GetCurrentColumnIndex();
             if (activeIndex >= 0)
@@ -6749,6 +7181,40 @@ namespace Span
         void Services.IContextMenuHost.RemoveFromFavorites(string path)
         {
             ViewModel.RemoveFromFavorites(path);
+        }
+
+        async void Services.IContextMenuHost.RemoveRemoteConnection(string connectionId)
+        {
+            // 삭제 확인 다이얼로그
+            var connService = App.Current.Services.GetRequiredService<ConnectionManagerService>();
+            var connInfo = ViewModel.SavedConnections.FirstOrDefault(c => c.Id == connectionId);
+            string displayName = connInfo?.DisplayName ?? connectionId;
+
+            var dialog = new ContentDialog
+            {
+                Title = "연결 제거",
+                Content = $"'{displayName}' 연결을 제거하시겠습니까?\n\n저장된 자격 증명도 함께 삭제됩니다.",
+                PrimaryButtonText = "제거",
+                CloseButtonText = "취소",
+                DefaultButton = ContentDialogButton.Close,
+                XamlRoot = this.Content.XamlRoot
+            };
+
+            var result = await dialog.ShowAsync();
+            if (result == ContentDialogResult.Primary)
+            {
+                // 활성 연결 해제
+                if (connInfo != null)
+                {
+                    var router = App.Current.Services.GetRequiredService<FileSystemRouter>();
+                    var uriPrefix = FileSystemRouter.GetUriPrefix(connInfo.ToUri());
+                    router.UnregisterConnection(uriPrefix);
+                }
+
+                connService.RemoveConnection(connectionId);
+                Helpers.DebugLogger.Log($"[Sidebar] 원격 연결 제거: {displayName}");
+                ViewModel.ShowToast($"'{displayName}' 연결이 제거되었습니다.");
+            }
         }
 
         bool Services.IContextMenuHost.IsFavorite(string path)
