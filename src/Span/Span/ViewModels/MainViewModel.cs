@@ -22,6 +22,12 @@ namespace Span.ViewModels
         public ObservableCollection<DriveItem> NetworkDrives { get; } = new();
         public ObservableCollection<FavoriteItem> Favorites { get; } = new();
         public ObservableCollection<FavoriteItem> RecentFolders { get; } = new();
+        public ObservableCollection<Models.ConnectionInfo> SavedConnections { get; } = new();
+
+        /// <summary>
+        /// 사이드바 "드라이브" 섹션에 표시할 통합 컬렉션 (로컬 + 네트워크 + 원격 연결)
+        /// </summary>
+        public ObservableCollection<DriveItem> AllDrives { get; } = new();
 
         // Engine — Split View (Dual-Pane)
         private ExplorerViewModel _leftExplorer;
@@ -325,6 +331,7 @@ namespace Span.ViewModels
             LoadDrives();
             LoadFavorites();
             LoadRecentFolders();
+            LoadSavedConnections();
 
             // Load ViewMode preference (includes split state)
             LoadViewModePreference();
@@ -379,6 +386,7 @@ namespace Span.ViewModels
                             Drives.Add(drive);
                     }
                     Helpers.DebugLogger.Log($"[MainViewModel] Loaded {cachedDrives.Count} drives from cache");
+                    RebuildAllDrives();
                 }
 
                 // Step 2: Refresh from file system in background (accurate)
@@ -412,6 +420,9 @@ namespace Span.ViewModels
                 // Step 5: Save updated list to cache
                 SaveDrivesCache(drives);
                 Helpers.DebugLogger.Log($"[MainViewModel] Loaded {Drives.Count} local + {NetworkDrives.Count} network drives (changed={drivesChanged})");
+
+                // Step 6: Rebuild unified AllDrives collection
+                RebuildAllDrives();
             }
             catch (System.OperationCanceledException)
             {
@@ -421,6 +432,20 @@ namespace Span.ViewModels
             {
                 Helpers.DebugLogger.Log($"[MainViewModel] LoadDrives error: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// 로컬 + 네트워크 + 원격 연결을 AllDrives에 통합
+        /// </summary>
+        private void RebuildAllDrives()
+        {
+            AllDrives.Clear();
+            foreach (var d in Drives)
+                AllDrives.Add(d);
+            foreach (var d in NetworkDrives)
+                AllDrives.Add(d);
+            foreach (var conn in SavedConnections)
+                AllDrives.Add(DriveItem.FromConnection(conn));
         }
 
         /// <summary>
@@ -470,7 +495,20 @@ namespace Span.ViewModels
                 foreach (var tab in Tabs)
                     tab.Explorer?.Cleanup();
 
+                // 활성 원격 연결 모두 해제
+                try
+                {
+                    var router = App.Current.Services.GetRequiredService<FileSystemRouter>();
+                    router.DisconnectAll();
+                    Helpers.DebugLogger.Log("[MainViewModel] All remote connections disconnected");
+                }
+                catch (Exception ex)
+                {
+                    Helpers.DebugLogger.Log($"[MainViewModel] Error disconnecting remote connections: {ex.Message}");
+                }
+
                 // Clear collections (safe now - _isCleaningUp suppresses side effects)
+                AllDrives.Clear();
                 Drives.Clear();
                 NetworkDrives.Clear();
                 Tabs.Clear();
@@ -991,6 +1029,40 @@ namespace Span.ViewModels
             }
 
             // SaveRecentFolders() 제거 — Cleanup()에서 일괄 저장
+        }
+
+        #endregion
+
+        #region Saved Connections
+
+        private async void LoadSavedConnections()
+        {
+            try
+            {
+                var connectionService = App.Current.Services.GetRequiredService<Services.ConnectionManagerService>();
+                await connectionService.LoadConnectionsAsync();
+
+                SavedConnections.Clear();
+                foreach (var conn in connectionService.SavedConnections)
+                    SavedConnections.Add(conn);
+
+                RebuildAllDrives();
+
+                // Sync changes from service
+                connectionService.SavedConnections.CollectionChanged += (s, e) =>
+                {
+                    SavedConnections.Clear();
+                    foreach (var c in connectionService.SavedConnections)
+                        SavedConnections.Add(c);
+                    RebuildAllDrives();
+                };
+
+                Helpers.DebugLogger.Log($"[MainViewModel] {SavedConnections.Count}개의 저장된 연결 로드");
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[MainViewModel] 저장된 연결 로드 오류: {ex.Message}");
+            }
         }
 
         #endregion

@@ -4,31 +4,34 @@ namespace Span.Services.FileOperations;
 
 /// <summary>
 /// Represents a file or directory delete operation with Recycle Bin support.
+/// Supports remote (FTP/SFTP) paths via FileSystemRouter.
 /// </summary>
 public class DeleteFileOperation : IFileOperation
 {
     private readonly List<string> _sourcePaths;
     private readonly bool _permanent;
+    private readonly FileSystemRouter? _router;
     private readonly Dictionary<string, string> _recycledPaths = new();
 
-    /// <summary>
-    /// Initializes a new instance of the <see cref="DeleteFileOperation"/> class.
-    /// </summary>
-    /// <param name="sourcePaths">The paths of files or directories to delete.</param>
-    /// <param name="permanent">If true, permanently deletes without sending to Recycle Bin.</param>
     public DeleteFileOperation(List<string> sourcePaths, bool permanent = false)
+        : this(sourcePaths, permanent, null)
+    {
+    }
+
+    public DeleteFileOperation(List<string> sourcePaths, bool permanent, FileSystemRouter? router)
     {
         _sourcePaths = sourcePaths ?? throw new ArgumentNullException(nameof(sourcePaths));
         _permanent = permanent;
+        _router = router;
     }
 
     /// <inheritdoc/>
     public string Description => _permanent
         ? $"Permanently delete {_sourcePaths.Count} item(s)"
-        : $"Delete {_sourcePaths.Count} item(s) to Recycle Bin";
+        : $"Delete {_sourcePaths.Count} item(s)";
 
     /// <inheritdoc/>
-    public bool CanUndo => !_permanent;
+    public bool CanUndo => !_permanent && !_sourcePaths.Any(FileSystemRouter.IsRemotePath);
 
     /// <inheritdoc/>
     public async Task<OperationResult> ExecuteAsync(
@@ -45,11 +48,11 @@ public class DeleteFileOperation : IFileOperation
                 cancellationToken.ThrowIfCancellationRequested();
 
                 var sourcePath = _sourcePaths[i];
+                var fileName = GetFileName(sourcePath);
 
-                // Report progress
                 progress?.Report(new FileOperationProgress
                 {
-                    CurrentFile = Path.GetFileName(sourcePath),
+                    CurrentFile = fileName,
                     CurrentFileIndex = i + 1,
                     TotalFileCount = _sourcePaths.Count,
                     Percentage = (i + 1) * 100 / _sourcePaths.Count
@@ -57,9 +60,22 @@ public class DeleteFileOperation : IFileOperation
 
                 try
                 {
-                    if (_permanent)
+                    if (FileSystemRouter.IsRemotePath(sourcePath))
                     {
-                        // Permanent delete
+                        // ── 원격 삭제 ──
+                        var provider = _router?.GetConnectionForPath(sourcePath);
+                        if (provider == null)
+                        {
+                            errors.Add($"원격 연결을 찾을 수 없습니다: {sourcePath}");
+                            continue;
+                        }
+
+                        var remotePath = FileSystemRouter.ExtractRemotePath(sourcePath);
+                        await provider.DeleteAsync(remotePath, recursive: true, cancellationToken);
+                    }
+                    else if (_permanent)
+                    {
+                        // ── 로컬 영구 삭제 ──
                         if (File.Exists(sourcePath))
                         {
                             File.Delete(sourcePath);
@@ -76,15 +92,13 @@ public class DeleteFileOperation : IFileOperation
                     }
                     else
                     {
-                        // Move to Recycle Bin using Microsoft.VisualBasic
+                        // ── 로컬 휴지통 삭제 ──
                         if (File.Exists(sourcePath))
                         {
                             FileSystem.DeleteFile(
                                 sourcePath,
                                 UIOption.OnlyErrorDialogs,
                                 RecycleOption.SendToRecycleBin);
-
-                            // Store the original path for potential future restoration
                             _recycledPaths[sourcePath] = sourcePath;
                         }
                         else if (Directory.Exists(sourcePath))
@@ -93,8 +107,6 @@ public class DeleteFileOperation : IFileOperation
                                 sourcePath,
                                 UIOption.OnlyErrorDialogs,
                                 RecycleOption.SendToRecycleBin);
-
-                            // Store the original path for potential future restoration
                             _recycledPaths[sourcePath] = sourcePath;
                         }
                         else
@@ -108,22 +120,19 @@ public class DeleteFileOperation : IFileOperation
                 }
                 catch (Exception ex)
                 {
-                    errors.Add($"Failed to delete {Path.GetFileName(sourcePath)}: {ex.Message}");
+                    errors.Add($"Failed to delete {fileName}: {ex.Message}");
                 }
             }
 
-            // Set result based on errors
             if (errors.Count > 0)
             {
                 if (result.AffectedPaths.Count == 0)
                 {
-                    // All deletions failed
                     result.Success = false;
                     result.ErrorMessage = string.Join("\n", errors);
                 }
                 else
                 {
-                    // Partial success
                     result.Success = true;
                     result.ErrorMessage = $"Some items could not be deleted:\n{string.Join("\n", errors)}";
                 }
@@ -151,11 +160,22 @@ public class DeleteFileOperation : IFileOperation
             return OperationResult.CreateFailure("Cannot undo permanent deletion");
         }
 
-        // Note: Restoring from Recycle Bin programmatically is very complex
-        // and requires Shell API COM interfaces (IFileOperation, etc.)
-        // For now, we inform the user to restore manually from Recycle Bin
         return OperationResult.CreateFailure(
             "Cannot restore from Recycle Bin programmatically. " +
             "Please use Windows Recycle Bin to restore the deleted items.");
+    }
+
+    private static string GetFileName(string path)
+    {
+        if (FileSystemRouter.IsRemotePath(path))
+        {
+            if (Uri.TryCreate(path, UriKind.Absolute, out var uri))
+            {
+                var segments = uri.AbsolutePath.TrimEnd('/').Split('/');
+                return segments.Length > 0 ? Uri.UnescapeDataString(segments[^1]) : path;
+            }
+            return path.TrimEnd('/').Split('/')[^1];
+        }
+        return Path.GetFileName(path);
     }
 }

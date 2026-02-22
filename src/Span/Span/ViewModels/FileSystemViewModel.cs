@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Span.Models;
 
@@ -239,22 +240,55 @@ namespace Span.ViewModels
                 return false;
             string fullNewName = newName;
 
-            string dir = System.IO.Path.GetDirectoryName(Path)!;
-            string newPath = System.IO.Path.Combine(dir, fullNewName);
-
             try
             {
-                if (this is FolderViewModel)
-                    System.IO.Directory.Move(Path, newPath);
-                else
-                    System.IO.File.Move(Path, newPath);
+                if (Services.FileSystemRouter.IsRemotePath(Path))
+                {
+                    // ── 원격 이름 변경 ──
+                    var router = App.Current.Services.GetRequiredService<Services.FileSystemRouter>();
+                    var provider = router.GetConnectionForPath(Path);
+                    if (provider == null)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Rename error: 원격 연결을 찾을 수 없습니다");
+                        return false;
+                    }
 
-                // 모델 업데이트
-                _model.Name = fullNewName;
-                _model.Path = newPath;
-                OnPropertyChanged(nameof(Name));
-                OnPropertyChanged(nameof(Path));
-                return true;
+                    var remotePath = Services.FileSystemRouter.ExtractRemotePath(Path);
+                    var parentDir = remotePath.Contains('/')
+                        ? remotePath[..remotePath.TrimEnd('/').LastIndexOf('/')]
+                        : "/";
+                    if (string.IsNullOrEmpty(parentDir)) parentDir = "/";
+                    var newRemotePath = parentDir.TrimEnd('/') + "/" + fullNewName;
+
+                    provider.RenameAsync(remotePath, newRemotePath).GetAwaiter().GetResult();
+
+                    // URI prefix 보존하여 전체 경로 재구성
+                    var uriPrefix = Path[..(Path.Length - remotePath.Length)];
+                    var newPath = uriPrefix + newRemotePath;
+
+                    _model.Name = fullNewName;
+                    _model.Path = newPath;
+                    OnPropertyChanged(nameof(Name));
+                    OnPropertyChanged(nameof(Path));
+                    return true;
+                }
+                else
+                {
+                    // ── 로컬 이름 변경 ──
+                    string dir = System.IO.Path.GetDirectoryName(Path)!;
+                    string newPath = System.IO.Path.Combine(dir, fullNewName);
+
+                    if (this is FolderViewModel)
+                        System.IO.Directory.Move(Path, newPath);
+                    else
+                        System.IO.File.Move(Path, newPath);
+
+                    _model.Name = fullNewName;
+                    _model.Path = newPath;
+                    OnPropertyChanged(nameof(Name));
+                    OnPropertyChanged(nameof(Path));
+                    return true;
+                }
             }
             catch (System.Exception ex)
             {

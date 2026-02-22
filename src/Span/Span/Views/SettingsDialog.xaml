@@ -238,7 +238,7 @@
                                     </Border>
                                     <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
                                         <TextBlock Text="즐겨찾기 트리뷰" Style="{StaticResource SettingsCardLabel}" />
-                                        <TextBlock Text="사이드바에 즐겨찾기 폴더 트리 표시" Style="{StaticResource SettingsCardDesc}" />
+                                        <TextBlock Text="즐겨찾기를 트리뷰로 표시 (하위 폴더 탐색 가능)" Style="{StaticResource SettingsCardDesc}" />
                                     </StackPanel>
                                     <ToggleSwitch x:Name="FavoritesTreeToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="False" />
                                 </Grid>
@@ -802,6 +802,63 @@
                                         </Button>
                                     </StackPanel>
                                 </StackPanel>
+                            </Border>
+
+                            <!-- Windows Shell Extras -->
+                            <Border Style="{StaticResource SettingsCardBorder}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Style="{StaticResource CardIconContainer}">
+                                        <FontIcon Glyph="&#xE8B7;" Style="{StaticResource CardIconStyle}" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock Text="Windows 셸 확장 메뉴" Style="{StaticResource SettingsCardLabel}" />
+                                        <TextBlock Text="우클릭 메뉴에 공유, 보내기, 라이브러리 포함, 시작 화면 고정 등 표시" Style="{StaticResource SettingsCardDesc}" />
+                                    </StackPanel>
+                                    <ToggleSwitch x:Name="ShellExtrasToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="False" />
+                                </Grid>
+                            </Border>
+
+                            <!-- Developer Context Menu -->
+                            <Border Style="{StaticResource SettingsCardBorder}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Style="{StaticResource CardIconContainer}">
+                                        <FontIcon Glyph="&#xE943;" Style="{StaticResource CardIconStyle}" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock Text="개발자 컨텍스트 메뉴" Style="{StaticResource SettingsCardLabel}" />
+                                        <TextBlock Text="우클릭 메뉴에 Git, Visual Studio, VS Code 등 개발 도구 항목 표시" Style="{StaticResource SettingsCardDesc}" />
+                                    </StackPanel>
+                                    <ToggleSwitch x:Name="DeveloperMenuToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="False" />
+                                </Grid>
+                            </Border>
+
+                            <!-- Copilot Menu Toggle -->
+                            <Border Style="{StaticResource SettingsCardBorder}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Style="{StaticResource CardIconContainer}">
+                                        <FontIcon Glyph="&#xE945;" Style="{StaticResource CardIconStyle}" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock Text="Copilot 메뉴" Style="{StaticResource SettingsCardLabel}" />
+                                        <TextBlock Text="우클릭 메뉴에 Microsoft Copilot 관련 항목 표시" Style="{StaticResource SettingsCardDesc}" />
+                                    </StackPanel>
+                                    <ToggleSwitch x:Name="CopilotMenuToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="False" />
+                                </Grid>
                             </Border>
 
                             <!-- Context Menu Integration -->

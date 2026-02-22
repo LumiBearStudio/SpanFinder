@@ -5,6 +5,7 @@ namespace Span.Services
 {
     public interface IContextMenuHost
     {
+        bool HasClipboardContent { get; }
         void PerformCut(string path);
         void PerformCopy(string path);
         void PerformPaste(string targetFolderPath);
@@ -21,6 +22,7 @@ namespace Span.Services
         void AddToFavorites(string path);
         void RemoveFromFavorites(string path);
         bool IsFavorite(string path);
+        void RemoveRemoteConnection(string connectionId);
         void SwitchViewMode(ViewMode mode);
         void ApplySort(string field);
         void ApplySortDirection(bool ascending);

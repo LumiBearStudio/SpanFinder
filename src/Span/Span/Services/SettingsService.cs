@@ -163,6 +163,24 @@ public class SettingsService
         set => Set("ShowFavoritesTree", value);
     }
 
+    public bool ShowDeveloperMenu
+    {
+        get => Get("ShowDeveloperMenu", false);
+        set => Set("ShowDeveloperMenu", value);
+    }
+
+    public bool ShowWindowsShellExtras
+    {
+        get => Get("ShowWindowsShellExtras", false);
+        set => Set("ShowWindowsShellExtras", value);
+    }
+
+    public bool ShowCopilotMenu
+    {
+        get => Get("ShowCopilotMenu", false);
+        set => Set("ShowCopilotMenu", value);
+    }
+
     // ── General ──
 
     public int StartupBehavior

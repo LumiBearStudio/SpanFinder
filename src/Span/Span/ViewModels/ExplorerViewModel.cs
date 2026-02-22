@@ -1,7 +1,9 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Linq;
 using System.Threading.Tasks;
 using Span.Models;
 using Span.Services;
@@ -159,7 +161,7 @@ namespace Span.ViewModels
             _isNavigatingHistory = true;
             try
             {
-                if (System.IO.Directory.Exists(previousPath))
+                if (FileSystemRouter.IsRemotePath(previousPath) || System.IO.Directory.Exists(previousPath))
                 {
                     await NavigateToPath(previousPath);
                 }
@@ -201,7 +203,7 @@ namespace Span.ViewModels
             _isNavigatingHistory = true;
             try
             {
-                if (System.IO.Directory.Exists(nextPath))
+                if (FileSystemRouter.IsRemotePath(nextPath) || System.IO.Directory.Exists(nextPath))
                 {
                     await NavigateToPath(nextPath);
                 }
@@ -284,7 +286,7 @@ namespace Span.ViewModels
             _isNavigatingHistory = true;
             try
             {
-                if (System.IO.Directory.Exists(targetPath))
+                if (FileSystemRouter.IsRemotePath(targetPath) || System.IO.Directory.Exists(targetPath))
                 {
                     await NavigateToPath(targetPath);
                 }
@@ -332,7 +334,7 @@ namespace Span.ViewModels
             _isNavigatingHistory = true;
             try
             {
-                if (System.IO.Directory.Exists(targetPath))
+                if (FileSystemRouter.IsRemotePath(targetPath) || System.IO.Directory.Exists(targetPath))
                 {
                     await NavigateToPath(targetPath);
                 }
@@ -350,21 +352,74 @@ namespace Span.ViewModels
             PathSegments.Clear();
             if (string.IsNullOrWhiteSpace(path)) return;
 
-            var parts = path.Split(System.IO.Path.DirectorySeparatorChar, System.StringSplitOptions.RemoveEmptyEntries);
-            string accumulated = string.Empty;
-
-            for (int i = 0; i < parts.Length; i++)
+            // 원격 URI 경로: ftp://user@host:21/upload/docs → [host:21] > [upload] > [docs]
+            if (FileSystemRouter.IsRemotePath(path) && System.Uri.TryCreate(path, System.UriKind.Absolute, out var remoteUri))
             {
-                if (i == 0 && parts[i].EndsWith(":"))
+                var prefix = FileSystemRouter.GetUriPrefix(path);
+                // 루트 세그먼트: "host:port"
+                PathSegments.Add(new PathSegment(
+                    $"{remoteUri.Host}:{remoteUri.Port}",
+                    prefix + "/",
+                    false));
+
+                // 하위 경로 세그먼트
+                var segments = remoteUri.AbsolutePath.Split('/', System.StringSplitOptions.RemoveEmptyEntries);
+                var cumulative = prefix;
+                for (int i = 0; i < segments.Length; i++)
                 {
-                    accumulated = parts[i] + "\\";
+                    cumulative += "/" + segments[i];
+                    PathSegments.Add(new PathSegment(
+                        segments[i],
+                        cumulative,
+                        i == segments.Length - 1));
                 }
-                else
+                return;
+            }
+
+            // UNC path: \\server\share\folder\...
+            if (path.StartsWith(@"\\"))
+            {
+                // Split by backslash, remove empties → ["server", "share", "folder", ...]
+                var parts = path.TrimStart('\\').Split(
+                    System.IO.Path.DirectorySeparatorChar,
+                    System.StringSplitOptions.RemoveEmptyEntries);
+
+                if (parts.Length < 2) return; // Need at least server + share for valid UNC
+
+                // First segment: \\server\share (UNC root)
+                string uncRoot = @"\\" + parts[0] + @"\" + parts[1];
+                PathSegments.Add(new PathSegment(
+                    @"\\" + parts[0] + @"\" + parts[1],
+                    uncRoot,
+                    isLast: parts.Length == 2));
+
+                // Remaining segments: folders after the share
+                string accumulated = uncRoot;
+                for (int i = 2; i < parts.Length; i++)
                 {
                     accumulated = System.IO.Path.Combine(accumulated, parts[i]);
+                    PathSegments.Add(new PathSegment(parts[i], accumulated, isLast: i == parts.Length - 1));
                 }
+            }
+            else
+            {
+                // Local path: C:\folder\...
+                var parts = path.Split(System.IO.Path.DirectorySeparatorChar, System.StringSplitOptions.RemoveEmptyEntries);
+                string accumulated = string.Empty;
 
-                PathSegments.Add(new PathSegment(parts[i], accumulated, isLast: i == parts.Length - 1));
+                for (int i = 0; i < parts.Length; i++)
+                {
+                    if (i == 0 && parts[i].EndsWith(":"))
+                    {
+                        accumulated = parts[i] + "\\";
+                    }
+                    else
+                    {
+                        accumulated = System.IO.Path.Combine(accumulated, parts[i]);
+                    }
+
+                    PathSegments.Add(new PathSegment(parts[i], accumulated, isLast: i == parts.Length - 1));
+                }
             }
         }
 
@@ -405,6 +460,14 @@ namespace Span.ViewModels
         public async Task NavigateToPath(string path)
         {
             if (string.IsNullOrWhiteSpace(path)) return;
+
+            // 원격 경로: Directory.Exists 스킵, URI 그대로 사용
+            if (FileSystemRouter.IsRemotePath(path))
+            {
+                await NavigateToRemotePath(path);
+                return;
+            }
+
             if (!System.IO.Directory.Exists(path)) return;
 
             // Normalize path
@@ -495,6 +558,32 @@ namespace Span.ViewModels
             finally
             {
                 EnableAutoNavigation = previousAutoNav;
+            }
+        }
+
+        private async Task NavigateToRemotePath(string uriPath)
+        {
+            // Push current path to history before navigating
+            PushToHistory(uriPath);
+
+            var folder = new FolderItem
+            {
+                Name = System.Uri.TryCreate(uriPath, System.UriKind.Absolute, out var uri)
+                    ? uri.AbsolutePath.Split('/').LastOrDefault(s => s.Length > 0) ?? uri.Host
+                    : uriPath,
+                Path = uriPath
+            };
+
+            // Use _isNavigatingHistory to prevent NavigateTo from pushing duplicate history
+            var wasNavigating = _isNavigatingHistory;
+            _isNavigatingHistory = true;
+            try
+            {
+                await NavigateTo(folder);
+            }
+            finally
+            {
+                _isNavigatingHistory = wasNavigating;
             }
         }
 
@@ -627,13 +716,33 @@ namespace Span.ViewModels
         {
             if (CurrentFolder == null || string.IsNullOrEmpty(CurrentFolder.Path)) return;
 
-            var parentPath = System.IO.Path.GetDirectoryName(CurrentFolder.Path);
+            var currentPath = CurrentFolder.Path;
+
+            // 원격 경로: URI에서 마지막 세그먼트 제거
+            if (FileSystemRouter.IsRemotePath(currentPath))
+            {
+                var prefix = FileSystemRouter.GetUriPrefix(currentPath);
+                var remotePath = FileSystemRouter.ExtractRemotePath(currentPath);
+                if (remotePath == "/" || string.IsNullOrEmpty(remotePath)) return; // 루트에서 더 위로 올라갈 수 없음
+
+                var parentRemote = remotePath.TrimEnd('/');
+                var lastSlash = parentRemote.LastIndexOf('/');
+                if (lastSlash <= 0) parentRemote = "/";
+                else parentRemote = parentRemote.Substring(0, lastSlash);
+
+                var parentUri = prefix + parentRemote;
+                Helpers.DebugLogger.Log($"[NavigateUp] Remote: '{currentPath}' → '{parentUri}'");
+                _ = NavigateToPath(parentUri);
+                return;
+            }
+
+            var parentPath = System.IO.Path.GetDirectoryName(currentPath);
             if (string.IsNullOrEmpty(parentPath)) return;
 
             // Check if parent directory exists
             if (!System.IO.Directory.Exists(parentPath)) return;
 
-            Helpers.DebugLogger.Log($"[NavigateUp] Navigating from '{CurrentFolder.Path}' to '{parentPath}'");
+            Helpers.DebugLogger.Log($"[NavigateUp] Navigating from '{currentPath}' to '{parentPath}'");
             // NavigateToPath will handle PushToHistory internally
             _ = NavigateToPath(parentPath);
         }
@@ -851,6 +960,10 @@ namespace Span.ViewModels
                 catch (TaskCanceledException)
                 {
                     Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] TaskCanceledException caught");
+                }
+                catch (Exception ex)
+                {
+                    Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] 예외 발생 (무시): {ex.Message}");
                 }
             }
         }

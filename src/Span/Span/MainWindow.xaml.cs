@@ -349,7 +349,7 @@ namespace Span
                         this.SizeChanged += (_, __) => UpdateTitleBarRegions();
 
                         // Populate favorites tree for tear-off window
-                        ApplyFavoritesTreeVisibility(_settings.ShowFavoritesTree);
+                        ApplyFavoritesTreeMode(_settings.ShowFavoritesTree);
                         PopulateFavoritesTree();
                         ViewModel.Favorites.CollectionChanged += OnFavoritesCollectionChanged;
 
@@ -378,7 +378,7 @@ namespace Span
                     InitializeTabMillerPanels();
 
                     // ── Populate Favorites Tree and observe changes ──
-                    ApplyFavoritesTreeVisibility(_settings.ShowFavoritesTree);
+                    ApplyFavoritesTreeMode(_settings.ShowFavoritesTree);
                     PopulateFavoritesTree();
                     ViewModel.Favorites.CollectionChanged += OnFavoritesCollectionChanged;
 
@@ -645,7 +645,7 @@ namespace Span
                     break;
 
                 case "ShowFavoritesTree":
-                    DispatcherQueue.TryEnqueue(() => ApplyFavoritesTreeVisibility(value is bool v && v));
+                    DispatcherQueue.TryEnqueue(() => ApplyFavoritesTreeMode(value is bool v && v));
                     break;
             }
         }
@@ -1568,11 +1568,49 @@ namespace Span
         //  Sidebar Favorites Tree (TreeView with lazy-loaded subfolders)
         // =================================================================
 
-        private void ApplyFavoritesTreeVisibility(bool show)
+        private void ApplyFavoritesTreeMode(bool treeMode)
         {
-            FavoritesSidebarSection.Visibility = show
+            FavoritesTreeView.Visibility = treeMode
                 ? Microsoft.UI.Xaml.Visibility.Visible
                 : Microsoft.UI.Xaml.Visibility.Collapsed;
+            FavoritesFlatList.Visibility = treeMode
+                ? Microsoft.UI.Xaml.Visibility.Collapsed
+                : Microsoft.UI.Xaml.Visibility.Visible;
+        }
+
+        private void OnFavoritesFlatItemTapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
+        {
+            if (sender is FrameworkElement fe && fe.DataContext is FavoriteItem fav)
+            {
+                if (!string.IsNullOrEmpty(fav.Path) && System.IO.Directory.Exists(fav.Path))
+                {
+                    var activeViewMode = (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
+                        ? ViewModel.RightViewMode : ViewModel.CurrentViewMode;
+                    if (activeViewMode == ViewMode.Home)
+                        ViewModel.SwitchViewMode(ViewMode.MillerColumns);
+
+                    var folder = new FolderItem
+                    {
+                        Name = System.IO.Path.GetFileName(fav.Path) ?? fav.Path,
+                        Path = fav.Path
+                    };
+                    _ = ViewModel.ActiveExplorer.NavigateTo(folder);
+                    FocusColumnAsync(0);
+                }
+            }
+        }
+
+        private void OnFavoritesFlatItemRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
+        {
+            if (sender is FrameworkElement fe && fe.DataContext is FavoriteItem fav)
+            {
+                var flyout = _contextMenuService.BuildFavoriteMenu(fav, this);
+                flyout.ShowAt(fe, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
+                {
+                    Position = e.GetPosition(fe)
+                });
+                e.Handled = true;
+            }
         }
 
         /// <summary>
@@ -3371,6 +3409,7 @@ namespace Span
             }
 
             Helpers.DebugLogger.Log($"[Clipboard] Copied {_clipboardPaths.Count} item(s)");
+            UpdateToolbarButtonStates();
         }
 
         private void HandleCut()
@@ -3413,6 +3452,7 @@ namespace Span
             }
 
             Helpers.DebugLogger.Log($"[Clipboard] Cut {_clipboardPaths.Count} item(s)");
+            UpdateToolbarButtonStates();
         }
 
         private async void HandlePaste()
@@ -3435,6 +3475,7 @@ namespace Span
             await ViewModel.ExecuteFileOperationAsync(op, activeIndex);
 
             if (_isCutOperation) _clipboardPaths.Clear();
+            UpdateToolbarButtonStates();
         }
 
         private static void CopyDirectory(string src, string dest)
@@ -4039,6 +4080,9 @@ namespace Span
 
                     // Update status bar selection count
                     ViewModel.UpdateStatusBar();
+
+                    // Update toolbar button enabled states
+                    UpdateToolbarButtonStates();
                 }
                 finally
                 {
@@ -4691,6 +4735,40 @@ namespace Span
         // UNIFIED BAR BUTTON HANDLERS
         // =================================================================
 
+        /// <summary>
+        /// Update toolbar button enabled/disabled states based on current selection and clipboard.
+        /// </summary>
+        private void UpdateToolbarButtonStates()
+        {
+            bool hasSelection = HasAnySelection();
+            bool hasClipboard = _clipboardPaths.Count > 0;
+
+            ToolbarCutButton.IsEnabled = hasSelection;
+            ToolbarCopyButton.IsEnabled = hasSelection;
+            ToolbarPasteButton.IsEnabled = hasClipboard;
+            ToolbarRenameButton.IsEnabled = hasSelection;
+            ToolbarDeleteButton.IsEnabled = hasSelection;
+        }
+
+        /// <summary>
+        /// Check if any file/folder is currently selected in the active view.
+        /// </summary>
+        private bool HasAnySelection()
+        {
+            var explorer = ViewModel.ActiveExplorer;
+            if (explorer == null) return false;
+
+            // Check all columns for any selected item
+            foreach (var col in explorer.Columns)
+            {
+                if (col.SelectedChild != null)
+                    return true;
+                if (col.SelectedItems != null && col.SelectedItems.Count > 0)
+                    return true;
+            }
+            return false;
+        }
+
         private void OnCutClick(object sender, RoutedEventArgs e)
         {
             HandleCut();
@@ -4714,6 +4792,27 @@ namespace Span
         private void OnNewFolderClick(object sender, RoutedEventArgs e)
         {
             HandleNewFolder();
+        }
+
+        private void OnNewItemDropdownClick(object sender, RoutedEventArgs e)
+        {
+            var folderPath = GetActiveColumnPath();
+            if (string.IsNullOrEmpty(folderPath)) return;
+
+            var menu = _contextMenuService.BuildNewItemMenu(folderPath, this);
+            menu.ShowAt(sender as FrameworkElement, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
+            {
+                Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.BottomEdgeAlignedLeft
+            });
+        }
+
+        private string? GetActiveColumnPath()
+        {
+            var columns = ViewModel.ActiveExplorer.Columns;
+            int activeIndex = GetActiveColumnIndex();
+            if (activeIndex < 0) activeIndex = columns.Count - 1;
+            if (activeIndex < 0 || activeIndex >= columns.Count) return null;
+            return columns[activeIndex].Path;
         }
 
         private void OnRenameClick(object sender, RoutedEventArgs e)
@@ -5330,6 +5429,7 @@ namespace Span
                     // LeftExplorer 변경 후 수동으로 필요한 것만 갱신 (PropertyChanged 미발생이므로)
                     ResubscribeLeftExplorer();
                     UpdateViewModeVisibility();
+                    UpdateToolbarButtonStates();
                     FocusActiveView();
                 }
             }
@@ -6853,6 +6953,8 @@ namespace Span
         //  IContextMenuHost Implementation
         // =================================================================
 
+        bool Services.IContextMenuHost.HasClipboardContent => _clipboardPaths.Count > 0;
+
         void Services.IContextMenuHost.PerformCut(string path)
         {
             _clipboardPaths.Clear();
@@ -6863,6 +6965,7 @@ namespace Span
             dataPackage.SetText(path);
             Clipboard.SetContent(dataPackage);
             Helpers.DebugLogger.Log($"[ContextMenu] Cut: {path}");
+            UpdateToolbarButtonStates();
         }
 
         void Services.IContextMenuHost.PerformCopy(string path)
@@ -6875,6 +6978,7 @@ namespace Span
             dataPackage.SetText(path);
             Clipboard.SetContent(dataPackage);
             Helpers.DebugLogger.Log($"[ContextMenu] Copy: {path}");
+            UpdateToolbarButtonStates();
         }
 
         async void Services.IContextMenuHost.PerformPaste(string targetFolderPath)
@@ -6889,6 +6993,7 @@ namespace Span
             await ViewModel.ExecuteFileOperationAsync(op);
 
             if (_isCutOperation) _clipboardPaths.Clear();
+            UpdateToolbarButtonStates();
 
             // Refresh the target folder if it's in the current columns
             var columns = ViewModel.ActiveExplorer.Columns;

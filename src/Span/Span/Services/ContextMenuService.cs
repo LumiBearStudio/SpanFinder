@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.UI.Xaml.Controls;
 using Span.Models;
 using Span.ViewModels;
@@ -10,6 +11,7 @@ namespace Span.Services
     {
         private readonly ShellService _shellService;
         private readonly LocalizationService _loc;
+        private readonly SettingsService _settings;
 
         /// <summary>Current shell menu session (kept alive while menu is open)</summary>
         private ShellContextMenu.Session? _currentSession;
@@ -17,10 +19,233 @@ namespace Span.Services
         /// <summary>HWND of the owner window (set by MainWindow)</summary>
         public IntPtr OwnerHwnd { get; set; }
 
-        public ContextMenuService(ShellService shellService, LocalizationService localizationService)
+        #region Shell Translation Tables (per-language)
+
+        /// <summary>
+        /// Verb-based translations per language. Maps canonical verb → localized text.
+        /// </summary>
+        private static readonly Dictionary<string, Dictionary<string, string>> ShellVerbTranslations = new()
+        {
+            ["ko"] = new(StringComparer.OrdinalIgnoreCase)
+            {
+                ["sendto"] = "보내기",
+                ["pintohome"] = "빠른 실행에 고정",
+                ["pintostartscreen"] = "시작 화면에 고정",
+                ["unpinfromhome"] = "빠른 실행에서 제거",
+                ["Windows.share"] = "공유",
+                ["previousversions"] = "이전 버전 복원",
+            },
+            ["ja"] = new(StringComparer.OrdinalIgnoreCase)
+            {
+                ["sendto"] = "送る",
+                ["pintohome"] = "クイック アクセスにピン留め",
+                ["pintostartscreen"] = "スタートにピン留めする",
+                ["unpinfromhome"] = "クイック アクセスからピン留めを外す",
+                ["Windows.share"] = "共有",
+                ["previousversions"] = "以前のバージョンの復元",
+            },
+        };
+
+        /// <summary>
+        /// Text-based translations per language. Maps English text → localized text.
+        /// Covers top-level items and common sub-menu items (Send to, Share, etc.).
+        /// </summary>
+        private static readonly Dictionary<string, Dictionary<string, string>> ShellTextTranslations = new()
+        {
+            ["ko"] = new(StringComparer.OrdinalIgnoreCase)
+            {
+                // Top-level shell items
+                ["Send to"] = "보내기",
+                ["Give access to"] = "액세스 권한 부여",
+                ["Include in library"] = "라이브러리에 포함",
+                ["Pin to Start"] = "시작 화면에 고정",
+                ["Pin to Quick access"] = "빠른 실행에 고정",
+                ["Pin to Quick Access"] = "빠른 실행에 고정",
+                ["Restore previous versions"] = "이전 버전 복원",
+                ["Share"] = "공유",
+                ["Share with"] = "공유 대상",
+                ["Cast to Device"] = "디바이스로 캐스트",
+                ["Cast to device"] = "디바이스로 캐스트",
+                ["Scan with Microsoft Defender..."] = "Microsoft Defender로 검사...",
+                ["Edit with Notepad"] = "메모장에서 편집",
+                ["Print"] = "인쇄",
+
+                // Copilot items
+                ["Ask Copilot"] = "Copilot에게 질문하기",
+
+                // Send to sub-items
+                ["Desktop (create shortcut)"] = "바탕 화면에 바로 가기 만들기",
+                ["Desktop (Create Shortcut)"] = "바탕 화면에 바로 가기 만들기",
+                ["Mail recipient"] = "메일 수신자",
+                ["Mail Recipient"] = "메일 수신자",
+                ["Compressed (zipped) folder"] = "압축(zip) 폴더",
+                ["Compressed (zipped) Folder"] = "압축(zip) 폴더",
+                ["Bluetooth device"] = "Bluetooth 장치",
+                ["Bluetooth Device"] = "Bluetooth 장치",
+                ["Documents"] = "문서",
+                ["Fax recipient"] = "팩스 수신자",
+                ["Fax Recipient"] = "팩스 수신자",
+
+                // Give access to sub-items
+                ["Specific people..."] = "특정 사용자...",
+                ["Stop sharing"] = "공유 중지",
+                ["Remove access"] = "액세스 제거",
+
+                // Include in library sub-items
+                ["Documents library"] = "문서 라이브러리",
+                ["Music library"] = "음악 라이브러리",
+                ["Pictures library"] = "사진 라이브러리",
+                ["Videos library"] = "비디오 라이브러리",
+
+                // Share sub-items (common sharing targets)
+                ["Email"] = "이메일",
+                ["Nearby sharing"] = "근거리 공유",
+                ["Copy link"] = "링크 복사",
+            },
+            ["ja"] = new(StringComparer.OrdinalIgnoreCase)
+            {
+                // Top-level shell items
+                ["Send to"] = "送る",
+                ["Give access to"] = "アクセスを許可する",
+                ["Include in library"] = "ライブラリに追加",
+                ["Pin to Start"] = "スタートにピン留めする",
+                ["Pin to Quick access"] = "クイック アクセスにピン留め",
+                ["Pin to Quick Access"] = "クイック アクセスにピン留め",
+                ["Restore previous versions"] = "以前のバージョンの復元",
+                ["Share"] = "共有",
+                ["Share with"] = "共有",
+                ["Cast to Device"] = "デバイスにキャスト",
+                ["Cast to device"] = "デバイスにキャスト",
+                ["Scan with Microsoft Defender..."] = "Microsoft Defenderでスキャン...",
+                ["Edit with Notepad"] = "メモ帳で編集",
+                ["Print"] = "印刷",
+
+                // Copilot items
+                ["Ask Copilot"] = "Copilotに質問する",
+
+                // Send to sub-items
+                ["Desktop (create shortcut)"] = "デスクトップ (ショートカットを作成)",
+                ["Desktop (Create Shortcut)"] = "デスクトップ (ショートカットを作成)",
+                ["Mail recipient"] = "メール受信者",
+                ["Mail Recipient"] = "メール受信者",
+                ["Compressed (zipped) folder"] = "圧縮(zip)フォルダー",
+                ["Compressed (zipped) Folder"] = "圧縮(zip)フォルダー",
+                ["Bluetooth device"] = "Bluetoothデバイス",
+                ["Bluetooth Device"] = "Bluetoothデバイス",
+                ["Documents"] = "ドキュメント",
+                ["Fax recipient"] = "FAX受信者",
+                ["Fax Recipient"] = "FAX受信者",
+
+                // Give access to sub-items
+                ["Specific people..."] = "特定のユーザー...",
+                ["Stop sharing"] = "共有の停止",
+                ["Remove access"] = "アクセスの削除",
+
+                // Include in library sub-items
+                ["Documents library"] = "ドキュメント ライブラリ",
+                ["Music library"] = "ミュージック ライブラリ",
+                ["Pictures library"] = "ピクチャ ライブラリ",
+                ["Videos library"] = "ビデオ ライブラリ",
+
+                // Share sub-items
+                ["Email"] = "メール",
+                ["Nearby sharing"] = "近距離共有",
+                ["Copy link"] = "リンクのコピー",
+            },
+        };
+
+        #endregion
+
+        #region Windows Shell Extras (Share, Include in library, Pin to Start, etc.)
+
+        /// <summary>
+        /// Verbs identifying "Windows shell extras" items (Share, Pin to Start, etc.).
+        /// Hidden when ShowWindowsShellExtras setting is OFF.
+        /// </summary>
+        private static readonly HashSet<string> WindowsShellExtraVerbs = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "Windows.share",
+            "previousversions",
+            "pintostartscreen",
+            "pintohome",
+            "unpinfromhome",
+        };
+
+        /// <summary>
+        /// Text patterns identifying "Windows shell extras" items (when verb is unavailable).
+        /// </summary>
+        private static readonly string[] WindowsShellExtraTexts =
+        {
+            "Share",                      "공유",
+            "Restore previous versions",  "이전 버전 복원",
+            "Include in library",         "라이브러리에 포함",
+            "Pin to Start",               "시작 화면에 고정",
+            "시작화면에 고정",
+            "Pin to Quick access",        "빠른 실행에 고정",
+            "Pin to Quick Access",        "빠른 실행에 고정",
+            "Unpin from Quick access",    "빠른 실행에서 제거",
+            "Give access to",             "액세스 권한 부여",
+            "Send to",                    "보내기",
+        };
+
+        #endregion
+
+        #region Copilot items (hidden when ShowCopilotMenu is OFF)
+
+        /// <summary>
+        /// Text patterns identifying Copilot context menu items.
+        /// Hidden when ShowCopilotMenu setting is OFF.
+        /// </summary>
+        private static readonly string[] CopilotTextPatterns =
+        {
+            "copilot",          // "Ask Copilot", "Microsoft 365 Copilot..."
+        };
+
+        #endregion
+
+        /// <summary>
+        /// Text patterns that identify developer tool context menu items.
+        /// Case-insensitive matching against menu item text.
+        /// </summary>
+        private static readonly string[] DeveloperTextPatterns =
+        {
+            "git",              // Git GUI, Git Bash, TortoiseGit
+            "visual studio",    // Visual Studio
+            "open with code",   // VS Code (English)
+            "code(으)로 열기",   // VS Code (Korean)
+            "code로 열기",       // VS Code (Korean variant)
+            "tortoise",         // TortoiseGit, TortoiseSVN
+            "svn",              // Subversion
+            "sublime",          // Sublime Text
+            "notepad++",        // Notepad++
+            "winmerge",         // WinMerge
+            "beyond compare",   // Beyond Compare
+            "node.js",          // Node.js
+            "edit with idle",   // Python IDLE
+        };
+
+        #region Edit-with grouping (group "Edit with X" items into submenu)
+
+        /// <summary>
+        /// Text patterns identifying "edit with program" shell items.
+        /// When 2+ items match, they are grouped into a single submenu.
+        /// </summary>
+        private static readonly string[] EditWithTextPatterns =
+        {
+            "편집",               // Korean: 사진으로 편집, 그림판으로 편집, 메모장에서 편집
+            "Edit with",         // English: Edit with Photos, Edit with Paint
+            "Edit in",           // English variant
+            "で編集",             // Japanese: ペイントで編集, メモ帳で編集
+            "Designer",          // Microsoft Designer (all languages)
+        };
+
+        #endregion
+
+        public ContextMenuService(ShellService shellService, LocalizationService localizationService, SettingsService settingsService)
         {
             _shellService = shellService;
             _loc = localizationService;
+            _settings = settingsService;
         }
 
         public MenuFlyout BuildFileMenu(FileViewModel file, IContextMenuHost host)
@@ -75,7 +300,9 @@ namespace Span.Services
 
             menu.Items.Add(CreateItem(_loc.Get("Cut"), "\uE8C6", () => host.PerformCut(folder.Path)));
             menu.Items.Add(CreateItem(_loc.Get("Copy"), "\uE8C8", () => host.PerformCopy(folder.Path)));
-            menu.Items.Add(CreateItem(_loc.Get("Paste"), "\uE77F", () => host.PerformPaste(folder.Path)));
+            var folderPaste = CreateItem(_loc.Get("Paste"), "\uE77F", () => host.PerformPaste(folder.Path));
+            folderPaste.IsEnabled = host.HasClipboardContent;
+            menu.Items.Add(folderPaste);
             menu.Items.Add(new MenuFlyoutSeparator());
 
             // Compress
@@ -114,11 +341,25 @@ namespace Span.Services
             menu.Items.Add(CreateItem(_loc.Get("Open"), "\uE8E5", () => host.PerformOpenDrive(drive)));
             menu.Items.Add(new MenuFlyoutSeparator());
 
-            menu.Items.Add(CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => _shellService.CopyPathToClipboard(drive.Path)));
-            menu.Items.Add(CreateItem(_loc.Get("OpenInExplorer"), "\uED25", () => _shellService.OpenInExplorer(drive.Path)));
-            menu.Items.Add(new MenuFlyoutSeparator());
-
-            menu.Items.Add(CreateItem(_loc.Get("Properties"), "\uE946", () => _shellService.ShowProperties(drive.Path)));
+            if (!drive.IsRemoteConnection)
+            {
+                // 로컬/네트워크 매핑 드라이브: 경로 복사, 탐색기에서 열기, 속성
+                menu.Items.Add(CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => _shellService.CopyPathToClipboard(drive.Path)));
+                menu.Items.Add(CreateItem(_loc.Get("OpenInExplorer"), "\uED25", () => _shellService.OpenInExplorer(drive.Path)));
+                menu.Items.Add(new MenuFlyoutSeparator());
+                menu.Items.Add(CreateItem(_loc.Get("Properties"), "\uE946", () => _shellService.ShowProperties(drive.Path)));
+            }
+            else
+            {
+                // 원격 연결 (SFTP/FTP): 경로 복사 + 제거
+                menu.Items.Add(CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => _shellService.CopyPathToClipboard(drive.Path)));
+                menu.Items.Add(new MenuFlyoutSeparator());
+                menu.Items.Add(CreateItem("저장된 연결 제거", "\uE74D", () =>
+                {
+                    if (!string.IsNullOrEmpty(drive.ConnectionId))
+                        host.RemoveRemoteConnection(drive.ConnectionId);
+                }));
+            }
 
             return menu;
         }
@@ -160,7 +401,9 @@ namespace Span.Services
             newSub.Items.Add(CreateItem(_loc.Get("NewZipArchive"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Compressed (zipped) Folder.zip")));
             menu.Items.Add(newSub);
 
-            menu.Items.Add(CreateItem(_loc.Get("Paste"), "\uE77F", () => host.PerformPaste(folderPath)));
+            var emptyPaste = CreateItem(_loc.Get("Paste"), "\uE77F", () => host.PerformPaste(folderPath));
+            emptyPaste.IsEnabled = host.HasClipboardContent;
+            menu.Items.Add(emptyPaste);
             menu.Items.Add(new MenuFlyoutSeparator());
 
             // View submenu
@@ -215,15 +458,97 @@ namespace Span.Services
                 if (_currentSession == null || _currentSession.Items.Count == 0)
                     return;
 
-                menu.Items.Add(new MenuFlyoutSeparator());
+                bool showDevMenu = _settings.ShowDeveloperMenu;
+                bool showShellExtras = _settings.ShowWindowsShellExtras;
+                bool showCopilot = _settings.ShowCopilotMenu;
+
+                // Two-pass collection: track which items are "edit with X"
+                var items = new List<(MenuFlyoutItemBase item, bool isEdit)>();
 
                 foreach (var shellItem in _currentSession.Items)
                 {
-                    var flyoutItem = ConvertShellItem(shellItem);
-                    if (flyoutItem != null)
+                    if (shellItem.IsSeparator)
                     {
-                        menu.Items.Add(flyoutItem);
+                        items.Add((new MenuFlyoutSeparator(), false));
+                        continue;
                     }
+
+                    // Filter Copilot items when toggle is OFF
+                    if (!showCopilot && IsCopilotItem(shellItem))
+                        continue;
+
+                    // Filter developer items when toggle is OFF
+                    if (!showDevMenu && IsDeveloperItem(shellItem))
+                        continue;
+
+                    // Filter Windows shell extras when toggle is OFF
+                    if (!showShellExtras && IsWindowsShellExtraItem(shellItem))
+                        continue;
+
+                    bool isEdit = IsEditWithItem(shellItem);
+                    var converted = ConvertShellItem(shellItem);
+                    if (converted != null)
+                        items.Add((converted, isEdit));
+                }
+
+                // Group "edit with X" items into submenu when 2+
+                var editEntries = items.Where(x => x.isEdit).Select(x => x.item).ToList();
+                List<MenuFlyoutItemBase> filtered;
+
+                if (editEntries.Count >= 2)
+                {
+                    var editSub = new MenuFlyoutSubItem
+                    {
+                        Text = _loc.Get("EditWith"),
+                        Icon = new FontIcon { Glyph = "\uE70F" }
+                    };
+                    foreach (var ei in editEntries)
+                        editSub.Items.Add(ei);
+
+                    // Replace first edit item with submenu, skip the rest
+                    filtered = new List<MenuFlyoutItemBase>();
+                    bool submenuInserted = false;
+                    foreach (var (item, isEdit) in items)
+                    {
+                        if (isEdit)
+                        {
+                            if (!submenuInserted)
+                            {
+                                filtered.Add(editSub);
+                                submenuInserted = true;
+                            }
+                            // skip — already inside submenu
+                        }
+                        else
+                        {
+                            filtered.Add(item);
+                        }
+                    }
+                }
+                else
+                {
+                    filtered = items.Select(x => x.item).ToList();
+                }
+
+                // Remove leading/trailing separators
+                while (filtered.Count > 0 && filtered[0] is MenuFlyoutSeparator)
+                    filtered.RemoveAt(0);
+                while (filtered.Count > 0 && filtered[^1] is MenuFlyoutSeparator)
+                    filtered.RemoveAt(filtered.Count - 1);
+
+                // Remove consecutive separators
+                for (int i = filtered.Count - 1; i > 0; i--)
+                {
+                    if (filtered[i] is MenuFlyoutSeparator && filtered[i - 1] is MenuFlyoutSeparator)
+                        filtered.RemoveAt(i);
+                }
+
+                // Append to menu
+                if (filtered.Count > 0)
+                {
+                    menu.Items.Add(new MenuFlyoutSeparator());
+                    foreach (var item in filtered)
+                        menu.Items.Add(item);
                 }
             }
             catch (Exception ex)
@@ -232,15 +557,17 @@ namespace Span.Services
             }
         }
 
-        /// <summary>Convert a ShellMenuItem to a WinUI MenuFlyoutItemBase.</summary>
+        /// <summary>Convert a ShellMenuItem to a WinUI MenuFlyoutItemBase, applying translations.</summary>
         private MenuFlyoutItemBase? ConvertShellItem(ShellMenuItem shellItem)
         {
             if (shellItem.IsSeparator)
                 return new MenuFlyoutSeparator();
 
+            string translatedText = TranslateShellText(shellItem);
+
             if (shellItem.HasSubmenu)
             {
-                var subItem = new MenuFlyoutSubItem { Text = shellItem.Text };
+                var subItem = new MenuFlyoutSubItem { Text = translatedText };
                 foreach (var child in shellItem.Children!)
                 {
                     var childItem = ConvertShellItem(child);
@@ -250,10 +577,10 @@ namespace Span.Services
                 return subItem.Items.Count > 0 ? subItem : null;
             }
 
-            if (string.IsNullOrWhiteSpace(shellItem.Text))
+            if (string.IsNullOrWhiteSpace(translatedText))
                 return null;
 
-            var item = new MenuFlyoutItem { Text = shellItem.Text };
+            var item = new MenuFlyoutItem { Text = translatedText };
             item.IsEnabled = !shellItem.IsDisabled;
 
             // Capture commandId and session reference for the click handler
@@ -262,6 +589,113 @@ namespace Span.Services
             item.Click += (s, e) => session?.InvokeCommand(cmdId);
 
             return item;
+        }
+
+        /// <summary>
+        /// Translate shell menu item text using verb-based or text-based translation tables.
+        /// Respects current app language. English items stay as-is when language is English.
+        /// Priority: verb translation > text translation > original text.
+        /// </summary>
+        private string TranslateShellText(ShellMenuItem shellItem)
+        {
+            var lang = _loc.Language;
+            if (lang == "en") return shellItem.Text; // No translation needed
+
+            // 1. Try verb-based translation (most reliable)
+            if (!string.IsNullOrEmpty(shellItem.Verb) &&
+                ShellVerbTranslations.TryGetValue(lang, out var verbDict) &&
+                verbDict.TryGetValue(shellItem.Verb, out var verbTranslation))
+            {
+                return verbTranslation;
+            }
+
+            // 2. Try text-based translation (fallback for items without verbs)
+            if (!string.IsNullOrWhiteSpace(shellItem.Text) &&
+                ShellTextTranslations.TryGetValue(lang, out var textDict) &&
+                textDict.TryGetValue(shellItem.Text, out var textTranslation))
+            {
+                return textTranslation;
+            }
+
+            // 3. Return original text
+            return shellItem.Text;
+        }
+
+        /// <summary>
+        /// Check if a shell menu item is an "edit with program" item
+        /// (e.g. Edit with Photos, Edit with Paint, Edit with Notepad, Create with Designer).
+        /// </summary>
+        private static bool IsEditWithItem(ShellMenuItem item)
+        {
+            // Check verb first — "edit" verb is the standard Windows shell edit verb
+            if (!string.IsNullOrEmpty(item.Verb) &&
+                item.Verb.Equals("edit", StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            var text = item.Text;
+            if (string.IsNullOrWhiteSpace(text))
+                return false;
+
+            return EditWithTextPatterns.Any(pattern =>
+                text.Contains(pattern, StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>
+        /// Check if a shell menu item is a Copilot item (Microsoft 365 Copilot, Ask Copilot, etc.).
+        /// </summary>
+        private static bool IsCopilotItem(ShellMenuItem item)
+        {
+            var text = item.Text;
+            if (string.IsNullOrWhiteSpace(text))
+                return false;
+
+            return CopilotTextPatterns.Any(pattern =>
+                text.Contains(pattern, StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>
+        /// Check if a shell menu item belongs to a developer tool (Git, VS, etc.).
+        /// </summary>
+        private static bool IsDeveloperItem(ShellMenuItem item)
+        {
+            var text = item.Text;
+            if (string.IsNullOrWhiteSpace(text))
+                return false;
+
+            if (DeveloperTextPatterns.Any(pattern =>
+                text.Contains(pattern, StringComparison.OrdinalIgnoreCase)))
+            {
+                return true;
+            }
+
+            // Also check submenu children
+            if (item.HasSubmenu)
+            {
+                return item.Children!.Any(child =>
+                    !string.IsNullOrWhiteSpace(child.Text) &&
+                    DeveloperTextPatterns.Any(pattern =>
+                        child.Text.Contains(pattern, StringComparison.OrdinalIgnoreCase)));
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Check if a shell menu item is a Windows shell extra (Share, Include in library, Pin to Start, etc.).
+        /// </summary>
+        private static bool IsWindowsShellExtraItem(ShellMenuItem item)
+        {
+            // Check verb first
+            if (!string.IsNullOrEmpty(item.Verb) && WindowsShellExtraVerbs.Contains(item.Verb))
+                return true;
+
+            // Check text
+            var text = item.Text;
+            if (string.IsNullOrWhiteSpace(text))
+                return false;
+
+            return WindowsShellExtraTexts.Any(pattern =>
+                text.Equals(pattern, StringComparison.OrdinalIgnoreCase));
         }
 
         private void OnMenuClosed(object? sender, object e)
@@ -282,6 +716,25 @@ namespace Span.Services
                 if (sender is MenuFlyout flyout)
                     flyout.Closed -= OnMenuClosed;
             }
+        }
+
+        /// <summary>
+        /// Build the "New" menu items (folder + common file types) for toolbar dropdown.
+        /// </summary>
+        public MenuFlyout BuildNewItemMenu(string folderPath, IContextMenuHost host)
+        {
+            var menu = new MenuFlyout();
+            menu.Items.Add(CreateItem(_loc.Get("NewFolder"), "\uE8B7", () => host.PerformNewFolder(folderPath)));
+            menu.Items.Add(new MenuFlyoutSeparator());
+            menu.Items.Add(CreateItem(_loc.Get("NewTextDocument"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Text Document.txt")));
+            menu.Items.Add(CreateItem(_loc.Get("NewWordDocument"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Document.docx")));
+            menu.Items.Add(CreateItem(_loc.Get("NewExcelSpreadsheet"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Spreadsheet.xlsx")));
+            menu.Items.Add(CreateItem(_loc.Get("NewPowerPoint"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Presentation.pptx")));
+            menu.Items.Add(new MenuFlyoutSeparator());
+            menu.Items.Add(CreateItem(_loc.Get("NewBitmapImage"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Bitmap Image.bmp")));
+            menu.Items.Add(CreateItem(_loc.Get("NewRichTextDocument"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Rich Text Document.rtf")));
+            menu.Items.Add(CreateItem(_loc.Get("NewZipArchive"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Compressed (zipped) Folder.zip")));
+            return menu;
         }
 
         private static MenuFlyoutItem CreateItem(string text, string? glyph, Action action)

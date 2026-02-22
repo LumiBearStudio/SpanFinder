@@ -13,7 +13,17 @@ namespace Span.Models
         public string DriveType { get; set; } = string.Empty;
         public string IconGlyph { get; set; } = "\uEC65"; // RemixIcon: ri-drive-fill
 
-        public bool IsNetworkDrive => DriveType == "Network";
+        /// <summary>
+        /// SFTP/FTP 원격 연결 여부
+        /// </summary>
+        public bool IsRemoteConnection { get; set; }
+
+        /// <summary>
+        /// ConnectionInfo.Id (원격 연결 식별)
+        /// </summary>
+        public string? ConnectionId { get; set; }
+
+        public bool IsNetworkDrive => IsRemoteConnection || DriveType == "Network";
 
         /// <summary>
         /// Usage percentage (0-100). Returns 0 if TotalSize is 0.
@@ -32,6 +42,18 @@ namespace Span.Models
                 return $"{FormatSize(AvailableFreeSpace)} free of {FormatSize(TotalSize)}";
             }
         }
+
+        /// <summary>
+        /// ConnectionInfo에서 DriveItem 생성 (사이드바 통합 표시용)
+        /// </summary>
+        public static DriveItem FromConnection(ConnectionInfo conn) => new()
+        {
+            Name = conn.DisplayName,
+            Path = conn.ToUri(),
+            IconGlyph = "\uEE71",       // server icon
+            IsRemoteConnection = true,
+            ConnectionId = conn.Id
+        };
 
         private static string FormatSize(long bytes)
         {

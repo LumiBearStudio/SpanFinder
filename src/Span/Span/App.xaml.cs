@@ -127,6 +127,17 @@ namespace Span
             services.AddSingleton<Services.SettingsService>();
             services.AddSingleton<Services.FolderContentCache>();
             services.AddSingleton<Services.FileOperationManager>();
+            services.AddSingleton<Services.NetworkBrowserService>();
+            services.AddSingleton<Services.ConnectionManagerService>();
+
+            // File system provider abstraction
+            services.AddSingleton<Services.LocalFileSystemProvider>();
+            services.AddSingleton<Services.FileSystemRouter>(sp =>
+            {
+                var router = new Services.FileSystemRouter();
+                router.RegisterProvider(sp.GetRequiredService<Services.LocalFileSystemProvider>());
+                return router;
+            });
 
             // ViewModel 등록
             services.AddTransient<MainViewModel>();
@@ -138,6 +149,16 @@ namespace Span
         {
             try
             {
+                // Apply saved language before creating windows
+                // so that PrimaryLanguageOverride is set early for system dialogs
+                var settings = Services.GetRequiredService<Services.SettingsService>();
+                var loc = Services.GetRequiredService<Services.LocalizationService>();
+                var savedLang = settings.Language;
+                if (savedLang != "system")
+                {
+                    loc.Language = savedLang;
+                }
+
                 var iconService = Services.GetRequiredService<Services.IconService>();
                 await iconService.LoadAsync();
 

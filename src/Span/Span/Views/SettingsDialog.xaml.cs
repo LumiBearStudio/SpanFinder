@@ -21,7 +21,7 @@ public sealed partial class SettingsDialog : ContentDialog
         { 0, new() { "일반", "언어", "language", "시작", "startup", "시스템 트레이", "tray", "즐겨찾기", "favorites" } },
         { 1, new() { "모양", "테마", "theme", "pro", "밀도", "density", "폰트", "font" } },
         { 2, new() { "탐색", "보기", "숨김", "확장자", "체크박스", "밀러", "썸네일", "quick look", "삭제", "undo", "실행 취소" } },
-        { 3, new() { "도구", "터미널", "terminal", "smart run", "명령", "컨텍스트", "context" } },
+        { 3, new() { "도구", "터미널", "terminal", "smart run", "명령", "컨텍스트", "context", "개발자", "developer", "git", "visual studio", "셸", "shell", "공유", "보내기", "copilot", "코파일럿" } },
         { 4, new() { "정보", "about", "라이선스", "license", "업데이트", "update", "pro", "upgrade", "coffee", "후원", "github", "링크" } },
     };
 
@@ -113,6 +113,9 @@ public sealed partial class SettingsDialog : ContentDialog
                 "cmd" => 2,
                 _ => 0 // wt
             };
+            ShellExtrasToggle.IsOn = _settings.ShowWindowsShellExtras;
+            DeveloperMenuToggle.IsOn = _settings.ShowDeveloperMenu;
+            CopilotMenuToggle.IsOn = _settings.ShowCopilotMenu;
             ContextMenuToggle.IsOn = _settings.ShowContextMenu;
         }
         finally
@@ -200,6 +203,9 @@ public sealed partial class SettingsDialog : ContentDialog
                 _ => "wt"
             };
         };
+        ShellExtrasToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowWindowsShellExtras = ShellExtrasToggle.IsOn; };
+        DeveloperMenuToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowDeveloperMenu = DeveloperMenuToggle.IsOn; };
+        CopilotMenuToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowCopilotMenu = CopilotMenuToggle.IsOn; };
         ContextMenuToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowContextMenu = ContextMenuToggle.IsOn; };
     }
 

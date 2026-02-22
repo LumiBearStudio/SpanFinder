@@ -2,30 +2,35 @@ namespace Span.Services.FileOperations;
 
 /// <summary>
 /// Represents a file or directory rename operation.
+/// Supports remote (FTP/SFTP) paths via FileSystemRouter.
 /// </summary>
 public class RenameFileOperation : IFileOperation
 {
     private readonly string _sourcePath;
     private readonly string _newName;
     private readonly string _oldName;
+    private readonly FileSystemRouter? _router;
+    private readonly bool _isRemote;
 
-    /// <summary>
-    /// Initializes a new instance of the <see cref="RenameFileOperation"/> class.
-    /// </summary>
-    /// <param name="sourcePath">The full path of the file or directory to rename.</param>
-    /// <param name="newName">The new name (without path).</param>
     public RenameFileOperation(string sourcePath, string newName)
+        : this(sourcePath, newName, null)
+    {
+    }
+
+    public RenameFileOperation(string sourcePath, string newName, FileSystemRouter? router)
     {
         _sourcePath = sourcePath ?? throw new ArgumentNullException(nameof(sourcePath));
         _newName = newName ?? throw new ArgumentNullException(nameof(newName));
-        _oldName = Path.GetFileName(sourcePath);
+        _router = router;
+        _isRemote = FileSystemRouter.IsRemotePath(sourcePath);
+        _oldName = GetFileName(sourcePath);
     }
 
     /// <inheritdoc/>
     public string Description => $"Rename '{_oldName}' to '{_newName}'";
 
     /// <inheritdoc/>
-    public bool CanUndo => true;
+    public bool CanUndo => !_isRemote;
 
     /// <inheritdoc/>
     public async Task<OperationResult> ExecuteAsync(
@@ -36,30 +41,6 @@ public class RenameFileOperation : IFileOperation
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var directory = Path.GetDirectoryName(_sourcePath);
-            if (string.IsNullOrEmpty(directory))
-            {
-                return OperationResult.CreateFailure("Invalid source path - no directory component");
-            }
-
-            var newPath = Path.Combine(directory, _newName);
-
-            // Check if source exists
-            bool isFile = File.Exists(_sourcePath);
-            bool isDirectory = Directory.Exists(_sourcePath);
-
-            if (!isFile && !isDirectory)
-            {
-                return OperationResult.CreateFailure($"Source path does not exist: {_sourcePath}");
-            }
-
-            // Check if destination already exists
-            if (File.Exists(newPath) || Directory.Exists(newPath))
-            {
-                return OperationResult.CreateFailure($"A file or directory with the name '{_newName}' already exists");
-            }
-
-            // Report progress
             progress?.Report(new FileOperationProgress
             {
                 CurrentFile = _oldName,
@@ -68,84 +49,107 @@ public class RenameFileOperation : IFileOperation
                 Percentage = 0
             });
 
-            // Perform the rename
-            if (isFile)
+            if (_isRemote)
             {
-                File.Move(_sourcePath, newPath);
+                // ── 원격 이름 변경 ──
+                var provider = _router?.GetConnectionForPath(_sourcePath);
+                if (provider == null)
+                    return OperationResult.CreateFailure($"원격 연결을 찾을 수 없습니다: {_sourcePath}");
+
+                var remotePath = FileSystemRouter.ExtractRemotePath(_sourcePath);
+                var parentDir = remotePath.Contains('/')
+                    ? remotePath[..remotePath.TrimEnd('/').LastIndexOf('/')]
+                    : "/";
+                if (string.IsNullOrEmpty(parentDir)) parentDir = "/";
+                var newRemotePath = parentDir.TrimEnd('/') + "/" + _newName;
+
+                await provider.RenameAsync(remotePath, newRemotePath, cancellationToken);
+
+                // 새 전체 URI 경로 생성
+                var uriPrefix = _sourcePath[..(_sourcePath.Length - remotePath.Length)];
+                var newFullPath = uriPrefix + newRemotePath;
+
+                progress?.Report(new FileOperationProgress
+                {
+                    CurrentFile = _newName,
+                    CurrentFileIndex = 1,
+                    TotalFileCount = 1,
+                    Percentage = 100
+                });
+
+                return OperationResult.CreateSuccess(newFullPath);
             }
             else
             {
-                Directory.Move(_sourcePath, newPath);
+                // ── 로컬 이름 변경 ──
+                var directory = Path.GetDirectoryName(_sourcePath);
+                if (string.IsNullOrEmpty(directory))
+                    return OperationResult.CreateFailure("Invalid source path - no directory component");
+
+                var newPath = Path.Combine(directory, _newName);
+
+                bool isFile = File.Exists(_sourcePath);
+                bool isDirectory = Directory.Exists(_sourcePath);
+
+                if (!isFile && !isDirectory)
+                    return OperationResult.CreateFailure($"Source path does not exist: {_sourcePath}");
+
+                if (File.Exists(newPath) || Directory.Exists(newPath))
+                    return OperationResult.CreateFailure($"A file or directory with the name '{_newName}' already exists");
+
+                if (isFile)
+                    File.Move(_sourcePath, newPath);
+                else
+                    Directory.Move(_sourcePath, newPath);
+
+                progress?.Report(new FileOperationProgress
+                {
+                    CurrentFile = _newName,
+                    CurrentFileIndex = 1,
+                    TotalFileCount = 1,
+                    Percentage = 100
+                });
+
+                return OperationResult.CreateSuccess(newPath);
             }
-
-            // Report completion
-            progress?.Report(new FileOperationProgress
-            {
-                CurrentFile = _newName,
-                CurrentFileIndex = 1,
-                TotalFileCount = 1,
-                Percentage = 100
-            });
-
-            return OperationResult.CreateSuccess(newPath);
         }
         catch (OperationCanceledException)
         {
             return OperationResult.CreateFailure("Rename operation was cancelled");
         }
-        catch (UnauthorizedAccessException ex)
-        {
-            return OperationResult.CreateFailure($"Access denied: {ex.Message}");
-        }
-        catch (IOException ex)
-        {
-            return OperationResult.CreateFailure($"I/O error: {ex.Message}");
-        }
         catch (Exception ex)
         {
-            return OperationResult.CreateFailure($"Unexpected error: {ex.Message}");
+            return OperationResult.CreateFailure($"Rename error: {ex.Message}");
         }
     }
 
     /// <inheritdoc/>
     public async Task<OperationResult> UndoAsync(CancellationToken cancellationToken = default)
     {
+        if (_isRemote)
+            return OperationResult.CreateFailure("원격 파일 이름 변경은 되돌릴 수 없습니다.");
+
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
 
             var directory = Path.GetDirectoryName(_sourcePath);
             if (string.IsNullOrEmpty(directory))
-            {
                 return OperationResult.CreateFailure("Invalid source path - no directory component");
-            }
 
             var newPath = Path.Combine(directory, _newName);
 
-            // Check if the renamed file/directory exists
             bool isFile = File.Exists(newPath);
             bool isDirectory = Directory.Exists(newPath);
 
             if (!isFile && !isDirectory)
-            {
                 return OperationResult.CreateFailure($"Cannot undo: renamed item not found at {newPath}");
-            }
 
-            // Check if original name is available
             if (File.Exists(_sourcePath) || Directory.Exists(_sourcePath))
-            {
                 return OperationResult.CreateFailure($"Cannot undo: original name '{_oldName}' is already taken");
-            }
 
-            // Rename back to original
-            if (isFile)
-            {
-                File.Move(newPath, _sourcePath);
-            }
-            else
-            {
-                Directory.Move(newPath, _sourcePath);
-            }
+            if (isFile) File.Move(newPath, _sourcePath);
+            else Directory.Move(newPath, _sourcePath);
 
             return OperationResult.CreateSuccess(_sourcePath);
         }
@@ -153,17 +157,23 @@ public class RenameFileOperation : IFileOperation
         {
             return OperationResult.CreateFailure("Undo operation was cancelled");
         }
-        catch (UnauthorizedAccessException ex)
-        {
-            return OperationResult.CreateFailure($"Access denied during undo: {ex.Message}");
-        }
-        catch (IOException ex)
-        {
-            return OperationResult.CreateFailure($"I/O error during undo: {ex.Message}");
-        }
         catch (Exception ex)
         {
             return OperationResult.CreateFailure($"Unexpected error during undo: {ex.Message}");
         }
+    }
+
+    private static string GetFileName(string path)
+    {
+        if (FileSystemRouter.IsRemotePath(path))
+        {
+            if (Uri.TryCreate(path, UriKind.Absolute, out var uri))
+            {
+                var segments = uri.AbsolutePath.TrimEnd('/').Split('/');
+                return segments.Length > 0 ? Uri.UnescapeDataString(segments[^1]) : path;
+            }
+            return path.TrimEnd('/').Split('/')[^1];
+        }
+        return Path.GetFileName(path);
     }
 }

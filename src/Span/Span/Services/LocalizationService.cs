@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using Windows.Globalization;
 
 namespace Span.Services
 {
@@ -27,7 +28,7 @@ namespace Span.Services
                 ["Delete"] = "Delete",
                 ["Rename"] = "Rename",
                 ["CopyPath"] = "Copy path",
-                ["OpenInExplorer"] = "Open in Explorer",
+                ["OpenInExplorer"] = "Open in Span",
                 ["Properties"] = "Properties",
                 ["AddToFavorites"] = "Add to favorites",
                 ["RemoveFromFavorites"] = "Remove from favorites",
@@ -80,6 +81,9 @@ namespace Span.Services
                 ["NewRichTextDocument"] = "Rich Text Document",
                 ["NewZipArchive"] = "Compressed (zipped) Folder",
 
+                // Edit-with submenu
+                ["EditWith"] = "Edit with...",
+
                 // Compress/Extract
                 ["CompressToZip"] = "Compress to ZIP",
                 ["ExtractHere"] = "Extract here",
@@ -109,7 +113,7 @@ namespace Span.Services
                 ["Delete"] = "\uc0ad\uc81c",
                 ["Rename"] = "\uc774\ub984 \ubc14\uafb8\uae30",
                 ["CopyPath"] = "\uacbd\ub85c \ubcf5\uc0ac",
-                ["OpenInExplorer"] = "\ud30c\uc77c \ud0d0\uc0c9\uae30\uc5d0\uc11c \uc5f4\uae30",
+                ["OpenInExplorer"] = "Span\uc73c\ub85c \uc5f4\uae30",
                 ["Properties"] = "\uc18d\uc131",
                 ["AddToFavorites"] = "\uc990\uaca8\ucc3e\uae30\uc5d0 \ucd94\uac00",
                 ["RemoveFromFavorites"] = "\uc990\uaca8\ucc3e\uae30\uc5d0\uc11c \uc81c\uac70",
@@ -162,6 +166,9 @@ namespace Span.Services
                 ["NewRichTextDocument"] = "\uc11c\uc2dd \uc788\ub294 \ud14d\uc2a4\ud2b8 \ubb38\uc11c",
                 ["NewZipArchive"] = "\uc555\ucd95(zip) \ud3f4\ub354",
 
+                // Edit-with submenu
+                ["EditWith"] = "\ud3b8\uc9d1 \ud504\ub85c\uadf8\ub7a8",
+
                 // Compress/Extract
                 ["CompressToZip"] = "ZIP\uc73c\ub85c \uc555\ucd95",
                 ["ExtractHere"] = "\uc5ec\uae30\uc5d0 \uc555\ucd95 \ud480\uae30",
@@ -190,7 +197,7 @@ namespace Span.Services
                 ["Delete"] = "\u524a\u9664",
                 ["Rename"] = "\u540d\u524d\u306e\u5909\u66f4",
                 ["CopyPath"] = "\u30d1\u30b9\u3092\u30b3\u30d4\u30fc",
-                ["OpenInExplorer"] = "\u30a8\u30af\u30b9\u30d7\u30ed\u30fc\u30e9\u30fc\u3067\u958b\u304f",
+                ["OpenInExplorer"] = "Span\u3067\u958b\u304f",
                 ["Properties"] = "\u30d7\u30ed\u30d1\u30c6\u30a3",
                 ["AddToFavorites"] = "\u304a\u6c17\u306b\u5165\u308a\u306b\u8ffd\u52a0",
                 ["RemoveFromFavorites"] = "\u304a\u6c17\u306b\u5165\u308a\u304b\u3089\u524a\u9664",
@@ -237,6 +244,9 @@ namespace Span.Services
                 ["NewRichTextDocument"] = "\u30ea\u30c3\u30c1\u30c6\u30ad\u30b9\u30c8 \u30c9\u30ad\u30e5\u30e1\u30f3\u30c8",
                 ["NewZipArchive"] = "\u5727\u7e2e(zip)\u30d5\u30a9\u30eb\u30c0\u30fc",
 
+                // Edit-with submenu
+                ["EditWith"] = "\u7de8\u96c6\u30d7\u30ed\u30b0\u30e9\u30e0",
+
                 // Compress/Extract
                 ["CompressToZip"] = "ZIP\u306b\u5727\u7e2e",
                 ["ExtractHere"] = "\u3053\u3053\u306b\u5c55\u958b",
@@ -261,6 +271,7 @@ namespace Span.Services
         {
             var culture = CultureInfo.CurrentUICulture;
             _language = ResolveLanguage(culture.TwoLetterISOLanguageName);
+            ApplyPrimaryLanguageOverride(_language);
         }
 
         public string Language
@@ -272,6 +283,7 @@ namespace Span.Services
                 if (_language != resolved)
                 {
                     _language = resolved;
+                    ApplyPrimaryLanguageOverride(resolved);
                     LanguageChanged?.Invoke();
                 }
             }
@@ -296,6 +308,28 @@ namespace Span.Services
                 "ja" => "ja",
                 _ => "en"
             };
+        }
+
+        /// <summary>
+        /// Set Windows.Globalization.ApplicationLanguages.PrimaryLanguageOverride
+        /// so that system dialogs (e.g. Properties) called from this app
+        /// respect the app's configured language instead of defaulting to English.
+        /// </summary>
+        private static void ApplyPrimaryLanguageOverride(string lang)
+        {
+            try
+            {
+                ApplicationLanguages.PrimaryLanguageOverride = lang switch
+                {
+                    "ko" => "ko-KR",
+                    "ja" => "ja-JP",
+                    _ => "" // empty = use system default
+                };
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[LocalizationService] PrimaryLanguageOverride failed: {ex.Message}");
+            }
         }
     }
 }

@@ -1,10 +1,12 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using Span.Models;
 using System.Threading.Tasks;
 using Span.Services;
 using System.Linq;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Span.ViewModels
 {
@@ -124,6 +126,45 @@ namespace Span.ViewModels
 
                     PopulateChildren(items, token);
                 }
+                else if (FileSystemRouter.IsRemotePath(folderPath))
+                {
+                    // ── 원격 경로: FileSystemRouter에서 provider 조회 ──
+                    Helpers.DebugLogger.Log($"[FolderViewModel.EnsureChildrenLoadedAsync] Loading from remote: {folderPath}");
+
+                    var router = App.Current.Services.GetRequiredService<FileSystemRouter>();
+                    var provider = router.GetConnectionForPath(folderPath);
+                    if (provider == null)
+                    {
+                        Helpers.DebugLogger.Log($"[FolderViewModel.EnsureChildrenLoadedAsync] No active connection for: {folderPath}");
+                        IsLoading = false;
+                        IsEmpty = true;
+                        return;
+                    }
+
+                    var remotePath = FileSystemRouter.ExtractRemotePath(folderPath);
+                    var uriPrefix = FileSystemRouter.GetUriPrefix(folderPath);
+                    var remoteItems = await provider.GetItemsAsync(remotePath, token);
+
+                    var items = new List<FileSystemViewModel>();
+                    foreach (var item in remoteItems)
+                    {
+                        if (token.IsCancellationRequested) break;
+                        var fullPath = uriPrefix + item.Path;
+                        if (item is FolderItem folder)
+                        {
+                            folder.Path = fullPath;
+                            items.Add(new FolderViewModel(folder, _fileService));
+                        }
+                        else if (item is FileItem file)
+                        {
+                            file.Path = fullPath;
+                            items.Add(new FileViewModel(file));
+                        }
+                    }
+
+                    if (!token.IsCancellationRequested)
+                        PopulateChildren(items, token);
+                }
                 else
                 {
                     // ── Cache 미스: 디스크에서 로드 ──
@@ -184,6 +225,12 @@ namespace Span.ViewModels
             catch (TaskCanceledException)
             {
                 Helpers.DebugLogger.Log($"[FolderViewModel.EnsureChildrenLoadedAsync] TaskCanceledException caught");
+            }
+            catch (Exception ex)
+            {
+                // 원격 연결 실패 등 — _isLoaded 리셋하여 재시도 가능하게 함
+                Helpers.DebugLogger.Log($"[FolderViewModel.EnsureChildrenLoadedAsync] 예외 발생: {ex.Message}");
+                _isLoaded = false;
             }
             finally
             {

@@ -217,18 +217,30 @@
 
             <!-- Commands -->
             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="2" Margin="8,0,0,0">
-                <Button Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="새 폴더 (Ctrl+Shift+N)" Click="OnNewFolderClick">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <FontIcon Glyph="&#xE8B7;" FontSize="16"/>
-                        <TextBlock Text="새 폴더" FontSize="12"/>
-                    </StackPanel>
-                </Button>
+                <!-- New Folder (split button: click=new folder, dropdown=new item menu) -->
+                <StackPanel Orientation="Horizontal" Spacing="0"
+                            Background="Transparent" CornerRadius="4">
+                    <Button Style="{StaticResource UnifiedButtonStyle}"
+                            ToolTipService.ToolTip="새 폴더 (Ctrl+Shift+N)"
+                            Click="OnNewFolderClick"
+                            Padding="8,4,4,4">
+                        <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="&#xED59;" FontSize="16"/>
+                    </Button>
+                    <Button x:Name="NewItemDropdown"
+                            Style="{StaticResource UnifiedButtonStyle}"
+                            ToolTipService.ToolTip="새로 만들기..."
+                            Click="OnNewItemDropdownClick"
+                            Padding="2,4,4,4"
+                            MinWidth="0">
+                        <FontIcon Glyph="&#xE70D;" FontSize="8"/>
+                    </Button>
+                </StackPanel>
                 <Rectangle Width="1" Height="20" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="4,0"/>
-                <Button Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="잘라내기 (Ctrl+X)" Click="OnCutClick"><FontIcon Glyph="&#xE8C6;"/></Button>
-                <Button Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="복사 (Ctrl+C)" Click="OnCopyClick"><FontIcon Glyph="&#xE8C8;"/></Button>
-                <Button Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="붙여넣기 (Ctrl+V)" Click="OnPasteClick"><FontIcon Glyph="&#xE77F;"/></Button>
-                <Button Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="이름 바꾸기 (F2)" Click="OnRenameClick"><FontIcon Glyph="&#xE70F;"/></Button>
-                <Button Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="삭제 (Del)" Click="OnDeleteClick"><FontIcon Glyph="&#xE74D;"/></Button>
+                <Button x:Name="ToolbarCutButton" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="잘라내기 (Ctrl+X)" Click="OnCutClick" IsEnabled="False"><FontIcon Glyph="&#xE8C6;"/></Button>
+                <Button x:Name="ToolbarCopyButton" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="복사 (Ctrl+C)" Click="OnCopyClick" IsEnabled="False"><FontIcon Glyph="&#xE8C8;"/></Button>
+                <Button x:Name="ToolbarPasteButton" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="붙여넣기 (Ctrl+V)" Click="OnPasteClick" IsEnabled="False"><FontIcon Glyph="&#xE77F;"/></Button>
+                <Button x:Name="ToolbarRenameButton" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="이름 바꾸기 (F2)" Click="OnRenameClick" IsEnabled="False"><FontIcon Glyph="&#xE70F;"/></Button>
+                <Button x:Name="ToolbarDeleteButton" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="삭제 (Del)" Click="OnDeleteClick" IsEnabled="False"><FontIcon Glyph="&#xE74D;"/></Button>
                 <Rectangle Width="1" Height="20" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="4,0"/>
 
                 <!-- Sort Button with Dropdown -->
@@ -370,52 +382,81 @@
                             <TextBlock Grid.Column="1" Text="홈" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
                         </Grid>
 
-                        <!-- Favorites sidebar section (toggled via Settings > General) -->
-                        <StackPanel x:Name="FavoritesSidebarSection" Visibility="Collapsed">
-                            <!-- Separator -->
-                            <Rectangle Height="1" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="12,12"/>
+                        <!-- Separator -->
+                        <Rectangle Height="1" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="12,12"/>
 
-                            <!-- Section 2: 즐겨찾기 (Drop Target) -->
-                            <StackPanel AllowDrop="True"
-                                        DragOver="OnFavoritesDragOver"
-                                        Drop="OnFavoritesDrop">
-                            <TextBlock Text="즐겨찾기"
-                                       Style="{StaticResource CaptionTextBlockStyle}"
-                                       Foreground="{ThemeResource SpanTextTertiaryBrush}"
-                                       FontWeight="SemiBold"
-                                       Margin="16,0,16,8"/>
+                        <!-- Section 2: 즐겨찾기 (Drop Target) -->
+                        <StackPanel AllowDrop="True"
+                                    DragOver="OnFavoritesDragOver"
+                                    Drop="OnFavoritesDrop">
+                        <TextBlock Text="즐겨찾기"
+                                   Style="{StaticResource CaptionTextBlockStyle}"
+                                   Foreground="{ThemeResource SpanTextTertiaryBrush}"
+                                   FontWeight="SemiBold"
+                                   Margin="16,0,16,8"/>
 
-                            <!-- Favorites Tree (expandable sidebar tree with lazy-loaded subfolders) -->
-                            <TreeView x:Name="FavoritesTreeView"
-                                      SelectionMode="Single"
-                                      ItemInvoked="OnFavoritesTreeItemInvoked"
-                                      Expanding="OnFavoritesTreeExpanding"
-                                      RightTapped="OnFavoritesTreeRightTapped"
-                                      CanDragItems="False"
-                                      CanReorderItems="False">
-                                <TreeView.ItemContainerStyle>
-                                    <Style TargetType="TreeViewItem">
-                                        <Setter Property="Padding" Value="0"/>
-                                        <Setter Property="MinHeight" Value="26"/>
-                                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                                    </Style>
-                                </TreeView.ItemContainerStyle>
-                                <TreeView.ItemTemplate>
-                                    <DataTemplate x:DataType="TreeViewNode">
-                                        <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <TextBlock Text="{Binding Content.IconGlyph}"
-                                                       FontFamily="/Assets/Fonts/remixicon.ttf#remixicon"
-                                                       FontSize="16"
-                                                       Foreground="{Binding Content.IconBrush}"
-                                                       VerticalAlignment="Center"/>
-                                            <TextBlock Text="{Binding Content.Name}"
-                                                       FontSize="13"
-                                                       VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                    </DataTemplate>
-                                </TreeView.ItemTemplate>
-                            </TreeView>
-                            </StackPanel>
+                        <!-- Flat Favorites List (default, no tree expansion) -->
+                        <ItemsControl x:Name="FavoritesFlatList"
+                                      ItemsSource="{x:Bind ViewModel.Favorites, Mode=OneWay}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="models:FavoriteItem">
+                                    <Grid Height="26" Padding="12,0,8,0"
+                                          Background="Transparent"
+                                          Tapped="OnFavoritesFlatItemTapped"
+                                          RightTapped="OnFavoritesFlatItemRightTapped"
+                                          PointerEntered="OnSidebarItemPointerEntered"
+                                          PointerExited="OnSidebarItemPointerExited">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0"
+                                                   Text="{x:Bind IconGlyph}"
+                                                   FontFamily="/Assets/Fonts/remixicon.ttf#remixicon"
+                                                   FontSize="16"
+                                                   Foreground="{x:Bind IconBrush}"
+                                                   VerticalAlignment="Center"
+                                                   Margin="0,0,12,0"/>
+                                        <TextBlock Grid.Column="1"
+                                                   Text="{x:Bind Name}"
+                                                   FontSize="13"
+                                                   VerticalAlignment="Center"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- Favorites Tree (expandable sidebar tree with lazy-loaded subfolders) -->
+                        <TreeView x:Name="FavoritesTreeView"
+                                  Visibility="Collapsed"
+                                  SelectionMode="Single"
+                                  ItemInvoked="OnFavoritesTreeItemInvoked"
+                                  Expanding="OnFavoritesTreeExpanding"
+                                  RightTapped="OnFavoritesTreeRightTapped"
+                                  CanDragItems="False"
+                                  CanReorderItems="False">
+                            <TreeView.ItemContainerStyle>
+                                <Style TargetType="TreeViewItem">
+                                    <Setter Property="Padding" Value="0"/>
+                                    <Setter Property="MinHeight" Value="26"/>
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                </Style>
+                            </TreeView.ItemContainerStyle>
+                            <TreeView.ItemTemplate>
+                                <DataTemplate x:DataType="TreeViewNode">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <TextBlock Text="{Binding Content.IconGlyph}"
+                                                   FontFamily="/Assets/Fonts/remixicon.ttf#remixicon"
+                                                   FontSize="16"
+                                                   Foreground="{Binding Content.IconBrush}"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding Content.Name}"
+                                                   FontSize="13"
+                                                   VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </TreeView.ItemTemplate>
+                        </TreeView>
                         </StackPanel>
 
                         <!-- Separator -->

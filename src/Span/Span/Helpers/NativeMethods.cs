@@ -68,5 +68,75 @@ namespace Span.Helpers
             public int Right;
             public int Bottom;
         }
+
+        // ── mpr.dll — 네트워크 리소스 열거 ──
+
+        [DllImport("mpr.dll", CharSet = CharSet.Unicode)]
+        internal static extern int WNetOpenEnumW(
+            int dwScope, int dwType, int dwUsage,
+            IntPtr lpNetResource, out IntPtr lphEnum);
+
+        [DllImport("mpr.dll", CharSet = CharSet.Unicode)]
+        internal static extern int WNetEnumResourceW(
+            IntPtr hEnum, ref int lpcCount,
+            IntPtr lpBuffer, ref int lpBufferSize);
+
+        [DllImport("mpr.dll")]
+        internal static extern int WNetCloseEnum(IntPtr hEnum);
+
+        [DllImport("mpr.dll", CharSet = CharSet.Unicode)]
+        internal static extern int WNetAddConnection2W(
+            ref NETRESOURCE lpNetResource,
+            string? lpPassword, string? lpUsername, int dwFlags);
+
+        // WNet constants
+        internal const int RESOURCE_GLOBALNET = 0x00000002;
+        internal const int RESOURCETYPE_ANY = 0x00000000;
+        internal const int RESOURCETYPE_DISK = 0x00000001;
+        internal const int RESOURCEUSAGE_CONTAINER = 0x00000002;
+        internal const int RESOURCEDISPLAYTYPE_SERVER = 0x00000002;
+        internal const int RESOURCEDISPLAYTYPE_SHARE = 0x00000003;
+        internal const int NO_ERROR = 0;
+        internal const int ERROR_NO_MORE_ITEMS = 259;
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        internal struct NETRESOURCE
+        {
+            public int dwScope;
+            public int dwType;
+            public int dwDisplayType;
+            public int dwUsage;
+            [MarshalAs(UnmanagedType.LPWStr)] public string? lpLocalName;
+            [MarshalAs(UnmanagedType.LPWStr)] public string? lpRemoteName;
+            [MarshalAs(UnmanagedType.LPWStr)] public string? lpComment;
+            [MarshalAs(UnmanagedType.LPWStr)] public string? lpProvider;
+        }
+
+        // ── netapi32.dll — 서버 공유 목록 ──
+
+        [DllImport("netapi32.dll", CharSet = CharSet.Unicode)]
+        internal static extern int NetShareEnum(
+            string serverName, int level,
+            out IntPtr bufPtr, int prefMaxLen,
+            out int entriesRead, out int totalEntries,
+            ref int resumeHandle);
+
+        [DllImport("netapi32.dll")]
+        internal static extern int NetApiBufferFree(IntPtr buffer);
+
+        internal const int MAX_PREFERRED_LENGTH = -1;
+        internal const int NERR_Success = 0;
+
+        // STYPE flags
+        internal const uint STYPE_DISKTREE = 0x00000000;
+        internal const uint STYPE_SPECIAL = 0x80000000;
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        internal struct SHARE_INFO_1
+        {
+            [MarshalAs(UnmanagedType.LPWStr)] public string shi1_netname;
+            public uint shi1_type;
+            [MarshalAs(UnmanagedType.LPWStr)] public string? shi1_remark;
+        }
     }
 }

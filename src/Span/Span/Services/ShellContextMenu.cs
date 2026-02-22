@@ -247,7 +247,8 @@ namespace Span.Services
             "open", "openas", "opencommand", "runas",
             "cut", "copy", "paste", "link",
             "delete", "rename", "properties",
-            "explore", "find"
+            "explore", "find",
+            "copyaspath"  // Span has its own "Copy path"
         };
 
         #endregion
