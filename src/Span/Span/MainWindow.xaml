@@ -354,12 +354,12 @@
         <!-- 3. Main Area (Sidebar + Content) -->
         <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="200"/> <!-- Sidebar -->
+                <ColumnDefinition x:Name="SidebarCol" Width="200"/> <!-- Sidebar -->
                 <ColumnDefinition Width="*"/>   <!-- Content -->
             </Grid.ColumnDefinitions>
 
             <!-- Sidebar - Hybrid 3-Section Layout -->
-            <Border Grid.Column="0" Background="{ThemeResource SpanBgLayer1Brush}" BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="0,0,1,0">
+            <Border x:Name="SidebarBorder" Grid.Column="0" Background="{ThemeResource SpanBgLayer1Brush}" BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="0,0,1,0">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*"/>
@@ -509,7 +509,7 @@
                       Padding="8,4">
                     <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Left">
                         <Button x:Name="HelpButton" Style="{StaticResource UnifiedButtonStyle}"
-                                ToolTipService.ToolTip="도움말 (F1)" Click="OnHelpClick"
+                                ToolTipService.ToolTip="단축키 도움말 (Shift+?)" Click="OnHelpClick"
                                 Padding="6,4" MinWidth="0" MinHeight="0">
                             <FontIcon Glyph="&#xE897;" FontSize="14"/>
                         </Button>
@@ -967,6 +967,10 @@
                             <!-- Home View (Left only) -->
                             <views:HomeModeView x:Name="HomeView"
                                                 Visibility="Collapsed"/>
+
+                            <!-- Settings View (Left only) -->
+                            <views:SettingsModeView x:Name="SettingsView"
+                                                    Visibility="Collapsed"/>
                         </Grid>
 
                         <!-- Preview Splitter (Left) -->
@@ -1354,6 +1358,15 @@
                                                     HorizontalAlignment="Right" VerticalAlignment="Bottom"
                                                     Canvas.ZIndex="100"
                                                     Margin="0,0,16,8"/>
+
+        <!-- Help Overlay (Shift+? / F1) -->
+        <Grid x:Name="HelpOverlay" Grid.RowSpan="4" Visibility="Collapsed"
+              Canvas.ZIndex="200"
+              Background="#80000000"
+              PointerPressed="HelpOverlay_PointerPressed">
+            <views:HelpFlyoutContent HorizontalAlignment="Center" VerticalAlignment="Center"
+                                      Margin="40"/>
+        </Grid>
 
         <!-- Toast Notification Overlay -->
         <Border x:Name="ToastOverlay" Grid.Row="2"

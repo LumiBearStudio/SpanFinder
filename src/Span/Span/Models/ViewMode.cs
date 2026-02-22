@@ -38,6 +38,11 @@ namespace Span.Models
         /// <summary>
         /// Home: 즐겨찾기 및 빠른 액세스 홈 화면
         /// </summary>
-        Home = 6
+        Home = 6,
+
+        /// <summary>
+        /// Settings: 임베디드 설정 페이지
+        /// </summary>
+        Settings = 7
     }
 }

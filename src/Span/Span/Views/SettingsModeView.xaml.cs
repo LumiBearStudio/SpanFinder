@@ -7,15 +7,19 @@ using System.Linq;
 
 namespace Span.Views;
 
-public sealed partial class SettingsDialog : ContentDialog
+public sealed partial class SettingsModeView : UserControl
 {
     private readonly ScrollViewer[] _sections;
     private readonly Services.SettingsService _settings;
     private DispatcherTimer? _updateTimer;
     private int _updateStage;
-    private bool _isLoading = true; // Suppress events during initial load (true by default to block InitializeComponent events)
+    private bool _isLoading = true;
 
-    // Search keyword map: section index -> list of searchable keywords
+    /// <summary>
+    /// 뒤로가기 요청 이벤트 (MainWindow에서 구독)
+    /// </summary>
+    public event EventHandler? BackRequested;
+
     private readonly Dictionary<int, List<string>> _searchKeywords = new()
     {
         { 0, new() { "일반", "언어", "language", "시작", "startup", "시스템 트레이", "tray", "즐겨찾기", "favorites" } },
@@ -25,7 +29,7 @@ public sealed partial class SettingsDialog : ContentDialog
         { 4, new() { "정보", "about", "라이선스", "license", "업데이트", "update", "pro", "upgrade", "coffee", "후원", "github", "링크" } },
     };
 
-    public SettingsDialog()
+    public SettingsModeView()
     {
         this.InitializeComponent();
 
@@ -43,6 +47,21 @@ public sealed partial class SettingsDialog : ContentDialog
         WireEvents();
     }
 
+    /// <summary>
+    /// 설정 페이지가 다시 표시될 때 최신 설정값으로 새로고침
+    /// </summary>
+    public void RefreshSettings()
+    {
+        LoadSettingsToUI();
+    }
+
+    // ── Back button ──
+
+    private void OnBackClick(object sender, RoutedEventArgs e)
+    {
+        BackRequested?.Invoke(this, EventArgs.Empty);
+    }
+
     // ── Load saved settings into UI controls ──
 
     private void LoadSettingsToUI()
@@ -57,7 +76,7 @@ public sealed partial class SettingsDialog : ContentDialog
                 "en" => 1,
                 "ko" => 2,
                 "ja" => 3,
-                _ => 0 // system
+                _ => 0
             };
 
             var startup = _settings.StartupBehavior;
@@ -84,7 +103,7 @@ public sealed partial class SettingsDialog : ContentDialog
             {
                 "phosphor" => 1,
                 "tabler" => 2,
-                _ => 0 // remix
+                _ => 0
             };
 
             var font = _settings.FontFamily;
@@ -92,7 +111,7 @@ public sealed partial class SettingsDialog : ContentDialog
             {
                 "Cascadia Code" => 1,
                 "Consolas" => 2,
-                _ => 0 // Segoe UI Variable
+                _ => 0
             };
 
             // Browsing
@@ -110,7 +129,7 @@ public sealed partial class SettingsDialog : ContentDialog
                 10 => 0,
                 20 => 1,
                 100 => 3,
-                _ => 2 // 50
+                _ => 2
             };
 
             // Tools
@@ -119,7 +138,7 @@ public sealed partial class SettingsDialog : ContentDialog
             {
                 "powershell" => 1,
                 "cmd" => 2,
-                _ => 0 // wt
+                _ => 0
             };
             ShellExtrasToggle.IsOn = _settings.ShowWindowsShellExtras;
             DeveloperMenuToggle.IsOn = _settings.ShowDeveloperMenu;
@@ -136,31 +155,21 @@ public sealed partial class SettingsDialog : ContentDialog
 
     private void WireEvents()
     {
-        // General — Language
-        // (handled by LanguageCombo_SelectionChanged)
-
-        // General — Startup
         StartupRestore.Checked += (s, e) => { if (!_isLoading) _settings.StartupBehavior = 0; };
         StartupHome.Checked += (s, e) => { if (!_isLoading) _settings.StartupBehavior = 1; };
         StartupFolder.Checked += (s, e) => { if (!_isLoading) _settings.StartupBehavior = 2; };
 
-        // General — Favorites Tree
         FavoritesTreeToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowFavoritesTree = FavoritesTreeToggle.IsOn; };
-
-        // General — System Tray
         SystemTrayToggle.Toggled += (s, e) => { if (!_isLoading) _settings.MinimizeToTray = SystemTrayToggle.IsOn; };
 
-        // Appearance — Theme
         ThemeSystem.Checked += (s, e) => { if (!_isLoading) _settings.Theme = "system"; };
         ThemeLight.Checked += (s, e) => { if (!_isLoading) _settings.Theme = "light"; };
         ThemeDark.Checked += (s, e) => { if (!_isLoading) _settings.Theme = "dark"; };
 
-        // Appearance — Density
         DensityCompact.Checked += (s, e) => { if (!_isLoading) _settings.Density = "compact"; };
         DensityComfortable.Checked += (s, e) => { if (!_isLoading) _settings.Density = "comfortable"; };
         DensitySpacious.Checked += (s, e) => { if (!_isLoading) _settings.Density = "spacious"; };
 
-        // Appearance — Icon Pack
         IconPackCombo.SelectionChanged += (s, e) =>
         {
             if (_isLoading) return;
@@ -174,7 +183,6 @@ public sealed partial class SettingsDialog : ContentDialog
                 IconPackRestartNotice.Visibility = Visibility.Visible;
         };
 
-        // Appearance — Font
         FontCombo.SelectionChanged += (s, e) =>
         {
             if (_isLoading) return;
@@ -186,7 +194,6 @@ public sealed partial class SettingsDialog : ContentDialog
             };
         };
 
-        // Browsing toggles
         ShowHiddenToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowHiddenFiles = ShowHiddenToggle.IsOn; };
         ShowExtensionsToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowFileExtensions = ShowExtensionsToggle.IsOn; };
         CheckboxToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowCheckboxes = CheckboxToggle.IsOn; };
@@ -194,14 +201,12 @@ public sealed partial class SettingsDialog : ContentDialog
         QuickLookToggle.Toggled += (s, e) => { if (!_isLoading) _settings.EnableQuickLook = QuickLookToggle.IsOn; };
         ConfirmDeleteToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ConfirmDelete = ConfirmDeleteToggle.IsOn; };
 
-        // Browsing — Miller click
         MillerClickCombo.SelectionChanged += (s, e) =>
         {
             if (_isLoading) return;
             _settings.MillerClickBehavior = MillerClickCombo.SelectedIndex == 1 ? "double" : "single";
         };
 
-        // Browsing — Undo history
         UndoHistoryCombo.SelectionChanged += (s, e) =>
         {
             if (_isLoading) return;
@@ -214,7 +219,6 @@ public sealed partial class SettingsDialog : ContentDialog
             };
         };
 
-        // Tools
         TerminalCombo.SelectionChanged += (s, e) =>
         {
             if (_isLoading) return;
@@ -231,6 +235,23 @@ public sealed partial class SettingsDialog : ContentDialog
         ContextMenuToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowContextMenu = ContextMenuToggle.IsOn; };
     }
 
+    // ── Responsive layout ──
+
+    private void SettingsNav_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        var width = e.NewSize.Width;
+        if (width < 500)
+        {
+            SettingsNav.PaneDisplayMode = NavigationViewPaneDisplayMode.Top;
+            SettingsNav.IsPaneOpen = true;
+        }
+        else
+        {
+            SettingsNav.PaneDisplayMode = NavigationViewPaneDisplayMode.Left;
+            SettingsNav.IsPaneOpen = true;
+        }
+    }
+
     // ── Navigation ──
 
     private void SettingsNav_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
@@ -244,9 +265,7 @@ public sealed partial class SettingsDialog : ContentDialog
     private void ShowSection(string tag)
     {
         foreach (var section in _sections)
-        {
             section.Visibility = Visibility.Collapsed;
-        }
 
         var target = tag switch
         {
@@ -284,7 +303,7 @@ public sealed partial class SettingsDialog : ContentDialog
         }
     }
 
-    // ── Update check animation (3-stage) ──
+    // ── Update check animation ──
 
     private void CheckForUpdates_Click(object sender, RoutedEventArgs e)
     {
@@ -331,13 +350,9 @@ public sealed partial class SettingsDialog : ContentDialog
         if (string.IsNullOrEmpty(query))
         {
             if (SettingsNav.SelectedItem is NavigationViewItem navItem && navItem.Tag is string tag)
-            {
                 ShowSection(tag);
-            }
             else
-            {
                 ShowSection("General");
-            }
             return;
         }
 
@@ -356,9 +371,7 @@ public sealed partial class SettingsDialog : ContentDialog
         if (!anyMatch)
         {
             foreach (var section in _sections)
-            {
                 section.Visibility = Visibility.Visible;
-            }
         }
     }
 }

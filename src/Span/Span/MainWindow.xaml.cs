@@ -193,6 +193,7 @@ namespace Span
             DetailsView.ViewModel = ViewModel.Explorer;
             IconView.ViewModel = ViewModel.Explorer;
             HomeView.MainViewModel = ViewModel;
+            SettingsView.BackRequested += (s, e) => ViewModel.ExitSettings();
 
             // Breadcrumb ItemsSource — x:Bind 제거 후 code-behind에서 직접 설정
             AddressBreadcrumbBar.ItemsSource = ViewModel.Explorer.PathSegments;
@@ -909,13 +910,48 @@ namespace Span
         /// PropertyChanged 파이프라인을 거치지 않으므로 레이아웃 재계산 최소화.
         /// 또한 뷰 모드 전환 시 해당 뷰의 ViewModel을 lazy 갱신.
         /// </summary>
+        private double _savedSidebarWidth = 200;
+        private bool _sidebarHiddenForSpecialMode;
+
         private void SetViewModeVisibility(ViewMode mode)
         {
+            bool isSpecialMode = mode == ViewMode.Settings;
+
             // HOST 단위 Visibility
             MillerTabsHost.Visibility = mode == ViewMode.MillerColumns ? Visibility.Visible : Visibility.Collapsed;
             DetailsTabsHost.Visibility = mode == ViewMode.Details ? Visibility.Visible : Visibility.Collapsed;
             IconTabsHost.Visibility = Helpers.ViewModeExtensions.IsIconMode(mode) ? Visibility.Visible : Visibility.Collapsed;
             HomeView.Visibility = mode == ViewMode.Home ? Visibility.Visible : Visibility.Collapsed;
+            SettingsView.Visibility = mode == ViewMode.Settings ? Visibility.Visible : Visibility.Collapsed;
+            if (mode == ViewMode.Settings) SettingsView.RefreshSettings();
+
+            // Settings/Home 모드: 사이드바 + 프리뷰 패널 숨김
+            if (isSpecialMode)
+            {
+                if (!_sidebarHiddenForSpecialMode)
+                {
+                    _savedSidebarWidth = SidebarCol.Width.Value;
+                    _sidebarHiddenForSpecialMode = true;
+                }
+                SidebarBorder.Visibility = Visibility.Collapsed;
+                SidebarCol.Width = new GridLength(0);
+                LeftPreviewSplitterCol.Width = new GridLength(0);
+                LeftPreviewCol.Width = new GridLength(0);
+            }
+            else
+            {
+                if (_sidebarHiddenForSpecialMode)
+                {
+                    SidebarBorder.Visibility = Visibility.Visible;
+                    SidebarCol.Width = new GridLength(_savedSidebarWidth);
+                    _sidebarHiddenForSpecialMode = false;
+                }
+                // 프리뷰 패널 복원 (활성화 상태에 따라)
+                if (ViewModel.IsLeftPreviewEnabled)
+                {
+                    LeftPreviewSplitterCol.Width = new GridLength(2, GridUnitType.Pixel);
+                }
+            }
 
             // Lazy 패널 생성 + 활성 패널 Visible 보장
             var tabId = ViewModel.ActiveTab?.Id;
@@ -923,7 +959,6 @@ namespace Span
             {
                 if (!_tabDetailsPanels.ContainsKey(tabId))
                     CreateDetailsPanelForTab(ViewModel.ActiveTab!);
-                // 활성 탭 패널을 Visible로 (CreateDetailsPanelForTab은 Collapsed로 생성)
                 if (_tabDetailsPanels.TryGetValue(tabId, out var dp))
                     dp.Visibility = Visibility.Visible;
                 _activeDetailsTabId = tabId;
@@ -939,7 +974,7 @@ namespace Span
 
             // Breadcrumb lazy 갱신 (ResubscribeLeftExplorer에서 skip된 경우 보정)
             var explorer = ViewModel.Explorer;
-            if (!ViewModel.IsSplitViewEnabled && mode != ViewMode.Home)
+            if (!ViewModel.IsSplitViewEnabled && mode != ViewMode.Home && mode != ViewMode.Settings)
             {
                 if (AddressBreadcrumbBar.ItemsSource != explorer?.PathSegments)
                     AddressBreadcrumbBar.ItemsSource = explorer?.PathSegments;
@@ -2650,6 +2685,57 @@ namespace Span
             var alt = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Menu)
                       .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
 
+            // Help 오버레이: 열려있으면 Esc/아무 키로 닫기
+            if (_isHelpOpen)
+            {
+                _isHelpOpen = false;
+                HelpOverlay.Visibility = Visibility.Collapsed;
+                e.Handled = true;
+                return;
+            }
+
+            // F1 또는 Shift+? (OEM_2 = /) — Help 오버레이 토글 (어디서든 동작)
+            if (e.Key == Windows.System.VirtualKey.F1 ||
+                (shift && !ctrl && !alt && e.Key == (Windows.System.VirtualKey)191)) // VK_OEM_2 = /? key
+            {
+                ToggleHelpOverlay();
+                e.Handled = true;
+                return;
+            }
+
+            // Settings/Home 모드: 파일 조작 단축키 차단, 뷰 전환/탭/Escape만 허용
+            if (ViewModel.CurrentViewMode == ViewMode.Settings || ViewModel.CurrentViewMode == ViewMode.Home)
+            {
+                if (e.Key == Windows.System.VirtualKey.Escape && ViewModel.CurrentViewMode == ViewMode.Settings)
+                {
+                    ViewModel.ExitSettings();
+                    e.Handled = true;
+                    return;
+                }
+                if (ctrl)
+                {
+                    switch (e.Key)
+                    {
+                        case Windows.System.VirtualKey.Number1: // Ctrl+1: Miller
+                        case Windows.System.VirtualKey.Number2: // Ctrl+2: Details
+                        case Windows.System.VirtualKey.Number3: // Ctrl+3: Icons
+                        case (Windows.System.VirtualKey)188:    // Ctrl+,: Settings
+                        case Windows.System.VirtualKey.T:       // Ctrl+T: New Tab
+                        case Windows.System.VirtualKey.W:       // Ctrl+W: Close Tab
+                        case Windows.System.VirtualKey.L:       // Ctrl+L: Address Bar
+                        case Windows.System.VirtualKey.N:       // Ctrl+N: New Window
+                            break; // 허용 — fall through to main handler
+                        default:
+                            return; // 그 외 Ctrl 단축키 차단
+                    }
+                }
+                else if (!alt)
+                {
+                    return; // Ctrl/Alt 없는 키(Delete, F2, F5 등) 차단
+                }
+                // Alt 키 조합(Alt+Left/Right 등)은 허용
+            }
+
             // Alt+Left/Right: Back/Forward navigation (highest priority)
             // Alt+Enter: Show Properties dialog
             if (alt && !ctrl && !shift)
@@ -2811,6 +2897,12 @@ namespace Span
                     case (Windows.System.VirtualKey)192: // VK_OEM_3 = backtick/tilde key
                         // Ctrl+`: Open terminal
                         HandleOpenTerminal();
+                        e.Handled = true;
+                        break;
+
+                    case (Windows.System.VirtualKey)188: // VK_OEM_COMMA
+                        // Ctrl+,: Settings
+                        ViewModel.SwitchViewMode(ViewMode.Settings);
                         e.Handled = true;
                         break;
 
@@ -7369,41 +7461,32 @@ namespace Span
         //  Help / Settings / Log
         // =================================================================
 
-        private Views.HelpFlyoutContent? _helpFlyout;
         private bool _isHelpOpen = false;
+
+        private void ToggleHelpOverlay()
+        {
+            _isHelpOpen = !_isHelpOpen;
+            HelpOverlay.Visibility = _isHelpOpen ? Visibility.Visible : Visibility.Collapsed;
+        }
 
         private void OnHelpClick(object sender, RoutedEventArgs e)
         {
+            ToggleHelpOverlay();
+        }
+
+        private void HelpOverlay_PointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
             if (_isHelpOpen)
             {
-                HelpButton.Flyout?.Hide();
                 _isHelpOpen = false;
-                return;
+                HelpOverlay.Visibility = Visibility.Collapsed;
+                e.Handled = true;
             }
-
-            if (HelpButton.Flyout == null)
-            {
-                _helpFlyout = new Views.HelpFlyoutContent();
-                var flyout = new Flyout
-                {
-                    Content = _helpFlyout,
-                    Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.BottomEdgeAlignedRight
-                };
-                flyout.Closed += (s, args) => _isHelpOpen = false;
-                HelpButton.Flyout = flyout;
-            }
-
-            HelpButton.Flyout.ShowAt(HelpButton);
-            _isHelpOpen = true;
         }
 
         private void OnSettingsClick(object sender, RoutedEventArgs e)
         {
-            var dialog = new Views.SettingsDialog
-            {
-                XamlRoot = this.Content.XamlRoot
-            };
-            _ = dialog.ShowAsync();
+            ViewModel.SwitchViewMode(ViewMode.Settings);
         }
 
         private Views.LogFlyoutContent? _logFlyout;

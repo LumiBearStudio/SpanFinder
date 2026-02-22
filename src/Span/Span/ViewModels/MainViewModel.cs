@@ -1068,10 +1068,43 @@ namespace Span.ViewModels
         #endregion
 
         /// <summary>
+        /// Settings에서 복귀할 이전 ViewMode
+        /// </summary>
+        private ViewMode _preSettingsViewMode = ViewMode.MillerColumns;
+        private ViewMode _preSettingsLeftViewMode = ViewMode.MillerColumns;
+
+        /// <summary>
+        /// Settings 모드에서 이전 뷰로 복귀
+        /// </summary>
+        public void ExitSettings()
+        {
+            if (CurrentViewMode != ViewMode.Settings) return;
+
+            CurrentViewMode = _preSettingsViewMode;
+            LeftViewMode = _preSettingsLeftViewMode;
+            Helpers.DebugLogger.Log($"[MainViewModel] Settings → {Helpers.ViewModeExtensions.GetDisplayName(_preSettingsViewMode)} 복귀");
+            UpdateStatusBar();
+        }
+
+        /// <summary>
         /// 뷰 모드 전환 — 활성 패널에 적용
         /// </summary>
         public void SwitchViewMode(ViewMode mode)
         {
+            // Settings mode always targets the left pane
+            if (mode == ViewMode.Settings)
+            {
+                if (CurrentViewMode == ViewMode.Settings) return;
+                _preSettingsViewMode = CurrentViewMode;
+                _preSettingsLeftViewMode = LeftViewMode;
+                ActivePane = ActivePane.Left;
+                CurrentViewMode = ViewMode.Settings;
+                LeftViewMode = ViewMode.Settings;
+                Helpers.DebugLogger.Log($"[MainViewModel] ViewMode changed: Settings (always left pane)");
+                UpdateStatusBar();
+                return;
+            }
+
             // Home mode always targets the left pane (HomeView only exists in left pane)
             if (mode == ViewMode.Home)
             {
@@ -1156,8 +1189,8 @@ namespace Span.ViewModels
         {
             try
             {
-                // Don't persist Home as startup mode
-                if (CurrentViewMode == ViewMode.Home) return;
+                // Don't persist Home or Settings as startup mode
+                if (CurrentViewMode == ViewMode.Home || CurrentViewMode == ViewMode.Settings) return;
 
                 var settings = Windows.Storage.ApplicationData.Current.LocalSettings;
                 settings.Values["ViewMode"] = (int)CurrentViewMode;
