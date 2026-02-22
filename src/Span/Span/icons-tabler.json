@@ -1,0 +1,478 @@
+{
+    "defaultIcon": "file-text",
+    "defaultColor": "#9E9E9E",
+    "folderIcon": "folder-filled",
+    "folderColor": "#FFD54F",
+    "mappings": [
+        {
+            "extensions": ["cs", "csx"],
+            "icon": "code",
+            "color": "#9B7DD4"
+        },
+        {
+            "extensions": ["sln"],
+            "icon": "file-text",
+            "color": "#B388FF"
+        },
+        {
+            "extensions": ["csproj", "vbproj", "fsproj"],
+            "icon": "settings",
+            "color": "#B388FF"
+        },
+        {
+            "extensions": ["xaml", "axaml"],
+            "icon": "code",
+            "color": "#42A5F5"
+        },
+        {
+            "extensions": ["dll", "pdb", "lib"],
+            "icon": "shield-check",
+            "color": "#90A4AE"
+        },
+        {
+            "extensions": ["html", "htm", "xhtml"],
+            "icon": "brand-html5",
+            "color": "#E44D26"
+        },
+        {
+            "extensions": ["css"],
+            "icon": "brand-css3",
+            "color": "#264DE4"
+        },
+        {
+            "extensions": ["scss", "sass"],
+            "icon": "file-code",
+            "color": "#CC6699"
+        },
+        {
+            "extensions": ["less"],
+            "icon": "file-code",
+            "color": "#1D365D"
+        },
+        {
+            "extensions": ["js", "mjs", "cjs"],
+            "icon": "brand-javascript",
+            "color": "#F0DB4F"
+        },
+        {
+            "extensions": ["jsx"],
+            "icon": "file-type-jsx",
+            "color": "#61DAFB"
+        },
+        {
+            "extensions": ["ts", "d.ts"],
+            "icon": "file-type-ts",
+            "color": "#007ACC"
+        },
+        {
+            "extensions": ["tsx"],
+            "icon": "brand-react",
+            "color": "#007ACC"
+        },
+        {
+            "extensions": ["vue"],
+            "icon": "file-type-vue",
+            "color": "#41B883"
+        },
+        {
+            "extensions": ["svelte"],
+            "icon": "brand-svelte",
+            "color": "#FF3E00"
+        },
+        {
+            "extensions": ["php"],
+            "icon": "file-type-php",
+            "color": "#777BB4"
+        },
+        {
+            "extensions": ["java"],
+            "icon": "file-code",
+            "color": "#F44336"
+        },
+        {
+            "extensions": ["jar", "war"],
+            "icon": "archive",
+            "color": "#F44336"
+        },
+        {
+            "extensions": ["class"],
+            "icon": "shield",
+            "color": "#F44336"
+        },
+        {
+            "extensions": ["py", "pyw"],
+            "icon": "brand-python",
+            "color": "#3776AB"
+        },
+        {
+            "extensions": ["pyc", "pyd"],
+            "icon": "shield",
+            "color": "#3776AB"
+        },
+        {
+            "extensions": ["c", "h"],
+            "icon": "braces",
+            "color": "#5E97D0"
+        },
+        {
+            "extensions": ["cpp", "cc", "hpp"],
+            "icon": "braces",
+            "color": "#00599C"
+        },
+        {
+            "extensions": ["go"],
+            "icon": "brand-golang",
+            "color": "#00ADD8"
+        },
+        {
+            "extensions": ["rs", "rust"],
+            "icon": "brand-rust",
+            "color": "#DEA584"
+        },
+        {
+            "extensions": ["rb", "erb"],
+            "icon": "file-code",
+            "color": "#CC342D"
+        },
+        {
+            "extensions": ["gem"],
+            "icon": "gift",
+            "color": "#CC342D"
+        },
+        {
+            "extensions": ["swift"],
+            "icon": "brand-swift",
+            "color": "#F05138"
+        },
+        {
+            "extensions": ["kt", "kts"],
+            "icon": "brand-kotlin",
+            "color": "#7F52FF"
+        },
+        {
+            "extensions": ["json"],
+            "icon": "braces",
+            "color": "#FFB74D"
+        },
+        {
+            "extensions": ["xml"],
+            "icon": "file-type-xml",
+            "color": "#FFB74D"
+        },
+        {
+            "extensions": ["yaml", "yml"],
+            "icon": "settings",
+            "color": "#FFB74D"
+        },
+        {
+            "extensions": ["toml"],
+            "icon": "settings",
+            "color": "#FFB74D"
+        },
+        {
+            "extensions": ["ini", "env", "config"],
+            "icon": "adjustments",
+            "color": "#FFB74D"
+        },
+        {
+            "extensions": ["plist"],
+            "icon": "adjustments",
+            "color": "#FFB74D"
+        },
+        {
+            "extensions": ["sql"],
+            "icon": "file-type-sql",
+            "color": "#BA68C8"
+        },
+        {
+            "extensions": ["db", "sqlite", "sqlite3"],
+            "icon": "database",
+            "color": "#BA68C8"
+        },
+        {
+            "extensions": ["mdb", "accdb"],
+            "icon": "database",
+            "color": "#BA68C8"
+        },
+        {
+            "extensions": ["log"],
+            "icon": "list",
+            "color": "#90A4AE"
+        },
+        {
+            "extensions": ["txt"],
+            "icon": "file-text",
+            "color": "#90A4AE"
+        },
+        {
+            "extensions": ["md"],
+            "icon": "markdown",
+            "color": "#80CBC4"
+        },
+        {
+            "extensions": ["rst"],
+            "icon": "file-text",
+            "color": "#90A4AE"
+        },
+        {
+            "extensions": ["exe", "msi"],
+            "icon": "brand-windows",
+            "color": "#607D8B"
+        },
+        {
+            "extensions": ["bat", "cmd"],
+            "icon": "terminal",
+            "color": "#607D8B"
+        },
+        {
+            "extensions": ["ps1"],
+            "icon": "terminal-2",
+            "color": "#012456"
+        },
+        {
+            "extensions": ["sh", "bash"],
+            "icon": "terminal",
+            "color": "#4EAA25"
+        },
+        {
+            "extensions": ["bin"],
+            "icon": "shield-check",
+            "color": "#607D8B"
+        },
+        {
+            "extensions": ["apk"],
+            "icon": "brand-android",
+            "color": "#3DDC84"
+        },
+        {
+            "extensions": ["app"],
+            "icon": "brand-apple",
+            "color": "#A2AAAD"
+        },
+        {
+            "extensions": ["dmg"],
+            "icon": "file-zip",
+            "color": "#A2AAAD"
+        },
+        {
+            "extensions": ["lnk"],
+            "icon": "link",
+            "color": "#64B5F6"
+        },
+        {
+            "extensions": ["url"],
+            "icon": "world",
+            "color": "#42A5F5"
+        },
+        {
+            "extensions": ["sys", "com"],
+            "icon": "settings",
+            "color": "#607D8B"
+        },
+        {
+            "extensions": ["vbs", "wsf"],
+            "icon": "file-code",
+            "color": "#0078D4"
+        },
+        {
+            "extensions": ["reg"],
+            "icon": "tool",
+            "color": "#FF6B6B"
+        },
+        {
+            "extensions": ["tmp", "temp"],
+            "icon": "file",
+            "color": "#9E9E9E"
+        },
+        {
+            "extensions": ["bak", "backup", "old"],
+            "icon": "copy",
+            "color": "#78909C"
+        },
+        {
+            "extensions": ["git"],
+            "icon": "git-branch",
+            "color": "#F4511E"
+        },
+        {
+            "extensions": ["gitignore"],
+            "icon": "git-merge",
+            "color": "#F4511E"
+        },
+        {
+            "extensions": ["gitattributes"],
+            "icon": "git-commit",
+            "color": "#F4511E"
+        },
+        {
+            "extensions": ["png", "jpg", "jpeg"],
+            "icon": "photo",
+            "color": "#E91E63"
+        },
+        {
+            "extensions": ["gif"],
+            "icon": "photo",
+            "color": "#E91E63"
+        },
+        {
+            "extensions": ["webp"],
+            "icon": "photo",
+            "color": "#E91E63"
+        },
+        {
+            "extensions": ["bmp", "tiff"],
+            "icon": "photo",
+            "color": "#E91E63"
+        },
+        {
+            "extensions": ["ico"],
+            "icon": "app-window",
+            "color": "#E91E63"
+        },
+        {
+            "extensions": ["svg"],
+            "icon": "file-type-svg",
+            "color": "#FF9800"
+        },
+        {
+            "extensions": ["psd"],
+            "icon": "brush",
+            "color": "#31A8FF"
+        },
+        {
+            "extensions": ["ai"],
+            "icon": "pencil",
+            "color": "#FF9A00"
+        },
+        {
+            "extensions": ["eps"],
+            "icon": "file-type-pdf",
+            "color": "#FF9800"
+        },
+        {
+            "extensions": ["sketch"],
+            "icon": "palette",
+            "color": "#F7B500"
+        },
+        {
+            "extensions": ["fig"],
+            "icon": "paint",
+            "color": "#AB47BC"
+        },
+        {
+            "extensions": ["mp3", "wav"],
+            "icon": "music",
+            "color": "#039BE5"
+        },
+        {
+            "extensions": ["flac", "ogg"],
+            "icon": "file-music",
+            "color": "#039BE5"
+        },
+        {
+            "extensions": ["m4a", "aac"],
+            "icon": "music",
+            "color": "#039BE5"
+        },
+        {
+            "extensions": ["wma"],
+            "icon": "headphones",
+            "color": "#039BE5"
+        },
+        {
+            "extensions": ["mp4", "mov"],
+            "icon": "movie",
+            "color": "#5E35B1"
+        },
+        {
+            "extensions": ["mkv", "avi"],
+            "icon": "video",
+            "color": "#5E35B1"
+        },
+        {
+            "extensions": ["wmv", "webm", "flv"],
+            "icon": "video",
+            "color": "#5E35B1"
+        },
+        {
+            "extensions": ["pdf"],
+            "icon": "file-type-pdf",
+            "color": "#D32F2F"
+        },
+        {
+            "extensions": ["doc", "docx"],
+            "icon": "file-type-doc",
+            "color": "#2B579A"
+        },
+        {
+            "extensions": ["rtf", "odt"],
+            "icon": "file-text",
+            "color": "#2B579A"
+        },
+        {
+            "extensions": ["xls", "xlsx"],
+            "icon": "file-type-xls",
+            "color": "#217346"
+        },
+        {
+            "extensions": ["csv"],
+            "icon": "table",
+            "color": "#217346"
+        },
+        {
+            "extensions": ["ods"],
+            "icon": "chart-bar",
+            "color": "#217346"
+        },
+        {
+            "extensions": ["ppt", "pptx"],
+            "icon": "file-type-ppt",
+            "color": "#D24726"
+        },
+        {
+            "extensions": ["odp"],
+            "icon": "presentation",
+            "color": "#D24726"
+        },
+        {
+            "extensions": ["zip"],
+            "icon": "file-zip",
+            "color": "#FFCA28"
+        },
+        {
+            "extensions": ["rar"],
+            "icon": "file-zip",
+            "color": "#FFCA28"
+        },
+        {
+            "extensions": ["7z", "tar"],
+            "icon": "archive",
+            "color": "#FFCA28"
+        },
+        {
+            "extensions": ["gz", "bz2", "xz"],
+            "icon": "archive",
+            "color": "#FFCA28"
+        },
+        {
+            "extensions": ["iso"],
+            "icon": "disc",
+            "color": "#FFCA28"
+        },
+        {
+            "extensions": ["ttf", "otf"],
+            "icon": "typography",
+            "color": "#795548"
+        },
+        {
+            "extensions": ["woff", "woff2"],
+            "icon": "typography",
+            "color": "#795548"
+        },
+        {
+            "extensions": ["eot"],
+            "icon": "typography",
+            "color": "#795548"
+        }
+    ]
+}

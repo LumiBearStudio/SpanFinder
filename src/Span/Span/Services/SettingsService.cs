@@ -87,6 +87,12 @@ public class SettingsService
         set => Set("FontFamily", value);
     }
 
+    public string IconPack
+    {
+        get => Get("IconPack", "remix");   // "remix" | "phosphor" | "tabler"
+        set => Set("IconPack", value);
+    }
+
     // ── Browsing ──
 
     public bool ShowHiddenFiles

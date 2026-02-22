@@ -19,7 +19,7 @@ public sealed partial class SettingsDialog : ContentDialog
     private readonly Dictionary<int, List<string>> _searchKeywords = new()
     {
         { 0, new() { "일반", "언어", "language", "시작", "startup", "시스템 트레이", "tray", "즐겨찾기", "favorites" } },
-        { 1, new() { "모양", "테마", "theme", "pro", "밀도", "density", "폰트", "font" } },
+        { 1, new() { "모양", "테마", "theme", "pro", "밀도", "density", "폰트", "font", "아이콘", "icon", "remix", "phosphor", "tabler" } },
         { 2, new() { "탐색", "보기", "숨김", "확장자", "체크박스", "밀러", "썸네일", "quick look", "삭제", "undo", "실행 취소" } },
         { 3, new() { "도구", "터미널", "terminal", "smart run", "명령", "컨텍스트", "context", "개발자", "developer", "git", "visual studio", "셸", "shell", "공유", "보내기", "copilot", "코파일럿" } },
         { 4, new() { "정보", "about", "라이선스", "license", "업데이트", "update", "pro", "upgrade", "coffee", "후원", "github", "링크" } },
@@ -78,6 +78,14 @@ public sealed partial class SettingsDialog : ContentDialog
             DensityCompact.IsChecked = density == "compact";
             DensityComfortable.IsChecked = density == "comfortable";
             DensitySpacious.IsChecked = density == "spacious";
+
+            var iconPack = _settings.IconPack;
+            IconPackCombo.SelectedIndex = iconPack switch
+            {
+                "phosphor" => 1,
+                "tabler" => 2,
+                _ => 0 // remix
+            };
 
             var font = _settings.FontFamily;
             FontCombo.SelectedIndex = font switch
@@ -151,6 +159,20 @@ public sealed partial class SettingsDialog : ContentDialog
         DensityCompact.Checked += (s, e) => { if (!_isLoading) _settings.Density = "compact"; };
         DensityComfortable.Checked += (s, e) => { if (!_isLoading) _settings.Density = "comfortable"; };
         DensitySpacious.Checked += (s, e) => { if (!_isLoading) _settings.Density = "spacious"; };
+
+        // Appearance — Icon Pack
+        IconPackCombo.SelectionChanged += (s, e) =>
+        {
+            if (_isLoading) return;
+            _settings.IconPack = IconPackCombo.SelectedIndex switch
+            {
+                1 => "phosphor",
+                2 => "tabler",
+                _ => "remix"
+            };
+            if (IconPackRestartNotice != null)
+                IconPackRestartNotice.Visibility = Visibility.Visible;
+        };
 
         // Appearance — Font
         FontCombo.SelectionChanged += (s, e) =>

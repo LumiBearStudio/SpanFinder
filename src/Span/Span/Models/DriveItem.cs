@@ -11,7 +11,7 @@ namespace Span.Models
         public long AvailableFreeSpace { get; set; }
         public string DriveFormat { get; set; } = string.Empty;
         public string DriveType { get; set; } = string.Empty;
-        public string IconGlyph { get; set; } = "\uEC65"; // RemixIcon: ri-drive-fill
+        public string IconGlyph { get; set; } = "\uEC65"; // default, always overridden by FileSystemService/IconService
 
         /// <summary>
         /// SFTP/FTP 원격 연결 여부
@@ -50,7 +50,7 @@ namespace Span.Models
         {
             Name = conn.DisplayName,
             Path = conn.ToUri(),
-            IconGlyph = "\uEE71",       // server icon
+            IconGlyph = Span.Services.IconService.Current?.ServerGlyph ?? "\uEE71",
             IsRemoteConnection = true,
             ConnectionId = conn.Id
         };

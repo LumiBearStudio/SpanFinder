@@ -11,7 +11,7 @@ namespace Span.Models
     {
         public string Name { get; set; } = string.Empty;
         public string Path { get; set; } = string.Empty;
-        public string IconGlyph { get; set; } = "\uEEA7"; // RemixIcon: FolderFill (same as FolderItem)
+        public string IconGlyph { get; set; } = "\uED53"; // overridden by IconService at construction
         public string IconColor { get; set; } = "#FFC857"; // Folder yellow
 
         public SolidColorBrush IconBrush

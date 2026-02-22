@@ -15,6 +15,6 @@ namespace Span.Models
         public System.Collections.ObjectModel.ObservableCollection<IFileSystemItem> Children { get; set; } = new();
 
         // UI Helper
-        public string IconGlyph => "\uEEA7"; // RemixIcon: FolderFill
+        public string IconGlyph => Span.Services.IconService.Current?.FolderGlyph ?? "\uED53";
     }
 }

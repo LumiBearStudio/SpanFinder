@@ -162,6 +162,19 @@ namespace Span
                 var iconService = Services.GetRequiredService<Services.IconService>();
                 await iconService.LoadAsync();
 
+                // Override icon font resource based on selected icon pack
+                // Must happen before MainWindow creation so StaticResource resolves correctly
+                Resources["RemixIcons"] = new Microsoft.UI.Xaml.Media.FontFamily(iconService.FontFamilyPath);
+
+                // Override structural icon glyph resources (Icons.xaml defaults are Remix-specific)
+                Resources["Icon_Folder"] = iconService.FolderGlyph;
+                Resources["Icon_FolderOpen"] = iconService.FolderOpenGlyph;
+                Resources["Icon_Drive"] = iconService.DriveGlyph;
+                Resources["Icon_ChevronRight"] = iconService.ChevronRightGlyph;
+                Resources["Icon_File_Default"] = iconService.FileDefaultGlyph;
+                Resources["Icon_NewFolder"] = iconService.NewFolderGlyph;
+                Resources["Icon_SplitView"] = iconService.SplitViewGlyph;
+
                 m_window = new MainWindow();
                 RegisterWindow(m_window);
                 m_window.Activate();

@@ -1165,14 +1165,15 @@ namespace Span
                 Height = 250,
                 SelectionMode = ListViewSelectionMode.Single
             };
+            var iconFontPath = Services.IconService.Current?.FontFamilyPath ?? "/Assets/Fonts/remixicon.ttf#remixicon";
             networkList.ItemTemplate = (DataTemplate)Microsoft.UI.Xaml.Markup.XamlReader.Load(
-                @"<DataTemplate xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation'
+                $@"<DataTemplate xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation'
                                xmlns:x='http://schemas.microsoft.com/winfx/2006/xaml'>
                     <StackPanel Orientation='Horizontal' Spacing='8' Padding='4,2'>
-                        <TextBlock Text='{Binding IconGlyph}'
-                                   FontFamily='/Assets/Fonts/remixicon.ttf#remixicon'
+                        <TextBlock Text='{{Binding IconGlyph}}'
+                                   FontFamily='{iconFontPath}'
                                    FontSize='16' VerticalAlignment='Center'/>
-                        <TextBlock Text='{Binding Name}' FontSize='13' VerticalAlignment='Center'/>
+                        <TextBlock Text='{{Binding Name}}' FontSize='13' VerticalAlignment='Center'/>
                     </StackPanel>
                   </DataTemplate>");
 
@@ -1408,13 +1409,15 @@ namespace Span
 
             var flyout = new MenuFlyout();
 
+            var currentFontFamily = new Microsoft.UI.Xaml.Media.FontFamily(
+                Services.IconService.Current?.FontFamilyPath ?? "/Assets/Fonts/remixicon.ttf#remixicon");
             var browseNetwork = new MenuFlyoutItem
             {
                 Text = "네트워크 찾아보기...",
                 Icon = new FontIcon
                 {
-                    Glyph = "\uEDD4",
-                    FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("/Assets/Fonts/remixicon.ttf#remixicon"),
+                    Glyph = Services.IconService.Current?.NetworkGlyph ?? "\uEDD4",
+                    FontFamily = currentFontFamily,
                     FontSize = 16
                 }
             };
@@ -1426,8 +1429,8 @@ namespace Span
                 Text = "서버에 연결...",
                 Icon = new FontIcon
                 {
-                    Glyph = "\uEE71",
-                    FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("/Assets/Fonts/remixicon.ttf#remixicon"),
+                    Glyph = Services.IconService.Current?.ServerGlyph ?? "\uEE71",
+                    FontFamily = currentFontFamily,
                     FontSize = 16
                 }
             };
@@ -1692,7 +1695,8 @@ namespace Span
                             Content = new SidebarFolderNode
                             {
                                 Name = info.Name,
-                                Path = dir
+                                Path = dir,
+                                IconGlyph = Services.IconService.Current?.FolderGlyph ?? "\uED53"
                             },
                             HasUnrealizedChildren = true // Assume subfolders may exist; checked lazily on next expand
                         };

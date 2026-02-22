@@ -474,6 +474,41 @@
                                 </StackPanel>
                             </Border>
 
+                            <!-- Icon Pack -->
+                            <Border Style="{StaticResource SettingsCardBorder}">
+                                <StackPanel Spacing="0">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <Border Grid.Column="0" Style="{StaticResource CardIconContainer}">
+                                            <FontIcon Glyph="&#xE8B9;" Style="{StaticResource CardIconStyle}" />
+                                        </Border>
+                                        <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                            <TextBlock Text="아이콘 팩" Style="{StaticResource SettingsCardLabel}" />
+                                            <TextBlock Text="파일/폴더 아이콘 스타일" Style="{StaticResource SettingsCardDesc}" />
+                                        </StackPanel>
+                                        <ComboBox x:Name="IconPackCombo" Grid.Column="2" SelectedIndex="0"
+                                                  MinWidth="180" VerticalAlignment="Center">
+                                            <ComboBoxItem Content="Remix Icon" />
+                                            <ComboBoxItem Content="Phosphor" />
+                                            <ComboBoxItem Content="Tabler" />
+                                        </ComboBox>
+                                    </Grid>
+                                    <!-- Restart notice -->
+                                    <StackPanel x:Name="IconPackRestartNotice" Orientation="Horizontal" Spacing="8"
+                                                Margin="48,8,0,0" Padding="10,8"
+                                                Background="#1AFF8C00" CornerRadius="6"
+                                                Visibility="Collapsed">
+                                        <FontIcon Glyph="&#xE7BA;" FontSize="14" Foreground="#FF8C00" />
+                                        <TextBlock Text="아이콘 팩 변경은 앱 재시작 후 적용됩니다" FontSize="12"
+                                                   Foreground="#FF8C00" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+
                             <!-- Font -->
                             <Border Style="{StaticResource SettingsCardBorder}">
                                 <Grid>

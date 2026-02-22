@@ -545,7 +545,7 @@ namespace Span.ViewModels
                             AvailableFreeSpace = d.AvailableFreeSpace,
                             DriveFormat = d.DriveFormat ?? "",
                             DriveType = d.DriveType ?? "",
-                            IconGlyph = d.IconGlyph ?? "\uEC65"
+                            IconGlyph = Services.IconService.Current?.DriveGlyph ?? "\uEC65"
                         }).ToList();
                     }
                 }
@@ -956,7 +956,7 @@ namespace Span.ViewModels
                                 {
                                     Name = dtos[i].Name ?? "",
                                     Path = dtos[i].Path!,
-                                    IconGlyph = "\uEEA7",
+                                    IconGlyph = Services.IconService.Current?.FolderGlyph ?? "\uED53",
                                     IconColor = "#A0A0A0",
                                     Order = i
                                 });
@@ -1017,7 +1017,7 @@ namespace Span.ViewModels
             {
                 Name = System.IO.Path.GetFileName(path),
                 Path = path,
-                IconGlyph = "\uEEA7",
+                IconGlyph = Services.IconService.Current?.FolderGlyph ?? "\uED53",
                 IconColor = "#A0A0A0",
                 Order = 0
             });

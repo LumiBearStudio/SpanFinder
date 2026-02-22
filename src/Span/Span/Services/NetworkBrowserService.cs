@@ -110,7 +110,7 @@ namespace Span.Services
                                     Name = name,
                                     Path = nr.lpRemoteName ?? $@"\\{name}",
                                     Type = NetworkItemType.Server,
-                                    IconGlyph = "\uEDD4", // ri-global-line
+                                    IconGlyph = IconService.Current?.NetworkGlyph ?? "\uEDD4",
                                     Comment = nr.lpComment ?? string.Empty
                                 });
                             }
@@ -181,7 +181,7 @@ namespace Span.Services
                             Name = share.shi1_netname,
                             Path = $@"{serverName}\{share.shi1_netname}",
                             Type = NetworkItemType.Share,
-                            IconGlyph = "\uEEA7", // ri-folder-line
+                            IconGlyph = IconService.Current?.FolderGlyph ?? "\uED53",
                             Comment = share.shi1_remark ?? string.Empty
                         });
                     }

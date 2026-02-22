@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI;
 using Microsoft.UI.Xaml.Media;
 using Windows.UI;
@@ -36,6 +37,22 @@ namespace Span.Services
         public string FolderIcon => _config.FolderIcon;
         public Brush FolderBrush => _folderBrush;
 
+        /// <summary>
+        /// Font family path for the current icon pack.
+        /// </summary>
+        public string FontFamilyPath { get; private set; } = "/Assets/Fonts/remixicon.ttf#remixicon";
+
+        // Structural icon glyphs (resolved per pack at startup)
+        public string FolderGlyph { get; private set; } = "\uED53";
+        public string FolderOpenGlyph { get; private set; } = "\uED6F";
+        public string FileDefaultGlyph { get; private set; } = "\uECE0";
+        public string DriveGlyph { get; private set; } = "\uEC65";
+        public string NetworkGlyph { get; private set; } = "\uEDD4";
+        public string ServerGlyph { get; private set; } = "\uEE71";
+        public string ChevronRightGlyph { get; private set; } = "\uEA6E";
+        public string NewFolderGlyph { get; private set; } = "\uED59";
+        public string SplitViewGlyph { get; private set; } = "\uEE8C";
+
         public static IconService Current { get; private set; }
 
         public IconService()
@@ -45,9 +62,45 @@ namespace Span.Services
 
         public async Task LoadAsync()
         {
+            var settings = App.Current.Services.GetRequiredService<SettingsService>();
+            var pack = settings.IconPack;
+
+            // Select JSON file per icon pack
+            var jsonFile = pack switch
+            {
+                "phosphor" => "icons-phosphor.json",
+                "tabler" => "icons-tabler.json",
+                _ => "icons.json"
+            };
+
+            // Select glyph resolver per icon pack
+            Func<string, string> resolver = pack switch
+            {
+                "phosphor" => Helpers.PhosphorIconHelper.GetGlyph,
+                "tabler" => Helpers.TablerIconHelper.GetGlyph,
+                _ => Helpers.RemixIconHelper.GetGlyph
+            };
+
+            // Set font family path per icon pack
+            FontFamilyPath = pack switch
+            {
+                "phosphor" => "/Assets/Fonts/Phosphor.ttf#Phosphor-Fill",
+                "tabler" => "/Assets/Fonts/tabler-icons.ttf#tabler-icons",
+                _ => "/Assets/Fonts/remixicon.ttf#remixicon"
+            };
+
+            // Resolve structural icon glyphs per pack
+            // These are UI-level icons (folder, drive, chevron, etc.) with verified codepoints
+            (FolderGlyph, FolderOpenGlyph, FileDefaultGlyph, DriveGlyph, NetworkGlyph, ServerGlyph, ChevronRightGlyph, NewFolderGlyph, SplitViewGlyph) = pack switch
+            {
+                "phosphor" => ("\ue24a", "\ue256", "\ue23a", "\ue2a0", "\ue28e", "\ue2a0", "\ue0a4", "\ue258", "\ue1b0"),
+                "tabler"   => ("\uf749", "\ufaf7", "\ueaa2", "\ueb1f", "\ueb54", "\ueb1f", "\uea6e", "\ueaae", "\ueebc"),
+                _          => ("\uED53", "\uED6F", "\uECE0", "\uEC65", "\uEDD4", "\uEE71", "\uEA6E", "\uED59", "\uEE8C")
+            };
+
             try
             {
-                string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "icons.json");
+                string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, jsonFile);
                 if (File.Exists(path))
                 {
                     string json = await File.ReadAllTextAsync(path);
@@ -63,23 +116,23 @@ namespace Span.Services
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Failed to load icons.json: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Failed to load {jsonFile}: {ex.Message}");
             }
 
             // Pre-calculate colors & Resolving Icons
             _defaultBrush = GetBrushFromHex(_config.DefaultColor);
             _folderBrush = GetBrushFromHex(_config.FolderColor);
 
-            // Resolve default and folder icons
-            _config.DefaultIcon = Helpers.RemixIconHelper.GetGlyph(_config.DefaultIcon);
-            _config.FolderIcon = Helpers.RemixIconHelper.GetGlyph(_config.FolderIcon);
+            // Resolve default and folder icons using selected resolver
+            _config.DefaultIcon = resolver(_config.DefaultIcon);
+            _config.FolderIcon = resolver(_config.FolderIcon);
 
             _cache.Clear();
 
             foreach (var mapping in _config.Mappings)
             {
                 var brush = GetBrushFromHex(mapping.Color);
-                var glyph = Helpers.RemixIconHelper.GetGlyph(mapping.Icon);
+                var glyph = resolver(mapping.Icon);
 
                 foreach (var ext in mapping.Extensions)
                 {

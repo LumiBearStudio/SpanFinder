@@ -22,7 +22,7 @@ namespace Span.Services
                 {
                     Name = "Desktop",
                     Path = desktopPath,
-                    IconGlyph = "\uEEA7",  // RemixIcon: FolderFill
+                    IconGlyph = (IconService.Current?.FolderGlyph ?? "\uED53"),  // RemixIcon: FolderFill
                     IconColor = "#6FA8DC",
                     Order = order++
                 });
@@ -36,7 +36,7 @@ namespace Span.Services
                 {
                     Name = "Downloads",
                     Path = downloadsPath,
-                    IconGlyph = "\uEEA7",  // RemixIcon: FolderFill
+                    IconGlyph = (IconService.Current?.FolderGlyph ?? "\uED53"),  // RemixIcon: FolderFill
                     IconColor = "#FFA066",
                     Order = order++
                 });
@@ -49,7 +49,7 @@ namespace Span.Services
                 {
                     Name = "Documents",
                     Path = documentsPath,
-                    IconGlyph = "\uEEA7",  // RemixIcon: FolderFill
+                    IconGlyph = (IconService.Current?.FolderGlyph ?? "\uED53"),  // RemixIcon: FolderFill
                     IconColor = "#6FA8DC",
                     Order = order++
                 });
@@ -62,7 +62,7 @@ namespace Span.Services
                 {
                     Name = "Pictures",
                     Path = picturesPath,
-                    IconGlyph = "\uEEA7",  // RemixIcon: FolderFill
+                    IconGlyph = (IconService.Current?.FolderGlyph ?? "\uED53"),  // RemixIcon: FolderFill
                     IconColor = "#93C47D",
                     Order = order++
                 });
@@ -126,23 +126,23 @@ namespace Span.Services
             var musicPath = Environment.GetFolderPath(Environment.SpecialFolder.MyMusic);
             var videosPath = Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
 
-            // All glyphs are RemixIcons (bundled font — guaranteed to render)
-            // Special folders get unique colors; all use FolderFill icon
+            // Use current icon pack's folder glyph
+            // Special folders get unique colors
             if (path.Equals(desktopPath, StringComparison.OrdinalIgnoreCase))
-                return ("\uEEA7", "#6FA8DC");   // FolderFill - blue
+                return ((IconService.Current?.FolderGlyph ?? "\uED53"), "#6FA8DC");   // FolderFill - blue
             if (path.Equals(downloadsPath, StringComparison.OrdinalIgnoreCase))
-                return ("\uEEA7", "#FFA066");   // FolderFill - orange
+                return ((IconService.Current?.FolderGlyph ?? "\uED53"), "#FFA066");   // FolderFill - orange
             if (path.Equals(documentsPath, StringComparison.OrdinalIgnoreCase))
-                return ("\uEEA7", "#6FA8DC");   // FolderFill - blue
+                return ((IconService.Current?.FolderGlyph ?? "\uED53"), "#6FA8DC");   // FolderFill - blue
             if (path.Equals(picturesPath, StringComparison.OrdinalIgnoreCase))
-                return ("\uEEA7", "#93C47D");   // FolderFill - green
+                return ((IconService.Current?.FolderGlyph ?? "\uED53"), "#93C47D");   // FolderFill - green
             if (path.Equals(musicPath, StringComparison.OrdinalIgnoreCase))
-                return ("\uEEA7", "#B07CD8");   // FolderFill - purple
+                return ((IconService.Current?.FolderGlyph ?? "\uED53"), "#B07CD8");   // FolderFill - purple
             if (path.Equals(videosPath, StringComparison.OrdinalIgnoreCase))
-                return ("\uEEA7", "#E06666");   // FolderFill - red
+                return ((IconService.Current?.FolderGlyph ?? "\uED53"), "#E06666");   // FolderFill - red
 
             // Default: same folder icon as miller columns (FolderItem.IconGlyph)
-            return ("\uEEA7", "#FFC857");       // FolderFill - yellow
+            return ((IconService.Current?.FolderGlyph ?? "\uED53"), "#FFC857");       // FolderFill - yellow
         }
 
         public void SaveFavorites(List<FavoriteItem> favorites)

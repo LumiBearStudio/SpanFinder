@@ -224,7 +224,7 @@
                             ToolTipService.ToolTip="새 폴더 (Ctrl+Shift+N)"
                             Click="OnNewFolderClick"
                             Padding="8,4,4,4">
-                        <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="&#xED59;" FontSize="16"/>
+                        <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_NewFolder}" FontSize="16"/>
                     </Button>
                     <Button x:Name="NewItemDropdown"
                             Style="{StaticResource UnifiedButtonStyle}"
@@ -331,7 +331,7 @@
                 <Button x:Name="SplitViewButton" Style="{StaticResource UnifiedButtonStyle}"
                         ToolTipService.ToolTip="Split View (Ctrl+Shift+E)"
                         Click="OnSplitViewToggleClick">
-                    <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="&#xEE8C;" FontSize="16"/>
+                    <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_SplitView}" FontSize="16"/>
                 </Button>
 
                 <!-- Preview Panel Toggle -->
@@ -412,7 +412,7 @@
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Grid.Column="0"
                                                    Text="{x:Bind IconGlyph}"
-                                                   FontFamily="/Assets/Fonts/remixicon.ttf#remixicon"
+                                                   FontFamily="{StaticResource RemixIcons}"
                                                    FontSize="16"
                                                    Foreground="{x:Bind IconBrush}"
                                                    VerticalAlignment="Center"
@@ -446,7 +446,7 @@
                                 <DataTemplate x:DataType="TreeViewNode">
                                     <StackPanel Orientation="Horizontal" Spacing="8">
                                         <TextBlock Text="{Binding Content.IconGlyph}"
-                                                   FontFamily="/Assets/Fonts/remixicon.ttf#remixicon"
+                                                   FontFamily="{StaticResource RemixIcons}"
                                                    FontSize="16"
                                                    Foreground="{Binding Content.IconBrush}"
                                                    VerticalAlignment="Center"/>
@@ -486,7 +486,7 @@
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Grid.Column="0"
                                                    Text="{x:Bind IconGlyph}"
-                                                   FontFamily="/Assets/Fonts/remixicon.ttf#remixicon"
+                                                   FontFamily="{StaticResource RemixIcons}"
                                                    FontSize="16"
                                                    Foreground="{ThemeResource SpanTextSecondaryBrush}"
                                                    VerticalAlignment="Center"

@@ -102,16 +102,8 @@ namespace Span.Services
                     driveItem.AvailableFreeSpace = 0;
                 }
 
-                // Set icon based on drive type (RemixIcons font)
-                // All use ri-drive-fill (\uEC65) from Icons.xaml — verified glyph
-                if (drive.DriveType == DriveType.Network)
-                {
-                    driveItem.IconGlyph = "\uEC65"; // RemixIcon: ri-drive-fill
-                }
-                else if (drive.DriveType == DriveType.Removable)
-                {
-                    driveItem.IconGlyph = "\uEC65"; // RemixIcon: ri-drive-fill
-                }
+                // Set icon based on drive type (uses current icon pack)
+                driveItem.IconGlyph = IconService.Current?.DriveGlyph ?? "\uEC65";
 
                 // Generate display name
                 if (drive.DriveType == DriveType.Network)

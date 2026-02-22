@@ -33,4 +33,10 @@
     <x:String x:Key="Icon_File_Spreadsheet">&#xECDE;</x:String> <!-- ri-file-excel-fill -->
     <x:String x:Key="Icon_File_Presentation">&#xED00;</x:String> <!-- ri-file-ppt-fill -->
 
+    <!-- Structural UI Icons (overridden per icon pack in App.xaml.cs) -->
+    <x:String x:Key="Icon_NewFolder">&#xED59;</x:String> <!-- ri-folder-add-fill -->
+    <x:String x:Key="Icon_SplitView">&#xEE8C;</x:String> <!-- ri-layout-column-fill -->
+    <x:String x:Key="Icon_Network">&#xEDD4;</x:String> <!-- ri-global-line -->
+    <x:String x:Key="Icon_Server">&#xEE71;</x:String> <!-- ri-server-fill -->
+
 </ResourceDictionary>
