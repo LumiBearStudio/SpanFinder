@@ -767,22 +767,27 @@
                                                                                       AllowDrop="True" DragOver="OnFolderItemDragOver" Drop="OnFolderItemDrop" DragLeave="OnFolderItemDragLeave">
                                                                                     <Grid.ColumnDefinitions>
                                                                                         <ColumnDefinition Width="Auto"/>
+                                                                                        <ColumnDefinition Width="Auto"/>
                                                                                         <ColumnDefinition Width="*"/>
                                                                                         <ColumnDefinition Width="Auto"/>
                                                                                         <ColumnDefinition Width="Auto"/>
                                                                                     </Grid.ColumnDefinitions>
-                                                                                    <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Folder}" FontSize="16" Foreground="{x:Bind IconBrush}" Margin="0,0,12,0"/>
-                                                                                    <TextBlock Grid.Column="1" Text="{x:Bind TruncatedDisplayName, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                                                    <!-- Path indicator bar (accent left edge for items on navigation path) -->
+                                                                                    <Border Grid.Column="0" Width="3" CornerRadius="1.5" Margin="-8,2,6,2"
+                                                                                            Background="{StaticResource SpanAccentBrush}"
+                                                                                            Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfTrue(IsOnPath), Mode=OneWay}"/>
+                                                                                    <FontIcon Grid.Column="1" FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Folder}" FontSize="16" Foreground="{x:Bind IconBrush}" Margin="0,0,12,0"/>
+                                                                                    <TextBlock Grid.Column="2" Text="{x:Bind TruncatedDisplayName, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                                                                                Visibility="{x:Bind viewmodels:FileSystemViewModel.NotRenaming(IsRenaming), Mode=OneWay}"/>
-                                                                                    <TextBox Grid.Column="1" Text="{x:Bind EditableName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                                                    <TextBox Grid.Column="2" Text="{x:Bind EditableName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                                                              Visibility="{x:Bind IsRenaming, Mode=OneWay}"
                                                                                              VerticalAlignment="Center" Padding="2" MinHeight="0" FontSize="13"
                                                                                              LostFocus="OnRenameTextBoxLostFocus" KeyDown="OnRenameTextBoxKeyDown"/>
                                                                                     <!-- Item count badge -->
-                                                                                    <TextBlock Grid.Column="2" Text="{x:Bind ChildCountText, Mode=OneWay}" VerticalAlignment="Center"
+                                                                                    <TextBlock Grid.Column="3" Text="{x:Bind ChildCountText, Mode=OneWay}" VerticalAlignment="Center"
                                                                                                FontSize="10" Foreground="{ThemeResource SpanTextTertiaryBrush}" Margin="4,0,4,0"
                                                                                                Visibility="{x:Bind viewmodels:FileSystemViewModel.NotRenaming(IsRenaming), Mode=OneWay}"/>
-                                                                                    <FontIcon Grid.Column="3" FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_ChevronRight}" FontSize="10" Foreground="{ThemeResource SpanTextTertiaryBrush}" Opacity="0.5"/>
+                                                                                    <FontIcon Grid.Column="4" FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_ChevronRight}" FontSize="10" Foreground="{ThemeResource SpanTextTertiaryBrush}" Opacity="0.5"/>
                                                                                 </Grid>
                                                                             </DataTemplate>
                                                                         </local:FileSystemItemTemplateSelector.FolderTemplate>
@@ -1215,22 +1220,27 @@
                                                                                       AllowDrop="True" DragOver="OnFolderItemDragOver" Drop="OnFolderItemDrop" DragLeave="OnFolderItemDragLeave">
                                                                                     <Grid.ColumnDefinitions>
                                                                                         <ColumnDefinition Width="Auto"/>
+                                                                                        <ColumnDefinition Width="Auto"/>
                                                                                         <ColumnDefinition Width="*"/>
                                                                                         <ColumnDefinition Width="Auto"/>
                                                                                         <ColumnDefinition Width="Auto"/>
                                                                                     </Grid.ColumnDefinitions>
-                                                                                    <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Folder}" FontSize="16" Foreground="{x:Bind IconBrush}" Margin="0,0,12,0"/>
-                                                                                    <TextBlock Grid.Column="1" Text="{x:Bind TruncatedDisplayName, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                                                    <!-- Path indicator bar (accent left edge for items on navigation path) -->
+                                                                                    <Border Grid.Column="0" Width="3" CornerRadius="1.5" Margin="-8,2,6,2"
+                                                                                            Background="{StaticResource SpanAccentBrush}"
+                                                                                            Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfTrue(IsOnPath), Mode=OneWay}"/>
+                                                                                    <FontIcon Grid.Column="1" FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Folder}" FontSize="16" Foreground="{x:Bind IconBrush}" Margin="0,0,12,0"/>
+                                                                                    <TextBlock Grid.Column="2" Text="{x:Bind TruncatedDisplayName, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                                                                                Visibility="{x:Bind viewmodels:FileSystemViewModel.NotRenaming(IsRenaming), Mode=OneWay}"/>
-                                                                                    <TextBox Grid.Column="1" Text="{x:Bind EditableName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                                                    <TextBox Grid.Column="2" Text="{x:Bind EditableName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                                                              Visibility="{x:Bind IsRenaming, Mode=OneWay}"
                                                                                              VerticalAlignment="Center" Padding="2" MinHeight="0" FontSize="13"
                                                                                              LostFocus="OnRenameTextBoxLostFocus" KeyDown="OnRenameTextBoxKeyDown"/>
                                                                                     <!-- Item count badge -->
-                                                                                    <TextBlock Grid.Column="2" Text="{x:Bind ChildCountText, Mode=OneWay}" VerticalAlignment="Center"
+                                                                                    <TextBlock Grid.Column="3" Text="{x:Bind ChildCountText, Mode=OneWay}" VerticalAlignment="Center"
                                                                                                FontSize="10" Foreground="{ThemeResource SpanTextTertiaryBrush}" Margin="4,0,4,0"
                                                                                                Visibility="{x:Bind viewmodels:FileSystemViewModel.NotRenaming(IsRenaming), Mode=OneWay}"/>
-                                                                                    <FontIcon Grid.Column="3" FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_ChevronRight}" FontSize="10" Foreground="{ThemeResource SpanTextTertiaryBrush}" Opacity="0.5"/>
+                                                                                    <FontIcon Grid.Column="4" FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_ChevronRight}" FontSize="10" Foreground="{ThemeResource SpanTextTertiaryBrush}" Opacity="0.5"/>
                                                                                 </Grid>
                                                                             </DataTemplate>
                                                                         </local:FileSystemItemTemplateSelector.FolderTemplate>

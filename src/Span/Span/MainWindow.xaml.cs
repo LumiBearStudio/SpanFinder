@@ -1122,6 +1122,7 @@ namespace Span
         {
             var explorer = ViewModel?.ActiveExplorer;
             if (explorer == null) return;
+            bool cancelled = false;
             foreach (var col in explorer.Columns)
             {
                 foreach (var child in col.Children)
@@ -1129,8 +1130,13 @@ namespace Span
                     if (child.IsRenaming)
                     {
                         child.CancelRename();
+                        cancelled = true;
                     }
                 }
+            }
+            if (cancelled)
+            {
+                _justFinishedRename = true;
             }
             _renameTargetPath = null;
         }
@@ -3012,6 +3018,12 @@ namespace Span
                     System.Threading.Tasks.TaskScheduler.Default);
                 e.Handled = true;
             }
+            else if (properties.IsLeftButtonPressed)
+            {
+                // 좌클릭: 빈 영역 클릭 시에도 진행 중인 리네임 취소
+                // (SelectionChanged/GotFocus는 빈 영역에서 발생하지 않으므로 여기서 보완)
+                CancelAnyActiveRename();
+            }
         }
 
         // =================================================================
@@ -3716,8 +3728,23 @@ namespace Span
         private void FocusRenameTextBox(int columnIndex)
         {
             var listView = GetListViewForColumn(columnIndex);
-            if (listView == null) return;
+            if (listView == null)
+            {
+                // ListView를 아직 못 찾으면 한 번 더 지연 재시도
+                DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+                {
+                    if (_isClosed) return;
+                    var retryList = GetListViewForColumn(columnIndex);
+                    if (retryList != null) FocusRenameTextBoxCore(retryList, columnIndex);
+                });
+                return;
+            }
 
+            FocusRenameTextBoxCore(listView, columnIndex);
+        }
+
+        private void FocusRenameTextBoxCore(ListView listView, int columnIndex)
+        {
             var columns = ViewModel.ActiveExplorer.Columns;
             if (columnIndex >= columns.Count) return;
 
@@ -3728,14 +3755,42 @@ namespace Span
             if (idx < 0) return;
 
             var container = listView.ContainerFromIndex(idx) as UIElement;
-            if (container == null) return;
+            if (container == null)
+            {
+                // 아이템이 가상화되어 아직 로드 안 된 경우 ScrollIntoView 후 재시도
+                listView.ScrollIntoView(column.SelectedChild);
+                DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+                {
+                    if (_isClosed) return;
+                    var retryContainer = listView.ContainerFromIndex(idx) as UIElement;
+                    if (retryContainer != null)
+                    {
+                        var tb = FindChild<TextBox>(retryContainer as DependencyObject);
+                        if (tb != null) ApplyRenameSelection(tb, column.SelectedChild is FolderViewModel);
+                    }
+                });
+                return;
+            }
 
-            var textBox = FindChild<TextBox>(container as DependencyObject ?? container as DependencyObject);
+            var textBox = FindChild<TextBox>(container as DependencyObject);
             if (textBox != null)
             {
-                textBox.Focus(FocusState.Keyboard);
+                ApplyRenameSelection(textBox, column.SelectedChild is FolderViewModel);
+            }
+        }
 
-                bool isFolder = column.SelectedChild is FolderViewModel;
+        /// <summary>
+        /// TextBox에 포커스를 주고 F2 cycling에 따른 선택 영역을 적용.
+        /// WinUI 3에서 Focus()가 선택 영역을 리셋하므로, Select()를 DispatcherQueue로 지연 실행.
+        /// </summary>
+        private void ApplyRenameSelection(TextBox textBox, bool isFolder)
+        {
+            textBox.Focus(FocusState.Keyboard);
+
+            // Focus()가 선택 영역을 리셋하므로 DispatcherQueue로 지연 실행
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Normal, () =>
+            {
+                if (_isClosed) return;
                 if (!isFolder && !string.IsNullOrEmpty(textBox.Text))
                 {
                     int dotIndex = textBox.Text.LastIndexOf('.');
@@ -3764,7 +3819,7 @@ namespace Span
                 {
                     textBox.SelectAll();
                 }
-            }
+            });
         }
 
         private void OnRenameTextBoxKeyDown(object sender, KeyRoutedEventArgs e)
@@ -3795,10 +3850,14 @@ namespace Span
         {
             if (sender is not TextBox textBox) return;
             var vm = textBox.DataContext as FileSystemViewModel;
-            if (vm == null || !vm.IsRenaming) return;
+            if (vm == null) return;
 
             // 포커스 잃으면 취소 (ESC와 동일)
-            vm.CancelRename();
+            // IsRenaming이 이미 false여도 정리 작업은 수행
+            if (vm.IsRenaming)
+            {
+                vm.CancelRename();
+            }
             _justFinishedRename = true;
             _renameTargetPath = null; // Reset F2 cycle state
         }

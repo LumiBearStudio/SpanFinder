@@ -47,6 +47,8 @@ namespace Span.Services
         public string FolderOpenGlyph { get; private set; } = "\uED6F";
         public string FileDefaultGlyph { get; private set; } = "\uECE0";
         public string DriveGlyph { get; private set; } = "\uEC65";
+        public string RemovableGlyph { get; private set; } = "\uF285"; // ri-usb-fill
+        public string CdRomGlyph { get; private set; } = "\uECA4"; // ri-disc-fill
         public string NetworkGlyph { get; private set; } = "\uEDD4";
         public string ServerGlyph { get; private set; } = "\uEE71";
         public string ChevronRightGlyph { get; private set; } = "\uEA6E";
@@ -98,6 +100,14 @@ namespace Span.Services
                 _          => ("\uED53", "\uED6F", "\uECE0", "\uEC65", "\uEDD4", "\uEE71", "\uEA6E", "\uED59", "\uEE8C")
             };
 
+            // Additional structural glyphs per pack (Removable/USB, CD-ROM)
+            (RemovableGlyph, CdRomGlyph) = pack switch
+            {
+                "phosphor" => ("\ue2a0", "\ue0e0"),  // hard-drives, disc
+                "tabler"   => ("\ueb1f", "\ueb3d"),  // device-floppy, disc
+                _          => ("\uEDFA", "\uECA4")   // ri-hard-drive-fill, ri-disc-fill
+            };
+
             try
             {
                 string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, jsonFile);
@@ -139,6 +149,22 @@ namespace Span.Services
                     _cache[ext.ToLowerInvariant()] = (glyph, brush);
                 }
             }
+        }
+
+        /// <summary>
+        /// DriveType별 적절한 아이콘 글리프 반환.
+        /// Fixed=HDD, Removable=USB, Network=Globe, CDRom=Disc
+        /// </summary>
+        public string GetDriveGlyph(string driveType)
+        {
+            return driveType switch
+            {
+                "Fixed" => DriveGlyph,
+                "Removable" => RemovableGlyph,
+                "Network" => NetworkGlyph,
+                "CDRom" => CdRomGlyph,
+                _ => DriveGlyph
+            };
         }
 
         public string GetIcon(string extension)

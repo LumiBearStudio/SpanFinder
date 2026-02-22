@@ -27,7 +27,7 @@ namespace Span.Services
             // so run the entire enumeration off the UI thread
             var allDrives = await Task.Run(() =>
                 DriveInfo.GetDrives()
-                    .Where(d => d.DriveType == DriveType.Fixed || d.DriveType == DriveType.Removable || d.DriveType == DriveType.Network)
+                    .Where(d => d.DriveType == DriveType.Fixed || d.DriveType == DriveType.Removable || d.DriveType == DriveType.Network || d.DriveType == DriveType.CDRom)
                     .ToList());
 
             // Load each drive in parallel with timeout
@@ -103,21 +103,21 @@ namespace Span.Services
                 }
 
                 // Set icon based on drive type (uses current icon pack)
-                driveItem.IconGlyph = IconService.Current?.DriveGlyph ?? "\uEC65";
+                driveItem.IconGlyph = IconService.Current?.GetDriveGlyph(driveItem.DriveType) ?? "\uEC65";
 
-                // Generate display name
-                if (drive.DriveType == DriveType.Network)
+                // Generate display name based on drive type
+                var driveLetter = driveItem.Path.TrimEnd('\\');
+                var defaultLabel = drive.DriveType switch
                 {
-                    driveItem.Name = string.IsNullOrEmpty(driveItem.Label)
-                        ? $"Network Drive ({driveItem.Path.TrimEnd('\\')})"
-                        : $"{driveItem.Label} ({driveItem.Path.TrimEnd('\\')})";
-                }
-                else
-                {
-                    driveItem.Name = string.IsNullOrEmpty(driveItem.Label)
-                        ? $"Local Disk ({driveItem.Path.TrimEnd('\\')})"
-                        : $"{driveItem.Label} ({driveItem.Path.TrimEnd('\\')})";
-                }
+                    DriveType.Fixed => "Local Disk",
+                    DriveType.Removable => "USB Drive",
+                    DriveType.Network => "Network Drive",
+                    DriveType.CDRom => "CD/DVD Drive",
+                    _ => "Drive"
+                };
+                driveItem.Name = string.IsNullOrEmpty(driveItem.Label)
+                    ? $"{defaultLabel} ({driveLetter})"
+                    : $"{driveItem.Label} ({driveLetter})";
 
                 return driveItem;
             }
