@@ -91,7 +91,7 @@ public class FileOperationManager
 
                 var result = await operation.ExecuteAsync(progress, cts.Token);
 
-                dispatcherQueue.TryEnqueue(() =>
+                if (!dispatcherQueue.TryEnqueue(() =>
                 {
                     entry.Status = result.Success ? OperationStatus.Completed : OperationStatus.Failed;
                     entry.ErrorMessage = result.ErrorMessage;
@@ -99,28 +99,39 @@ public class FileOperationManager
 
                     RemoveCompletedOperation(entry);
                     OperationCompleted?.Invoke(this, new OperationCompletedEventArgs(entry, result));
-                });
+                }))
+                {
+                    // DispatcherQueue shut down (window closed) — clean up directly
+                    entry.Result = result;
+                    lock (_lock) { ActiveOperations.Clear(); }
+                }
             }
             catch (OperationCanceledException)
             {
-                dispatcherQueue.TryEnqueue(() =>
+                if (!dispatcherQueue.TryEnqueue(() =>
                 {
                     entry.Status = OperationStatus.Cancelled;
                     RemoveCompletedOperation(entry);
                     OperationCompleted?.Invoke(this, new OperationCompletedEventArgs(
                         entry, OperationResult.CreateFailure("Operation cancelled")));
-                });
+                }))
+                {
+                    lock (_lock) { ActiveOperations.Clear(); }
+                }
             }
             catch (Exception ex)
             {
-                dispatcherQueue.TryEnqueue(() =>
+                if (!dispatcherQueue.TryEnqueue(() =>
                 {
                     entry.Status = OperationStatus.Failed;
                     entry.ErrorMessage = ex.Message;
                     RemoveCompletedOperation(entry);
                     OperationCompleted?.Invoke(this, new OperationCompletedEventArgs(
                         entry, OperationResult.CreateFailure(ex.Message)));
-                });
+                }))
+                {
+                    lock (_lock) { ActiveOperations.Clear(); }
+                }
             }
             finally
             {
@@ -245,7 +256,10 @@ public class FileOperationManager
         // Remove after a short delay so the user can see the final state
         _ = Task.Delay(2000).ContinueWith(_ =>
         {
-            entry.DispatcherQueue?.TryEnqueue(() =>
+            var dq = entry.DispatcherQueue;
+            if (dq == null) return;
+
+            if (!dq.TryEnqueue(() =>
             {
                 lock (_lock)
                 {
@@ -255,7 +269,14 @@ public class FileOperationManager
                         AllOperationsCompleted?.Invoke(this, EventArgs.Empty);
                     }
                 }
-            });
+            }))
+            {
+                // DispatcherQueue shut down — clean up without UI notification
+                lock (_lock)
+                {
+                    ActiveOperations.Clear();
+                }
+            }
         });
     }
 }

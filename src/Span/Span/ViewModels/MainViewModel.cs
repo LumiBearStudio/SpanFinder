@@ -1214,26 +1214,30 @@ namespace Span.ViewModels
             {
                 var settings = Windows.Storage.ApplicationData.Current.LocalSettings;
 
-                if (settings.Values.TryGetValue("ViewMode", out var mode))
+                if (settings.Values.TryGetValue("ViewMode", out var mode) && mode is int modeInt
+                    && System.Enum.IsDefined(typeof(ViewMode), modeInt))
                 {
-                    CurrentViewMode = (ViewMode)(int)mode;
+                    CurrentViewMode = (ViewMode)modeInt;
                     LeftViewMode = CurrentViewMode;
                 }
 
-                if (settings.Values.TryGetValue("IconSize", out var size))
+                if (settings.Values.TryGetValue("IconSize", out var size) && size is int sizeInt
+                    && System.Enum.IsDefined(typeof(ViewMode), sizeInt))
                 {
-                    CurrentIconSize = (ViewMode)(int)size;
+                    CurrentIconSize = (ViewMode)sizeInt;
                 }
 
-                if (settings.Values.TryGetValue("LeftViewMode", out var leftMode))
+                if (settings.Values.TryGetValue("LeftViewMode", out var leftMode) && leftMode is int leftInt
+                    && System.Enum.IsDefined(typeof(ViewMode), leftInt))
                 {
-                    LeftViewMode = (ViewMode)(int)leftMode;
+                    LeftViewMode = (ViewMode)leftInt;
                     CurrentViewMode = LeftViewMode;
                 }
 
-                if (settings.Values.TryGetValue("RightViewMode", out var rightMode))
+                if (settings.Values.TryGetValue("RightViewMode", out var rightMode) && rightMode is int rightInt
+                    && System.Enum.IsDefined(typeof(ViewMode), rightInt))
                 {
-                    RightViewMode = (ViewMode)(int)rightMode;
+                    RightViewMode = (ViewMode)rightInt;
                 }
 
                 // Load split view state
@@ -1714,13 +1718,18 @@ namespace Span.ViewModels
                 for (int i = 0; i < dtos.Count; i++)
                 {
                     var dto = dtos[i];
+                    var tabViewMode = System.Enum.IsDefined(typeof(ViewMode), dto.ViewMode)
+                        ? (ViewMode)dto.ViewMode : ViewMode.MillerColumns;
+                    var tabIconSize = System.Enum.IsDefined(typeof(ViewMode), dto.IconSize)
+                        ? (ViewMode)dto.IconSize : ViewMode.IconMedium;
+
                     var tab = new TabItem
                     {
                         Id = dto.Id,
                         Header = dto.Header,
                         Path = dto.Path,
-                        ViewMode = (ViewMode)dto.ViewMode,
-                        IconSize = (ViewMode)dto.IconSize,
+                        ViewMode = tabViewMode,
+                        IconSize = tabIconSize,
                         IsActive = false
                     };
 
@@ -1765,13 +1774,18 @@ namespace Span.ViewModels
             {
                 Tabs.Clear();
 
+                var tearViewMode = System.Enum.IsDefined(typeof(ViewMode), dto.ViewMode)
+                    ? (ViewMode)dto.ViewMode : ViewMode.MillerColumns;
+                var tearIconSize = System.Enum.IsDefined(typeof(ViewMode), dto.IconSize)
+                    ? (ViewMode)dto.IconSize : ViewMode.IconMedium;
+
                 var tab = new TabItem
                 {
                     Id = dto.Id,
                     Header = dto.Header,
                     Path = dto.Path,
-                    ViewMode = (ViewMode)dto.ViewMode,
-                    IconSize = (ViewMode)dto.IconSize,
+                    ViewMode = tearViewMode,
+                    IconSize = tearIconSize,
                     IsActive = true
                 };
 

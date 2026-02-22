@@ -63,7 +63,7 @@ namespace Span.ViewModels
                 bitmap.DecodePixelType = DecodePixelType.Logical;
 
                 using var stream = File.OpenRead(filePath);
-                var memStream = new MemoryStream();
+                using var memStream = new MemoryStream();
                 await stream.CopyToAsync(memStream);
                 memStream.Position = 0;
 

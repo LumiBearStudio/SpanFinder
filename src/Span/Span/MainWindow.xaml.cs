@@ -3936,7 +3936,14 @@ namespace Span
 
                 var result = await dialog.ShowAsync();
                 if (result != ContentDialogResult.Primary) return;
+                // await 후 상태 재검증 — dialog 표시 중 탭 전환/창 닫기 가능
+                if (_isClosed) return;
             }
+
+            // await 후 컬럼 유효성 재검증
+            var freshColumns = ViewModel.ActiveExplorer.Columns;
+            if (activeIndex >= freshColumns.Count) return;
+            if (!ReferenceEquals(currentColumn, freshColumns[activeIndex])) return;
 
             var paths = selectedItems.Select(i => i.Path).ToList();
             Helpers.DebugLogger.Log($"[HandleDelete] Dialog confirmed. Deleting {paths.Count} item(s), ActiveIndex: {activeIndex}");
@@ -3947,6 +3954,7 @@ namespace Span
             var operation = new DeleteFileOperation(paths, permanent: false, router: router);
             Helpers.DebugLogger.Log($"[HandleDelete] Calling ExecuteFileOperationAsync with targetColumnIndex={activeIndex}");
             await ViewModel.ExecuteFileOperationAsync(operation, activeIndex);
+            if (_isClosed) return;
 
             Helpers.DebugLogger.Log($"[HandleDelete] After ExecuteFileOperationAsync. CurrentColumn children count: {currentColumn.Children.Count}");
 
@@ -4008,11 +4016,18 @@ namespace Span
             var result = await dialog.ShowAsync();
             if (result != ContentDialogResult.Primary) return;
 
+            // await 후 상태 재검증
+            if (_isClosed) return;
+            var freshColumns = ViewModel.ActiveExplorer.Columns;
+            if (activeIndex >= freshColumns.Count) return;
+            if (!ReferenceEquals(currentColumn, freshColumns[activeIndex])) return;
+
             // Execute permanent delete operation
             var paths = selectedItems.Select(i => i.Path).ToList();
             var router = App.Current.Services.GetRequiredService<Services.FileSystemRouter>();
             var operation = new DeleteFileOperation(paths, permanent: true, router: router);
             await ViewModel.ExecuteFileOperationAsync(operation, activeIndex);
+            if (_isClosed) return;
 
             // ★ Smart selection: Select the item at the same index, or the last item if index is out of bounds
             // Note: RefreshCurrentFolderAsync() already cleared selection and reloaded
@@ -4361,11 +4376,16 @@ namespace Span
 
         private async void FocusColumnAsync(int columnIndex)
         {
+            if (_isClosed) return;
+
             // Task.Delay(50) 대신 DispatcherQueue Low 우선순위로 XAML 레이아웃 완료 대기
             // — 50ms 고정 지연을 제거하여 탭 전환 속도 개선
             var tcs = new System.Threading.Tasks.TaskCompletionSource();
-            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
-                () => tcs.TrySetResult());
+            if (!DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+                () => tcs.TrySetResult()))
+            {
+                return; // 큐가 종료됨 — 창이 닫히는 중
+            }
             await tcs.Task;
             if (_isClosed) return;
 
@@ -4671,7 +4691,8 @@ namespace Span
         /// </summary>
         private void FocusLastColumnAfterNavigation()
         {
-            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, async () =>
+            if (_isClosed) return;
+            if (!DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, async () =>
             {
                 if (_isClosed) return;
 
@@ -4699,7 +4720,7 @@ namespace Span
                 {
                     FocusColumnAsync(cols.Count - 1);
                 }
-            });
+            })) { /* DispatcherQueue shut down */ }
         }
 
         /// <summary>

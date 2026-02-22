@@ -14,6 +14,7 @@ namespace Span.Views
         public IContextMenuHost? ContextMenuHost { get; set; }
 
         private MainViewModel? _mainViewModel;
+        private SettingsService? _settings;
 
         public ObservableCollection<DriveItem>? LocalDrives => _mainViewModel?.Drives;
         public ObservableCollection<DriveItem>? NetworkDrivesList => _mainViewModel?.NetworkDrives;
@@ -44,12 +45,22 @@ namespace Span.Views
         {
             this.InitializeComponent();
 
+            this.Loaded += (s, e) =>
+            {
+                try
+                {
+                    _settings = App.Current.Services.GetService(typeof(SettingsService)) as SettingsService;
+                }
+                catch { }
+            };
+
             this.Unloaded += (s, e) =>
             {
                 if (_mainViewModel != null)
                 {
                     _mainViewModel.NetworkDrives.CollectionChanged -= OnNetworkDrivesChanged;
                 }
+                _settings = null;
             };
         }
 
@@ -84,6 +95,7 @@ namespace Span.Views
 
         private void OnDriveRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
         {
+            if (_settings != null && !_settings.ShowContextMenu) return;
             if (ContextMenuService == null || ContextMenuHost == null) return;
             if (sender is FrameworkElement fe && fe.DataContext is DriveItem drive)
             {
@@ -98,6 +110,7 @@ namespace Span.Views
 
         private void OnFavoriteRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
         {
+            if (_settings != null && !_settings.ShowContextMenu) return;
             if (ContextMenuService == null || ContextMenuHost == null) return;
             if (sender is FrameworkElement fe && fe.DataContext is FavoriteItem favorite)
             {

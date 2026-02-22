@@ -795,6 +795,9 @@ namespace Span.ViewModels
                 column.CancelLoading();
                 column.SelectedChild = null;
 
+                // 썸네일 메모리 해제 — 뷰에서 제거된 컬럼의 BitmapImage 회수
+                column.UnloadAllThumbnails();
+
                 Columns.RemoveAt(i);
             }
 
@@ -870,24 +873,42 @@ namespace Span.ViewModels
                 return;
             }
 
-            // Folder selection: apply debouncing
+            // Folder selection: apply debouncing (skip for already-loaded folders)
             if (parentFolder.SelectedChild is FolderViewModel selectedFolder)
             {
-                Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Folder selected: {selectedFolder.Name} - applying {SelectionDebounceMs}ms debounce");
-
                 // Cancel previous pending operation
                 _selectionDebounce?.Cancel();
                 _selectionDebounce = new CancellationTokenSource();
                 var token = _selectionDebounce.Token;
 
-                try
+                // 캐시 히트 시 디바운스 건너뜀 — 이미 로드된 폴더는 즉시 표시
+                if (!selectedFolder.IsAlreadyLoaded)
                 {
-                    await Task.Delay(SelectionDebounceMs, token);
+                    Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Folder selected: {selectedFolder.Name} - applying {SelectionDebounceMs}ms debounce");
+
+                    try
+                    {
+                        await Task.Delay(SelectionDebounceMs, token);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Debounce cancelled - ABORT");
+                        return;
+                    }
+
                     if (token.IsCancellationRequested)
                     {
                         Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Debounce cancelled - ABORT");
                         return;
                     }
+                }
+                else
+                {
+                    Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Folder selected: {selectedFolder.Name} - cache hit, skipping debounce");
+                }
+
+                try
+                {
 
                     Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Debounce complete, validating state...");
 

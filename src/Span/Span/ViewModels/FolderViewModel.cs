@@ -52,6 +52,11 @@ namespace Span.ViewModels
         /// </summary>
         public bool IsSorting { get; set; } = false;
 
+        /// <summary>
+        /// 이미 로드 완료된 폴더인지 확인 (디바운스 건너뛰기용).
+        /// </summary>
+        public bool IsAlreadyLoaded => _isLoaded;
+
         public override string IconGlyph => Services.IconService.Current.FolderIcon;
         public override Microsoft.UI.Xaml.Media.Brush IconBrush => Services.IconService.Current.FolderBrush;
 
@@ -294,10 +299,28 @@ namespace Span.ViewModels
             // Clear selection to reset focus
             SelectedChild = null;
 
+            // Release thumbnails to free memory
+            UnloadAllThumbnails();
+
             // Mark as not loaded so it reloads next time
             _isLoaded = false;
 
             Helpers.DebugLogger.Log($"[FolderViewModel.ResetState] Reset complete - _isLoaded=false, SelectedChild=null");
+        }
+
+        /// <summary>
+        /// Release all thumbnails in this folder to free memory.
+        /// Called when folder is removed from view or reset.
+        /// </summary>
+        public void UnloadAllThumbnails()
+        {
+            foreach (var child in Children)
+            {
+                if (child is FileViewModel fileVm && fileVm.ThumbnailSource != null)
+                {
+                    fileVm.UnloadThumbnail();
+                }
+            }
         }
 
         /// <summary>

@@ -151,6 +151,7 @@ namespace Span.Views
 
         private void OnItemRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
         {
+            if (_settings != null && !_settings.ShowContextMenu) return;
             if (e.OriginalSource is FrameworkElement fe && ContextMenuService != null && ContextMenuHost != null)
             {
                 Microsoft.UI.Xaml.Controls.MenuFlyout? flyout = null;

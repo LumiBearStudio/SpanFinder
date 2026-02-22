@@ -297,6 +297,7 @@ namespace Span.Views
 
         private void OnItemRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
         {
+            if (_settings != null && !_settings.ShowContextMenu) return;
             if (sender is Grid grid && ContextMenuService != null && ContextMenuHost != null)
             {
                 Microsoft.UI.Xaml.Controls.MenuFlyout? flyout = null;
@@ -577,6 +578,7 @@ namespace Span.Views
         private void OnEmptyAreaRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
         {
             if (e.Handled) return; // Item handler already handled
+            if (_settings != null && !_settings.ShowContextMenu) return;
             if (ContextMenuService == null || ContextMenuHost == null) return;
 
             var folderPath = ViewModel?.CurrentFolder?.Path;
