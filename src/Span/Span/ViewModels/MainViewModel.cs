@@ -1068,22 +1068,35 @@ namespace Span.ViewModels
         #endregion
 
         /// <summary>
-        /// Settings에서 복귀할 이전 ViewMode
+        /// Settings 탭을 열거나, 이미 열려있으면 해당 탭으로 전환.
+        /// Settings 탭은 Explorer가 null이며, 최대 1개만 허용.
         /// </summary>
-        private ViewMode _preSettingsViewMode = ViewMode.MillerColumns;
-        private ViewMode _preSettingsLeftViewMode = ViewMode.MillerColumns;
-
-        /// <summary>
-        /// Settings 모드에서 이전 뷰로 복귀
-        /// </summary>
-        public void ExitSettings()
+        public void OpenOrSwitchToSettingsTab()
         {
-            if (CurrentViewMode != ViewMode.Settings) return;
+            // 기존 Settings 탭 검색
+            for (int i = 0; i < Tabs.Count; i++)
+            {
+                if (Tabs[i].ViewMode == ViewMode.Settings)
+                {
+                    if (i != ActiveTabIndex)
+                        SwitchToTab(i);
+                    return;
+                }
+            }
 
-            CurrentViewMode = _preSettingsViewMode;
-            LeftViewMode = _preSettingsLeftViewMode;
-            Helpers.DebugLogger.Log($"[MainViewModel] Settings → {Helpers.ViewModeExtensions.GetDisplayName(_preSettingsViewMode)} 복귀");
-            UpdateStatusBar();
+            // 새 Settings 탭 생성 (Explorer 없음)
+            var tab = new TabItem
+            {
+                Header = "Settings",
+                Path = "",
+                ViewMode = ViewMode.Settings,
+                IconSize = ViewMode.IconMedium,
+                IsActive = false,
+                Explorer = null
+            };
+            Tabs.Add(tab);
+            SwitchToTab(Tabs.Count - 1);
+            Helpers.DebugLogger.Log($"[MainViewModel] Settings tab opened (total: {Tabs.Count})");
         }
 
         /// <summary>
@@ -1091,17 +1104,10 @@ namespace Span.ViewModels
         /// </summary>
         public void SwitchViewMode(ViewMode mode)
         {
-            // Settings mode always targets the left pane
+            // Settings mode: 별도 탭으로 열기
             if (mode == ViewMode.Settings)
             {
-                if (CurrentViewMode == ViewMode.Settings) return;
-                _preSettingsViewMode = CurrentViewMode;
-                _preSettingsLeftViewMode = LeftViewMode;
-                ActivePane = ActivePane.Left;
-                CurrentViewMode = ViewMode.Settings;
-                LeftViewMode = ViewMode.Settings;
-                Helpers.DebugLogger.Log($"[MainViewModel] ViewMode changed: Settings (always left pane)");
-                UpdateStatusBar();
+                OpenOrSwitchToSettingsTab();
                 return;
             }
 
@@ -1393,31 +1399,41 @@ namespace Span.ViewModels
                 Tabs[index].IsActive = true;
                 OnPropertyChanged(nameof(ActiveTab));
 
-                // Explorer가 없으면 생성, 있지만 경로가 미로드이면 탐색 실행
-                if (Tabs[index].Explorer == null)
+                // Settings 탭은 Explorer가 null — Explorer 바인딩 스킵
+                if (Tabs[index].ViewMode == ViewMode.Settings)
                 {
-                    InitializeTabExplorer(Tabs[index]);
+                    // ★ ViewMode만 설정, LeftExplorer 교체 안 함
+                    _currentViewMode = ViewMode.Settings;
+                    _leftViewMode = ViewMode.Settings;
                 }
-                else if (!string.IsNullOrEmpty(Tabs[index].Path)
-                    && Tabs[index].ViewMode != ViewMode.Home
-                    && string.IsNullOrEmpty(Tabs[index].Explorer.CurrentPath))
+                else
                 {
-                    // H4: 비활성 탭에서 지연된 NavigateToPath 실행
-                    LoadDeferredTabPath(Tabs[index]);
+                    // Explorer가 없으면 생성, 있지만 경로가 미로드이면 탐색 실행
+                    if (Tabs[index].Explorer == null)
+                    {
+                        InitializeTabExplorer(Tabs[index]);
+                    }
+                    else if (!string.IsNullOrEmpty(Tabs[index].Path)
+                        && Tabs[index].ViewMode != ViewMode.Home
+                        && string.IsNullOrEmpty(Tabs[index].Explorer.CurrentPath))
+                    {
+                        // H4: 비활성 탭에서 지연된 NavigateToPath 실행
+                        LoadDeferredTabPath(Tabs[index]);
+                    }
+
+                    // ★ LeftExplorer 필드 직접 설정 — PropertyChanged 미발생 (SetProperty 우회)
+                    var old = _leftExplorer;
+                    if (old != null) old.PropertyChanged -= OnLeftExplorerPropertyChanged;
+                    _leftExplorer = Tabs[index].Explorer!;
+                    if (_leftExplorer != null) _leftExplorer.PropertyChanged += OnLeftExplorerPropertyChanged;
+
+                    // ★ ViewMode도 backing field 직접 설정 — PropertyChanged 미발생
+                    _currentViewMode = Tabs[index].ViewMode;
+                    _leftViewMode = Tabs[index].ViewMode;
+                    if (Helpers.ViewModeExtensions.IsIconMode(Tabs[index].ViewMode))
+                        _currentIconSize = Tabs[index].IconSize;
+                    _leftExplorer.EnableAutoNavigation = ShouldAutoNavigate(Tabs[index].ViewMode);
                 }
-
-                // ★ LeftExplorer 필드 직접 설정 — PropertyChanged 미발생 (SetProperty 우회)
-                var old = _leftExplorer;
-                if (old != null) old.PropertyChanged -= OnLeftExplorerPropertyChanged;
-                _leftExplorer = Tabs[index].Explorer!;
-                if (_leftExplorer != null) _leftExplorer.PropertyChanged += OnLeftExplorerPropertyChanged;
-
-                // ★ ViewMode도 backing field 직접 설정 — PropertyChanged 미발생
-                _currentViewMode = Tabs[index].ViewMode;
-                _leftViewMode = Tabs[index].ViewMode;
-                if (Helpers.ViewModeExtensions.IsIconMode(Tabs[index].ViewMode))
-                    _currentIconSize = Tabs[index].IconSize;
-                _leftExplorer.EnableAutoNavigation = ShouldAutoNavigate(Tabs[index].ViewMode);
 
                 Helpers.DebugLogger.Log($"[MainViewModel] Switched to tab {index}: {Tabs[index].Header}");
                 UpdateStatusBar();
@@ -1553,6 +1569,7 @@ namespace Span.ViewModels
         {
             var tab = ActiveTab;
             if (tab == null) return;
+            if (tab.ViewMode == ViewMode.Settings) return; // Settings 탭은 상태 저장 불필요
 
             if (tab.ViewMode != CurrentViewMode)
                 tab.ViewMode = CurrentViewMode;
@@ -1645,6 +1662,7 @@ namespace Span.ViewModels
         {
             var tab = ActiveTab;
             if (tab == null) return;
+            if (tab.ViewMode == ViewMode.Settings) return; // Settings 탭 헤더 보호
 
             if (CurrentViewMode == ViewMode.Home)
             {
@@ -1666,9 +1684,11 @@ namespace Span.ViewModels
             try
             {
                 var settings = App.Current.Services.GetRequiredService<SettingsService>();
-                var dtos = Tabs.Select(t => new TabStateDto(
-                    t.Id, t.Header, t.Path, (int)t.ViewMode, (int)t.IconSize
-                )).ToList();
+                var dtos = Tabs
+                    .Where(t => t.ViewMode != ViewMode.Settings) // Settings 탭은 세션 저장 제외
+                    .Select(t => new TabStateDto(
+                        t.Id, t.Header, t.Path, (int)t.ViewMode, (int)t.IconSize
+                    )).ToList();
 
                 settings.TabsJson = JsonSerializer.Serialize(dtos);
                 settings.ActiveTabIndex = ActiveTabIndex;

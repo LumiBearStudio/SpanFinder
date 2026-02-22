@@ -71,6 +71,10 @@
                                         <FontIcon Glyph="&#xE80F;" FontSize="14"
                                                   Foreground="{ThemeResource SpanAccentBrush}"
                                                   Visibility="{x:Bind IsHomeModeVisible, Mode=OneWay}"/>
+                                        <!-- Settings icon (Segoe Fluent Icons gear) -->
+                                        <FontIcon Glyph="&#xE713;" FontSize="14"
+                                                  Foreground="{ThemeResource SpanAccentBrush}"
+                                                  Visibility="{x:Bind IsSettingsModeVisible, Mode=OneWay}"/>
                                         <!-- Folder icon (RemixIcons) -->
                                         <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Folder}" FontSize="14"
                                                   Foreground="#FFD54F"

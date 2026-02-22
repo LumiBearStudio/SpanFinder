@@ -22,6 +22,7 @@ namespace Span.Models
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(IsHomeModeVisible))]
         [NotifyPropertyChangedFor(nameof(IsNotHomeModeVisible))]
+        [NotifyPropertyChangedFor(nameof(IsSettingsModeVisible))]
         private ViewMode _viewMode = ViewMode.Home;
 
         [ObservableProperty]
@@ -38,7 +39,10 @@ namespace Span.Models
             => ViewMode == ViewMode.Home ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
 
         public Microsoft.UI.Xaml.Visibility IsNotHomeModeVisible
-            => ViewMode != ViewMode.Home ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+            => (ViewMode != ViewMode.Home && ViewMode != ViewMode.Settings) ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+
+        public Microsoft.UI.Xaml.Visibility IsSettingsModeVisible
+            => ViewMode == ViewMode.Settings ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
 
         public Microsoft.UI.Xaml.Visibility IsActiveVisible
             => IsActive ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;

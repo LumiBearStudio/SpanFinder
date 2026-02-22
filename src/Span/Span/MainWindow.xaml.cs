@@ -193,7 +193,7 @@ namespace Span
             DetailsView.ViewModel = ViewModel.Explorer;
             IconView.ViewModel = ViewModel.Explorer;
             HomeView.MainViewModel = ViewModel;
-            SettingsView.BackRequested += (s, e) => ViewModel.ExitSettings();
+            SettingsView.BackRequested += (s, e) => CloseCurrentSettingsTab();
 
             // Breadcrumb ItemsSource — x:Bind 제거 후 code-behind에서 직접 설정
             AddressBreadcrumbBar.ItemsSource = ViewModel.Explorer.PathSegments;
@@ -735,12 +735,68 @@ namespace Span
 
         private void HandleOpenTerminal()
         {
-            var path = ViewModel.ActiveExplorer.CurrentPath;
-            if (!string.IsNullOrEmpty(path) && path != "PC" && System.IO.Directory.Exists(path))
+            var explorer = ViewModel.ActiveExplorer;
+            var path = explorer?.CurrentPath;
+            if (string.IsNullOrEmpty(path) || path == "PC")
             {
-                var shellService = App.Current.Services.GetRequiredService<Services.ShellService>();
-                shellService.OpenTerminal(path, _settings.DefaultTerminal);
+                ViewModel.ShowToast("유효한 폴더에서만 터미널을 열 수 있습니다");
+                return;
             }
+            if (!System.IO.Directory.Exists(path))
+            {
+                ViewModel.ShowToast("경로가 존재하지 않습니다");
+                return;
+            }
+            var shellService = App.Current.Services.GetRequiredService<Services.ShellService>();
+            shellService.OpenTerminal(path, _settings.DefaultTerminal);
+        }
+
+        /// <summary>
+        /// Settings 탭을 닫고 이전 탭으로 복귀.
+        /// 유일한 탭이면 Home 탭을 먼저 생성.
+        /// </summary>
+        private void CloseCurrentSettingsTab()
+        {
+            var tab = ViewModel.ActiveTab;
+            if (tab == null || tab.ViewMode != ViewMode.Settings) return;
+
+            int index = ViewModel.ActiveTabIndex;
+
+            if (ViewModel.Tabs.Count <= 1)
+            {
+                // 유일한 탭이면 Home 탭 먼저 생성
+                ViewModel.AddNewTab(); // Home 탭 추가 + 자동 SwitchToTab
+                var newTab = ViewModel.ActiveTab;
+                if (newTab != null)
+                {
+                    CreateMillerPanelForTab(newTab);
+                    SwitchMillerPanel(newTab.Id);
+                }
+                // Settings 탭은 이제 인덱스 0
+                ViewModel.CloseTab(0);
+            }
+            else
+            {
+                ViewModel.CloseTab(index);
+                if (ViewModel.ActiveTab != null)
+                    SwitchMillerPanel(ViewModel.ActiveTab.Id);
+            }
+
+            ResubscribeLeftExplorer();
+            UpdateViewModeVisibility();
+            FocusActiveView();
+        }
+
+        /// <summary>
+        /// Settings 탭을 열거나 기존 탭으로 전환 (UI 연동 포함).
+        /// </summary>
+        private void OpenSettingsTab()
+        {
+            ViewModel.OpenOrSwitchToSettingsTab();
+            ResubscribeLeftExplorer();
+            UpdateViewModeVisibility();
+            // Tab count changed — update passthrough region
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, UpdateTitleBarRegions);
         }
 
         private void RefreshCurrentView()
@@ -866,7 +922,8 @@ namespace Span
             }
 
             // Inline preview: re-subscribe to new explorer's SelectedFile
-            ResubscribeInlinePreview(_subscribedLeftExplorer, newExplorer!);
+            if (newExplorer != null)
+                ResubscribeInlinePreview(_subscribedLeftExplorer, newExplorer);
 
             _subscribedLeftExplorer = newExplorer;
 
@@ -2714,7 +2771,7 @@ namespace Span
             {
                 if (e.Key == Windows.System.VirtualKey.Escape && ViewModel.CurrentViewMode == ViewMode.Settings)
                 {
-                    ViewModel.ExitSettings();
+                    CloseCurrentSettingsTab();
                     e.Handled = true;
                     return;
                 }
@@ -2726,12 +2783,16 @@ namespace Span
                         case Windows.System.VirtualKey.Number2: // Ctrl+2: Details
                         case Windows.System.VirtualKey.Number3: // Ctrl+3: Icons
                         case (Windows.System.VirtualKey)188:    // Ctrl+,: Settings
+                        case (Windows.System.VirtualKey)192:    // Ctrl+`: Terminal (VK_OEM_3)
+                        case (Windows.System.VirtualKey)222:    // Ctrl+': Terminal (VK_OEM_7)
                         case Windows.System.VirtualKey.T:       // Ctrl+T: New Tab
                         case Windows.System.VirtualKey.W:       // Ctrl+W: Close Tab
                         case Windows.System.VirtualKey.L:       // Ctrl+L: Address Bar
                         case Windows.System.VirtualKey.N:       // Ctrl+N: New Window
                             break; // 허용 — fall through to main handler
                         default:
+                            // 한국어 키보드: backtick(41), single quote(40), comma(51) 허용
+                            if (e.KeyStatus.ScanCode == 41 || e.KeyStatus.ScanCode == 40 || e.KeyStatus.ScanCode == 51) break;
                             return; // 그 외 Ctrl 단축키 차단
                     }
                 }
@@ -2771,6 +2832,8 @@ namespace Span
 
             if (ctrl)
             {
+                Helpers.DebugLogger.Log($"[Keyboard] Ctrl+Key: Key={(int)e.Key} ({e.Key}), OriginalKey={(int)e.OriginalKey} ({e.OriginalKey}), ScanCode={e.KeyStatus.ScanCode}");
+
                 switch (e.Key)
                 {
                     case Windows.System.VirtualKey.E:
@@ -2814,14 +2877,21 @@ namespace Span
                         break;
 
                     case Windows.System.VirtualKey.W:
-                        var closingTab = ViewModel.ActiveTab;
-                        if (closingTab != null) RemoveMillerPanel(closingTab.Id);
-                        ViewModel.CloseTab(ViewModel.ActiveTabIndex);
-                        if (ViewModel.ActiveTab != null)
-                            SwitchMillerPanel(ViewModel.ActiveTab.Id);
-                        ResubscribeLeftExplorer();
-                        UpdateViewModeVisibility();
-                        FocusActiveView();
+                        if (ViewModel.ActiveTab?.ViewMode == ViewMode.Settings)
+                        {
+                            CloseCurrentSettingsTab();
+                        }
+                        else
+                        {
+                            var closingTab = ViewModel.ActiveTab;
+                            if (closingTab != null) RemoveMillerPanel(closingTab.Id);
+                            ViewModel.CloseTab(ViewModel.ActiveTabIndex);
+                            if (ViewModel.ActiveTab != null)
+                                SwitchMillerPanel(ViewModel.ActiveTab.Id);
+                            ResubscribeLeftExplorer();
+                            UpdateViewModeVisibility();
+                            FocusActiveView();
+                        }
                         e.Handled = true;
                         break;
 
@@ -2900,15 +2970,16 @@ namespace Span
                         e.Handled = true;
                         break;
 
-                    case (Windows.System.VirtualKey)192: // VK_OEM_3 = backtick/tilde key
-                        // Ctrl+`: Open terminal
+                    case (Windows.System.VirtualKey)192: // VK_OEM_3 = Ctrl+` (backtick)
+                    case (Windows.System.VirtualKey)222: // VK_OEM_7 = Ctrl+' (single quote)
+                        // Ctrl+` or Ctrl+': Open terminal
                         HandleOpenTerminal();
                         e.Handled = true;
                         break;
 
                     case (Windows.System.VirtualKey)188: // VK_OEM_COMMA
-                        // Ctrl+,: Settings
-                        ViewModel.SwitchViewMode(ViewMode.Settings);
+                        // Ctrl+,: Settings (별도 탭으로 열기)
+                        OpenSettingsTab();
                         e.Handled = true;
                         break;
 
@@ -2957,6 +3028,21 @@ namespace Span
                                 AutoFitAllColumns();
                                 ViewModel.ShowToast("All columns auto-fitted to content");
                             }
+                            e.Handled = true;
+                        }
+                        break;
+
+                    default:
+                        // 한국어 키보드 대응: VK_OEM 코드가 다른 VirtualKey로 매핑될 수 있음
+                        // 물리 키 scan code로 판별
+                        if (e.KeyStatus.ScanCode == 41 || e.KeyStatus.ScanCode == 40) // backtick(41) or single quote(40)
+                        {
+                            HandleOpenTerminal();
+                            e.Handled = true;
+                        }
+                        else if (e.KeyStatus.ScanCode == 51) // comma 위치
+                        {
+                            OpenSettingsTab();
                             e.Handled = true;
                         }
                         break;
@@ -5597,10 +5683,14 @@ namespace Span
                     if (ViewModel.Tabs.Count > 1)
                         fe.CapturePointer(e.Pointer);
 
-                    // Show/Hide 패널 전환 (ViewModel.SwitchToTab 전에 실행하여 바인딩 재평가 방지)
-                    SwitchMillerPanel(tab.Id);
-                    SwitchDetailsPanel(tab.Id, tab.ViewMode == ViewMode.Details);
-                    SwitchIconPanel(tab.Id, Helpers.ViewModeExtensions.IsIconMode(tab.ViewMode));
+                    // Settings 탭은 Miller/Details/Icon 패널 없음
+                    if (tab.ViewMode != ViewMode.Settings)
+                    {
+                        // Show/Hide 패널 전환 (ViewModel.SwitchToTab 전에 실행하여 바인딩 재평가 방지)
+                        SwitchMillerPanel(tab.Id);
+                        SwitchDetailsPanel(tab.Id, tab.ViewMode == ViewMode.Details);
+                        SwitchIconPanel(tab.Id, Helpers.ViewModeExtensions.IsIconMode(tab.ViewMode));
+                    }
                     ViewModel.SwitchToTab(index);
                     // LeftExplorer 변경 후 수동으로 필요한 것만 갱신 (PropertyChanged 미발생이므로)
                     ResubscribeLeftExplorer();
@@ -6055,17 +6145,30 @@ namespace Span
                 int index = ViewModel.Tabs.IndexOf(tab);
                 if (index >= 0)
                 {
-                    // 패널 제거 (닫히는 탭)
-                    RemoveMillerPanel(tab.Id);
-                    RemoveDetailsPanel(tab.Id);
-                    RemoveIconPanel(tab.Id);
-                    ViewModel.CloseTab(index);
-                    // CloseTab이 SwitchToTab을 호출하면 활성 탭이 변경됨 — 패널 전환
-                    if (ViewModel.ActiveTab != null)
+                    if (tab.ViewMode == ViewMode.Settings)
                     {
-                        SwitchMillerPanel(ViewModel.ActiveTab.Id);
-                        SwitchDetailsPanel(ViewModel.ActiveTab.Id, ViewModel.ActiveTab.ViewMode == ViewMode.Details);
-                        SwitchIconPanel(ViewModel.ActiveTab.Id, Helpers.ViewModeExtensions.IsIconMode(ViewModel.ActiveTab.ViewMode));
+                        // Settings 탭은 Miller/Details/Icon 패널 없으므로 제거 스킵
+                        // 임시로 활성 탭 인덱스 보정 후 CloseTab
+                        ViewModel.CloseTab(index);
+                        if (ViewModel.ActiveTab != null && ViewModel.ActiveTab.ViewMode != ViewMode.Settings)
+                        {
+                            SwitchMillerPanel(ViewModel.ActiveTab.Id);
+                        }
+                    }
+                    else
+                    {
+                        // 패널 제거 (닫히는 탭)
+                        RemoveMillerPanel(tab.Id);
+                        RemoveDetailsPanel(tab.Id);
+                        RemoveIconPanel(tab.Id);
+                        ViewModel.CloseTab(index);
+                        // CloseTab이 SwitchToTab을 호출하면 활성 탭이 변경됨 — 패널 전환
+                        if (ViewModel.ActiveTab != null)
+                        {
+                            SwitchMillerPanel(ViewModel.ActiveTab.Id);
+                            SwitchDetailsPanel(ViewModel.ActiveTab.Id, ViewModel.ActiveTab.ViewMode == ViewMode.Details);
+                            SwitchIconPanel(ViewModel.ActiveTab.Id, Helpers.ViewModeExtensions.IsIconMode(ViewModel.ActiveTab.ViewMode));
+                        }
                     }
                     ResubscribeLeftExplorer();
                     UpdateViewModeVisibility();
@@ -7566,7 +7669,7 @@ namespace Span
 
         private void OnSettingsClick(object sender, RoutedEventArgs e)
         {
-            ViewModel.SwitchViewMode(ViewMode.Settings);
+            OpenSettingsTab();
         }
 
         private Views.LogFlyoutContent? _logFlyout;
