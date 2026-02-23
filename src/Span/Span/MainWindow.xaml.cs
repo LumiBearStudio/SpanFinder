@@ -609,43 +609,240 @@ namespace Span
         //  Settings
         // =================================================================
 
+        // 커스텀 테마 목록 (Dark 기반 + 리소스 오버라이드)
+        private static readonly HashSet<string> _customThemes = new() { "dracula", "tokyonight", "catppuccin", "gruvbox" };
+
         private void ApplyTheme(string theme)
         {
+            bool isCustom = _customThemes.Contains(theme);
+
             if (this.Content is FrameworkElement root)
             {
-                root.RequestedTheme = theme switch
+                var targetTheme = theme switch
                 {
                     "light" => ElementTheme.Light,
                     "dark" => ElementTheme.Dark,
+                    _ when isCustom => ElementTheme.Dark, // 커스텀 테마는 Dark 기반
                     _ => ElementTheme.Default
                 };
+
+                // 커스텀 테마: 리소스 설정 후 테마 토글로 {ThemeResource} 바인딩 강제 갱신
+                if (isCustom)
+                {
+                    // 1) 먼저 Light로 전환하여 기존 Dark 리소스 해제
+                    root.RequestedTheme = ElementTheme.Light;
+                    // 2) 커스텀 리소스 오버라이드 적용
+                    ApplyCustomThemeOverrides(root, theme);
+                    // 3) Dark로 복귀 → 모든 {ThemeResource} 바인딩 재평가
+                    root.RequestedTheme = ElementTheme.Dark;
+                }
+                else
+                {
+                    // 비커스텀: 오버라이드 제거 후 테마 적용
+                    ApplyCustomThemeOverrides(root, theme);
+                    root.RequestedTheme = targetTheme;
+                }
             }
 
-            // 캡션 버튼(최소화/최대화/닫기) 색상을 테마에 맞게 설정
+            // 캡션 버튼 색상
             var titleBar = this.AppWindow.TitleBar;
-            bool isLight = theme == "light" ||
-                           (theme == "system" && App.Current.RequestedTheme == ApplicationTheme.Light);
 
-            if (isLight)
+            if (isCustom)
             {
-                titleBar.ButtonForegroundColor = Windows.UI.Color.FromArgb(255, 26, 26, 26);      // #1A1A1A
-                titleBar.ButtonHoverForegroundColor = Windows.UI.Color.FromArgb(255, 0, 0, 0);
-                titleBar.ButtonHoverBackgroundColor = Windows.UI.Color.FromArgb(20, 0, 0, 0);
-                titleBar.ButtonPressedForegroundColor = Windows.UI.Color.FromArgb(255, 0, 0, 0);
-                titleBar.ButtonPressedBackgroundColor = Windows.UI.Color.FromArgb(40, 0, 0, 0);
-                titleBar.ButtonInactiveForegroundColor = Windows.UI.Color.FromArgb(255, 140, 140, 140);
+                var cap = GetCaptionColors(theme);
+                titleBar.ButtonForegroundColor = cap.fg;
+                titleBar.ButtonHoverForegroundColor = cap.hoverFg;
+                titleBar.ButtonHoverBackgroundColor = cap.hoverBg;
+                titleBar.ButtonPressedForegroundColor = cap.pressedFg;
+                titleBar.ButtonPressedBackgroundColor = cap.pressedBg;
+                titleBar.ButtonInactiveForegroundColor = cap.inactiveFg;
             }
             else
             {
-                titleBar.ButtonForegroundColor = Windows.UI.Color.FromArgb(255, 255, 255, 255);
-                titleBar.ButtonHoverForegroundColor = Windows.UI.Color.FromArgb(255, 255, 255, 255);
-                titleBar.ButtonHoverBackgroundColor = Windows.UI.Color.FromArgb(15, 255, 255, 255);
-                titleBar.ButtonPressedForegroundColor = Windows.UI.Color.FromArgb(255, 255, 255, 255);
-                titleBar.ButtonPressedBackgroundColor = Windows.UI.Color.FromArgb(20, 255, 255, 255);
-                titleBar.ButtonInactiveForegroundColor = Windows.UI.Color.FromArgb(255, 120, 120, 120);
+                bool isLight = theme == "light" ||
+                               (theme == "system" && App.Current.RequestedTheme == ApplicationTheme.Light);
+
+                if (isLight)
+                {
+                    titleBar.ButtonForegroundColor = Windows.UI.Color.FromArgb(255, 26, 26, 26);
+                    titleBar.ButtonHoverForegroundColor = Windows.UI.Color.FromArgb(255, 0, 0, 0);
+                    titleBar.ButtonHoverBackgroundColor = Windows.UI.Color.FromArgb(20, 0, 0, 0);
+                    titleBar.ButtonPressedForegroundColor = Windows.UI.Color.FromArgb(255, 0, 0, 0);
+                    titleBar.ButtonPressedBackgroundColor = Windows.UI.Color.FromArgb(40, 0, 0, 0);
+                    titleBar.ButtonInactiveForegroundColor = Windows.UI.Color.FromArgb(255, 140, 140, 140);
+                }
+                else
+                {
+                    titleBar.ButtonForegroundColor = Windows.UI.Color.FromArgb(255, 255, 255, 255);
+                    titleBar.ButtonHoverForegroundColor = Windows.UI.Color.FromArgb(255, 255, 255, 255);
+                    titleBar.ButtonHoverBackgroundColor = Windows.UI.Color.FromArgb(15, 255, 255, 255);
+                    titleBar.ButtonPressedForegroundColor = Windows.UI.Color.FromArgb(255, 255, 255, 255);
+                    titleBar.ButtonPressedBackgroundColor = Windows.UI.Color.FromArgb(20, 255, 255, 255);
+                    titleBar.ButtonInactiveForegroundColor = Windows.UI.Color.FromArgb(255, 120, 120, 120);
+                }
             }
-            titleBar.ButtonBackgroundColor = Windows.UI.Color.FromArgb(0, 0, 0, 0); // 투명
+            titleBar.ButtonBackgroundColor = Windows.UI.Color.FromArgb(0, 0, 0, 0);
             titleBar.ButtonInactiveBackgroundColor = Windows.UI.Color.FromArgb(0, 0, 0, 0);
+        }
+
+        // 원본 Dark ThemeDictionary 백업 (최초 한 번만)
+        private ResourceDictionary? _originalDarkThemeDict;
+
+        private void ApplyCustomThemeOverrides(FrameworkElement root, string theme)
+        {
+            // 원본 백업 (최초 1회)
+            if (_originalDarkThemeDict == null && root.Resources.ThemeDictionaries.ContainsKey("Dark"))
+            {
+                var orig = (ResourceDictionary)root.Resources.ThemeDictionaries["Dark"];
+                _originalDarkThemeDict = new ResourceDictionary();
+                foreach (var kvp in orig)
+                    _originalDarkThemeDict[kvp.Key] = kvp.Value;
+            }
+
+            if (!_customThemes.Contains(theme))
+            {
+                // 원본 Dark ThemeDictionary 복원
+                if (_originalDarkThemeDict != null)
+                {
+                    var restored = new ResourceDictionary();
+                    foreach (var kvp in _originalDarkThemeDict)
+                        restored[kvp.Key] = kvp.Value;
+                    root.Resources.ThemeDictionaries["Dark"] = restored;
+                }
+                return;
+            }
+
+            var p = GetThemePalette(theme);
+
+            // 원본 Dark dict를 기반으로 커스텀 값 덮어쓰기
+            var darkDict = new ResourceDictionary();
+            if (_originalDarkThemeDict != null)
+            {
+                foreach (var kvp in _originalDarkThemeDict)
+                    darkDict[kvp.Key] = kvp.Value;
+            }
+
+            // Color 리소스
+            darkDict["SpanBgMica"]        = p.bgMica;
+            darkDict["SpanBgLayer1"]      = p.bgLayer1;
+            darkDict["SpanBgLayer2"]      = p.bgLayer2;
+            darkDict["SpanBgLayer3"]      = p.bgLayer3;
+            darkDict["SpanAccent"]        = p.accent;
+            darkDict["SpanAccentHover"]   = p.accentHover;
+            darkDict["SpanTextPrimary"]   = p.textPri;
+            darkDict["SpanTextSecondary"] = p.textSec;
+            darkDict["SpanTextTertiary"]  = p.textTer;
+            darkDict["SpanBgSelected"]    = p.bgSel;
+            darkDict["SpanBorderSubtle"]  = p.border;
+
+            // Brush 리소스
+            darkDict["SpanBgMicaBrush"]        = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.bgMica);
+            darkDict["SpanBgLayer1Brush"]      = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.bgLayer1);
+            darkDict["SpanBgLayer2Brush"]      = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.bgLayer2);
+            darkDict["SpanBgLayer3Brush"]      = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.bgLayer3);
+            darkDict["SpanAccentBrush"]        = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.accent);
+            darkDict["SpanAccentHoverBrush"]   = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.accentHover);
+            darkDict["SpanTextPrimaryBrush"]   = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.textPri);
+            darkDict["SpanTextSecondaryBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.textSec);
+            darkDict["SpanTextTertiaryBrush"]  = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.textTer);
+            darkDict["SpanBgSelectedBrush"]    = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.bgSel);
+            darkDict["SpanBorderSubtleBrush"]  = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.border);
+
+            // ListView/GridView 선택 색상
+            darkDict["ListViewItemBackgroundSelected"]            = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.listSel);
+            darkDict["ListViewItemBackgroundSelectedPointerOver"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.listSelHover);
+            darkDict["ListViewItemBackgroundSelectedPressed"]     = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.listSelPressed);
+            darkDict["GridViewItemBackgroundSelected"]            = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.listSel);
+            darkDict["GridViewItemBackgroundSelectedPointerOver"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.listSelHover);
+            darkDict["GridViewItemBackgroundSelectedPressed"]     = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.listSelPressed);
+
+            root.Resources.ThemeDictionaries["Dark"] = darkDict;
+        }
+
+        private static (
+            Windows.UI.Color bgMica, Windows.UI.Color bgLayer1, Windows.UI.Color bgLayer2, Windows.UI.Color bgLayer3,
+            Windows.UI.Color accent, Windows.UI.Color accentHover,
+            Windows.UI.Color textPri, Windows.UI.Color textSec, Windows.UI.Color textTer,
+            Windows.UI.Color bgSel, Windows.UI.Color border,
+            Windows.UI.Color listSel, Windows.UI.Color listSelHover, Windows.UI.Color listSelPressed
+        ) GetThemePalette(string theme) => theme switch
+        {
+            "dracula" => (
+                Clr("#282a36"), Clr("#1e2029"), Clr("#282a36"), Clr("#44475a"),  // Background layers
+                Clr("#bd93f9"), Clr("#caa8ff"),                                   // Purple accent
+                Clr("#f8f8f2"), Clr("#6272a4"), Clr("#44475a"),                   // Foreground text
+                Clr("#4Dbd93f9"), Clr("#33f8f8f2"),                               // Selection/border
+                Clr("#99bd93f9"), Clr("#B3bd93f9"), Clr("#80bd93f9")              // List selection
+            ),
+            "tokyonight" => (
+                Clr("#16161e"), Clr("#1a1b26"), Clr("#292e42"), Clr("#414868"),   // Tokyo Night bg layers
+                Clr("#7aa2f7"), Clr("#7dcfff"),                                   // Blue + Cyan accent
+                Clr("#c0caf5"), Clr("#a9b1d6"), Clr("#565f89"),                   // fg layers
+                Clr("#4D7aa2f7"), Clr("#333b4261"),                               // Selection/border
+                Clr("#997aa2f7"), Clr("#B37aa2f7"), Clr("#807aa2f7")              // List selection
+            ),
+            "catppuccin" => (
+                Clr("#11111b"), Clr("#1e1e2e"), Clr("#181825"), Clr("#313244"),   // Crust→Base→Mantle→Surface0
+                Clr("#cba6f7"), Clr("#b4befe"),                                   // Mauve + Lavender
+                Clr("#cdd6f4"), Clr("#bac2de"), Clr("#7f849c"),                   // Text→Subtext1→Overlay1
+                Clr("#4Dcba6f7"), Clr("#33585b70"),                               // Selection/border
+                Clr("#99cba6f7"), Clr("#B3cba6f7"), Clr("#80cba6f7")              // List selection
+            ),
+            "gruvbox" => (
+                Clr("#1d2021"), Clr("#282828"), Clr("#3c3836"), Clr("#504945"),   // bg0_h→bg0→bg1→bg2
+                Clr("#fe8019"), Clr("#fabd2f"),                                   // Orange + Yellow accent
+                Clr("#ebdbb2"), Clr("#d5c4a1"), Clr("#a89984"),                   // fg→fg2→fg4
+                Clr("#4Dfe8019"), Clr("#33ebdbb2"),                               // Selection/border
+                Clr("#99fe8019"), Clr("#B3fe8019"), Clr("#80fe8019")              // List selection
+            ),
+            _ => default
+        };
+
+        private static (
+            Windows.UI.Color fg, Windows.UI.Color hoverFg, Windows.UI.Color hoverBg,
+            Windows.UI.Color pressedFg, Windows.UI.Color pressedBg, Windows.UI.Color inactiveFg
+        ) GetCaptionColors(string theme) => theme switch
+        {
+            "dracula" => (
+                Clr("#f8f8f2"), Clr("#bd93f9"), Clr("#33bd93f9"),
+                Clr("#caa8ff"), Clr("#4Dbd93f9"), Clr("#6272a4")
+            ),
+            "tokyonight" => (
+                Clr("#a9b1d6"), Clr("#c0caf5"), Clr("#26394b70"),
+                Clr("#c0caf5"), Clr("#40394b70"), Clr("#737aa2")
+            ),
+            "catppuccin" => (
+                Clr("#a6adc8"), Clr("#cdd6f4"), Clr("#40585b70"),
+                Clr("#bac2de"), Clr("#5945475a"), Clr("#6c7086")
+            ),
+            "gruvbox" => (
+                Clr("#a89984"), Clr("#ebdbb2"), Clr("#1Febdbb2"),
+                Clr("#fe8019"), Clr("#33fe8019"), Clr("#665c54")
+            ),
+            _ => (
+                Clr("#FFFFFF"), Clr("#FFFFFF"), Clr("#0FFFFFFF"),
+                Clr("#FFFFFF"), Clr("#14FFFFFF"), Clr("#787878")
+            )
+        };
+
+        private static Windows.UI.Color Clr(string hex)
+        {
+            hex = hex.TrimStart('#');
+            byte a = 255, r, g, b;
+            if (hex.Length == 8)
+            {
+                a = Convert.ToByte(hex[..2], 16);
+                r = Convert.ToByte(hex[2..4], 16);
+                g = Convert.ToByte(hex[4..6], 16);
+                b = Convert.ToByte(hex[6..8], 16);
+            }
+            else
+            {
+                r = Convert.ToByte(hex[..2], 16);
+                g = Convert.ToByte(hex[2..4], 16);
+                b = Convert.ToByte(hex[4..6], 16);
+            }
+            return Windows.UI.Color.FromArgb(a, r, g, b);
         }
 
         private void OnSettingChanged(string key, object? value)

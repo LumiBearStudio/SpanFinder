@@ -99,6 +99,10 @@ public sealed partial class SettingsModeView : UserControl
             ThemeSystem.IsChecked = theme == "system";
             ThemeLight.IsChecked = theme == "light";
             ThemeDark.IsChecked = theme == "dark";
+            ThemeDracula.IsChecked = theme == "dracula";
+            ThemeTokyoNight.IsChecked = theme == "tokyonight";
+            ThemeCatppuccin.IsChecked = theme == "catppuccin";
+            ThemeGruvbox.IsChecked = theme == "gruvbox";
 
             var density = _settings.Density;
             DensityCompact.IsChecked = density == "compact";
@@ -172,6 +176,10 @@ public sealed partial class SettingsModeView : UserControl
         ThemeSystem.Checked += (s, e) => { if (!_isLoading) _settings.Theme = "system"; };
         ThemeLight.Checked += (s, e) => { if (!_isLoading) _settings.Theme = "light"; };
         ThemeDark.Checked += (s, e) => { if (!_isLoading) _settings.Theme = "dark"; };
+        ThemeDracula.Checked += (s, e) => { if (!_isLoading) _settings.Theme = "dracula"; };
+        ThemeTokyoNight.Checked += (s, e) => { if (!_isLoading) _settings.Theme = "tokyonight"; };
+        ThemeCatppuccin.Checked += (s, e) => { if (!_isLoading) _settings.Theme = "catppuccin"; };
+        ThemeGruvbox.Checked += (s, e) => { if (!_isLoading) _settings.Theme = "gruvbox"; };
 
         DensityCompact.Checked += (s, e) => { if (!_isLoading) _settings.Density = "compact"; };
         DensityComfortable.Checked += (s, e) => { if (!_isLoading) _settings.Density = "comfortable"; };

@@ -329,6 +329,91 @@
                                 </Grid>
                             </Border>
 
+                            <!-- Custom Themes (Free) -->
+                            <Border Style="{StaticResource SettingsCardBorder}">
+                                <StackPanel Spacing="12">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Style="{StaticResource CardIconContainer}">
+                                            <FontIcon Glyph="&#xE735;" Style="{StaticResource CardIconStyle}" />
+                                        </Border>
+                                        <StackPanel Spacing="2" VerticalAlignment="Center">
+                                            <TextBlock x:Name="CustomThemesLabel" Text="커스텀 테마" Style="{StaticResource SettingsCardLabel}" />
+                                            <TextBlock x:Name="CustomThemesDesc" Text="인기 개발자 컬러 테마" Style="{StaticResource SettingsCardDesc}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                    <Grid Margin="48,4,0,0" ColumnSpacing="8" RowSpacing="8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <!-- Dracula -->
+                                        <RadioButton x:Name="ThemeDracula" GroupName="Theme" Grid.Column="0" Grid.Row="0"
+                                                     HorizontalAlignment="Stretch" MinWidth="0" Padding="0" CornerRadius="8"
+                                                     Background="{ThemeResource SpanBgLayer2Brush}">
+                                            <StackPanel Spacing="6" Padding="12,10" HorizontalAlignment="Center">
+                                                <StackPanel Orientation="Horizontal" Spacing="3" HorizontalAlignment="Center">
+                                                    <Border Width="12" Height="12" CornerRadius="6" Background="#282a36" />
+                                                    <Border Width="12" Height="12" CornerRadius="6" Background="#bd93f9" />
+                                                    <Border Width="12" Height="12" CornerRadius="6" Background="#f8f8f2" />
+                                                    <Border Width="12" Height="12" CornerRadius="6" Background="#ff79c6" />
+                                                </StackPanel>
+                                                <TextBlock Text="Dracula" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
+                                                <TextBlock Text="퍼플 다크 클래식" FontSize="10" HorizontalAlignment="Center" Foreground="{ThemeResource SpanTextSecondaryBrush}" />
+                                            </StackPanel>
+                                        </RadioButton>
+                                        <!-- Tokyo Night -->
+                                        <RadioButton x:Name="ThemeTokyoNight" GroupName="Theme" Grid.Column="1" Grid.Row="0"
+                                                     HorizontalAlignment="Stretch" MinWidth="0" Padding="0" CornerRadius="8"
+                                                     Background="{ThemeResource SpanBgLayer2Brush}">
+                                            <StackPanel Spacing="6" Padding="12,10" HorizontalAlignment="Center">
+                                                <StackPanel Orientation="Horizontal" Spacing="3" HorizontalAlignment="Center">
+                                                    <Border Width="12" Height="12" CornerRadius="6" Background="#1a1b26" />
+                                                    <Border Width="12" Height="12" CornerRadius="6" Background="#7aa2f7" />
+                                                    <Border Width="12" Height="12" CornerRadius="6" Background="#c0caf5" />
+                                                    <Border Width="12" Height="12" CornerRadius="6" Background="#7dcfff" />
+                                                </StackPanel>
+                                                <TextBlock Text="Tokyo Night" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
+                                                <TextBlock Text="네이비 + 시안 포인트" FontSize="10" HorizontalAlignment="Center" Foreground="{ThemeResource SpanTextSecondaryBrush}" />
+                                            </StackPanel>
+                                        </RadioButton>
+                                        <!-- Catppuccin Mocha -->
+                                        <RadioButton x:Name="ThemeCatppuccin" GroupName="Theme" Grid.Column="0" Grid.Row="1"
+                                                     HorizontalAlignment="Stretch" MinWidth="0" Padding="0" CornerRadius="8"
+                                                     Background="{ThemeResource SpanBgLayer2Brush}">
+                                            <StackPanel Spacing="6" Padding="12,10" HorizontalAlignment="Center">
+                                                <StackPanel Orientation="Horizontal" Spacing="3" HorizontalAlignment="Center">
+                                                    <Border Width="12" Height="12" CornerRadius="6" Background="#1e1e2e" />
+                                                    <Border Width="12" Height="12" CornerRadius="6" Background="#cba6f7" />
+                                                    <Border Width="12" Height="12" CornerRadius="6" Background="#cdd6f4" />
+                                                    <Border Width="12" Height="12" CornerRadius="6" Background="#f5c2e7" />
+                                                </StackPanel>
+                                                <TextBlock Text="Catppuccin" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
+                                                <TextBlock Text="따뜻한 파스텔 다크" FontSize="10" HorizontalAlignment="Center" Foreground="{ThemeResource SpanTextSecondaryBrush}" />
+                                            </StackPanel>
+                                        </RadioButton>
+                                        <!-- Gruvbox -->
+                                        <RadioButton x:Name="ThemeGruvbox" GroupName="Theme" Grid.Column="1" Grid.Row="1"
+                                                     HorizontalAlignment="Stretch" MinWidth="0" Padding="0" CornerRadius="8"
+                                                     Background="{ThemeResource SpanBgLayer2Brush}">
+                                            <StackPanel Spacing="6" Padding="12,10" HorizontalAlignment="Center">
+                                                <StackPanel Orientation="Horizontal" Spacing="3" HorizontalAlignment="Center">
+                                                    <Border Width="12" Height="12" CornerRadius="6" Background="#282828" />
+                                                    <Border Width="12" Height="12" CornerRadius="6" Background="#fe8019" />
+                                                    <Border Width="12" Height="12" CornerRadius="6" Background="#ebdbb2" />
+                                                    <Border Width="12" Height="12" CornerRadius="6" Background="#fabd2f" />
+                                                </StackPanel>
+                                                <TextBlock Text="Gruvbox" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
+                                                <TextBlock Text="레트로 웜 어스톤" FontSize="10" HorizontalAlignment="Center" Foreground="{ThemeResource SpanTextSecondaryBrush}" />
+                                            </StackPanel>
+                                        </RadioButton>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
                             <!-- Pro Themes -->
                             <Border Style="{StaticResource SettingsCardBorder}" BorderBrush="#3DFFD700" BorderThickness="1">
                                 <StackPanel Spacing="12">
