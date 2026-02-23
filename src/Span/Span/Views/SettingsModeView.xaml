@@ -106,13 +106,13 @@
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
-            <Button Grid.Column="0" Click="OnBackClick"
+            <Button x:Name="BackButton" Grid.Column="0" Click="OnBackClick"
                     Background="Transparent" BorderThickness="0"
                     Padding="8,6" CornerRadius="6" VerticalAlignment="Center"
                     ToolTipService.ToolTip="뒤로">
                 <FontIcon Glyph="&#xE72B;" FontSize="14"/>
             </Button>
-            <TextBlock Grid.Column="1" Text="설정" FontSize="20" FontWeight="SemiBold"
+            <TextBlock x:Name="SettingsTitle" Grid.Column="1" Text="설정" FontSize="20" FontWeight="SemiBold"
                        VerticalAlignment="Center" Margin="12,0,0,0"/>
         </Grid>
 
@@ -138,28 +138,28 @@
             </NavigationView.AutoSuggestBox>
 
             <NavigationView.MenuItems>
-                <NavigationViewItem Content="일반" Tag="General" IsSelected="True">
+                <NavigationViewItem x:Name="NavGeneral" Content="일반" Tag="General" IsSelected="True">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE713;" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem Content="모양" Tag="Appearance">
+                <NavigationViewItem x:Name="NavAppearance" Content="모양" Tag="Appearance">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE790;" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem Content="탐색" Tag="Browsing">
+                <NavigationViewItem x:Name="NavBrowsing" Content="탐색" Tag="Browsing">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE8B0;" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem Content="도구" Tag="Tools">
+                <NavigationViewItem x:Name="NavTools" Content="도구" Tag="Tools">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE756;" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
                 <NavigationViewItemSeparator />
-                <NavigationViewItem Content="라이선스 및 정보" Tag="About">
+                <NavigationViewItem x:Name="NavAbout" Content="라이선스 및 정보" Tag="About">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE946;" />
                     </NavigationViewItem.Icon>
@@ -171,7 +171,7 @@
                     <!-- ===== General Section ===== -->
                     <ScrollViewer x:Name="GeneralSection" Visibility="Visible">
                         <StackPanel Padding="20" Spacing="0">
-                            <TextBlock Text="일반" Style="{StaticResource SettingsSectionTitle}" />
+                            <TextBlock x:Name="GeneralTitle" Text="일반" Style="{StaticResource SettingsSectionTitle}" />
 
                             <!-- Language -->
                             <Border Style="{StaticResource SettingsCardBorder}">
@@ -186,12 +186,12 @@
                                             <FontIcon Glyph="&#xE774;" Style="{StaticResource CardIconStyle}" />
                                         </Border>
                                         <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                                            <TextBlock Text="언어 (Language)" Style="{StaticResource SettingsCardLabel}" />
-                                            <TextBlock Text="앱 인터페이스 표시 언어" Style="{StaticResource SettingsCardDesc}" />
+                                            <TextBlock x:Name="LangLabel" Text="언어 (Language)" Style="{StaticResource SettingsCardLabel}" />
+                                            <TextBlock x:Name="LangDesc" Text="앱 인터페이스 표시 언어" Style="{StaticResource SettingsCardDesc}" />
                                         </StackPanel>
                                         <ComboBox x:Name="LanguageCombo" Grid.Column="2" SelectedIndex="0" MinWidth="140"
                                                  VerticalAlignment="Center" SelectionChanged="LanguageCombo_SelectionChanged">
-                                            <ComboBoxItem Content="System Default (권장)" />
+                                            <ComboBoxItem x:Name="LangSystem" Content="System Default (권장)" />
                                             <ComboBoxItem Content="English" />
                                             <ComboBoxItem Content="한국어" />
                                             <ComboBoxItem Content="日本語" />
@@ -203,7 +203,7 @@
                                                 Background="#1AFF8C00" CornerRadius="6"
                                                 Visibility="Collapsed">
                                         <FontIcon Glyph="&#xE7BA;" FontSize="14" Foreground="#FF8C00" />
-                                        <TextBlock Text="앱을 재시작해야 완벽하게 적용됩니다." FontSize="12"
+                                        <TextBlock x:Name="LangRestartText" Text="앱을 재시작해야 완벽하게 적용됩니다." FontSize="12"
                                                    Foreground="#FF8C00" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </StackPanel>
@@ -217,23 +217,23 @@
                                             <FontIcon Glyph="&#xE7A5;" Style="{StaticResource CardIconStyle}" />
                                         </Border>
                                         <StackPanel Spacing="2" VerticalAlignment="Center">
-                                            <TextBlock Text="시작 시 동작" Style="{StaticResource SettingsCardLabel}" />
-                                            <TextBlock Text="앱을 실행할 때 보여줄 화면" Style="{StaticResource SettingsCardDesc}" />
+                                            <TextBlock x:Name="StartupLabel" Text="시작 시 동작" Style="{StaticResource SettingsCardLabel}" />
+                                            <TextBlock x:Name="StartupDesc" Text="앱을 실행할 때 보여줄 화면" Style="{StaticResource SettingsCardDesc}" />
                                         </StackPanel>
                                     </StackPanel>
                                     <RadioButtons x:Name="StartupRadios" Margin="48,0,0,0">
                                         <RadioButton x:Name="StartupRestore" IsChecked="True">
                                             <StackPanel Spacing="1">
-                                                <TextBlock Text="마지막 세션 복원" FontSize="13" />
-                                                <TextBlock Text="이전에 열어둔 탭과 경로를 유지합니다" FontSize="11"
+                                                <TextBlock x:Name="RestoreSessionLabel" Text="마지막 세션 복원" FontSize="13" />
+                                                <TextBlock x:Name="RestoreSessionDesc" Text="이전에 열어둔 탭과 경로를 유지합니다" FontSize="11"
                                                            Foreground="{ThemeResource SpanTextSecondaryBrush}" />
                                             </StackPanel>
                                         </RadioButton>
                                         <RadioButton x:Name="StartupHome" Content="내 PC (홈) 열기" />
                                         <RadioButton x:Name="StartupFolder">
                                             <StackPanel Spacing="1">
-                                                <TextBlock Text="특정 폴더 열기..." FontSize="13" />
-                                                <TextBlock Text="사용자 지정 경로" FontSize="11"
+                                                <TextBlock x:Name="OpenFolderLabel" Text="특정 폴더 열기..." FontSize="13" />
+                                                <TextBlock x:Name="CustomPathDesc" Text="사용자 지정 경로" FontSize="11"
                                                            Foreground="{ThemeResource SpanTextSecondaryBrush}" />
                                             </StackPanel>
                                         </RadioButton>
@@ -253,8 +253,8 @@
                                         <FontIcon Glyph="&#xE728;" Style="{StaticResource CardIconStyle}" />
                                     </Border>
                                     <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                                        <TextBlock Text="즐겨찾기 트리뷰" Style="{StaticResource SettingsCardLabel}" />
-                                        <TextBlock Text="즐겨찾기를 트리뷰로 표시 (하위 폴더 탐색 가능)" Style="{StaticResource SettingsCardDesc}" />
+                                        <TextBlock x:Name="FavTreeLabel" Text="즐겨찾기 트리뷰" Style="{StaticResource SettingsCardLabel}" />
+                                        <TextBlock x:Name="FavTreeDesc" Text="즐겨찾기를 트리뷰로 표시 (하위 폴더 탐색 가능)" Style="{StaticResource SettingsCardDesc}" />
                                     </StackPanel>
                                     <ToggleSwitch x:Name="FavoritesTreeToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="False" />
                                 </Grid>
@@ -272,8 +272,8 @@
                                         <FontIcon Glyph="&#xE737;" Style="{StaticResource CardIconStyle}" />
                                     </Border>
                                     <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                                        <TextBlock Text="시스템 트레이" Style="{StaticResource SettingsCardLabel}" />
-                                        <TextBlock Text="닫기 버튼을 누르면 트레이로 최소화" Style="{StaticResource SettingsCardDesc}" />
+                                        <TextBlock x:Name="SysTrayLabel" Text="시스템 트레이" Style="{StaticResource SettingsCardLabel}" />
+                                        <TextBlock x:Name="SysTrayDesc" Text="닫기 버튼을 누르면 트레이로 최소화" Style="{StaticResource SettingsCardDesc}" />
                                     </StackPanel>
                                     <ToggleSwitch x:Name="SystemTrayToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="False" />
                                 </Grid>
@@ -284,7 +284,7 @@
                     <!-- ===== Appearance Section ===== -->
                     <ScrollViewer x:Name="AppearanceSection" Visibility="Collapsed">
                         <StackPanel Padding="20" Spacing="0">
-                            <TextBlock Text="모양" Style="{StaticResource SettingsSectionTitle}" />
+                            <TextBlock x:Name="AppearanceTitle" Text="모양" Style="{StaticResource SettingsSectionTitle}" />
 
                             <!-- App Theme -->
                             <Border Style="{StaticResource SettingsCardBorder}">
@@ -298,8 +298,8 @@
                                         <FontIcon Glyph="&#xE790;" Style="{StaticResource CardIconStyle}" />
                                     </Border>
                                     <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                                        <TextBlock Text="앱 테마" Style="{StaticResource SettingsCardLabel}" />
-                                        <TextBlock Text="앱의 전체 색상 테마 설정" Style="{StaticResource SettingsCardDesc}" />
+                                        <TextBlock x:Name="ThemeLabel" Text="앱 테마" Style="{StaticResource SettingsCardLabel}" />
+                                        <TextBlock x:Name="ThemeDesc" Text="앱의 전체 색상 테마 설정" Style="{StaticResource SettingsCardDesc}" />
                                     </StackPanel>
                                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4"
                                                 Background="{ThemeResource SpanBgLayer2Brush}"
@@ -308,21 +308,21 @@
                                                      Style="{StaticResource SegmentedButton}" IsChecked="True">
                                             <StackPanel Orientation="Horizontal" Spacing="6">
                                                 <FontIcon Glyph="&#xE770;" FontSize="14" />
-                                                <TextBlock Text="시스템" FontSize="12" />
+                                                <TextBlock x:Name="ThemeSystemText" Text="시스템" FontSize="12" />
                                             </StackPanel>
                                         </RadioButton>
                                         <RadioButton x:Name="ThemeLight" GroupName="Theme"
                                                      Style="{StaticResource SegmentedButton}">
                                             <StackPanel Orientation="Horizontal" Spacing="6">
                                                 <FontIcon Glyph="&#xE706;" FontSize="14" />
-                                                <TextBlock Text="라이트" FontSize="12" />
+                                                <TextBlock x:Name="ThemeLightText" Text="라이트" FontSize="12" />
                                             </StackPanel>
                                         </RadioButton>
                                         <RadioButton x:Name="ThemeDark" GroupName="Theme"
                                                      Style="{StaticResource SegmentedButton}">
                                             <StackPanel Orientation="Horizontal" Spacing="6">
                                                 <FontIcon Glyph="&#xE708;" FontSize="14" />
-                                                <TextBlock Text="다크" FontSize="12" />
+                                                <TextBlock x:Name="ThemeDarkText" Text="다크" FontSize="12" />
                                             </StackPanel>
                                         </RadioButton>
                                     </StackPanel>
@@ -337,13 +337,13 @@
                                             <FontIcon Glyph="&#xE735;" FontSize="16" Foreground="#FFD700" />
                                         </Border>
                                         <StackPanel Spacing="2" VerticalAlignment="Center" Orientation="Horizontal">
-                                            <TextBlock Text="Pro 전용 테마" Style="{StaticResource SettingsCardLabel}" />
+                                            <TextBlock x:Name="ProThemesLabel" Text="Pro 전용 테마" Style="{StaticResource SettingsCardLabel}" />
                                             <Border Style="{StaticResource ProBadge}">
                                                 <TextBlock Text="PRO" FontSize="10" FontWeight="Bold" Foreground="#1a1a1a" />
                                             </Border>
                                         </StackPanel>
                                     </StackPanel>
-                                    <TextBlock Text="개발자를 위한 프리미엄 테마 잠금 해제"
+                                    <TextBlock x:Name="ProThemesDesc" Text="개발자를 위한 프리미엄 테마 잠금 해제"
                                                Style="{StaticResource SettingsCardDesc}" Margin="48,0,0,0" />
                                     <Grid Margin="48,4,0,0" ColumnSpacing="12">
                                         <Grid.ColumnDefinitions>
@@ -351,45 +351,48 @@
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
-                                        <Border Grid.Column="0" CornerRadius="8" Background="#1a1a2e" Height="80">
+                                        <Border Grid.Column="0" CornerRadius="8" Background="#1a1a2e" Height="80"
+                                                BorderBrush="#FFD700" BorderThickness="0,2,0,0">
                                             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="4">
                                                 <Border Width="40" Height="6" CornerRadius="3" Background="#FFD700" />
-                                                <Border Width="30" Height="4" CornerRadius="2" Background="#4DFFD700" />
+                                                <Border Width="30" Height="4" CornerRadius="2" Background="#80FFD700" />
                                                 <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center">
-                                                    <FontIcon Glyph="&#xE72E;" FontSize="10" Foreground="#80FFFFFF" />
-                                                    <TextBlock Text="Midnight Gold" FontSize="9" Foreground="#80FFFFFF" />
+                                                    <FontIcon Glyph="&#xE72E;" FontSize="10" Foreground="#B0FFFFFF" />
+                                                    <TextBlock Text="Midnight Gold" FontSize="9" Foreground="#B0FFFFFF" />
                                                 </StackPanel>
-                                                <TextBlock Text="블랙 &amp; 골드 포인트" FontSize="8" Foreground="#50FFFFFF" HorizontalAlignment="Center" />
+                                                <TextBlock x:Name="MidnightGoldDesc" Text="블랙 &amp; 골드 포인트" FontSize="8" Foreground="#80FFFFFF" HorizontalAlignment="Center" />
                                             </StackPanel>
                                         </Border>
-                                        <Border Grid.Column="1" CornerRadius="8" Background="#0d0221" Height="80">
+                                        <Border Grid.Column="1" CornerRadius="8" Background="#0d0221" Height="80"
+                                                BorderBrush="#BD00FF" BorderThickness="0,2,0,0">
                                             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="4">
                                                 <Border Width="40" Height="6" CornerRadius="3" Background="#BD00FF" />
-                                                <Border Width="30" Height="4" CornerRadius="2" Background="#4D00FFFF" />
+                                                <Border Width="30" Height="4" CornerRadius="2" Background="#8000FFFF" />
                                                 <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center">
-                                                    <FontIcon Glyph="&#xE72E;" FontSize="10" Foreground="#80FFFFFF" />
-                                                    <TextBlock Text="Cyberpunk" FontSize="9" Foreground="#80FFFFFF" />
+                                                    <FontIcon Glyph="&#xE72E;" FontSize="10" Foreground="#B0FFFFFF" />
+                                                    <TextBlock Text="Cyberpunk" FontSize="9" Foreground="#B0FFFFFF" />
                                                 </StackPanel>
-                                                <TextBlock Text="네온 퍼플 &amp; 사이언" FontSize="8" Foreground="#50FFFFFF" HorizontalAlignment="Center" />
+                                                <TextBlock x:Name="CyberpunkDesc" Text="네온 퍼플 &amp; 사이언" FontSize="8" Foreground="#80FFFFFF" HorizontalAlignment="Center" />
                                             </StackPanel>
                                         </Border>
-                                        <Border Grid.Column="2" CornerRadius="8" Background="#2e3440" Height="80">
+                                        <Border Grid.Column="2" CornerRadius="8" Background="#2e3440" Height="80"
+                                                BorderBrush="#88c0d0" BorderThickness="0,2,0,0">
                                             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="4">
                                                 <Border Width="40" Height="6" CornerRadius="3" Background="#88c0d0" />
-                                                <Border Width="30" Height="4" CornerRadius="2" Background="#4D81a1c1" />
+                                                <Border Width="30" Height="4" CornerRadius="2" Background="#8081a1c1" />
                                                 <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center">
-                                                    <FontIcon Glyph="&#xE72E;" FontSize="10" Foreground="#80FFFFFF" />
-                                                    <TextBlock Text="Nordic" FontSize="9" Foreground="#80FFFFFF" />
+                                                    <FontIcon Glyph="&#xE72E;" FontSize="10" Foreground="#B0FFFFFF" />
+                                                    <TextBlock Text="Nordic" FontSize="9" Foreground="#B0FFFFFF" />
                                                 </StackPanel>
-                                                <TextBlock Text="차분한 블루 그레이" FontSize="8" Foreground="#50FFFFFF" HorizontalAlignment="Center" />
+                                                <TextBlock x:Name="NordicDesc" Text="차분한 블루 그레이" FontSize="8" Foreground="#80FFFFFF" HorizontalAlignment="Center" />
                                             </StackPanel>
                                         </Border>
                                     </Grid>
                                     <Button Margin="48,4,0,0" HorizontalAlignment="Stretch"
-                                            Background="#2DFFD700" Foreground="#FFD700" CornerRadius="6" Padding="12,8">
+                                            Background="#FFD700" Foreground="#1a1a1a" CornerRadius="6" Padding="12,8">
                                         <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
-                                            <FontIcon Glyph="&#xE785;" FontSize="14" Foreground="#FFD700" />
-                                            <TextBlock Text="Pro로 업그레이드하고 잠금 해제" FontSize="13" />
+                                            <FontIcon Glyph="&#xE785;" FontSize="14" Foreground="#1a1a1a" />
+                                            <TextBlock x:Name="UpgradeProThemesText" Text="Pro로 업그레이드하고 잠금 해제" FontSize="13" />
                                         </StackPanel>
                                     </Button>
                                 </StackPanel>
@@ -403,8 +406,8 @@
                                             <FontIcon Glyph="&#xE744;" Style="{StaticResource CardIconStyle}" />
                                         </Border>
                                         <StackPanel Spacing="2" VerticalAlignment="Center">
-                                            <TextBlock Text="레이아웃 밀도" Style="{StaticResource SettingsCardLabel}" />
-                                            <TextBlock Text="목록 항목 간격 조절" Style="{StaticResource SettingsCardDesc}" />
+                                            <TextBlock x:Name="DensityLabel" Text="레이아웃 밀도" Style="{StaticResource SettingsCardLabel}" />
+                                            <TextBlock x:Name="DensityDesc" Text="목록 항목 간격 조절" Style="{StaticResource SettingsCardDesc}" />
                                         </StackPanel>
                                     </StackPanel>
                                     <Grid Margin="48,0,0,0" ColumnSpacing="8">
@@ -469,8 +472,8 @@
                                             <FontIcon Glyph="&#xE8B9;" Style="{StaticResource CardIconStyle}" />
                                         </Border>
                                         <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                                            <TextBlock Text="아이콘 팩" Style="{StaticResource SettingsCardLabel}" />
-                                            <TextBlock Text="파일/폴더 아이콘 스타일" Style="{StaticResource SettingsCardDesc}" />
+                                            <TextBlock x:Name="IconPackLabel" Text="아이콘 팩" Style="{StaticResource SettingsCardLabel}" />
+                                            <TextBlock x:Name="IconPackDesc" Text="파일/폴더 아이콘 스타일" Style="{StaticResource SettingsCardDesc}" />
                                         </StackPanel>
                                         <ComboBox x:Name="IconPackCombo" Grid.Column="2" SelectedIndex="0"
                                                   MinWidth="140" VerticalAlignment="Center">
@@ -483,7 +486,7 @@
                                                 Margin="48,8,0,0" Padding="10,8"
                                                 Background="#1AFF8C00" CornerRadius="6" Visibility="Collapsed">
                                         <FontIcon Glyph="&#xE7BA;" FontSize="14" Foreground="#FF8C00" />
-                                        <TextBlock Text="아이콘 팩 변경은 앱 재시작 후 적용됩니다" FontSize="12"
+                                        <TextBlock x:Name="IconPackRestartText" Text="아이콘 팩 변경은 앱 재시작 후 적용됩니다" FontSize="12"
                                                    Foreground="#FF8C00" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </StackPanel>
@@ -501,8 +504,8 @@
                                         <FontIcon Glyph="&#xE8D2;" Style="{StaticResource CardIconStyle}" />
                                     </Border>
                                     <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                                        <TextBlock Text="폰트" Style="{StaticResource SettingsCardLabel}" />
-                                        <TextBlock Text="파일 이름 표시에 사용할 폰트" Style="{StaticResource SettingsCardDesc}" />
+                                        <TextBlock x:Name="FontLabel" Text="폰트" Style="{StaticResource SettingsCardLabel}" />
+                                        <TextBlock x:Name="FontDesc" Text="파일 이름 표시에 사용할 폰트" Style="{StaticResource SettingsCardDesc}" />
                                     </StackPanel>
                                     <ComboBox x:Name="FontCombo" Grid.Column="2" SelectedIndex="0" MinWidth="140" VerticalAlignment="Center">
                                         <ComboBoxItem Content="Segoe UI Variable" />
@@ -517,7 +520,7 @@
                     <!-- ===== Browsing Section ===== -->
                     <ScrollViewer x:Name="BrowsingSection" Visibility="Collapsed">
                         <StackPanel Padding="20" Spacing="0">
-                            <TextBlock Text="탐색" Style="{StaticResource SettingsSectionTitle}" />
+                            <TextBlock x:Name="BrowsingTitle" Text="탐색" Style="{StaticResource SettingsSectionTitle}" />
 
                             <!-- View Options -->
                             <Border Style="{StaticResource SettingsCardBorder}">
@@ -527,8 +530,8 @@
                                             <FontIcon Glyph="&#xE7B3;" Style="{StaticResource CardIconStyle}" />
                                         </Border>
                                         <StackPanel Spacing="2" VerticalAlignment="Center">
-                                            <TextBlock Text="보기 옵션" Style="{StaticResource SettingsCardLabel}" />
-                                            <TextBlock Text="파일 표시 관련 설정" Style="{StaticResource SettingsCardDesc}" />
+                                            <TextBlock x:Name="ViewOptionsLabel" Text="보기 옵션" Style="{StaticResource SettingsCardLabel}" />
+                                            <TextBlock x:Name="ViewOptionsDesc" Text="파일 표시 관련 설정" Style="{StaticResource SettingsCardDesc}" />
                                         </StackPanel>
                                     </StackPanel>
                                     <Grid Margin="48,0,0,0">
@@ -537,7 +540,7 @@
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
                                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12">
-                                            <TextBlock Text="숨김 항목 표시" Style="{StaticResource ToggleRowLabel}" />
+                                            <TextBlock x:Name="ShowHiddenLabel" Text="숨김 항목 표시" Style="{StaticResource ToggleRowLabel}" />
                                             <Border Background="{ThemeResource SpanBgLayer2Brush}" CornerRadius="4" Padding="6,2">
                                                 <TextBlock Text="Ctrl+H" FontSize="11" FontFamily="Consolas" Foreground="{ThemeResource SpanTextSecondaryBrush}" />
                                             </Border>
@@ -550,7 +553,7 @@
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="파일 확장자 표시" Style="{StaticResource ToggleRowLabel}" />
+                                        <TextBlock x:Name="ShowExtLabel" Grid.Column="0" Text="파일 확장자 표시" Style="{StaticResource ToggleRowLabel}" />
                                         <ToggleSwitch x:Name="ShowExtensionsToggle" Grid.Column="1" IsOn="True" />
                                     </Grid>
                                     <Rectangle Height="1" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="48,0,0,0" />
@@ -559,7 +562,7 @@
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="체크박스 사용하여 항목 선택" Style="{StaticResource ToggleRowLabel}" />
+                                        <TextBlock x:Name="CheckboxLabel" Grid.Column="0" Text="체크박스 사용하여 항목 선택" Style="{StaticResource ToggleRowLabel}" />
                                         <ToggleSwitch x:Name="CheckboxToggle" Grid.Column="1" IsOn="False" />
                                     </Grid>
                                 </StackPanel>
@@ -577,12 +580,12 @@
                                         <FontIcon Glyph="&#xE80A;" Style="{StaticResource CardIconStyle}" />
                                     </Border>
                                     <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                                        <TextBlock Text="밀러 컬럼 동작" Style="{StaticResource SettingsCardLabel}" />
-                                        <TextBlock Text="폴더 열기 방식" Style="{StaticResource SettingsCardDesc}" />
+                                        <TextBlock x:Name="MillerLabel" Text="밀러 컬럼 동작" Style="{StaticResource SettingsCardLabel}" />
+                                        <TextBlock x:Name="MillerDesc" Text="폴더 열기 방식" Style="{StaticResource SettingsCardDesc}" />
                                     </StackPanel>
                                     <ComboBox x:Name="MillerClickCombo" Grid.Column="2" SelectedIndex="0" MinWidth="140" VerticalAlignment="Center">
-                                        <ComboBoxItem Content="한 번 클릭" />
-                                        <ComboBoxItem Content="더블 클릭" />
+                                        <ComboBoxItem x:Name="SingleClickItem" Content="한 번 클릭" />
+                                        <ComboBoxItem x:Name="DoubleClickItem" Content="더블 클릭" />
                                     </ComboBox>
                                 </Grid>
                             </Border>
@@ -599,8 +602,8 @@
                                         <FontIcon Glyph="&#xE8B9;" Style="{StaticResource CardIconStyle}" />
                                     </Border>
                                     <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                                        <TextBlock Text="이미지 미리보기 (썸네일)" Style="{StaticResource SettingsCardLabel}" />
-                                        <TextBlock Text="성능을 위해 네트워크 드라이브에서는 썸네일을 끕니다" Style="{StaticResource SettingsCardDesc}" />
+                                        <TextBlock x:Name="ThumbnailLabel" Text="이미지 미리보기 (썸네일)" Style="{StaticResource SettingsCardLabel}" />
+                                        <TextBlock x:Name="ThumbnailDesc" Text="성능을 위해 네트워크 드라이브에서는 썸네일을 끕니다" Style="{StaticResource SettingsCardDesc}" />
                                     </StackPanel>
                                     <ToggleSwitch x:Name="ThumbnailToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="True" />
                                 </Grid>
@@ -618,8 +621,8 @@
                                         <FontIcon Glyph="&#xE773;" Style="{StaticResource CardIconStyle}" />
                                     </Border>
                                     <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                                        <TextBlock Text="Quick Look (빠른 미리보기)" Style="{StaticResource SettingsCardLabel}" />
-                                        <TextBlock Text="Space 키로 파일을 빠르게 미리봅니다" Style="{StaticResource SettingsCardDesc}" />
+                                        <TextBlock x:Name="QuickLookLabel" Text="Quick Look (빠른 미리보기)" Style="{StaticResource SettingsCardLabel}" />
+                                        <TextBlock x:Name="QuickLookDesc" Text="Space 키로 파일을 빠르게 미리봅니다" Style="{StaticResource SettingsCardDesc}" />
                                     </StackPanel>
                                     <ToggleSwitch x:Name="QuickLookToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="True" />
                                 </Grid>
@@ -637,8 +640,8 @@
                                         <FontIcon Glyph="&#xE74D;" Style="{StaticResource CardIconStyle}" />
                                     </Border>
                                     <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                                        <TextBlock Text="삭제 확인 대화상자" Style="{StaticResource SettingsCardLabel}" />
-                                        <TextBlock Text="파일 삭제 전 확인을 요청합니다" Style="{StaticResource SettingsCardDesc}" />
+                                        <TextBlock x:Name="DeleteConfirmLabel" Text="삭제 확인 대화상자" Style="{StaticResource SettingsCardLabel}" />
+                                        <TextBlock x:Name="DeleteConfirmDesc" Text="파일 삭제 전 확인을 요청합니다" Style="{StaticResource SettingsCardDesc}" />
                                     </StackPanel>
                                     <ToggleSwitch x:Name="ConfirmDeleteToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="True" />
                                 </Grid>
@@ -656,14 +659,14 @@
                                         <FontIcon Glyph="&#xE81C;" Style="{StaticResource CardIconStyle}" />
                                     </Border>
                                     <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                                        <TextBlock Text="실행 취소 (Undo) 기록 보관" Style="{StaticResource SettingsCardLabel}" />
-                                        <TextBlock Text="보관할 실행 취소 작업 수 (0 = 비활성)" Style="{StaticResource SettingsCardDesc}" />
+                                        <TextBlock x:Name="UndoLabel" Text="실행 취소 (Undo) 기록 보관" Style="{StaticResource SettingsCardLabel}" />
+                                        <TextBlock x:Name="UndoDesc" Text="보관할 실행 취소 작업 수 (0 = 비활성)" Style="{StaticResource SettingsCardDesc}" />
                                     </StackPanel>
                                     <ComboBox x:Name="UndoHistoryCombo" Grid.Column="2" SelectedIndex="2" MinWidth="100" VerticalAlignment="Center">
-                                        <ComboBoxItem Content="10개" />
-                                        <ComboBoxItem Content="20개" />
-                                        <ComboBoxItem Content="50개" />
-                                        <ComboBoxItem Content="100개" />
+                                        <ComboBoxItem x:Name="Undo10" Content="10개" />
+                                        <ComboBoxItem x:Name="Undo20" Content="20개" />
+                                        <ComboBoxItem x:Name="Undo50" Content="50개" />
+                                        <ComboBoxItem x:Name="Undo100" Content="100개" />
                                     </ComboBox>
                                 </Grid>
                             </Border>
@@ -674,9 +677,9 @@
                     <ScrollViewer x:Name="ToolsSection" Visibility="Collapsed">
                         <StackPanel Padding="20" Spacing="0">
                             <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,16">
-                                <TextBlock Text="도구" Style="{StaticResource SettingsSectionTitle}" Margin="0" />
+                                <TextBlock x:Name="ToolsTitle" Text="도구" Style="{StaticResource SettingsSectionTitle}" Margin="0" />
                                 <Border Background="{ThemeResource SpanAccentBrush}" CornerRadius="4" Padding="8,2" VerticalAlignment="Center" Opacity="0.8">
-                                    <TextBlock Text="개발자" FontSize="11" Foreground="White" />
+                                    <TextBlock x:Name="DevBadge" Text="개발자" FontSize="11" Foreground="White" />
                                 </Border>
                             </StackPanel>
 
@@ -692,8 +695,8 @@
                                         <FontIcon Glyph="&#xE756;" Style="{StaticResource CardIconStyle}" />
                                     </Border>
                                     <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                                        <TextBlock Text="기본 터미널 앱" Style="{StaticResource SettingsCardLabel}" />
-                                        <TextBlock Text="Ctrl+` 또는 우클릭 '터미널 열기' 시 실행" Style="{StaticResource SettingsCardDesc}" />
+                                        <TextBlock x:Name="TerminalLabel" Text="기본 터미널 앱" Style="{StaticResource SettingsCardLabel}" />
+                                        <TextBlock x:Name="TerminalDesc" Text="Ctrl+` 또는 우클릭 '터미널 열기' 시 실행" Style="{StaticResource SettingsCardDesc}" />
                                     </StackPanel>
                                     <ComboBox x:Name="TerminalCombo" Grid.Column="2" SelectedIndex="0" MinWidth="140" VerticalAlignment="Center">
                                         <ComboBoxItem Content="Windows Terminal" />
@@ -716,8 +719,8 @@
                                             <FontIcon Glyph="&#xECAD;" Style="{StaticResource CardIconStyle}" />
                                         </Border>
                                         <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                                            <TextBlock Text="Smart Run (빠른 명령 실행)" Style="{StaticResource SettingsCardLabel}" />
-                                            <TextBlock Text="자주 쓰는 명령어 단축키 관리" Style="{StaticResource SettingsCardDesc}" />
+                                            <TextBlock x:Name="SmartRunLabel" Text="Smart Run (빠른 명령 실행)" Style="{StaticResource SettingsCardLabel}" />
+                                            <TextBlock x:Name="SmartRunDesc" Text="자주 쓰는 명령어 단축키 관리" Style="{StaticResource SettingsCardDesc}" />
                                         </StackPanel>
                                         <ToggleSwitch x:Name="SmartRunToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="True" />
                                     </Grid>
@@ -774,7 +777,7 @@
                                                 BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="1" CornerRadius="6">
                                             <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
                                                 <FontIcon Glyph="&#xE710;" FontSize="12" Foreground="{ThemeResource SpanAccentBrush}" />
-                                                <TextBlock Text="단축키 추가" FontSize="12" Foreground="{ThemeResource SpanAccentBrush}" />
+                                                <TextBlock x:Name="AddShortcutText" Text="단축키 추가" FontSize="12" Foreground="{ThemeResource SpanAccentBrush}" />
                                             </StackPanel>
                                         </Button>
                                     </StackPanel>
@@ -793,8 +796,8 @@
                                         <FontIcon Glyph="&#xE8B7;" Style="{StaticResource CardIconStyle}" />
                                     </Border>
                                     <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                                        <TextBlock Text="Windows 셸 확장 메뉴" Style="{StaticResource SettingsCardLabel}" />
-                                        <TextBlock Text="우클릭 메뉴에 공유, 보내기, 라이브러리 포함, 시작 화면 고정 등 표시" Style="{StaticResource SettingsCardDesc}" />
+                                        <TextBlock x:Name="ShellExtLabel" Text="Windows 셸 확장 메뉴" Style="{StaticResource SettingsCardLabel}" />
+                                        <TextBlock x:Name="ShellExtDesc" Text="우클릭 메뉴에 공유, 보내기, 라이브러리 포함, 시작 화면 고정 등 표시" Style="{StaticResource SettingsCardDesc}" />
                                     </StackPanel>
                                     <ToggleSwitch x:Name="ShellExtrasToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="False" />
                                 </Grid>
@@ -812,8 +815,8 @@
                                         <FontIcon Glyph="&#xE943;" Style="{StaticResource CardIconStyle}" />
                                     </Border>
                                     <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                                        <TextBlock Text="개발자 컨텍스트 메뉴" Style="{StaticResource SettingsCardLabel}" />
-                                        <TextBlock Text="우클릭 메뉴에 Git, Visual Studio, VS Code 등 개발 도구 항목 표시" Style="{StaticResource SettingsCardDesc}" />
+                                        <TextBlock x:Name="DevMenuLabel" Text="개발자 컨텍스트 메뉴" Style="{StaticResource SettingsCardLabel}" />
+                                        <TextBlock x:Name="DevMenuDesc" Text="우클릭 메뉴에 Git, Visual Studio, VS Code 등 개발 도구 항목 표시" Style="{StaticResource SettingsCardDesc}" />
                                     </StackPanel>
                                     <ToggleSwitch x:Name="DeveloperMenuToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="False" />
                                 </Grid>
@@ -831,8 +834,8 @@
                                         <FontIcon Glyph="&#xE945;" Style="{StaticResource CardIconStyle}" />
                                     </Border>
                                     <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                                        <TextBlock Text="Copilot 메뉴" Style="{StaticResource SettingsCardLabel}" />
-                                        <TextBlock Text="우클릭 메뉴에 Microsoft Copilot 관련 항목 표시" Style="{StaticResource SettingsCardDesc}" />
+                                        <TextBlock x:Name="CopilotLabel" Text="Copilot 메뉴" Style="{StaticResource SettingsCardLabel}" />
+                                        <TextBlock x:Name="CopilotDesc" Text="우클릭 메뉴에 Microsoft Copilot 관련 항목 표시" Style="{StaticResource SettingsCardDesc}" />
                                     </StackPanel>
                                     <ToggleSwitch x:Name="CopilotMenuToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="False" />
                                 </Grid>
@@ -850,8 +853,8 @@
                                         <FontIcon Glyph="&#xE712;" Style="{StaticResource CardIconStyle}" />
                                     </Border>
                                     <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                                        <TextBlock Text="컨텍스트 메뉴" Style="{StaticResource SettingsCardLabel}" />
-                                        <TextBlock Text="윈도우 우클릭 메뉴에 'Open in Span' 추가" Style="{StaticResource SettingsCardDesc}" />
+                                        <TextBlock x:Name="CtxMenuLabel" Text="컨텍스트 메뉴" Style="{StaticResource SettingsCardLabel}" />
+                                        <TextBlock x:Name="CtxMenuDesc" Text="윈도우 우클릭 메뉴에 'Open in Span' 추가" Style="{StaticResource SettingsCardDesc}" />
                                     </StackPanel>
                                     <ToggleSwitch x:Name="ContextMenuToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="True" />
                                 </Grid>
@@ -862,7 +865,7 @@
                     <!-- ===== About Section ===== -->
                     <ScrollViewer x:Name="AboutSection" Visibility="Collapsed">
                         <StackPanel Padding="20" Spacing="0">
-                            <TextBlock Text="라이선스 및 정보" Style="{StaticResource SettingsSectionTitle}" />
+                            <TextBlock x:Name="AboutTitle" Text="라이선스 및 정보" Style="{StaticResource SettingsSectionTitle}" />
 
                             <!-- App Info Hero -->
                             <Border Style="{StaticResource SettingsCardBorder}">
@@ -876,7 +879,7 @@
                                         <StackPanel Spacing="2">
                                             <TextBlock Text="Span" FontSize="22" FontWeight="Bold" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
                                             <TextBlock Text="v1.0.0 (Build 20260217)" FontSize="12" Foreground="{ThemeResource SpanTextSecondaryBrush}" />
-                                            <TextBlock Text="Evaluation Copy (Unregistered)" FontSize="11" Foreground="#E8912D" FontWeight="SemiBold" />
+                                            <TextBlock x:Name="EvalCopyText" Text="Evaluation Copy (Unregistered)" FontSize="11" Foreground="#E8912D" FontWeight="SemiBold" />
                                         </StackPanel>
                                     </StackPanel>
                                     <Button x:Name="UpdateButton" Grid.Column="1" VerticalAlignment="Center"
@@ -895,22 +898,22 @@
                                     <StackPanel Orientation="Horizontal" Spacing="12">
                                         <TextBlock Text="&#x1F48E;" FontSize="28" VerticalAlignment="Center" />
                                         <StackPanel Spacing="4">
-                                            <TextBlock Text="Upgrade to Pro" FontSize="18" FontWeight="Bold" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
-                                            <TextBlock Text="Pro 배지를 획득하고 개발자를 응원해주세요." Style="{StaticResource SettingsCardDesc}" />
+                                            <TextBlock x:Name="UpgradeProTitle" Text="Upgrade to Pro" FontSize="18" FontWeight="Bold" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
+                                            <TextBlock x:Name="UpgradeProDesc" Text="Pro 배지를 획득하고 개발자를 응원해주세요." Style="{StaticResource SettingsCardDesc}" />
                                         </StackPanel>
                                     </StackPanel>
                                     <StackPanel Spacing="6" Margin="0,4,0,0">
                                         <StackPanel Orientation="Horizontal" Spacing="8">
                                             <FontIcon Glyph="&#xE73E;" FontSize="12" Foreground="{ThemeResource SpanAccentBrush}" />
-                                            <TextBlock Text="프리미엄 테마 잠금 해제" FontSize="13" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
+                                            <TextBlock x:Name="UnlockThemesText" Text="프리미엄 테마 잠금 해제" FontSize="13" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
                                         </StackPanel>
                                         <StackPanel Orientation="Horizontal" Spacing="8">
                                             <FontIcon Glyph="&#xE73E;" FontSize="12" Foreground="{ThemeResource SpanAccentBrush}" />
-                                            <TextBlock Text="Smart Run 무제한 단축키" FontSize="13" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
+                                            <TextBlock x:Name="UnlimitedSmartRunText" Text="Smart Run 무제한 단축키" FontSize="13" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
                                         </StackPanel>
                                         <StackPanel Orientation="Horizontal" Spacing="8">
                                             <FontIcon Glyph="&#xE73E;" FontSize="12" Foreground="{ThemeResource SpanAccentBrush}" />
-                                            <TextBlock Text="향후 모든 프리미엄 기능" FontSize="13" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
+                                            <TextBlock x:Name="AllPremiumText" Text="향후 모든 프리미엄 기능" FontSize="13" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
                                         </StackPanel>
                                     </StackPanel>
                                     <Button HorizontalAlignment="Stretch" Padding="12,10"
@@ -931,8 +934,8 @@
                                             <FontIcon Glyph="&#xED54;" Style="{StaticResource CardIconStyle}" />
                                         </Border>
                                         <StackPanel Spacing="2" VerticalAlignment="Center">
-                                            <TextBlock Text="Buy me a coffee" Style="{StaticResource SettingsCardLabel}" />
-                                            <TextBlock Text="Pro 구매가 부담스럽다면, 커피 한 잔으로 응원해 주세요!" Style="{StaticResource SettingsCardDesc}" />
+                                            <TextBlock x:Name="CoffeeLabel" Text="Buy me a coffee" Style="{StaticResource SettingsCardLabel}" />
+                                            <TextBlock x:Name="CoffeeDesc" Text="Pro 구매가 부담스럽다면, 커피 한 잔으로 응원해 주세요!" Style="{StaticResource SettingsCardDesc}" />
                                         </StackPanel>
                                     </StackPanel>
                                     <Grid Margin="48,0,0,0" ColumnSpacing="8">
@@ -977,26 +980,26 @@
                                         <Border Style="{StaticResource CardIconContainer}">
                                             <FontIcon Glyph="&#xE71B;" Style="{StaticResource CardIconStyle}" />
                                         </Border>
-                                        <TextBlock Text="관련 링크" Style="{StaticResource SettingsCardLabel}" VerticalAlignment="Center" />
+                                        <TextBlock x:Name="LinksLabel" Text="관련 링크" Style="{StaticResource SettingsCardLabel}" VerticalAlignment="Center" />
                                     </StackPanel>
                                     <HyperlinkButton Style="{StaticResource LinkButtonStyle}" Margin="48,0,0,0" NavigateUri="https://github.com">
                                         <StackPanel Orientation="Horizontal" Spacing="8">
                                             <FontIcon Glyph="&#xE774;" FontSize="14" />
-                                            <TextBlock Text="GitHub 저장소" />
+                                            <TextBlock x:Name="GitHubText" Text="GitHub 저장소" />
                                             <FontIcon Glyph="&#xE8A7;" FontSize="10" Foreground="{ThemeResource SpanTextSecondaryBrush}" />
                                         </StackPanel>
                                     </HyperlinkButton>
                                     <HyperlinkButton Style="{StaticResource LinkButtonStyle}" Margin="48,0,0,0" NavigateUri="https://github.com">
                                         <StackPanel Orientation="Horizontal" Spacing="8">
                                             <FontIcon Glyph="&#xEBE8;" FontSize="14" />
-                                            <TextBlock Text="버그 제보" />
+                                            <TextBlock x:Name="BugReportText" Text="버그 제보" />
                                             <FontIcon Glyph="&#xE8A7;" FontSize="10" Foreground="{ThemeResource SpanTextSecondaryBrush}" />
                                         </StackPanel>
                                     </HyperlinkButton>
                                     <HyperlinkButton Style="{StaticResource LinkButtonStyle}" Margin="48,0,0,0" NavigateUri="https://github.com">
                                         <StackPanel Orientation="Horizontal" Spacing="8">
                                             <FontIcon Glyph="&#xEA18;" FontSize="14" />
-                                            <TextBlock Text="개인정보 처리방침" />
+                                            <TextBlock x:Name="PrivacyText" Text="개인정보 처리방침" />
                                             <FontIcon Glyph="&#xE8A7;" FontSize="10" Foreground="{ThemeResource SpanTextSecondaryBrush}" />
                                         </StackPanel>
                                     </HyperlinkButton>

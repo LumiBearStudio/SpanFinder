@@ -1,13 +1,29 @@
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Media;
 using System;
 
 namespace Span.Helpers
 {
-    public class BoolToBrushConverter : IValueConverter
+    public class BoolToBrushConverter : DependencyObject, IValueConverter
     {
-        public Brush TrueBrush { get; set; }
-        public Brush FalseBrush { get; set; }
+        public static readonly DependencyProperty TrueBrushProperty =
+            DependencyProperty.Register(nameof(TrueBrush), typeof(Brush), typeof(BoolToBrushConverter), new PropertyMetadata(null));
+
+        public static readonly DependencyProperty FalseBrushProperty =
+            DependencyProperty.Register(nameof(FalseBrush), typeof(Brush), typeof(BoolToBrushConverter), new PropertyMetadata(null));
+
+        public Brush TrueBrush
+        {
+            get => (Brush)GetValue(TrueBrushProperty);
+            set => SetValue(TrueBrushProperty, value);
+        }
+
+        public Brush FalseBrush
+        {
+            get => (Brush)GetValue(FalseBrushProperty);
+            set => SetValue(FalseBrushProperty, value);
+        }
 
         public object Convert(object value, Type targetType, object parameter, string language)
         {

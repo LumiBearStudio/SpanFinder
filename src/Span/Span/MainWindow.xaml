@@ -17,7 +17,7 @@
         <Grid.Resources>
             <!-- FileIconConverter removed: icons are now in ViewModels -->
             <helpers:BoolToBrushConverter x:Key="BoolToBrushConverter"
-                                          TrueBrush="{StaticResource SpanAccentBrush}"
+                                          TrueBrush="{ThemeResource SpanAccentBrush}"
                                           FalseBrush="Transparent"/>
             <helpers:BoolToThicknessConverter x:Key="BoolToThicknessConverter"
                                               TrueThickness="0,2,1,0"
@@ -42,7 +42,7 @@
             <!-- App Icon & Title -->
             <StackPanel Orientation="Horizontal" Grid.Column="0" VerticalAlignment="Center" Margin="16,0,16,0" Spacing="8">
                 <Image Source="/Assets/Square44x44Logo.png" Height="16" Width="16"/>
-                <TextBlock Text="Span" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{StaticResource SpanTextSecondaryBrush}"/>
+                <TextBlock Text="Span" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
             </StackPanel>
             
             <!-- Dynamic Tabs -->
@@ -116,9 +116,9 @@
                 <ColumnDefinition Width="Auto"/> <!-- Commands -->
             </Grid.ColumnDefinitions>
 
-            <!-- Nav Buttons (single mode, hidden in Home) -->
+            <!-- Nav Buttons (single mode, hidden in Settings) -->
             <StackPanel Orientation="Horizontal" Spacing="2" Margin="0,0,8,0"
-                        Visibility="{x:Bind IsSingleNonHomeVisible(ViewModel.IsSplitViewEnabled, ViewModel.CurrentViewMode), Mode=OneWay}">
+                        Visibility="{x:Bind IsSingleNonSettingsVisible(ViewModel.IsSplitViewEnabled, ViewModel.CurrentViewMode), Mode=OneWay}">
                 <Button x:Name="BackButton" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="뒤로 (Alt+Left)"
                         IsEnabled="{x:Bind ViewModel.CanGoBack, Mode=OneWay}" Click="OnGoBackClick"
                         RightTapped="OnBackButtonRightTapped">
@@ -134,20 +134,32 @@
                 </Button>
             </StackPanel>
 
-            <!-- Address Bar (single mode, hidden in Home) -->
+            <!-- Address Bar (single mode, hidden in Settings) -->
             <Grid x:Name="AddressBarContainer" Grid.Column="1" Height="32"
                   Background="{ThemeResource SpanBgLayer2Brush}"
                   CornerRadius="4" VerticalAlignment="Center"
                   Padding="4,0"
-                  Visibility="{x:Bind IsSingleNonHomeVisible(ViewModel.IsSplitViewEnabled, ViewModel.CurrentViewMode), Mode=OneWay}"
+                  Visibility="{x:Bind IsSingleNonSettingsVisible(ViewModel.IsSplitViewEnabled, ViewModel.CurrentViewMode), Mode=OneWay}"
                   Tapped="OnAddressBarContainerClicked">
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
+                <!-- Home icon (visible only in Home mode, controlled via code-behind) -->
+                <StackPanel x:Name="HomeAddressIcon" Grid.Column="0" Orientation="Horizontal"
+                            VerticalAlignment="Center" Visibility="Collapsed" Margin="4,0,0,0">
+                    <FontIcon Glyph="&#xE80F;" FontSize="14"
+                              Foreground="{ThemeResource SpanAccentBrush}"
+                              VerticalAlignment="Center"/>
+                    <FontIcon Glyph="&#xE76C;" FontSize="8"
+                              Foreground="{ThemeResource SpanTextTertiaryBrush}"
+                              VerticalAlignment="Center" Margin="4,1,2,0"/>
+                </StackPanel>
+
                 <!-- Breadcrumb with clickable chevron dropdowns -->
-                <ScrollViewer x:Name="AddressBreadcrumbScroller" Grid.Column="0"
+                <ScrollViewer x:Name="AddressBreadcrumbScroller" Grid.Column="1"
                               HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled"
                               HorizontalScrollMode="Auto" VerticalScrollMode="Disabled"
                               SizeChanged="OnBreadcrumbScrollerSizeChanged"
@@ -182,14 +194,14 @@
                     </ItemsRepeater>
                 </ScrollViewer>
                 <!-- Breadcrumb overflow indicator (left fade + ellipsis) -->
-                <Border Grid.Column="0" Tag="overflow" HorizontalAlignment="Left"
+                <Border Grid.Column="1" Tag="overflow" HorizontalAlignment="Left"
                         VerticalAlignment="Stretch" Visibility="Collapsed"
                         IsHitTestVisible="False" Padding="4,0,12,0">
                     <Border.Background>
                         <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
-                            <GradientStop Color="{StaticResource SpanBgLayer2Color}" Offset="0"/>
-                            <GradientStop Color="{StaticResource SpanBgLayer2Color}" Offset="0.5"/>
-                            <GradientStop Color="#00383838" Offset="1"/>
+                            <GradientStop Color="{ThemeResource SpanBgLayer2Color}" Offset="0"/>
+                            <GradientStop Color="{ThemeResource SpanBgLayer2Color}" Offset="0.5"/>
+                            <GradientStop Color="{ThemeResource SpanBgLayer2TransparentColor}" Offset="1"/>
                         </LinearGradientBrush>
                     </Border.Background>
                     <TextBlock Text="&#x2026;" FontSize="12" VerticalAlignment="Center"
@@ -197,7 +209,7 @@
                 </Border>
 
                 <!-- 텍스트 편집 모드 (클릭 시 전환) — AutoSuggestBox for path autocomplete -->
-                <AutoSuggestBox x:Name="AddressBarAutoSuggest" Grid.Column="0" Visibility="Collapsed"
+                <AutoSuggestBox x:Name="AddressBarAutoSuggest" Grid.Column="1" Visibility="Collapsed"
                          VerticalAlignment="Center" Height="28" FontSize="12"
                          BorderThickness="0"
                          TextChanged="OnAddressBarTextChanged"
@@ -209,7 +221,7 @@
                          UpdateTextOnSelect="True"/>
 
                 <!-- 경로 복사 버튼 -->
-                <Button x:Name="CopyPathButton" Grid.Column="1"
+                <Button x:Name="CopyPathButton" Grid.Column="2"
                         Style="{StaticResource UnifiedButtonStyle}"
                         ToolTipService.ToolTip="경로 복사"
                         Click="OnCopyPathClick"
@@ -295,16 +307,16 @@
                 <Button x:Name="ViewModeButton" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="보기 전환"
                         Visibility="{x:Bind IsNotSplitVisible(ViewModel.IsSplitViewEnabled), Mode=OneWay}">
                     <Button.Flyout>
-                        <MenuFlyout Placement="Bottom">
+                        <MenuFlyout Placement="Bottom" Opening="OnMainViewModeMenuOpening">
                             <!-- Miller Columns -->
-                            <MenuFlyoutItem Text="Miller Columns" Click="OnViewModeMillerColumns">
+                            <MenuFlyoutItem x:Name="MainVm_Miller" Text="Miller Columns" Click="OnViewModeMillerColumns">
                                 <MenuFlyoutItem.Icon>
                                     <FontIcon Glyph="&#xF0E2;"/>
                                 </MenuFlyoutItem.Icon>
                             </MenuFlyoutItem>
 
                             <!-- Details -->
-                            <MenuFlyoutItem Text="Details" Click="OnViewModeDetails">
+                            <MenuFlyoutItem x:Name="MainVm_Details" Text="Details" Click="OnViewModeDetails">
                                 <MenuFlyoutItem.Icon>
                                     <FontIcon Glyph="&#xE8EF;"/>
                                 </MenuFlyoutItem.Icon>
@@ -313,15 +325,15 @@
                             <MenuFlyoutSeparator/>
 
                             <!-- Icon Submenu -->
-                            <MenuFlyoutSubItem Text="Icons">
+                            <MenuFlyoutSubItem x:Name="MainVm_Icons" Text="Icons">
                                 <MenuFlyoutSubItem.Icon>
                                     <FontIcon Glyph="&#xE91B;"/>
                                 </MenuFlyoutSubItem.Icon>
 
-                                <MenuFlyoutItem Text="Extra Large Icons" Click="OnViewModeIconExtraLarge"/>
-                                <MenuFlyoutItem Text="Large Icons" Click="OnViewModeIconLarge"/>
-                                <MenuFlyoutItem Text="Medium Icons" Click="OnViewModeIconMedium"/>
-                                <MenuFlyoutItem Text="Small Icons" Click="OnViewModeIconSmall"/>
+                                <MenuFlyoutItem x:Name="MainVm_ExtraLarge" Text="Extra Large Icons" Click="OnViewModeIconExtraLarge"/>
+                                <MenuFlyoutItem x:Name="MainVm_Large" Text="Large Icons" Click="OnViewModeIconLarge"/>
+                                <MenuFlyoutItem x:Name="MainVm_Medium" Text="Medium Icons" Click="OnViewModeIconMedium"/>
+                                <MenuFlyoutItem x:Name="MainVm_Small" Text="Small Icons" Click="OnViewModeIconSmall"/>
                             </MenuFlyoutSubItem>
                         </MenuFlyout>
                     </Button.Flyout>
@@ -630,9 +642,9 @@
                                 IsHitTestVisible="False" Padding="2,0,10,0" Margin="0,6,0,0">
                             <Border.Background>
                                 <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
-                                    <GradientStop Color="{StaticResource SpanBgLayer2Color}" Offset="0"/>
-                                    <GradientStop Color="{StaticResource SpanBgLayer2Color}" Offset="0.5"/>
-                                    <GradientStop Color="#00383838" Offset="1"/>
+                                    <GradientStop Color="{ThemeResource SpanBgLayer2Color}" Offset="0"/>
+                                    <GradientStop Color="{ThemeResource SpanBgLayer2Color}" Offset="0.5"/>
+                                    <GradientStop Color="{ThemeResource SpanBgLayer2TransparentColor}" Offset="1"/>
                                 </LinearGradientBrush>
                             </Border.Background>
                             <TextBlock Text="&#x2026;" FontSize="11" VerticalAlignment="Center"
@@ -676,23 +688,23 @@
                                 <FontIcon Glyph="&#xE8CB;" FontSize="11"/>
                             </Button>
                             <!-- ViewMode -->
-                            <Button Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="보기 전환"
+                            <Button x:Name="LeftViewModeButton" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="보기 전환"
                                     Padding="4" MinWidth="0" MinHeight="0" Width="26" Height="26">
                                 <Button.Flyout>
                                     <MenuFlyout Placement="Bottom" Opening="OnLeftPaneViewModeMenuOpening">
-                                        <MenuFlyoutItem Text="Miller Columns" Click="OnViewModeMillerColumns">
+                                        <MenuFlyoutItem x:Name="LeftVm_Miller" Text="Miller Columns" Click="OnViewModeMillerColumns">
                                             <MenuFlyoutItem.Icon><FontIcon Glyph="&#xF0E2;"/></MenuFlyoutItem.Icon>
                                         </MenuFlyoutItem>
-                                        <MenuFlyoutItem Text="Details" Click="OnViewModeDetails">
+                                        <MenuFlyoutItem x:Name="LeftVm_Details" Text="Details" Click="OnViewModeDetails">
                                             <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE8EF;"/></MenuFlyoutItem.Icon>
                                         </MenuFlyoutItem>
                                         <MenuFlyoutSeparator/>
-                                        <MenuFlyoutSubItem Text="Icons">
+                                        <MenuFlyoutSubItem x:Name="LeftVm_Icons" Text="Icons">
                                             <MenuFlyoutSubItem.Icon><FontIcon Glyph="&#xE91B;"/></MenuFlyoutSubItem.Icon>
-                                            <MenuFlyoutItem Text="Extra Large Icons" Click="OnViewModeIconExtraLarge"/>
-                                            <MenuFlyoutItem Text="Large Icons" Click="OnViewModeIconLarge"/>
-                                            <MenuFlyoutItem Text="Medium Icons" Click="OnViewModeIconMedium"/>
-                                            <MenuFlyoutItem Text="Small Icons" Click="OnViewModeIconSmall"/>
+                                            <MenuFlyoutItem x:Name="LeftVm_ExtraLarge" Text="Extra Large Icons" Click="OnViewModeIconExtraLarge"/>
+                                            <MenuFlyoutItem x:Name="LeftVm_Large" Text="Large Icons" Click="OnViewModeIconLarge"/>
+                                            <MenuFlyoutItem x:Name="LeftVm_Medium" Text="Medium Icons" Click="OnViewModeIconMedium"/>
+                                            <MenuFlyoutItem x:Name="LeftVm_Small" Text="Small Icons" Click="OnViewModeIconSmall"/>
                                         </MenuFlyoutSubItem>
                                     </MenuFlyout>
                                 </Button.Flyout>
@@ -778,7 +790,7 @@
                                                                                     </Grid.ColumnDefinitions>
                                                                                     <!-- Path indicator bar (accent left edge for items on navigation path) -->
                                                                                     <Border Grid.Column="0" Width="3" CornerRadius="1.5" Margin="-8,2,6,2"
-                                                                                            Background="{StaticResource SpanAccentBrush}"
+                                                                                            Background="{ThemeResource SpanAccentBrush}"
                                                                                             Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfTrue(IsOnPath), Mode=OneWay}"/>
                                                                                     <FontIcon Grid.Column="1" FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Folder}" FontSize="16" Foreground="{x:Bind IconBrush}" Margin="0,0,12,0"/>
                                                                                     <TextBlock Grid.Column="2" Text="{x:Bind TruncatedDisplayName, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
@@ -809,6 +821,10 @@
                                                                                                Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfTrue(HasThumbnail), Mode=OneWay}"/>
                                                                                         <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{x:Bind IconGlyph}" FontSize="16" Foreground="{x:Bind IconBrush}"
                                                                                                   Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfFalse(HasThumbnail), Mode=OneWay}"/>
+                                                                                        <FontIcon Glyph="{x:Bind CloudStateGlyph, Mode=OneWay}" FontSize="8"
+                                                                                                  Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfTrue(HasCloudBadge), Mode=OneWay}"
+                                                                                                  HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-3,-3"
+                                                                                                  Foreground="{ThemeResource SystemAccentColor}"/>
                                                                                     </Grid>
                                                                                     <TextBlock Grid.Column="1" Text="{x:Bind TruncatedDisplayName, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                                                                                Visibility="{x:Bind viewmodels:FileSystemViewModel.NotRenaming(IsRenaming), Mode=OneWay}"/>
@@ -1086,9 +1102,9 @@
                                 IsHitTestVisible="False" Padding="2,0,10,0" Margin="0,6,0,0">
                             <Border.Background>
                                 <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
-                                    <GradientStop Color="{StaticResource SpanBgLayer2Color}" Offset="0"/>
-                                    <GradientStop Color="{StaticResource SpanBgLayer2Color}" Offset="0.5"/>
-                                    <GradientStop Color="#00383838" Offset="1"/>
+                                    <GradientStop Color="{ThemeResource SpanBgLayer2Color}" Offset="0"/>
+                                    <GradientStop Color="{ThemeResource SpanBgLayer2Color}" Offset="0.5"/>
+                                    <GradientStop Color="{ThemeResource SpanBgLayer2TransparentColor}" Offset="1"/>
                                 </LinearGradientBrush>
                             </Border.Background>
                             <TextBlock Text="&#x2026;" FontSize="11" VerticalAlignment="Center"
@@ -1132,23 +1148,23 @@
                                 <FontIcon Glyph="&#xE8CB;" FontSize="11"/>
                             </Button>
                             <!-- ViewMode -->
-                            <Button Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="보기 전환"
+                            <Button x:Name="RightViewModeButton" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="보기 전환"
                                     Padding="4" MinWidth="0" MinHeight="0" Width="26" Height="26">
                                 <Button.Flyout>
                                     <MenuFlyout Placement="Bottom" Opening="OnRightPaneViewModeMenuOpening">
-                                        <MenuFlyoutItem Text="Miller Columns" Click="OnViewModeMillerColumns">
+                                        <MenuFlyoutItem x:Name="RightVm_Miller" Text="Miller Columns" Click="OnViewModeMillerColumns">
                                             <MenuFlyoutItem.Icon><FontIcon Glyph="&#xF0E2;"/></MenuFlyoutItem.Icon>
                                         </MenuFlyoutItem>
-                                        <MenuFlyoutItem Text="Details" Click="OnViewModeDetails">
+                                        <MenuFlyoutItem x:Name="RightVm_Details" Text="Details" Click="OnViewModeDetails">
                                             <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE8EF;"/></MenuFlyoutItem.Icon>
                                         </MenuFlyoutItem>
                                         <MenuFlyoutSeparator/>
-                                        <MenuFlyoutSubItem Text="Icons">
+                                        <MenuFlyoutSubItem x:Name="RightVm_Icons" Text="Icons">
                                             <MenuFlyoutSubItem.Icon><FontIcon Glyph="&#xE91B;"/></MenuFlyoutSubItem.Icon>
-                                            <MenuFlyoutItem Text="Extra Large Icons" Click="OnViewModeIconExtraLarge"/>
-                                            <MenuFlyoutItem Text="Large Icons" Click="OnViewModeIconLarge"/>
-                                            <MenuFlyoutItem Text="Medium Icons" Click="OnViewModeIconMedium"/>
-                                            <MenuFlyoutItem Text="Small Icons" Click="OnViewModeIconSmall"/>
+                                            <MenuFlyoutItem x:Name="RightVm_ExtraLarge" Text="Extra Large Icons" Click="OnViewModeIconExtraLarge"/>
+                                            <MenuFlyoutItem x:Name="RightVm_Large" Text="Large Icons" Click="OnViewModeIconLarge"/>
+                                            <MenuFlyoutItem x:Name="RightVm_Medium" Text="Medium Icons" Click="OnViewModeIconMedium"/>
+                                            <MenuFlyoutItem x:Name="RightVm_Small" Text="Small Icons" Click="OnViewModeIconSmall"/>
                                         </MenuFlyoutSubItem>
                                     </MenuFlyout>
                                 </Button.Flyout>
@@ -1231,7 +1247,7 @@
                                                                                     </Grid.ColumnDefinitions>
                                                                                     <!-- Path indicator bar (accent left edge for items on navigation path) -->
                                                                                     <Border Grid.Column="0" Width="3" CornerRadius="1.5" Margin="-8,2,6,2"
-                                                                                            Background="{StaticResource SpanAccentBrush}"
+                                                                                            Background="{ThemeResource SpanAccentBrush}"
                                                                                             Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfTrue(IsOnPath), Mode=OneWay}"/>
                                                                                     <FontIcon Grid.Column="1" FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Folder}" FontSize="16" Foreground="{x:Bind IconBrush}" Margin="0,0,12,0"/>
                                                                                     <TextBlock Grid.Column="2" Text="{x:Bind TruncatedDisplayName, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
@@ -1262,6 +1278,10 @@
                                                                                                Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfTrue(HasThumbnail), Mode=OneWay}"/>
                                                                                         <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{x:Bind IconGlyph}" FontSize="16" Foreground="{x:Bind IconBrush}"
                                                                                                   Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfFalse(HasThumbnail), Mode=OneWay}"/>
+                                                                                        <FontIcon Glyph="{x:Bind CloudStateGlyph, Mode=OneWay}" FontSize="8"
+                                                                                                  Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfTrue(HasCloudBadge), Mode=OneWay}"
+                                                                                                  HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-3,-3"
+                                                                                                  Foreground="{ThemeResource SystemAccentColor}"/>
                                                                                     </Grid>
                                                                                     <TextBlock Grid.Column="1" Text="{x:Bind TruncatedDisplayName, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                                                                                Visibility="{x:Bind viewmodels:FileSystemViewModel.NotRenaming(IsRenaming), Mode=OneWay}"/>

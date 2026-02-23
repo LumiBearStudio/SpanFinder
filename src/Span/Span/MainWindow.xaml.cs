@@ -619,6 +619,32 @@ namespace Span
                     _ => ElementTheme.Default
                 };
             }
+
+            // 캡션 버튼(최소화/최대화/닫기) 색상을 테마에 맞게 설정
+            var titleBar = this.AppWindow.TitleBar;
+            bool isLight = theme == "light" ||
+                           (theme == "system" && App.Current.RequestedTheme == ApplicationTheme.Light);
+
+            if (isLight)
+            {
+                titleBar.ButtonForegroundColor = Windows.UI.Color.FromArgb(255, 26, 26, 26);      // #1A1A1A
+                titleBar.ButtonHoverForegroundColor = Windows.UI.Color.FromArgb(255, 0, 0, 0);
+                titleBar.ButtonHoverBackgroundColor = Windows.UI.Color.FromArgb(20, 0, 0, 0);
+                titleBar.ButtonPressedForegroundColor = Windows.UI.Color.FromArgb(255, 0, 0, 0);
+                titleBar.ButtonPressedBackgroundColor = Windows.UI.Color.FromArgb(40, 0, 0, 0);
+                titleBar.ButtonInactiveForegroundColor = Windows.UI.Color.FromArgb(255, 140, 140, 140);
+            }
+            else
+            {
+                titleBar.ButtonForegroundColor = Windows.UI.Color.FromArgb(255, 255, 255, 255);
+                titleBar.ButtonHoverForegroundColor = Windows.UI.Color.FromArgb(255, 255, 255, 255);
+                titleBar.ButtonHoverBackgroundColor = Windows.UI.Color.FromArgb(15, 255, 255, 255);
+                titleBar.ButtonPressedForegroundColor = Windows.UI.Color.FromArgb(255, 255, 255, 255);
+                titleBar.ButtonPressedBackgroundColor = Windows.UI.Color.FromArgb(20, 255, 255, 255);
+                titleBar.ButtonInactiveForegroundColor = Windows.UI.Color.FromArgb(255, 120, 120, 120);
+            }
+            titleBar.ButtonBackgroundColor = Windows.UI.Color.FromArgb(0, 0, 0, 0); // 투명
+            titleBar.ButtonInactiveBackgroundColor = Windows.UI.Color.FromArgb(0, 0, 0, 0);
         }
 
         private void OnSettingChanged(string key, object? value)

@@ -45,13 +45,14 @@ namespace Span
                 _windows.Remove(w);
                 if (_windows.Count == 0)
                 {
-                    Helpers.DebugLogger.Log("[App] Last window closed — force-exiting to avoid WinUI teardown crash");
+                    Helpers.DebugLogger.Log("[App] Last window closed — force-killing process to avoid WinUI teardown hang");
                     Helpers.DebugLogger.Shutdown();
 
-                    // Force-exit BEFORE WinUI's native teardown can crash.
-                    // Application.Exit() triggers XAML framework cleanup which accesses
-                    // already-disposed visual tree elements — a known WinUI 3 issue.
-                    Environment.Exit(0);
+                    // Force-kill BEFORE WinUI's native teardown can crash or hang.
+                    // Environment.Exit(0) can deadlock when called during active COM/OLE
+                    // drag-and-drop or XAML resource cleanup (WinUI 3 known issue).
+                    // Process.Kill() bypasses all finalizers and COM locks.
+                    System.Diagnostics.Process.GetCurrentProcess().Kill();
                 }
             }
         }
@@ -127,6 +128,9 @@ namespace Span
             services.AddSingleton<Services.SettingsService>();
             services.AddSingleton<Services.FolderContentCache>();
             services.AddSingleton<Services.FileOperationManager>();
+            services.AddSingleton<Services.FolderSizeService>();
+            services.AddSingleton<Services.FileSystemWatcherService>();
+            services.AddSingleton<Services.CloudSyncService>();
             services.AddSingleton<Services.NetworkBrowserService>();
             services.AddSingleton<Services.ConnectionManagerService>();
 

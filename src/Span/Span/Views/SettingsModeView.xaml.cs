@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Span.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,6 +12,7 @@ public sealed partial class SettingsModeView : UserControl
 {
     private readonly ScrollViewer[] _sections;
     private readonly Services.SettingsService _settings;
+    private LocalizationService? _loc;
     private DispatcherTimer? _updateTimer;
     private int _updateStage;
     private bool _isLoading = true;
@@ -22,11 +24,11 @@ public sealed partial class SettingsModeView : UserControl
 
     private readonly Dictionary<int, List<string>> _searchKeywords = new()
     {
-        { 0, new() { "일반", "언어", "language", "시작", "startup", "시스템 트레이", "tray", "즐겨찾기", "favorites" } },
-        { 1, new() { "모양", "테마", "theme", "pro", "밀도", "density", "폰트", "font", "아이콘", "icon", "remix", "phosphor", "tabler" } },
-        { 2, new() { "탐색", "보기", "숨김", "확장자", "체크박스", "밀러", "썸네일", "quick look", "삭제", "undo", "실행 취소" } },
-        { 3, new() { "도구", "터미널", "terminal", "smart run", "명령", "컨텍스트", "context", "개발자", "developer", "git", "visual studio", "셸", "shell", "공유", "보내기", "copilot", "코파일럿" } },
-        { 4, new() { "정보", "about", "라이선스", "license", "업데이트", "update", "pro", "upgrade", "coffee", "후원", "github", "링크" } },
+        { 0, new() { "general", "language", "startup", "tray", "favorites", "일반", "언어", "시작", "시스템 트레이", "즐겨찾기" } },
+        { 1, new() { "appearance", "theme", "pro", "density", "font", "icon", "모양", "테마", "밀도", "폰트", "아이콘" } },
+        { 2, new() { "browsing", "view", "hidden", "extensions", "checkbox", "miller", "thumbnail", "quick look", "delete", "undo", "탐색", "보기", "숨김", "확장자", "체크박스", "밀러", "썸네일", "삭제", "실행 취소" } },
+        { 3, new() { "tools", "terminal", "smart run", "context", "developer", "git", "shell", "copilot", "도구", "터미널", "명령", "컨텍스트", "개발자", "셸", "코파일럿" } },
+        { 4, new() { "about", "license", "update", "pro", "upgrade", "coffee", "github", "link", "정보", "라이선스", "업데이트", "후원", "링크" } },
     };
 
     public SettingsModeView()
@@ -45,6 +47,11 @@ public sealed partial class SettingsModeView : UserControl
 
         LoadSettingsToUI();
         WireEvents();
+
+        _loc = App.Current.Services.GetService(typeof(LocalizationService)) as LocalizationService;
+        LocalizeUI();
+        if (_loc != null) _loc.LanguageChanged += LocalizeUI;
+        this.Unloaded += (s, e) => { if (_loc != null) _loc.LanguageChanged -= LocalizeUI; };
     }
 
     /// <summary>
@@ -303,6 +310,116 @@ public sealed partial class SettingsModeView : UserControl
         }
     }
 
+    // ── Localization ──
+
+    private void LocalizeUI()
+    {
+        if (_loc == null) return;
+
+        // Header
+        SettingsTitle.Text = _loc.Get("Settings");
+        SettingsSearchBox.PlaceholderText = _loc.Get("Settings_SearchPlaceholder");
+
+        // Navigation
+        NavGeneral.Content = _loc.Get("Settings_General");
+        NavAppearance.Content = _loc.Get("Settings_Appearance");
+        NavBrowsing.Content = _loc.Get("Settings_Browsing");
+        NavTools.Content = _loc.Get("Settings_Tools");
+        NavAbout.Content = _loc.Get("Settings_About");
+
+        // General
+        GeneralTitle.Text = _loc.Get("Settings_General");
+        LangLabel.Text = _loc.Get("Settings_Language");
+        LangDesc.Text = _loc.Get("Settings_LanguageDesc");
+        LangSystem.Content = _loc.Get("Settings_SystemDefault");
+        LangRestartText.Text = _loc.Get("Settings_RestartNotice");
+        StartupLabel.Text = _loc.Get("Settings_StartupBehavior");
+        StartupDesc.Text = _loc.Get("Settings_StartupBehaviorDesc");
+        RestoreSessionLabel.Text = _loc.Get("Settings_RestoreSession");
+        RestoreSessionDesc.Text = _loc.Get("Settings_RestoreSessionDesc");
+        StartupHome.Content = _loc.Get("Settings_OpenHome");
+        OpenFolderLabel.Text = _loc.Get("Settings_OpenSpecificFolder");
+        CustomPathDesc.Text = _loc.Get("Settings_CustomPath");
+        FavTreeLabel.Text = _loc.Get("Settings_FavoritesTree");
+        FavTreeDesc.Text = _loc.Get("Settings_FavoritesTreeDesc");
+        SysTrayLabel.Text = _loc.Get("Settings_SystemTray");
+        SysTrayDesc.Text = _loc.Get("Settings_SystemTrayDesc");
+
+        // Appearance
+        AppearanceTitle.Text = _loc.Get("Settings_Appearance");
+        ThemeLabel.Text = _loc.Get("Settings_AppTheme");
+        ThemeDesc.Text = _loc.Get("Settings_ThemeDesc");
+        ThemeSystemText.Text = _loc.Get("Settings_System");
+        ThemeLightText.Text = _loc.Get("Settings_Light");
+        ThemeDarkText.Text = _loc.Get("Settings_Dark");
+        ProThemesLabel.Text = _loc.Get("Settings_ProThemes");
+        ProThemesDesc.Text = _loc.Get("Settings_ProThemesDesc");
+        MidnightGoldDesc.Text = _loc.Get("Settings_MidnightGoldDesc");
+        CyberpunkDesc.Text = _loc.Get("Settings_CyberpunkDesc");
+        NordicDesc.Text = _loc.Get("Settings_NordicDesc");
+        UpgradeProThemesText.Text = _loc.Get("Settings_UpgradeProThemes");
+        DensityLabel.Text = _loc.Get("Settings_LayoutDensity");
+        DensityDesc.Text = _loc.Get("Settings_LayoutDensityDesc");
+        IconPackLabel.Text = _loc.Get("Settings_IconPack");
+        IconPackDesc.Text = _loc.Get("Settings_IconPackDesc");
+        IconPackRestartText.Text = _loc.Get("Settings_IconPackRestart");
+        FontLabel.Text = _loc.Get("Settings_Font");
+        FontDesc.Text = _loc.Get("Settings_FontDesc");
+
+        // Browsing
+        BrowsingTitle.Text = _loc.Get("Settings_Browsing");
+        ViewOptionsLabel.Text = _loc.Get("Settings_ViewOptions");
+        ViewOptionsDesc.Text = _loc.Get("Settings_ViewOptionsDesc");
+        ShowHiddenLabel.Text = _loc.Get("Settings_ShowHidden");
+        ShowExtLabel.Text = _loc.Get("Settings_ShowExtensions");
+        CheckboxLabel.Text = _loc.Get("Settings_CheckboxSelection");
+        MillerLabel.Text = _loc.Get("Settings_MillerBehavior");
+        MillerDesc.Text = _loc.Get("Settings_MillerBehaviorDesc");
+        SingleClickItem.Content = _loc.Get("Settings_SingleClick");
+        DoubleClickItem.Content = _loc.Get("Settings_DoubleClick");
+        ThumbnailLabel.Text = _loc.Get("Settings_Thumbnails");
+        ThumbnailDesc.Text = _loc.Get("Settings_ThumbnailsDesc");
+        QuickLookLabel.Text = _loc.Get("Settings_QuickLook");
+        QuickLookDesc.Text = _loc.Get("Settings_QuickLookDesc");
+        DeleteConfirmLabel.Text = _loc.Get("Settings_DeleteConfirm");
+        DeleteConfirmDesc.Text = _loc.Get("Settings_DeleteConfirmDesc");
+        UndoLabel.Text = _loc.Get("Settings_UndoHistory");
+        UndoDesc.Text = _loc.Get("Settings_UndoHistoryDesc");
+
+        // Tools
+        ToolsTitle.Text = _loc.Get("Settings_Tools");
+        DevBadge.Text = _loc.Get("Settings_Developer");
+        TerminalLabel.Text = _loc.Get("Settings_TerminalApp");
+        TerminalDesc.Text = _loc.Get("Settings_TerminalAppDesc");
+        SmartRunLabel.Text = _loc.Get("Settings_SmartRun");
+        SmartRunDesc.Text = _loc.Get("Settings_SmartRunDesc");
+        AddShortcutText.Text = _loc.Get("Settings_AddShortcut");
+        ShellExtLabel.Text = _loc.Get("Settings_ShellExtras");
+        ShellExtDesc.Text = _loc.Get("Settings_ShellExtrasDesc");
+        DevMenuLabel.Text = _loc.Get("Settings_DeveloperMenu");
+        DevMenuDesc.Text = _loc.Get("Settings_DeveloperMenuDesc");
+        CopilotLabel.Text = _loc.Get("Settings_CopilotMenu");
+        CopilotDesc.Text = _loc.Get("Settings_CopilotMenuDesc");
+        CtxMenuLabel.Text = _loc.Get("Settings_ContextMenu");
+        CtxMenuDesc.Text = _loc.Get("Settings_ContextMenuDesc");
+
+        // About
+        AboutTitle.Text = _loc.Get("Settings_About");
+        EvalCopyText.Text = _loc.Get("Settings_EvalCopy");
+        UpdateText.Text = _loc.Get("Settings_CheckUpdate");
+        UpgradeProTitle.Text = _loc.Get("Settings_UpgradePro");
+        UpgradeProDesc.Text = _loc.Get("Settings_UpgradeProDesc");
+        UnlockThemesText.Text = _loc.Get("Settings_UnlockThemes");
+        UnlimitedSmartRunText.Text = _loc.Get("Settings_UnlimitedSmartRun");
+        AllPremiumText.Text = _loc.Get("Settings_AllPremiumFeatures");
+        CoffeeLabel.Text = _loc.Get("Settings_BuyMeCoffee");
+        CoffeeDesc.Text = _loc.Get("Settings_BuyMeCoffeeDesc");
+        LinksLabel.Text = _loc.Get("Settings_Links");
+        GitHubText.Text = _loc.Get("Settings_GitHub");
+        BugReportText.Text = _loc.Get("Settings_BugReport");
+        PrivacyText.Text = _loc.Get("Settings_Privacy");
+    }
+
     // ── Update check animation ──
 
     private void CheckForUpdates_Click(object sender, RoutedEventArgs e)
@@ -313,7 +430,7 @@ public sealed partial class SettingsModeView : UserControl
         _updateStage = 0;
 
         UpdateIcon.Glyph = "\uE895";
-        UpdateText.Text = "확인 중...";
+        UpdateText.Text = _loc?.Get("Settings_Checking") ?? "Checking...";
 
         _updateTimer = new DispatcherTimer();
         _updateTimer.Interval = TimeSpan.FromMilliseconds(1500);
@@ -328,13 +445,13 @@ public sealed partial class SettingsModeView : UserControl
         if (_updateStage == 1)
         {
             UpdateIcon.Glyph = "\uE73E";
-            UpdateText.Text = "최신 버전입니다";
+            UpdateText.Text = _loc?.Get("Settings_UpToDate") ?? "Up to date";
             _updateTimer!.Interval = TimeSpan.FromMilliseconds(3000);
         }
         else
         {
             UpdateIcon.Glyph = "\uE72C";
-            UpdateText.Text = "업데이트 확인";
+            UpdateText.Text = _loc?.Get("Settings_CheckUpdate") ?? "Check for updates";
             UpdateButton.IsEnabled = true;
             _updateTimer!.Stop();
             _updateTimer = null;

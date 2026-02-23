@@ -11,59 +11,129 @@
             </ResourceDictionary.MergedDictionaries>
 
             <!-- ============================================================
-                 Span Design Tokens (Ported from style.css)
+                 Theme Dictionaries: Dark / Light color tokens
                  ============================================================ -->
+            <ResourceDictionary.ThemeDictionaries>
 
-            <!-- Colors -->
-            <Color x:Key="SpanBgMicaColor">#202020</Color>
-            <Color x:Key="SpanBgLayer1Color">#2d2d2d</Color>
-            <Color x:Key="SpanBgLayer2Color">#383838</Color>
-            <Color x:Key="SpanBgLayer3Color">#404040</Color>
-            
-            <Color x:Key="SpanAccentColor">#60cdff</Color>
-            <Color x:Key="SpanAccentHoverColor">#7ed8ff</Color>
-            <!-- Accent Dim: rgba(96, 205, 255, 0.35) for path highlighting — stronger than Selected (0.08) -->
-            <Color x:Key="SpanAccentDimColor">#5960CDFF</Color>
+                <!-- ==================== DARK THEME ==================== -->
+                <ResourceDictionary x:Key="Dark">
+                    <!-- Backgrounds -->
+                    <Color x:Key="SpanBgMicaColor">#202020</Color>
+                    <Color x:Key="SpanBgLayer1Color">#2d2d2d</Color>
+                    <Color x:Key="SpanBgLayer2Color">#383838</Color>
+                    <Color x:Key="SpanBgLayer3Color">#404040</Color>
+                    <Color x:Key="SpanBgLayer2TransparentColor">#00383838</Color>
 
-            <Color x:Key="SpanTextPrimaryColor">#ffffff</Color>
-            <Color x:Key="SpanTextSecondaryColor">#ababab</Color>
-            <Color x:Key="SpanTextTertiaryColor">#787878</Color>
-            <Color x:Key="SpanTextDisabledColor">#555555</Color>
-            
-            <!-- Brushes -->
-            <SolidColorBrush x:Key="SpanBgMicaBrush" Color="{StaticResource SpanBgMicaColor}" />
-            <SolidColorBrush x:Key="SpanBgLayer1Brush" Color="{StaticResource SpanBgLayer1Color}" />
-            <SolidColorBrush x:Key="SpanBgLayer2Brush" Color="{StaticResource SpanBgLayer2Color}" />
-            <SolidColorBrush x:Key="SpanAccentBrush" Color="{StaticResource SpanAccentColor}" />
-            <SolidColorBrush x:Key="SpanAccentHoverBrush" Color="{StaticResource SpanAccentHoverColor}" />
-            <SolidColorBrush x:Key="SpanAccentDimBrush" Color="{StaticResource SpanAccentDimColor}" />
-            
-            <SolidColorBrush x:Key="SpanTextPrimaryBrush" Color="{StaticResource SpanTextPrimaryColor}" />
-            <SolidColorBrush x:Key="SpanTextSecondaryBrush" Color="{StaticResource SpanTextSecondaryColor}" />
-            <SolidColorBrush x:Key="SpanTextTertiaryBrush" Color="{StaticResource SpanTextTertiaryColor}" />
-            <SolidColorBrush x:Key="SpanTextDisabledBrush" Color="{StaticResource SpanTextDisabledColor}" />
+                    <!-- Accent -->
+                    <Color x:Key="SpanAccentColor">#60cdff</Color>
+                    <Color x:Key="SpanAccentHoverColor">#7ed8ff</Color>
+                    <Color x:Key="SpanAccentDimColor">#5960CDFF</Color>
 
-            <!-- Translucent Brushes (Manual mapping from RGBA) -->
-            <!-- 0.06 white -> #0FFFFFFF -->
-            <SolidColorBrush x:Key="SpanBgHoverBrush" Color="#0FFFFFFF" />        
-            <!-- 0.08 white -> #14FFFFFF -->
-            <SolidColorBrush x:Key="SpanBgActiveBrush" Color="#14FFFFFF" />       
-            <!-- accent 0.08 -> #1460CDFF -->
-            <SolidColorBrush x:Key="SpanBgSelectedBrush" Color="#1460CDFF" />     
-            <!-- accent 0.12 -> #1F60CDFF -->
-            <SolidColorBrush x:Key="SpanBgSelectedHoverBrush" Color="#1F60CDFF" />
+                    <!-- Text -->
+                    <Color x:Key="SpanTextPrimaryColor">#ffffff</Color>
+                    <Color x:Key="SpanTextSecondaryColor">#ababab</Color>
+                    <Color x:Key="SpanTextTertiaryColor">#787878</Color>
+                    <Color x:Key="SpanTextDisabledColor">#555555</Color>
 
-            <!-- Rubber-band selection rectangle -->
-            <SolidColorBrush x:Key="SpanSelectionRectFillBrush" Color="{StaticResource SpanAccentColor}" Opacity="0.15" />
-            <SolidColorBrush x:Key="SpanSelectionRectStrokeBrush" Color="{StaticResource SpanAccentColor}" Opacity="0.6" />
+                    <!-- Solid Brushes -->
+                    <SolidColorBrush x:Key="SpanBgMicaBrush" Color="{StaticResource SpanBgMicaColor}" />
+                    <SolidColorBrush x:Key="SpanBgLayer1Brush" Color="{StaticResource SpanBgLayer1Color}" />
+                    <SolidColorBrush x:Key="SpanBgLayer2Brush" Color="{StaticResource SpanBgLayer2Color}" />
+                    <SolidColorBrush x:Key="SpanAccentBrush" Color="{StaticResource SpanAccentColor}" />
+                    <SolidColorBrush x:Key="SpanAccentHoverBrush" Color="{StaticResource SpanAccentHoverColor}" />
+                    <SolidColorBrush x:Key="SpanAccentDimBrush" Color="{StaticResource SpanAccentDimColor}" />
 
-            <!-- Borders -->
-            <!-- 0.06 white -> #0FFFFFFF -->
-            <SolidColorBrush x:Key="SpanBorderSubtleBrush" Color="#0FFFFFFF" />   
-            <!-- 0.08 white -> #14FFFFFF -->
-            <SolidColorBrush x:Key="SpanBorderCardBrush" Color="#14FFFFFF" />     
-            <!-- 0.10 white -> #1AFFFFFF -->
-            <SolidColorBrush x:Key="SpanBorderControlBrush" Color="#1AFFFFFF" />  
+                    <SolidColorBrush x:Key="SpanTextPrimaryBrush" Color="{StaticResource SpanTextPrimaryColor}" />
+                    <SolidColorBrush x:Key="SpanTextSecondaryBrush" Color="{StaticResource SpanTextSecondaryColor}" />
+                    <SolidColorBrush x:Key="SpanTextTertiaryBrush" Color="{StaticResource SpanTextTertiaryColor}" />
+                    <SolidColorBrush x:Key="SpanTextDisabledBrush" Color="{StaticResource SpanTextDisabledColor}" />
+
+                    <!-- Translucent Brushes (white overlay for dark backgrounds) -->
+                    <SolidColorBrush x:Key="SpanBgHoverBrush" Color="#0FFFFFFF" />
+                    <SolidColorBrush x:Key="SpanBgActiveBrush" Color="#14FFFFFF" />
+                    <SolidColorBrush x:Key="SpanBgSelectedBrush" Color="#20FFFFFF" />
+                    <SolidColorBrush x:Key="SpanBgSelectedHoverBrush" Color="#30FFFFFF" />
+
+                    <!-- Override WinUI system ListView/GridView selection colors -->
+                    <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="#3898D8" />
+                    <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="#4BA8E8" />
+                    <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPressed" Color="#2E88C8" />
+                    <SolidColorBrush x:Key="GridViewItemBackgroundSelected" Color="#3898D8" />
+                    <SolidColorBrush x:Key="GridViewItemBackgroundSelectedPointerOver" Color="#4BA8E8" />
+                    <SolidColorBrush x:Key="GridViewItemBackgroundSelectedPressed" Color="#2E88C8" />
+
+                    <!-- Rubber-band selection -->
+                    <SolidColorBrush x:Key="SpanSelectionRectFillBrush" Color="{StaticResource SpanAccentColor}" Opacity="0.15" />
+                    <SolidColorBrush x:Key="SpanSelectionRectStrokeBrush" Color="{StaticResource SpanAccentColor}" Opacity="0.6" />
+
+                    <!-- Borders (white overlay for dark) -->
+                    <SolidColorBrush x:Key="SpanBorderSubtleBrush" Color="#0FFFFFFF" />
+                    <SolidColorBrush x:Key="SpanBorderCardBrush" Color="#14FFFFFF" />
+                    <SolidColorBrush x:Key="SpanBorderControlBrush" Color="#1AFFFFFF" />
+                </ResourceDictionary>
+
+                <!-- ==================== LIGHT THEME ==================== -->
+                <ResourceDictionary x:Key="Light">
+                    <!-- Backgrounds -->
+                    <Color x:Key="SpanBgMicaColor">#F3F3F3</Color>
+                    <Color x:Key="SpanBgLayer1Color">#FFFFFF</Color>
+                    <Color x:Key="SpanBgLayer2Color">#F5F5F5</Color>
+                    <Color x:Key="SpanBgLayer3Color">#EBEBEB</Color>
+                    <Color x:Key="SpanBgLayer2TransparentColor">#00F5F5F5</Color>
+
+                    <!-- Accent -->
+                    <Color x:Key="SpanAccentColor">#0078D4</Color>
+                    <Color x:Key="SpanAccentHoverColor">#106EBE</Color>
+                    <Color x:Key="SpanAccentDimColor">#590078D4</Color>
+
+                    <!-- Text -->
+                    <Color x:Key="SpanTextPrimaryColor">#1A1A1A</Color>
+                    <Color x:Key="SpanTextSecondaryColor">#616161</Color>
+                    <Color x:Key="SpanTextTertiaryColor">#8B8B8B</Color>
+                    <Color x:Key="SpanTextDisabledColor">#C4C4C4</Color>
+
+                    <!-- Solid Brushes -->
+                    <SolidColorBrush x:Key="SpanBgMicaBrush" Color="{StaticResource SpanBgMicaColor}" />
+                    <SolidColorBrush x:Key="SpanBgLayer1Brush" Color="{StaticResource SpanBgLayer1Color}" />
+                    <SolidColorBrush x:Key="SpanBgLayer2Brush" Color="{StaticResource SpanBgLayer2Color}" />
+                    <SolidColorBrush x:Key="SpanAccentBrush" Color="{StaticResource SpanAccentColor}" />
+                    <SolidColorBrush x:Key="SpanAccentHoverBrush" Color="{StaticResource SpanAccentHoverColor}" />
+                    <SolidColorBrush x:Key="SpanAccentDimBrush" Color="{StaticResource SpanAccentDimColor}" />
+
+                    <SolidColorBrush x:Key="SpanTextPrimaryBrush" Color="{StaticResource SpanTextPrimaryColor}" />
+                    <SolidColorBrush x:Key="SpanTextSecondaryBrush" Color="{StaticResource SpanTextSecondaryColor}" />
+                    <SolidColorBrush x:Key="SpanTextTertiaryBrush" Color="{StaticResource SpanTextTertiaryColor}" />
+                    <SolidColorBrush x:Key="SpanTextDisabledBrush" Color="{StaticResource SpanTextDisabledColor}" />
+
+                    <!-- Translucent Brushes (black overlay for light backgrounds) -->
+                    <SolidColorBrush x:Key="SpanBgHoverBrush" Color="#0A000000" />
+                    <SolidColorBrush x:Key="SpanBgActiveBrush" Color="#12000000" />
+                    <SolidColorBrush x:Key="SpanBgSelectedBrush" Color="#14000000" />
+                    <SolidColorBrush x:Key="SpanBgSelectedHoverBrush" Color="#20000000" />
+
+                    <!-- Override WinUI system ListView/GridView selection colors -->
+                    <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="#CCE4F7" />
+                    <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="#B3D7F2" />
+                    <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPressed" Color="#A0CBE8" />
+                    <SolidColorBrush x:Key="GridViewItemBackgroundSelected" Color="#CCE4F7" />
+                    <SolidColorBrush x:Key="GridViewItemBackgroundSelectedPointerOver" Color="#B3D7F2" />
+                    <SolidColorBrush x:Key="GridViewItemBackgroundSelectedPressed" Color="#A0CBE8" />
+
+                    <!-- Rubber-band selection -->
+                    <SolidColorBrush x:Key="SpanSelectionRectFillBrush" Color="{StaticResource SpanAccentColor}" Opacity="0.15" />
+                    <SolidColorBrush x:Key="SpanSelectionRectStrokeBrush" Color="{StaticResource SpanAccentColor}" Opacity="0.6" />
+
+                    <!-- Borders (black overlay for light) -->
+                    <SolidColorBrush x:Key="SpanBorderSubtleBrush" Color="#0F000000" />
+                    <SolidColorBrush x:Key="SpanBorderCardBrush" Color="#14000000" />
+                    <SolidColorBrush x:Key="SpanBorderControlBrush" Color="#1A000000" />
+                </ResourceDictionary>
+
+            </ResourceDictionary.ThemeDictionaries>
+
+            <!-- ============================================================
+                 Theme-Independent Resources
+                 ============================================================ -->
 
             <!-- Dimensions -->
             <x:Double x:Key="TitleBarHeight">40</x:Double>
@@ -85,7 +155,7 @@
             <FontFamily x:Key="AppFont">Segoe UI Variable, Segoe UI, sans-serif</FontFamily>
 
             <!-- Styles -->
-            
+
             <!-- Unified Button Style (Command Bar Icons) -->
             <Style x:Key="UnifiedButtonStyle" TargetType="Button">
                 <Setter Property="Background" Value="Transparent" />
@@ -93,7 +163,7 @@
                 <Setter Property="Padding" Value="8,4" />
                 <Setter Property="VerticalAlignment" Value="Center" />
                 <Setter Property="CornerRadius" Value="{StaticResource RadiusSm}" />
-                <Setter Property="Foreground" Value="{StaticResource SpanTextSecondaryBrush}" />
+                <Setter Property="Foreground" Value="{ThemeResource SpanTextSecondaryBrush}" />
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="Button">
@@ -104,20 +174,20 @@
                                         <VisualState x:Name="PointerOver">
                                             <Storyboard>
                                                 <ObjectAnimationUsingKeyFrames Storyboard.TargetName="RootGrid" Storyboard.TargetProperty="Background">
-                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{StaticResource SpanBgHoverBrush}" />
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource SpanBgHoverBrush}" />
                                                 </ObjectAnimationUsingKeyFrames>
                                                 <ObjectAnimationUsingKeyFrames Storyboard.TargetName="ContentPresenter" Storyboard.TargetProperty="Foreground">
-                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{StaticResource SpanTextPrimaryBrush}" />
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource SpanTextPrimaryBrush}" />
                                                 </ObjectAnimationUsingKeyFrames>
                                             </Storyboard>
                                         </VisualState>
                                         <VisualState x:Name="Pressed">
                                             <Storyboard>
                                                 <ObjectAnimationUsingKeyFrames Storyboard.TargetName="RootGrid" Storyboard.TargetProperty="Background">
-                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{StaticResource SpanBgActiveBrush}" />
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource SpanBgActiveBrush}" />
                                                 </ObjectAnimationUsingKeyFrames>
                                                 <ObjectAnimationUsingKeyFrames Storyboard.TargetName="ContentPresenter" Storyboard.TargetProperty="Foreground">
-                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{StaticResource SpanTextPrimaryBrush}" />
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource SpanTextPrimaryBrush}" />
                                                 </ObjectAnimationUsingKeyFrames>
                                             </Storyboard>
                                         </VisualState>
@@ -169,35 +239,35 @@
                                         <VisualState x:Name="PointerOver">
                                             <Storyboard>
                                                 <ObjectAnimationUsingKeyFrames Storyboard.TargetName="RootGrid" Storyboard.TargetProperty="Background">
-                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{StaticResource SpanBgHoverBrush}" />
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource SpanBgHoverBrush}" />
                                                 </ObjectAnimationUsingKeyFrames>
                                             </Storyboard>
                                         </VisualState>
                                         <VisualState x:Name="Pressed">
                                             <Storyboard>
                                                 <ObjectAnimationUsingKeyFrames Storyboard.TargetName="RootGrid" Storyboard.TargetProperty="Background">
-                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{StaticResource SpanBgActiveBrush}" />
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource SpanBgActiveBrush}" />
                                                 </ObjectAnimationUsingKeyFrames>
                                             </Storyboard>
                                         </VisualState>
                                         <VisualState x:Name="Selected">
                                             <Storyboard>
                                                 <ObjectAnimationUsingKeyFrames Storyboard.TargetName="RootGrid" Storyboard.TargetProperty="Background">
-                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{StaticResource SpanBgSelectedBrush}" />
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource SpanBgSelectedBrush}" />
                                                 </ObjectAnimationUsingKeyFrames>
                                             </Storyboard>
                                         </VisualState>
                                         <VisualState x:Name="PointerOverSelected">
                                             <Storyboard>
                                                 <ObjectAnimationUsingKeyFrames Storyboard.TargetName="RootGrid" Storyboard.TargetProperty="Background">
-                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{StaticResource SpanBgSelectedHoverBrush}" />
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource SpanBgSelectedHoverBrush}" />
                                                 </ObjectAnimationUsingKeyFrames>
                                             </Storyboard>
                                         </VisualState>
                                         <VisualState x:Name="PressedSelected">
                                             <Storyboard>
                                                 <ObjectAnimationUsingKeyFrames Storyboard.TargetName="RootGrid" Storyboard.TargetProperty="Background">
-                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{StaticResource SpanBgSelectedHoverBrush}" />
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource SpanBgSelectedHoverBrush}" />
                                                 </ObjectAnimationUsingKeyFrames>
                                             </Storyboard>
                                         </VisualState>
@@ -226,7 +296,7 @@
                 <Setter Property="HorizontalContentAlignment" Value="Left" />
                 <Setter Property="VerticalContentAlignment" Value="Center" />
                 <Setter Property="MinHeight" Value="32" />
-                <Setter Property="Foreground" Value="{StaticResource SpanTextSecondaryBrush}" />
+                <Setter Property="Foreground" Value="{ThemeResource SpanTextSecondaryBrush}" />
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="ListViewItem">
@@ -237,30 +307,30 @@
                                         <VisualState x:Name="PointerOver">
                                             <Storyboard>
                                                 <ObjectAnimationUsingKeyFrames Storyboard.TargetName="RootGrid" Storyboard.TargetProperty="Background">
-                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{StaticResource SpanBgHoverBrush}" />
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource SpanBgHoverBrush}" />
                                                 </ObjectAnimationUsingKeyFrames>
                                                 <ObjectAnimationUsingKeyFrames Storyboard.TargetName="ContentPresenter" Storyboard.TargetProperty="Foreground">
-                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{StaticResource SpanTextPrimaryBrush}" />
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource SpanTextPrimaryBrush}" />
                                                 </ObjectAnimationUsingKeyFrames>
                                             </Storyboard>
                                         </VisualState>
                                         <VisualState x:Name="Selected">
                                             <Storyboard>
                                                 <ObjectAnimationUsingKeyFrames Storyboard.TargetName="RootGrid" Storyboard.TargetProperty="Background">
-                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{StaticResource SpanBgSelectedBrush}" />
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource SpanBgSelectedBrush}" />
                                                 </ObjectAnimationUsingKeyFrames>
                                                 <ObjectAnimationUsingKeyFrames Storyboard.TargetName="ContentPresenter" Storyboard.TargetProperty="Foreground">
-                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{StaticResource SpanTextPrimaryBrush}" />
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource SpanTextPrimaryBrush}" />
                                                 </ObjectAnimationUsingKeyFrames>
                                             </Storyboard>
                                         </VisualState>
                                          <VisualState x:Name="PointerOverSelected">
                                             <Storyboard>
                                                 <ObjectAnimationUsingKeyFrames Storyboard.TargetName="RootGrid" Storyboard.TargetProperty="Background">
-                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{StaticResource SpanBgSelectedHoverBrush}" />
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource SpanBgSelectedHoverBrush}" />
                                                 </ObjectAnimationUsingKeyFrames>
                                                 <ObjectAnimationUsingKeyFrames Storyboard.TargetName="ContentPresenter" Storyboard.TargetProperty="Foreground">
-                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{StaticResource SpanTextPrimaryBrush}" />
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource SpanTextPrimaryBrush}" />
                                                 </ObjectAnimationUsingKeyFrames>
                                             </Storyboard>
                                         </VisualState>
