@@ -254,7 +254,7 @@ namespace Span.Services
 
             // Custom localized items
             menu.Items.Add(CreateItem(_loc.Get("Open"), "\uE8E5", () => host.PerformOpen(file)));
-            menu.Items.Add(CreateItem(_loc.Get("OpenWith"), "\uE7AC", () => _shellService.OpenWithAsync(file.Path)));
+            menu.Items.Add(CreateItem(_loc.Get("OpenWith"), "\uE7AC", () => _ = _shellService.OpenWithAsync(file.Path)));
             menu.Items.Add(new MenuFlyoutSeparator());
 
             menu.Items.Add(CreateItem(_loc.Get("Cut"), "\uE8C6", () => host.PerformCut(file.Path)));

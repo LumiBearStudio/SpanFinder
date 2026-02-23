@@ -27,7 +27,7 @@ namespace Span.Services
         public List<IconMapping> Mappings { get; set; } = new();
     }
 
-    public class IconService
+    public class IconService : IIconService
     {
         private IconConfig _config = new();
         private Dictionary<string, (string Icon, Brush Brush)> _cache = new();

@@ -3,7 +3,7 @@ using System.Text.Json;
 
 namespace Span.Services;
 
-public class ActionLogService
+public class ActionLogService : IActionLogService
 {
     private const int MaxEntries = 1000;
     private readonly string _logFilePath;

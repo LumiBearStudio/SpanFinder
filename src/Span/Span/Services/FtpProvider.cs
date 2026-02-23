@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentFTP;
@@ -39,7 +40,7 @@ namespace Span.Services
             if (connInfo.Protocol == RemoteProtocol.FTPS)
             {
                 _client.Config.EncryptionMode = FtpEncryptionMode.Explicit;
-                _client.Config.ValidateAnyCertificate = true; // TODO: 인증서 검증 UI 추가
+                ConfigureCertificateValidation(_client, connInfo);
             }
 
             await _client.Connect();
@@ -101,7 +102,7 @@ namespace Span.Services
             if (_connectionInfo.Protocol == RemoteProtocol.FTPS)
             {
                 _client.Config.EncryptionMode = FtpEncryptionMode.Explicit;
-                _client.Config.ValidateAnyCertificate = true;
+                ConfigureCertificateValidation(_client, _connectionInfo);
             }
 
             await _client.Connect();
@@ -248,6 +249,30 @@ namespace Span.Services
             if (_client == null) return;
             await EnsureConnectedAsync();
             await _client.UploadStream(content, path, token: ct);
+        }
+
+        private void ConfigureCertificateValidation(AsyncFtpClient client, Models.ConnectionInfo connInfo)
+        {
+            client.ValidateCertificate += (control, e) =>
+            {
+                var cert = new X509Certificate2(e.Certificate);
+                var thumbprint = cert.GetCertHashString(System.Security.Cryptography.HashAlgorithmName.SHA256);
+
+                if (!string.IsNullOrEmpty(connInfo.TrustedCertThumbprint))
+                {
+                    // Compare against previously trusted thumbprint
+                    e.Accept = string.Equals(thumbprint, connInfo.TrustedCertThumbprint, StringComparison.OrdinalIgnoreCase);
+                    if (!e.Accept)
+                        DebugLogger.Log($"[FtpProvider] 인증서 불일치! 예상: {connInfo.TrustedCertThumbprint}, 실제: {thumbprint}");
+                }
+                else
+                {
+                    // First connection: trust on first use (TOFU) and save thumbprint
+                    connInfo.TrustedCertThumbprint = thumbprint;
+                    e.Accept = true;
+                    DebugLogger.Log($"[FtpProvider] 인증서 TOFU 등록: {thumbprint}");
+                }
+            };
         }
 
         public void Dispose()

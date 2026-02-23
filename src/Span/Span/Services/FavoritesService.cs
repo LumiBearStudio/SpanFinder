@@ -6,7 +6,7 @@ using Span.Models;
 
 namespace Span.Services
 {
-    public class FavoritesService
+    public class FavoritesService : IFavoritesService
     {
         private const string FavoritesKey = "FavoritesData";
 

@@ -139,7 +139,7 @@
 
     <Grid x:Name="RootGrid" Loaded="OnRootGridLoaded" Unloaded="OnRootGridUnloaded">
         <GridView
-            x:Name="IconGridView"
+            x:Name="IconGridView" AutomationProperties.AutomationId="Icon_GridView"
             ItemsSource="{Binding CurrentItems, Mode=OneWay}"
             SelectedItem="{Binding CurrentFolder.SelectedChild, Mode=TwoWay}"
             SelectionMode="Extended"

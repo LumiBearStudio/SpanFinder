@@ -32,6 +32,16 @@ namespace Span.Models
         /// </summary>
         public string? UncPath { get; set; }
 
+        /// <summary>
+        /// FTPS: 신뢰된 서버 인증서 SHA-256 썸프린트
+        /// </summary>
+        public string? TrustedCertThumbprint { get; set; }
+
+        /// <summary>
+        /// SFTP: 신뢰된 호스트키 핑거프린트 (SHA-256)
+        /// </summary>
+        public string? TrustedHostKeyFingerprint { get; set; }
+
         public static int GetDefaultPort(RemoteProtocol protocol) => protocol switch
         {
             RemoteProtocol.SFTP => 22,

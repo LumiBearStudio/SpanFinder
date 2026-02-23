@@ -28,7 +28,7 @@
             </Grid.ColumnDefinitions>
 
             <!-- Size toggle -->
-            <ToggleButton x:Name="SizeToggle" Grid.Column="0"
+            <ToggleButton x:Name="SizeToggle" AutomationProperties.AutomationId="Toggle_Size" Grid.Column="0"
                           IsChecked="True"
                           Content="Size"
                           Click="OnSizeToggleClick"
@@ -38,7 +38,7 @@
                           Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
 
             <!-- Date toggle -->
-            <ToggleButton x:Name="DateToggle" Grid.Column="1"
+            <ToggleButton x:Name="DateToggle" AutomationProperties.AutomationId="Toggle_Date" Grid.Column="1"
                           IsChecked="False"
                           Content="Date"
                           Click="OnDateToggleClick"
@@ -53,7 +53,7 @@
                        Foreground="{ThemeResource SpanTextTertiaryBrush}"
                        Margin="0,0,8,0"/>
 
-            <Slider x:Name="ColumnWidthSlider" Grid.Column="4"
+            <Slider x:Name="ColumnWidthSlider" AutomationProperties.AutomationId="Slider_ColumnWidth" Grid.Column="4"
                     Minimum="150" Maximum="500" Value="250"
                     Width="120" Height="22"
                     ValueChanged="OnColumnWidthChanged"
@@ -61,7 +61,7 @@
         </Grid>
 
         <!-- Items GridView with vertical wrapping -->
-        <GridView x:Name="ListGridView" Grid.Row="1"
+        <GridView x:Name="ListGridView" AutomationProperties.AutomationId="List_GridView" Grid.Row="1"
                   SelectionMode="Extended"
                   CanDragItems="True"
                   DragItemsStarting="OnDragItemsStarting"

@@ -13,7 +13,7 @@ using Windows.Storage.Streams;
 
 namespace Span.Services
 {
-    public class PreviewService
+    public class PreviewService : IPreviewService
     {
         private static readonly HashSet<string> ImageExtensions = new(StringComparer.OrdinalIgnoreCase)
         {

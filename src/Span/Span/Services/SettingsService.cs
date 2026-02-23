@@ -3,7 +3,7 @@ using Windows.Storage;
 
 namespace Span.Services;
 
-public class SettingsService
+public class SettingsService : ISettingsService
 {
     private readonly ApplicationDataContainer _localSettings;
 

@@ -1,0 +1,807 @@
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
+using Microsoft.Extensions.DependencyInjection;
+using Span.ViewModels;
+using Span.Services;
+using Span.Services.FileOperations;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.UI.Input;
+using Windows.ApplicationModel.DataTransfer;
+
+namespace Span
+{
+    public sealed partial class MainWindow
+    {
+        #region Drag & Drop: Drag start and Favorites
+
+        private void OnDragItemsStarting(object sender, DragItemsStartingEventArgs e)
+        {
+            // Cancel file D&D if rubber-band selection is active
+            if (_rubberBandHelpers.Values.Any(h => h.IsActive))
+            { e.Cancel = true; return; }
+
+            // Allow dragging both files and folders
+            var items = e.Items.OfType<FileSystemViewModel>().ToList();
+            if (items.Count == 0) { e.Cancel = true; return; }
+
+            var paths = items.Select(i => i.Path).ToList();
+            e.Data.SetText(string.Join("\n", paths));
+            e.Data.Properties["SourcePaths"] = paths;
+            e.Data.Properties["SourcePane"] = DeterminePane(sender);
+            e.Data.RequestedOperation = DataPackageOperation.Copy | DataPackageOperation.Move;
+
+            // Span→외부 앱: StorageItems를 지연 로딩 (외부 앱이 요청할 때만 로드)
+            // DragItemsStarting에서 await 사용 금지 — async void + await는 드래그 종료 시
+            // UI 스레드 데드락 유발 (DataPackage freeze 후 async 연속이 수정 시도)
+            var capturedPaths = new List<string>(paths);
+            e.Data.SetDataProvider(StandardDataFormats.StorageItems, request =>
+            {
+                var deferral = request.GetDeferral();
+                _ = ProvideStorageItemsAsync(request, capturedPaths, deferral);
+            });
+        }
+
+        private string DeterminePane(object sender)
+        {
+            if (sender is DependencyObject depObj)
+            {
+                if (IsDescendant(RightPaneContainer, depObj))
+                    return "Right";
+            }
+            return "Left";
+        }
+
+        /// <summary>
+        /// Deferred StorageItems provider for drag-and-drop to external apps.
+        /// Called lazily only when an external app (e.g. Windows Explorer) requests the data.
+        /// </summary>
+        private static async System.Threading.Tasks.Task ProvideStorageItemsAsync(
+            Windows.ApplicationModel.DataTransfer.DataProviderRequest request,
+            List<string> paths,
+            Windows.ApplicationModel.DataTransfer.DataProviderDeferral deferral)
+        {
+            try
+            {
+                var storageItems = new List<Windows.Storage.IStorageItem>();
+                foreach (var p in paths)
+                {
+                    try
+                    {
+                        if (System.IO.Directory.Exists(p))
+                            storageItems.Add(await Windows.Storage.StorageFolder.GetFolderFromPathAsync(p));
+                        else if (System.IO.File.Exists(p))
+                            storageItems.Add(await Windows.Storage.StorageFile.GetFileFromPathAsync(p));
+                    }
+                    catch { }
+                }
+                request.SetData(storageItems);
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[DragDrop] StorageItems provider error: {ex.Message}");
+            }
+            finally
+            {
+                deferral.Complete();
+            }
+        }
+
+        private void OnFavoritesDragOver(object sender, DragEventArgs e)
+        {
+            if (e.DataView.Contains(StandardDataFormats.Text) ||
+                e.DataView.Contains(StandardDataFormats.StorageItems))
+            {
+                e.AcceptedOperation = DataPackageOperation.Link;
+                e.DragUIOverride.Caption = "즐겨찾기에 추가";
+            }
+        }
+
+        private async void OnFavoritesDrop(object sender, DragEventArgs e)
+        {
+            if (e.DataView.Contains(StandardDataFormats.Text))
+            {
+                var path = await e.DataView.GetTextAsync();
+                if (!string.IsNullOrEmpty(path) && System.IO.Directory.Exists(path))
+                {
+                    ViewModel.AddToFavorites(path);
+                    Helpers.DebugLogger.Log($"[Sidebar] Folder dropped to favorites: {path}");
+                }
+            }
+            else if (e.DataView.Contains(StandardDataFormats.StorageItems))
+            {
+                var items = await e.DataView.GetStorageItemsAsync();
+                foreach (var item in items)
+                {
+                    if (!string.IsNullOrEmpty(item.Path) && System.IO.Directory.Exists(item.Path))
+                    {
+                        ViewModel.AddToFavorites(item.Path);
+                        Helpers.DebugLogger.Log($"[Sidebar] External folder dropped to favorites: {item.Path}");
+                    }
+                }
+            }
+        }
+
+        #endregion
+
+        #region Drag & Drop: Folder item targets (drop file onto a folder)
+
+        private void OnFolderItemDragOver(object sender, DragEventArgs e)
+        {
+            if (sender is not Grid grid || grid.DataContext is not FolderViewModel targetFolder) return;
+
+            // Check if data contains paths (internal or external app)
+            if (!e.DataView.Contains(StandardDataFormats.Text) &&
+                !e.DataView.Properties.ContainsKey("SourcePaths") &&
+                !e.DataView.Contains(StandardDataFormats.StorageItems)) return;
+
+            // Prevent dropping onto self (check source paths)
+            if (e.DataView.Properties.TryGetValue("SourcePaths", out var srcObj) && srcObj is List<string> srcPaths)
+            {
+                if (srcPaths.Any(p => p.Equals(targetFolder.Path, StringComparison.OrdinalIgnoreCase)))
+                {
+                    e.AcceptedOperation = DataPackageOperation.None;
+                    e.Handled = true;
+                    return;
+                }
+                // Prevent dropping parent into child
+                if (srcPaths.Any(p => targetFolder.Path.StartsWith(p + "\\", StringComparison.OrdinalIgnoreCase)))
+                {
+                    e.AcceptedOperation = DataPackageOperation.None;
+                    e.Handled = true;
+                    return;
+                }
+            }
+
+            bool isMove = ResolveDragDropOperation(e, targetFolder.Path);
+
+            e.AcceptedOperation = isMove ? DataPackageOperation.Move : DataPackageOperation.Copy;
+            e.DragUIOverride.Caption = isMove ? $"Move to {targetFolder.Name}" : $"Copy to {targetFolder.Name}";
+            e.DragUIOverride.IsCaptionVisible = true;
+
+            // Visual feedback: highlight background
+            grid.Background = new SolidColorBrush(Microsoft.UI.Colors.White) { Opacity = 0.08 };
+
+            // Spring-loaded folder: start timer if hovering over a new folder
+            if (_springLoadTarget != targetFolder)
+            {
+                StopSpringLoadTimer();
+                _springLoadTarget = targetFolder;
+                _springLoadGrid = grid;
+                StartSpringLoadTimer();
+            }
+
+            e.Handled = true;
+        }
+
+        private async void OnFolderItemDrop(object sender, DragEventArgs e)
+        {
+            if (sender is not Grid grid || grid.DataContext is not FolderViewModel targetFolder) return;
+            e.Handled = true; // Prevent bubbling BEFORE await (avoid duplicate execution)
+
+            // Reset highlight and cancel spring-load
+            grid.Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+            StopSpringLoadTimer();
+
+            var paths = await ExtractDropPaths(e);
+            if (paths.Count == 0) return;
+
+            bool isMove = ResolveDragDropOperation(e, targetFolder.Path);
+            await HandleDropAsync(paths, targetFolder.Path, isMove: isMove);
+        }
+
+        private void OnFolderItemDragLeave(object sender, DragEventArgs e)
+        {
+            if (sender is Grid grid)
+            {
+                grid.Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+            }
+
+            // Cancel spring-loaded timer when leaving the target folder
+            if (sender is Grid g && g.DataContext is FolderViewModel leavingFolder
+                && leavingFolder == _springLoadTarget)
+            {
+                StopSpringLoadTimer();
+            }
+        }
+
+        #endregion
+
+        #region Spring-loaded folders: auto-open folder after drag hover delay
+
+        private void StartSpringLoadTimer()
+        {
+            _springLoadTimer = new DispatcherTimer();
+            _springLoadTimer.Interval = TimeSpan.FromMilliseconds(SPRING_LOAD_DELAY_MS);
+            _springLoadTimer.Tick += OnSpringLoadTimerTick;
+            _springLoadTimer.Start();
+        }
+
+        private void StopSpringLoadTimer()
+        {
+            if (_springLoadTimer != null)
+            {
+                _springLoadTimer.Stop();
+                _springLoadTimer.Tick -= OnSpringLoadTimerTick;
+                _springLoadTimer = null;
+            }
+            _springLoadTarget = null;
+            _springLoadGrid = null;
+        }
+
+        private void OnSpringLoadTimerTick(object? sender, object e)
+        {
+            var folder = _springLoadTarget;
+            StopSpringLoadTimer(); // One-shot: stop and clear state
+
+            if (folder == null) return;
+
+            // Navigate into the folder by selecting it in its parent column
+            var explorer = ViewModel.ActiveExplorer;
+            if (explorer != null)
+            {
+                foreach (var col in explorer.Columns)
+                {
+                    if (col.Children.Contains(folder))
+                    {
+                        col.SelectedChild = folder;
+                        break;
+                    }
+                }
+                Helpers.DebugLogger.Log($"[SpringLoad] Auto-opened folder: {folder.Name}");
+            }
+        }
+
+        #endregion
+
+        #region Drag & Drop: Column-level targets (drop into current folder)
+
+        private void OnColumnDragOver(object sender, DragEventArgs e)
+        {
+            if (sender is not ListView listView || listView.DataContext is not FolderViewModel folderVm) return;
+            if (!e.DataView.Contains(StandardDataFormats.Text) &&
+                !e.DataView.Properties.ContainsKey("SourcePaths") &&
+                !e.DataView.Contains(StandardDataFormats.StorageItems)) return;
+
+            // Same-folder check: block Move, allow Copy (Ctrl)
+            bool isSameFolder = false;
+            if (e.DataView.Properties.TryGetValue("SourcePaths", out var srcObj) && srcObj is List<string> srcPaths)
+            {
+                isSameFolder = srcPaths.All(p => System.IO.Path.GetDirectoryName(p)?.Equals(folderVm.Path, StringComparison.OrdinalIgnoreCase) == true);
+            }
+
+            bool isMove = ResolveDragDropOperation(e, folderVm.Path);
+
+            if (isSameFolder && isMove)
+            {
+                e.AcceptedOperation = DataPackageOperation.None;
+                e.Handled = true;
+                return;
+            }
+
+            e.AcceptedOperation = isMove ? DataPackageOperation.Move : DataPackageOperation.Copy;
+            e.DragUIOverride.Caption = isMove ? $"Move to {folderVm.Name}" : $"Copy to {folderVm.Name}";
+            e.DragUIOverride.IsCaptionVisible = true;
+            e.Handled = true; // Prevent bubbling to PaneDragOver
+        }
+
+        private async void OnColumnDrop(object sender, DragEventArgs e)
+        {
+            if (sender is not ListView listView || listView.DataContext is not FolderViewModel folderVm) return;
+            e.Handled = true; // Prevent bubbling to OnPaneDrop (duplicate execution)
+
+            var paths = await ExtractDropPaths(e);
+            if (paths.Count == 0) return;
+
+            bool isMove = ResolveDragDropOperation(e, folderVm.Path);
+            await HandleDropAsync(paths, folderVm.Path, isMove: isMove);
+        }
+
+        #endregion
+
+        #region Drag & Drop: Shared helpers
+
+        private async Task<List<string>> ExtractDropPaths(DragEventArgs e)
+        {
+            if (e.DataView.Properties.TryGetValue("SourcePaths", out var srcObj) && srcObj is List<string> srcPaths)
+                return srcPaths;
+
+            if (e.DataView.Contains(StandardDataFormats.Text))
+            {
+                var text = await e.DataView.GetTextAsync();
+                if (!string.IsNullOrEmpty(text))
+                    return text.Split('\n', StringSplitOptions.RemoveEmptyEntries).ToList();
+            }
+
+            // 외부 앱(Windows 탐색기 등)에서 드래그된 StorageItems 처리
+            if (e.DataView.Contains(StandardDataFormats.StorageItems))
+            {
+                var items = await e.DataView.GetStorageItemsAsync();
+                return items.Select(i => i.Path).Where(p => !string.IsNullOrEmpty(p)).ToList();
+            }
+
+            return new List<string>();
+        }
+
+        /// <summary>
+        /// Resolves drag-drop operation based on modifier keys and drive comparison.
+        /// Windows Explorer convention: same drive = Move, different drive = Copy.
+        /// Shift forces Move, Ctrl forces Copy.
+        /// </summary>
+        private bool ResolveDragDropOperation(DragEventArgs e, string destFolder)
+        {
+            var shift = InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Shift)
+                        .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+            var ctrl = InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control)
+                       .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+
+            // Explicit modifier keys override default behavior
+            if (shift) return true;   // Shift = force Move
+            if (ctrl) return false;   // Ctrl = force Copy
+
+            // Default: same drive root = Move, different drive = Copy
+            if (e.DataView.Properties.TryGetValue("SourcePaths", out var srcObj) && srcObj is List<string> srcPaths && srcPaths.Count > 0)
+            {
+                var srcRoot = System.IO.Path.GetPathRoot(srcPaths[0]);
+                var destRoot = System.IO.Path.GetPathRoot(destFolder);
+                if (!string.IsNullOrEmpty(srcRoot) && !string.IsNullOrEmpty(destRoot))
+                    return srcRoot.Equals(destRoot, StringComparison.OrdinalIgnoreCase);
+            }
+
+            return false; // fallback: Copy
+        }
+
+        private async System.Threading.Tasks.Task HandleDropAsync(List<string> sourcePaths, string destFolder, bool isMove)
+        {
+            // Validate: don't drop onto itself or into child
+            sourcePaths = sourcePaths.Where(p =>
+                !p.Equals(destFolder, StringComparison.OrdinalIgnoreCase) &&
+                !destFolder.StartsWith(p + "\\", StringComparison.OrdinalIgnoreCase)
+            ).ToList();
+
+            // Safety net: filter out same-folder Move (items already in destFolder)
+            if (isMove)
+            {
+                sourcePaths = sourcePaths.Where(p =>
+                    !string.Equals(System.IO.Path.GetDirectoryName(p), destFolder, StringComparison.OrdinalIgnoreCase)
+                ).ToList();
+            }
+
+            if (sourcePaths.Count == 0) return;
+
+            var router = App.Current.Services.GetRequiredService<FileSystemRouter>();
+            IFileOperation op = isMove
+                ? new MoveFileOperation(sourcePaths, destFolder, router)
+                : new CopyFileOperation(sourcePaths, destFolder, router);
+
+            await ViewModel.ExecuteFileOperationAsync(op);
+
+            Helpers.DebugLogger.Log($"[DragDrop] {(isMove ? "Moved" : "Copied")} {sourcePaths.Count} item(s) to {destFolder}");
+        }
+
+        #endregion
+
+        #region Drag & Drop: Cross-pane (left <-> right)
+
+        private void OnPaneDragOver(object sender, DragEventArgs e)
+        {
+            if (sender is not FrameworkElement fe) return;
+
+            // Determine source and target panes
+            // External drags (Windows Explorer etc.) won't have "SourcePane" property
+            bool isInternalDrag = e.DataView.Properties.TryGetValue("SourcePane", out var sp) && sp is string s;
+            var sourcePane = isInternalDrag ? (string)sp! : "";
+
+            bool isLeftTarget = fe.Name == "LeftPaneContainer";
+            string targetPane = isLeftTarget ? "Left" : "Right";
+
+            var targetExplorer = isLeftTarget ? ViewModel.Explorer : ViewModel.RightExplorer;
+            var destFolder = targetExplorer?.CurrentFolder?.Path ?? "";
+            bool isMove = ResolveDragDropOperation(e, destFolder);
+
+            // Same-pane drag: block Move (no-op), allow Copy (Ctrl)
+            // Only applies to internal drags — external drops always allowed
+            if (isInternalDrag && sourcePane == targetPane)
+            {
+                if (isMove)
+                {
+                    e.AcceptedOperation = DataPackageOperation.None;
+                    e.Handled = true;
+                    return;
+                }
+                // Same-pane Copy → allow (fall through to set operation below)
+            }
+
+            e.AcceptedOperation = isMove
+                ? Windows.ApplicationModel.DataTransfer.DataPackageOperation.Move
+                : Windows.ApplicationModel.DataTransfer.DataPackageOperation.Copy;
+            e.DragUIOverride.Caption = isMove ? _loc.Get("Move") : _loc.Get("Copy");
+            e.DragUIOverride.IsCaptionVisible = true;
+            e.DragUIOverride.IsGlyphVisible = true;
+
+            // Show drop overlay
+            var overlay = isLeftTarget ? LeftDropOverlay : RightDropOverlay;
+            overlay.Opacity = 0.05;
+
+            e.Handled = true;
+        }
+
+        private async void OnPaneDrop(object sender, DragEventArgs e)
+        {
+            if (sender is not FrameworkElement fe) return;
+
+            // External drags (Windows Explorer etc.) won't have "SourcePane" property
+            bool isInternalDrag = e.DataView.Properties.TryGetValue("SourcePane", out var sp) && sp is string s;
+            var sourcePane = isInternalDrag ? (string)sp! : "";
+
+            bool isLeftTarget = fe.Name == "LeftPaneContainer";
+            string targetPane = isLeftTarget ? "Left" : "Right";
+
+            // Same-pane Move is blocked (only Copy allowed) — only for internal drags
+            bool isMove = false;
+            {
+                var targetExplorer2 = isLeftTarget ? ViewModel.Explorer : ViewModel.RightExplorer;
+                var destFolder2 = targetExplorer2?.CurrentFolder?.Path ?? "";
+                isMove = ResolveDragDropOperation(e, destFolder2);
+            }
+            if (isInternalDrag && sourcePane == targetPane && isMove) return;
+
+            // Hide overlay
+            var overlay = isLeftTarget ? LeftDropOverlay : RightDropOverlay;
+            overlay.Opacity = 0;
+
+            var paths = await ExtractDropPaths(e);
+            if (paths.Count == 0) return;
+
+            // Destination = target pane's current folder
+            var targetExplorer = isLeftTarget ? ViewModel.Explorer : ViewModel.RightExplorer;
+            var destFolder = targetExplorer?.CurrentFolder?.Path;
+            if (string.IsNullOrEmpty(destFolder)) return;
+
+            // isMove already resolved above (same-pane Move was early-returned)
+            await HandleDropAsync(paths, destFolder, isMove: isMove);
+            e.Handled = true;
+        }
+
+        private void OnPaneDragLeave(object sender, DragEventArgs e)
+        {
+            if (sender is FrameworkElement fe)
+            {
+                bool isLeftTarget = fe.Name == "LeftPaneContainer";
+                var overlay = isLeftTarget ? LeftDropOverlay : RightDropOverlay;
+                overlay.Opacity = 0;
+            }
+        }
+
+        #endregion
+
+        #region Sidebar item hover effects
+
+        /// <summary>
+        /// Sidebar item hover effect - show subtle background.
+        /// </summary>
+        private void OnSidebarItemPointerEntered(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            if (sender is Grid grid)
+            {
+                grid.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                    Microsoft.UI.Colors.White) { Opacity = 0.05 };
+            }
+        }
+
+        /// <summary>
+        /// Sidebar item hover exit - remove background.
+        /// </summary>
+        private void OnSidebarItemPointerExited(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            if (sender is Grid grid)
+            {
+                grid.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                    Microsoft.UI.Colors.Transparent);
+            }
+        }
+
+        #endregion
+
+        #region Column Resize Grip Handlers (Miller Columns drag-to-resize)
+
+        private void OnColumnResizeGripPointerEntered(object sender, PointerRoutedEventArgs e)
+        {
+            if (sender is Microsoft.UI.Xaml.Shapes.Rectangle rect)
+            {
+                rect.Fill = new SolidColorBrush(Microsoft.UI.Colors.Gray) { Opacity = 0.3 };
+                // Set resize cursor via InputSystemCursor (reliable in WinUI 3)
+                SetGripCursor(rect, true);
+            }
+        }
+
+        private void OnColumnResizeGripPointerExited(object sender, PointerRoutedEventArgs e)
+        {
+            if (!_isResizingColumn && sender is Microsoft.UI.Xaml.Shapes.Rectangle rect)
+            {
+                rect.Fill = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+                SetGripCursor(rect, false);
+            }
+        }
+
+        private void OnColumnResizeGripPointerPressed(object sender, PointerRoutedEventArgs e)
+        {
+            if (sender is Microsoft.UI.Xaml.Shapes.Rectangle rect)
+            {
+                // Walk up to find the parent Grid that has the Width
+                var parentGrid = VisualTreeHelper.GetParent(rect) as Grid;
+                if (parentGrid == null) return;
+
+                _isResizingColumn = true;
+                _resizingColumnGrid = parentGrid;
+                _resizeStartX = e.GetCurrentPoint(null).Position.X;
+                _resizeStartWidth = parentGrid.Width;
+
+                rect.CapturePointer(e.Pointer);
+                e.Handled = true;
+            }
+        }
+
+        private void OnColumnResizeGripPointerMoved(object sender, PointerRoutedEventArgs e)
+        {
+            if (_isResizingColumn && _resizingColumnGrid != null)
+            {
+                double currentX = e.GetCurrentPoint(null).Position.X;
+                double delta = currentX - _resizeStartX;
+                double newWidth = Math.Max(150, _resizeStartWidth + delta);
+                newWidth = Math.Min(600, newWidth); // max width cap
+                _resizingColumnGrid.Width = newWidth;
+
+                // Ctrl+drag: apply the same width to ALL columns simultaneously
+                var ctrl = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control)
+                           .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+                if (ctrl)
+                {
+                    var control = GetActiveMillerColumnsControl();
+                    var columns = ViewModel.ActiveExplorer.Columns;
+                    for (int i = 0; i < columns.Count; i++)
+                    {
+                        var container = control.ContainerFromIndex(i) as ContentPresenter;
+                        if (container == null) continue;
+                        var grid = FindChild<Grid>(container);
+                        if (grid != null && grid != _resizingColumnGrid)
+                        {
+                            grid.Width = newWidth;
+                        }
+                    }
+                }
+
+                // Force parent StackPanel and ScrollViewer to recalculate scroll extent
+                if (VisualTreeHelper.GetParent(_resizingColumnGrid) is FrameworkElement parent)
+                    parent.InvalidateMeasure();
+
+                e.Handled = true;
+            }
+        }
+
+        private void OnColumnResizeGripPointerReleased(object sender, PointerRoutedEventArgs e)
+        {
+            if (_isResizingColumn)
+            {
+                var grid = _resizingColumnGrid;
+                _isResizingColumn = false;
+                _resizingColumnGrid = null;
+
+                if (sender is Microsoft.UI.Xaml.Shapes.Rectangle rect)
+                {
+                    rect.ReleasePointerCapture(e.Pointer);
+                    rect.Fill = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+                    SetGripCursor(rect, false);
+                }
+
+                // Final layout pass: invalidate ItemsControl → StackPanel → ScrollViewer
+                if (grid != null)
+                {
+                    var control = GetActiveMillerColumnsControl();
+                    control.InvalidateMeasure();
+                    control.UpdateLayout();
+                    var scrollViewer = GetActiveMillerScrollViewer();
+                    scrollViewer.InvalidateMeasure();
+                    scrollViewer.UpdateLayout();
+                }
+
+                e.Handled = true;
+            }
+        }
+
+        /// <summary>
+        /// Double-click on column resize grip: auto-fit column width to its content.
+        /// Measures the widest item name in the column and resizes to fit.
+        /// </summary>
+        private void OnColumnResizeGripDoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
+        {
+            if (sender is not Microsoft.UI.Xaml.Shapes.Rectangle rect) return;
+
+            var parentGrid = VisualTreeHelper.GetParent(rect) as Grid;
+            if (parentGrid == null) return;
+
+            // Find the column index by locating this grid in the ItemsControl
+            var control = GetActiveMillerColumnsControl();
+            var columns = ViewModel.ActiveExplorer.Columns;
+            int columnIndex = -1;
+
+            for (int i = 0; i < columns.Count; i++)
+            {
+                var container = control.ContainerFromIndex(i) as ContentPresenter;
+                if (container == null) continue;
+                var grid = FindChild<Grid>(container);
+                if (grid == parentGrid)
+                {
+                    columnIndex = i;
+                    break;
+                }
+            }
+
+            if (columnIndex < 0 || columnIndex >= columns.Count) return;
+
+            double fittedWidth = MeasureColumnContentWidth(columns[columnIndex]);
+            parentGrid.Width = fittedWidth;
+
+            // Check if Ctrl is held: apply to all columns
+            var ctrl = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control)
+                       .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+            if (ctrl)
+            {
+                ApplyWidthToAllColumns(fittedWidth);
+            }
+
+            // Invalidate layout
+            control.InvalidateMeasure();
+            control.UpdateLayout();
+            var scrollViewer = GetActiveMillerScrollViewer();
+            scrollViewer.InvalidateMeasure();
+            scrollViewer.UpdateLayout();
+
+            e.Handled = true;
+        }
+
+        /// <summary>
+        /// Measure the ideal width for a column based on its content.
+        /// Estimates text width from item display names plus icon/padding/chevron.
+        /// Returns clamped width between 120 and 600 pixels.
+        /// </summary>
+        private double MeasureColumnContentWidth(FolderViewModel column)
+        {
+            const double iconWidth = 16;
+            const double iconMargin = 12;
+            const double itemPadding = 12 * 2;   // left + right padding on item grid
+            const double chevronWidth = 14;       // chevron icon + opacity area
+            const double countBadgeExtra = 30;    // child count text badge
+            const double gripWidth = 4;           // resize grip
+            const double scrollBarBuffer = 8;     // scrollbar safety margin
+            const double minWidth = 120;
+            const double maxWidth = 600;
+
+            double maxItemWidth = 0;
+
+            foreach (var child in column.Children)
+            {
+                string displayName = child.DisplayName;
+                // Measure text using a TextBlock for accurate font metrics
+                double textWidth = MeasureTextWidth(displayName, 14); // default font size 14
+
+                double itemWidth = itemPadding + iconWidth + iconMargin + textWidth;
+
+                // Folders have count badge + chevron
+                if (child is FolderViewModel folderChild)
+                {
+                    itemWidth += countBadgeExtra + chevronWidth;
+                }
+
+                if (itemWidth > maxItemWidth)
+                    maxItemWidth = itemWidth;
+            }
+
+            // Add grip width and buffer
+            double totalWidth = maxItemWidth + gripWidth + scrollBarBuffer;
+
+            return Math.Clamp(totalWidth, minWidth, maxWidth);
+        }
+
+        /// <summary>
+        /// Measure the pixel width of a string using WinUI text rendering.
+        /// </summary>
+        private static double MeasureTextWidth(string text, double fontSize)
+        {
+            if (string.IsNullOrEmpty(text)) return 0;
+
+            var tb = new TextBlock
+            {
+                Text = text,
+                FontSize = fontSize,
+                TextWrapping = TextWrapping.NoWrap
+            };
+            tb.Measure(new Windows.Foundation.Size(double.PositiveInfinity, double.PositiveInfinity));
+            return tb.DesiredSize.Width;
+        }
+
+        /// <summary>
+        /// Apply a given width to all column grids in the active Miller Columns control.
+        /// Used by Ctrl+drag and Ctrl+Shift+= shortcut.
+        /// </summary>
+        private void ApplyWidthToAllColumns(double width)
+        {
+            width = Math.Clamp(width, 150, 600);
+
+            var control = GetActiveMillerColumnsControl();
+            var columns = ViewModel.ActiveExplorer.Columns;
+
+            for (int i = 0; i < columns.Count; i++)
+            {
+                var container = control.ContainerFromIndex(i) as ContentPresenter;
+                if (container == null) continue;
+                var grid = FindChild<Grid>(container);
+                if (grid != null)
+                {
+                    grid.Width = width;
+                }
+            }
+
+            // Invalidate layout
+            if (VisualTreeHelper.GetParent(control) is FrameworkElement parent)
+                parent.InvalidateMeasure();
+        }
+
+        /// <summary>
+        /// Auto-fit all column widths to their individual content.
+        /// Each column gets its own optimal width based on the widest item it contains.
+        /// </summary>
+        private void AutoFitAllColumns()
+        {
+            var control = GetActiveMillerColumnsControl();
+            var columns = ViewModel.ActiveExplorer.Columns;
+
+            for (int i = 0; i < columns.Count; i++)
+            {
+                double fittedWidth = MeasureColumnContentWidth(columns[i]);
+                var container = control.ContainerFromIndex(i) as ContentPresenter;
+                if (container == null) continue;
+                var grid = FindChild<Grid>(container);
+                if (grid != null)
+                {
+                    grid.Width = fittedWidth;
+                }
+            }
+
+            // Invalidate layout
+            control.InvalidateMeasure();
+            control.UpdateLayout();
+            var scrollViewer = GetActiveMillerScrollViewer();
+            scrollViewer.InvalidateMeasure();
+            scrollViewer.UpdateLayout();
+        }
+
+        /// <summary>
+        /// Set cursor on resize grip element using WinUI 3 ProtectedCursor (via reflection).
+        /// This is more reliable than Win32 SetCursor which gets overridden by WinUI message loop.
+        /// </summary>
+        private static void SetGripCursor(UIElement element, bool resize)
+        {
+            try
+            {
+                var cursor = resize
+                    ? Microsoft.UI.Input.InputSystemCursor.Create(Microsoft.UI.Input.InputSystemCursorShape.SizeWestEast)
+                    : Microsoft.UI.Input.InputSystemCursor.Create(Microsoft.UI.Input.InputSystemCursorShape.Arrow);
+                // ProtectedCursor is protected; use reflection to bypass
+                typeof(UIElement).GetProperty("ProtectedCursor",
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                    ?.SetValue(element, cursor);
+            }
+            catch
+            {
+                // Fallback: ignore on older platforms
+            }
+        }
+
+        #endregion
+    }
+}

@@ -20,7 +20,7 @@
 
         <!-- Header Row -->
         <Grid Grid.Row="0" Height="20"
-              x:Name="HeaderGrid"
+              x:Name="HeaderGrid" AutomationProperties.AutomationId="Details_Header"
               Background="{ThemeResource SpanBgLayer2Brush}"
               BorderBrush="{ThemeResource SpanBorderSubtleBrush}"
               BorderThickness="0,0,0,1"
@@ -60,7 +60,7 @@
                         <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent"/>
                     </Button.Resources>
                 </Button>
-                <Button x:Name="NameFilterButton" Grid.Column="1"
+                <Button x:Name="NameFilterButton" AutomationProperties.AutomationId="Button_FilterName" Grid.Column="1"
                         Click="OnFilterButtonClick" Tag="Name"
                         Background="Transparent" BorderThickness="0"
                         Width="16" Height="16" Padding="0"
@@ -107,7 +107,7 @@
                         <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent"/>
                     </Button.Resources>
                 </Button>
-                <Button x:Name="DateFilterButton" Grid.Column="1"
+                <Button x:Name="DateFilterButton" AutomationProperties.AutomationId="Button_FilterDate" Grid.Column="1"
                         Click="OnFilterButtonClick" Tag="DateModified"
                         Background="Transparent" BorderThickness="0"
                         Width="16" Height="16" Padding="0"
@@ -154,7 +154,7 @@
                         <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent"/>
                     </Button.Resources>
                 </Button>
-                <Button x:Name="TypeFilterButton" Grid.Column="1"
+                <Button x:Name="TypeFilterButton" AutomationProperties.AutomationId="Button_FilterType" Grid.Column="1"
                         Click="OnFilterButtonClick" Tag="Type"
                         Background="Transparent" BorderThickness="0"
                         Width="16" Height="16" Padding="0"
@@ -201,7 +201,7 @@
                         <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent"/>
                     </Button.Resources>
                 </Button>
-                <Button x:Name="SizeFilterButton" Grid.Column="1"
+                <Button x:Name="SizeFilterButton" AutomationProperties.AutomationId="Button_FilterSize" Grid.Column="1"
                         Click="OnFilterButtonClick" Tag="Size"
                         Background="Transparent" BorderThickness="0"
                         Width="16" Height="16" Padding="0"
@@ -219,7 +219,7 @@
         <!-- Items List -->
         <Grid Grid.Row="1" x:Name="ListViewWrapper"
               Loaded="OnListViewWrapperLoaded" Unloaded="OnListViewWrapperUnloaded">
-        <ListView x:Name="DetailsListView"
+        <ListView x:Name="DetailsListView" AutomationProperties.AutomationId="Details_ListView"
                   ItemsSource="{Binding CurrentItems, Mode=OneWay}"
                   SelectedItem="{Binding CurrentFolder.SelectedChild, Mode=TwoWay}"
                   SelectionMode="Extended"

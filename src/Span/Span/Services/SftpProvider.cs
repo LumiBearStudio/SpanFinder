@@ -107,7 +107,29 @@ namespace Span.Services
             }
 
             sshConnInfo.Timeout = TimeSpan.FromSeconds(10);
-            return new SftpClient(sshConnInfo);
+
+            var client = new SftpClient(sshConnInfo);
+
+            // Host key verification (TOFU)
+            client.HostKeyReceived += (sender, e) =>
+            {
+                var fingerprint = BitConverter.ToString(e.FingerPrint).Replace("-", "");
+
+                if (!string.IsNullOrEmpty(connInfo.TrustedHostKeyFingerprint))
+                {
+                    e.CanTrust = string.Equals(fingerprint, connInfo.TrustedHostKeyFingerprint, StringComparison.OrdinalIgnoreCase);
+                    if (!e.CanTrust)
+                        DebugLogger.Log($"[SftpProvider] 호스트키 불일치! 예상: {connInfo.TrustedHostKeyFingerprint}, 실제: {fingerprint}");
+                }
+                else
+                {
+                    // First connection: trust on first use (TOFU)
+                    connInfo.TrustedHostKeyFingerprint = fingerprint;
+                    e.CanTrust = true;
+                    DebugLogger.Log($"[SftpProvider] 호스트키 TOFU 등록: {fingerprint}");
+                }
+            };
+            return client;
         }
 
         public Task<IReadOnlyList<IFileSystemItem>> GetItemsAsync(string path, CancellationToken ct = default)

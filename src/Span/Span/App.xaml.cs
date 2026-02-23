@@ -116,7 +116,7 @@ namespace Span
         {
             var services = new ServiceCollection();
 
-            // Services
+            // Services (concrete registrations)
             services.AddSingleton<Services.FileSystemService>();
             services.AddSingleton<Services.IconService>();
             services.AddSingleton<Services.FavoritesService>();
@@ -133,6 +133,18 @@ namespace Span
             services.AddSingleton<Services.CloudSyncService>();
             services.AddSingleton<Services.NetworkBrowserService>();
             services.AddSingleton<Services.ConnectionManagerService>();
+
+            // Interface registrations (for testability — resolve to same singleton)
+            services.AddSingleton<Services.IFileSystemService>(sp => sp.GetRequiredService<Services.FileSystemService>());
+            services.AddSingleton<Services.IShellService>(sp => sp.GetRequiredService<Services.ShellService>());
+            services.AddSingleton<Services.IIconService>(sp => sp.GetRequiredService<Services.IconService>());
+            services.AddSingleton<Services.IFavoritesService>(sp => sp.GetRequiredService<Services.FavoritesService>());
+            services.AddSingleton<Services.ISettingsService>(sp => sp.GetRequiredService<Services.SettingsService>());
+            services.AddSingleton<Services.IAppearanceSettings>(sp => sp.GetRequiredService<Services.SettingsService>());
+            services.AddSingleton<Services.IBrowsingSettings>(sp => sp.GetRequiredService<Services.SettingsService>());
+            services.AddSingleton<Services.IToolSettings>(sp => sp.GetRequiredService<Services.SettingsService>());
+            services.AddSingleton<Services.IPreviewService>(sp => sp.GetRequiredService<Services.PreviewService>());
+            services.AddSingleton<Services.IActionLogService>(sp => sp.GetRequiredService<Services.ActionLogService>());
 
             // File system provider abstraction
             services.AddSingleton<Services.LocalFileSystemProvider>();

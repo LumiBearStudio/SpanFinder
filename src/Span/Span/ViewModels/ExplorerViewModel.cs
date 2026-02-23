@@ -818,174 +818,110 @@ namespace Span.ViewModels
             if (sender is not FolderViewModel parentFolder) return;
 
             // CRITICAL: Ignore selection changes during sorting to prevent tab flickering
-            if (parentFolder.IsSorting)
-            {
-                Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Ignoring selection change during sorting");
-                return;
-            }
+            if (parentFolder.IsSorting) return;
 
             // CRITICAL: In Details/Icon mode, disable auto-navigation (only allow double-click)
-            if (!EnableAutoNavigation)
-            {
-                Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Auto-navigation disabled - selection only");
-                return;
-            }
+            if (!EnableAutoNavigation) return;
 
             // CRITICAL: Suppress navigation when multiple items are selected
-            if (parentFolder.HasMultiSelection)
-            {
-                Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Multi-selection active ({parentFolder.SelectedItems.Count} items) - suppressing navigation");
-                return;
-            }
-
-            Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Selection changed in '{parentFolder.Name}' to '{parentFolder.SelectedChild?.Name ?? "null"}'");
+            if (parentFolder.HasMultiSelection) return;
 
             int parentIndex = Columns.IndexOf(parentFolder);
-            if (parentIndex == -1)
-            {
-                Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Parent folder not in Columns - ABORT");
-                return;
-            }
+            if (parentIndex == -1) return;
             int nextIndex = parentIndex + 1;
 
-            Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] ParentIndex: {parentIndex}, NextIndex: {nextIndex}");
-
-            // File or null selection: immediate processing (no debouncing)
             if (parentFolder.SelectedChild is FileViewModel fileVm)
             {
-                Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] File selected: {fileVm.Name} - removing columns from {nextIndex}");
-                RemoveColumnsFrom(nextIndex);
-                CurrentPath = fileVm.Path;
-                SelectedFile = fileVm;
-                UpdatePathHighlights();
-                Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] ===== FILE SELECTION COMPLETE =====");
-                return;
+                HandleFileSelection(fileVm, nextIndex);
             }
-
-            if (parentFolder.SelectedChild == null)
+            else if (parentFolder.SelectedChild == null)
             {
-                Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Null selection - removing columns from {nextIndex}");
-                RemoveColumnsFrom(nextIndex);
-                CurrentPath = parentFolder.Path;
-                SelectedFile = null;
-                UpdatePathHighlights();
-                Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] ===== NULL SELECTION COMPLETE =====");
-                return;
+                HandleNullSelection(parentFolder, nextIndex);
             }
-
-            // Folder selection: apply debouncing (skip for already-loaded folders)
-            if (parentFolder.SelectedChild is FolderViewModel selectedFolder)
+            else if (parentFolder.SelectedChild is FolderViewModel selectedFolder)
             {
-                // Cancel previous pending operation
-                _selectionDebounce?.Cancel();
-                _selectionDebounce = new CancellationTokenSource();
-                var token = _selectionDebounce.Token;
+                await HandleFolderSelectionAsync(parentFolder, selectedFolder, parentIndex, nextIndex);
+            }
+        }
 
-                // 캐시 히트 시 디바운스 건너뜀 — 이미 로드된 폴더는 즉시 표시
-                if (!selectedFolder.IsAlreadyLoaded)
+        private void HandleFileSelection(FileViewModel fileVm, int nextIndex)
+        {
+            RemoveColumnsFrom(nextIndex);
+            CurrentPath = fileVm.Path;
+            SelectedFile = fileVm;
+            UpdatePathHighlights();
+        }
+
+        private void HandleNullSelection(FolderViewModel parentFolder, int nextIndex)
+        {
+            RemoveColumnsFrom(nextIndex);
+            CurrentPath = parentFolder.Path;
+            SelectedFile = null;
+            UpdatePathHighlights();
+        }
+
+        private async Task HandleFolderSelectionAsync(
+            FolderViewModel parentFolder, FolderViewModel selectedFolder,
+            int parentIndex, int nextIndex)
+        {
+            // Cancel previous pending operation
+            _selectionDebounce?.Cancel();
+            _selectionDebounce = new CancellationTokenSource();
+            var token = _selectionDebounce.Token;
+
+            // 캐시 히트 시 디바운스 건너뜀 — 이미 로드된 폴더는 즉시 표시
+            if (!selectedFolder.IsAlreadyLoaded)
+            {
+                try
                 {
-                    Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Folder selected: {selectedFolder.Name} - applying {SelectionDebounceMs}ms debounce");
+                    await Task.Delay(SelectionDebounceMs, token);
+                }
+                catch (OperationCanceledException) { return; }
+                if (token.IsCancellationRequested) return;
+            }
 
-                    try
-                    {
-                        await Task.Delay(SelectionDebounceMs, token);
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Debounce cancelled - ABORT");
-                        return;
-                    }
+            try
+            {
+                // Validate state after await
+                if (Columns.IndexOf(parentFolder) != parentIndex) return;
+                if (parentFolder.SelectedChild != selectedFolder) return;
 
-                    if (token.IsCancellationRequested)
-                    {
-                        Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Debounce cancelled - ABORT");
-                        return;
-                    }
+                await selectedFolder.EnsureChildrenLoadedAsync();
+
+                // Re-validate AFTER loading completes
+                if (token.IsCancellationRequested) return;
+                if (Columns.IndexOf(parentFolder) != parentIndex) return;
+                if (parentFolder.SelectedChild != selectedFolder) return;
+
+                // Push current path to history before changing (Miller auto-navigation)
+                PushToHistory(selectedFolder.Path);
+
+                RemoveColumnsFrom(nextIndex + 1);
+
+                // Replace or Add
+                if (nextIndex < Columns.Count)
+                {
+                    var oldColumn = Columns[nextIndex];
+                    oldColumn.PropertyChanged -= FolderVm_PropertyChanged;
+                    oldColumn.CancelLoading();
+                    oldColumn.SelectedChild = null;
+
+                    selectedFolder.PropertyChanged += FolderVm_PropertyChanged;
+                    Columns[nextIndex] = selectedFolder;
                 }
                 else
                 {
-                    Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Folder selected: {selectedFolder.Name} - cache hit, skipping debounce");
+                    AddColumn(selectedFolder);
                 }
 
-                try
-                {
-
-                    Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Debounce complete, validating state...");
-
-                    // Validate state after await
-                    if (Columns.IndexOf(parentFolder) != parentIndex)
-                    {
-                        Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Parent index changed - ABORT");
-                        return;
-                    }
-                    if (parentFolder.SelectedChild != selectedFolder)
-                    {
-                        Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Selection changed during debounce - ABORT");
-                        return;
-                    }
-
-                    Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Loading children for {selectedFolder.Name}...");
-                    await selectedFolder.EnsureChildrenLoadedAsync();
-
-                    // Re-validate AFTER loading completes
-                    if (token.IsCancellationRequested)
-                    {
-                        Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Cancelled after loading - ABORT");
-                        return;
-                    }
-                    if (Columns.IndexOf(parentFolder) != parentIndex)
-                    {
-                        Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Parent index changed after loading - ABORT");
-                        return;
-                    }
-                    if (parentFolder.SelectedChild != selectedFolder)
-                    {
-                        Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Selection changed after loading - ABORT");
-                        return;
-                    }
-
-                    Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Removing columns from {nextIndex + 1}");
-
-                    // Push current path to history before changing (Miller auto-navigation)
-                    PushToHistory(selectedFolder.Path);
-
-                    RemoveColumnsFrom(nextIndex + 1);
-
-                    // Replace or Add
-                    if (nextIndex < Columns.Count)
-                    {
-                        var oldColumn = Columns[nextIndex];
-                        Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Replacing column at index {nextIndex}: '{oldColumn.Name}' → '{selectedFolder.Name}'");
-
-                        // 경량 정리 — Children 유지 (재방문 시 캐시 효과)
-                        oldColumn.PropertyChanged -= FolderVm_PropertyChanged;
-                        oldColumn.CancelLoading();
-                        oldColumn.SelectedChild = null;
-
-                        selectedFolder.PropertyChanged += FolderVm_PropertyChanged;
-                        Columns[nextIndex] = selectedFolder;
-                    }
-                    else
-                    {
-                        Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Adding new column {selectedFolder.Name} at index {nextIndex}");
-                        AddColumn(selectedFolder);
-                    }
-
-                    CurrentPath = selectedFolder.Path;
-                    SelectedFile = null;
-                    UpdatePathHighlights();
-                    Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] CurrentPath updated to: {CurrentPath}");
-                    Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Columns: {string.Join(" > ", Columns.Select(c => c.Name))}");
-                    Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] ===== FOLDER SELECTION COMPLETE =====");
-                }
-                catch (TaskCanceledException)
-                {
-                    Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] TaskCanceledException caught");
-                }
-                catch (Exception ex)
-                {
-                    Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] 예외 발생 (무시): {ex.Message}");
-                }
+                CurrentPath = selectedFolder.Path;
+                SelectedFile = null;
+                UpdatePathHighlights();
+            }
+            catch (TaskCanceledException) { }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[HandleFolderSelectionAsync] 예외 발생 (무시): {ex.Message}");
             }
         }
 

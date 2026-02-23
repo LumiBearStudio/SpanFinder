@@ -49,7 +49,7 @@
             <ScrollViewer x:Name="TabScrollViewer" Grid.Column="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
                           HorizontalScrollMode="Auto" VerticalScrollMode="Disabled">
                 <StackPanel x:Name="TabBarContent" Orientation="Horizontal" Spacing="1">
-                    <ItemsRepeater x:Name="TabRepeater" ItemsSource="{x:Bind ViewModel.Tabs, Mode=OneWay}">
+                    <ItemsRepeater x:Name="TabRepeater" AutomationProperties.AutomationId="TabRepeater" ItemsSource="{x:Bind ViewModel.Tabs, Mode=OneWay}">
                         <ItemsRepeater.Layout>
                             <StackLayout Orientation="Horizontal" Spacing="1"/>
                         </ItemsRepeater.Layout>
@@ -100,7 +100,7 @@
                         </ItemsRepeater.ItemTemplate>
                     </ItemsRepeater>
                     <!-- New Tab button -->
-                    <Button x:Name="NewTabButton" Style="{StaticResource UnifiedButtonStyle}" Width="34" Height="34" VerticalAlignment="Bottom"
+                    <Button x:Name="NewTabButton" AutomationProperties.AutomationId="Button_NewTab" Style="{StaticResource UnifiedButtonStyle}" Width="34" Height="34" VerticalAlignment="Bottom"
                             Margin="2,0,0,0" Click="OnNewTabClick" ToolTipService.ToolTip="New Tab (Ctrl+T)">
                         <FontIcon Glyph="&#xE710;" FontSize="12"/>
                     </Button>
@@ -119,12 +119,12 @@
             <!-- Nav Buttons (single mode, hidden in Settings) -->
             <StackPanel Orientation="Horizontal" Spacing="2" Margin="0,0,8,0"
                         Visibility="{x:Bind IsSingleNonSettingsVisible(ViewModel.IsSplitViewEnabled, ViewModel.CurrentViewMode), Mode=OneWay}">
-                <Button x:Name="BackButton" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="뒤로 (Alt+Left)"
+                <Button x:Name="BackButton" AutomationProperties.AutomationId="Button_Back" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="뒤로 (Alt+Left)"
                         IsEnabled="{x:Bind ViewModel.CanGoBack, Mode=OneWay}" Click="OnGoBackClick"
                         RightTapped="OnBackButtonRightTapped">
                     <FontIcon Glyph="&#xE72B;" FontSize="14"/>
                 </Button>
-                <Button x:Name="ForwardButton" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="앞으로 (Alt+Right)"
+                <Button x:Name="ForwardButton" AutomationProperties.AutomationId="Button_Forward" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="앞으로 (Alt+Right)"
                         IsEnabled="{x:Bind ViewModel.CanGoForward, Mode=OneWay}" Click="OnGoForwardClick"
                         RightTapped="OnForwardButtonRightTapped">
                     <FontIcon Glyph="&#xE72A;" FontSize="14"/>
@@ -135,7 +135,7 @@
             </StackPanel>
 
             <!-- Address Bar (single mode, hidden in Settings) -->
-            <Grid x:Name="AddressBarContainer" Grid.Column="1" Height="32"
+            <Grid x:Name="AddressBarContainer" AutomationProperties.AutomationId="AddressBar" Grid.Column="1" Height="32"
                   Background="{ThemeResource SpanBgLayer2Brush}"
                   CornerRadius="4" VerticalAlignment="Center"
                   Padding="4,0"
@@ -209,7 +209,7 @@
                 </Border>
 
                 <!-- 텍스트 편집 모드 (클릭 시 전환) — AutoSuggestBox for path autocomplete -->
-                <AutoSuggestBox x:Name="AddressBarAutoSuggest" Grid.Column="1" Visibility="Collapsed"
+                <AutoSuggestBox x:Name="AddressBarAutoSuggest" AutomationProperties.AutomationId="TextBox_AddressBar" Grid.Column="1" Visibility="Collapsed"
                          VerticalAlignment="Center" Height="28" FontSize="12"
                          BorderThickness="0"
                          TextChanged="OnAddressBarTextChanged"
@@ -221,7 +221,7 @@
                          UpdateTextOnSelect="True"/>
 
                 <!-- 경로 복사 버튼 -->
-                <Button x:Name="CopyPathButton" Grid.Column="2"
+                <Button x:Name="CopyPathButton" AutomationProperties.AutomationId="Button_CopyPath" Grid.Column="2"
                         Style="{StaticResource UnifiedButtonStyle}"
                         ToolTipService.ToolTip="경로 복사"
                         Click="OnCopyPathClick"
@@ -242,7 +242,7 @@
                             Padding="8,4,4,4">
                         <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_NewFolder}" FontSize="16"/>
                     </Button>
-                    <Button x:Name="NewItemDropdown"
+                    <Button x:Name="NewItemDropdown" AutomationProperties.AutomationId="Button_NewItemDropdown"
                             Style="{StaticResource UnifiedButtonStyle}"
                             ToolTipService.ToolTip="새로 만들기..."
                             Click="OnNewItemDropdownClick"
@@ -252,15 +252,15 @@
                     </Button>
                 </StackPanel>
                 <Rectangle Width="1" Height="20" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="4,0"/>
-                <Button x:Name="ToolbarCutButton" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="잘라내기 (Ctrl+X)" Click="OnCutClick" IsEnabled="False"><FontIcon Glyph="&#xE8C6;"/></Button>
-                <Button x:Name="ToolbarCopyButton" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="복사 (Ctrl+C)" Click="OnCopyClick" IsEnabled="False"><FontIcon Glyph="&#xE8C8;"/></Button>
-                <Button x:Name="ToolbarPasteButton" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="붙여넣기 (Ctrl+V)" Click="OnPasteClick" IsEnabled="False"><FontIcon Glyph="&#xE77F;"/></Button>
-                <Button x:Name="ToolbarRenameButton" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="이름 바꾸기 (F2)" Click="OnRenameClick" IsEnabled="False"><FontIcon Glyph="&#xE70F;"/></Button>
-                <Button x:Name="ToolbarDeleteButton" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="삭제 (Del)" Click="OnDeleteClick" IsEnabled="False"><FontIcon Glyph="&#xE74D;"/></Button>
+                <Button x:Name="ToolbarCutButton" AutomationProperties.AutomationId="Button_Cut" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="잘라내기 (Ctrl+X)" Click="OnCutClick" IsEnabled="False"><FontIcon Glyph="&#xE8C6;"/></Button>
+                <Button x:Name="ToolbarCopyButton" AutomationProperties.AutomationId="Button_Copy" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="복사 (Ctrl+C)" Click="OnCopyClick" IsEnabled="False"><FontIcon Glyph="&#xE8C8;"/></Button>
+                <Button x:Name="ToolbarPasteButton" AutomationProperties.AutomationId="Button_Paste" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="붙여넣기 (Ctrl+V)" Click="OnPasteClick" IsEnabled="False"><FontIcon Glyph="&#xE77F;"/></Button>
+                <Button x:Name="ToolbarRenameButton" AutomationProperties.AutomationId="Button_Rename" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="이름 바꾸기 (F2)" Click="OnRenameClick" IsEnabled="False"><FontIcon Glyph="&#xE70F;"/></Button>
+                <Button x:Name="ToolbarDeleteButton" AutomationProperties.AutomationId="Button_Delete" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="삭제 (Del)" Click="OnDeleteClick" IsEnabled="False"><FontIcon Glyph="&#xE74D;"/></Button>
                 <Rectangle Width="1" Height="20" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="4,0"/>
 
                 <!-- Sort Button with Dropdown -->
-                <Button x:Name="SortButton" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="정렬"
+                <Button x:Name="SortButton" AutomationProperties.AutomationId="Button_Sort" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="정렬"
                         Visibility="{x:Bind IsNotSplitVisible(ViewModel.IsSplitViewEnabled), Mode=OneWay}">
                     <Button.Flyout>
                         <MenuFlyout Placement="Bottom" Opening="OnSortMenuOpening">
@@ -304,7 +304,7 @@
                 </Button>
 
                 <!-- View Toggle Button -->
-                <Button x:Name="ViewModeButton" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="보기 전환"
+                <Button x:Name="ViewModeButton" AutomationProperties.AutomationId="Button_ViewMode" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="보기 전환"
                         Visibility="{x:Bind IsNotSplitVisible(ViewModel.IsSplitViewEnabled), Mode=OneWay}">
                     <Button.Flyout>
                         <MenuFlyout Placement="Bottom" Opening="OnMainViewModeMenuOpening">
@@ -353,14 +353,14 @@
                 </Button>
 
                 <!-- Split View Toggle -->
-                <Button x:Name="SplitViewButton" Style="{StaticResource UnifiedButtonStyle}"
+                <Button x:Name="SplitViewButton" AutomationProperties.AutomationId="Button_SplitView" Style="{StaticResource UnifiedButtonStyle}"
                         ToolTipService.ToolTip="Split View (Ctrl+Shift+E)"
                         Click="OnSplitViewToggleClick">
                     <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_SplitView}" FontSize="16"/>
                 </Button>
 
                 <!-- Preview Panel Toggle -->
-                <Button x:Name="PreviewToggleButton" Style="{StaticResource UnifiedButtonStyle}"
+                <Button x:Name="PreviewToggleButton" AutomationProperties.AutomationId="Button_PreviewToggle" Style="{StaticResource UnifiedButtonStyle}"
                         ToolTipService.ToolTip="미리보기 패널 (Ctrl+Shift+P)"
                         Click="OnPreviewToggleClick"
                         Visibility="{x:Bind IsNotSplitVisible(ViewModel.IsSplitViewEnabled), Mode=OneWay}">
@@ -368,7 +368,7 @@
                 </Button>
 
                 <Rectangle Width="1" Height="20" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="4,0"/>
-                <TextBox x:Name="SearchBox" Width="220" Height="28" FontSize="12"
+                <TextBox x:Name="SearchBox" AutomationProperties.AutomationId="TextBox_Search" Width="220" Height="28" FontSize="12"
                          PlaceholderText="Search (kind: size: ext: date:)"
                          ToolTipService.ToolTip="Advanced search syntax:&#x0a;  kind:image  kind:video  kind:document&#x0a;  size:&gt;1MB  size:&lt;100KB  size:large&#x0a;  date:today  date:thisweek  date:&gt;2024-01-01&#x0a;  ext:.pdf  ext:.txt&#x0a;Combine: kind:image size:&gt;1MB"
                          KeyDown="OnSearchBoxKeyDown"/>
@@ -384,7 +384,7 @@
             </Grid.ColumnDefinitions>
 
             <!-- Sidebar - Hybrid 3-Section Layout -->
-            <Border x:Name="SidebarBorder" Grid.Column="0" Background="{ThemeResource SpanBgLayer1Brush}" BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="0,0,1,0">
+            <Border x:Name="SidebarBorder" AutomationProperties.AutomationId="Sidebar" Grid.Column="0" Background="{ThemeResource SpanBgLayer1Brush}" BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="0,0,1,0">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*"/>
@@ -533,18 +533,18 @@
                       BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="0,1,0,0"
                       Padding="8,4">
                     <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Left">
-                        <Button x:Name="HelpButton" Style="{StaticResource UnifiedButtonStyle}"
+                        <Button x:Name="HelpButton" AutomationProperties.AutomationId="Button_Help" Style="{StaticResource UnifiedButtonStyle}"
                                 ToolTipService.ToolTip="단축키 도움말 (Shift+?)" Click="OnHelpClick"
                                 Padding="6,4" MinWidth="0" MinHeight="0">
                             <FontIcon Glyph="&#xE897;" FontSize="14"/>
                         </Button>
-                        <Button x:Name="LogButton" Style="{StaticResource UnifiedButtonStyle}"
+                        <Button x:Name="LogButton" AutomationProperties.AutomationId="Button_Log" Style="{StaticResource UnifiedButtonStyle}"
                                 ToolTipService.ToolTip="작업 로그" Click="OnLogClick"
                                 Padding="6,4" MinWidth="0" MinHeight="0">
                             <FontIcon Glyph="&#xE81C;" FontSize="14"/>
                         </Button>
                     </StackPanel>
-                    <Button x:Name="SettingsButton" Style="{StaticResource UnifiedButtonStyle}"
+                    <Button x:Name="SettingsButton" AutomationProperties.AutomationId="Button_Settings" Style="{StaticResource UnifiedButtonStyle}"
                             ToolTipService.ToolTip="설정" Click="OnSettingsClick"
                             Padding="6,4" MinWidth="0" MinHeight="0"
                             HorizontalAlignment="Right">
@@ -563,7 +563,7 @@
                 </Grid.ColumnDefinitions>
 
                 <!-- ===== LEFT PANE ===== -->
-                <Grid x:Name="LeftPaneContainer" Grid.Column="0" GotFocus="OnLeftPaneGotFocus"
+                <Grid x:Name="LeftPaneContainer" AutomationProperties.AutomationId="LeftPane" Grid.Column="0" GotFocus="OnLeftPaneGotFocus"
                       PointerPressed="OnLeftPanePointerPressed" Background="Transparent"
                       AllowDrop="True" DragOver="OnPaneDragOver" Drop="OnPaneDrop" DragLeave="OnPaneDragLeave">
                     <Grid.RowDefinitions>
@@ -697,7 +697,7 @@
                                 <FontIcon Glyph="&#xE8CB;" FontSize="11"/>
                             </Button>
                             <!-- ViewMode -->
-                            <Button x:Name="LeftViewModeButton" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="보기 전환"
+                            <Button x:Name="LeftViewModeButton" AutomationProperties.AutomationId="Button_LeftViewMode" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="보기 전환"
                                     Padding="4" MinWidth="0" MinHeight="0" Width="26" Height="26">
                                 <Button.Flyout>
                                     <MenuFlyout Placement="Bottom" Opening="OnLeftPaneViewModeMenuOpening">
@@ -742,7 +742,7 @@
                         <!-- Explorer Views -->
                         <Grid Grid.Column="0">
                             <!-- Miller Columns Host — 탭별 패널을 Show/Hide로 전환 -->
-                            <Grid x:Name="MillerTabsHost">
+                            <Grid x:Name="MillerTabsHost" AutomationProperties.AutomationId="Host_Miller">
                                 <!-- 첫 번째 탭 전용 (XAML 정의) — 추가 탭은 코드에서 동적 생성 -->
                                 <ScrollViewer x:Name="MillerScrollViewer"
                                               HorizontalScrollBarVisibility="Auto"
@@ -992,17 +992,17 @@
                             </Grid>
 
                             <!-- Details View Host — 탭별 패널을 Show/Hide로 전환 -->
-                            <Grid x:Name="DetailsTabsHost" Visibility="Collapsed">
+                            <Grid x:Name="DetailsTabsHost" AutomationProperties.AutomationId="Host_Details" Visibility="Collapsed">
                                 <views:DetailsModeView x:Name="DetailsView"/>
                             </Grid>
 
                             <!-- List View Host — 탭별 패널을 Show/Hide로 전환 -->
-                            <Grid x:Name="ListTabsHost" Visibility="Collapsed">
+                            <Grid x:Name="ListTabsHost" AutomationProperties.AutomationId="Host_List" Visibility="Collapsed">
                                 <views:ListModeView x:Name="ListView"/>
                             </Grid>
 
                             <!-- Icon View Host — 탭별 패널을 Show/Hide로 전환 -->
-                            <Grid x:Name="IconTabsHost" Visibility="Collapsed">
+                            <Grid x:Name="IconTabsHost" AutomationProperties.AutomationId="Host_Icon" Visibility="Collapsed">
                                 <views:IconModeView x:Name="IconView"/>
                             </Grid>
 
@@ -1033,7 +1033,7 @@
                                        Visibility="{x:Bind IsSplitVisible(ViewModel.IsSplitViewEnabled), Mode=OneWay}"/>
 
                 <!-- ===== RIGHT PANE ===== -->
-                <Grid x:Name="RightPaneContainer" Grid.Column="2" GotFocus="OnRightPaneGotFocus"
+                <Grid x:Name="RightPaneContainer" AutomationProperties.AutomationId="RightPane" Grid.Column="2" GotFocus="OnRightPaneGotFocus"
                       PointerPressed="OnRightPanePointerPressed" Background="Transparent"
                       AllowDrop="True" DragOver="OnPaneDragOver" Drop="OnPaneDrop" DragLeave="OnPaneDragLeave"
                       Visibility="{x:Bind IsSplitVisible(ViewModel.IsSplitViewEnabled), Mode=OneWay}">
@@ -1165,7 +1165,7 @@
                                 <FontIcon Glyph="&#xE8CB;" FontSize="11"/>
                             </Button>
                             <!-- ViewMode -->
-                            <Button x:Name="RightViewModeButton" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="보기 전환"
+                            <Button x:Name="RightViewModeButton" AutomationProperties.AutomationId="Button_RightViewMode" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="보기 전환"
                                     Padding="4" MinWidth="0" MinHeight="0" Width="26" Height="26">
                                 <Button.Flyout>
                                     <MenuFlyout Placement="Bottom" Opening="OnRightPaneViewModeMenuOpening">
@@ -1408,13 +1408,13 @@
         </Grid>
 
         <!-- File Operation Progress Panel (floating bottom-right, above content) -->
-        <spancontrols:FileOperationProgressControl x:Name="FileOpProgressControl" Grid.Row="2"
+        <spancontrols:FileOperationProgressControl x:Name="FileOpProgressControl" AutomationProperties.AutomationId="FileOpProgress" Grid.Row="2"
                                                     HorizontalAlignment="Right" VerticalAlignment="Bottom"
                                                     Canvas.ZIndex="100"
                                                     Margin="0,0,16,8"/>
 
         <!-- Help Overlay (Shift+? / F1) -->
-        <Grid x:Name="HelpOverlay" Grid.RowSpan="4" Visibility="Collapsed"
+        <Grid x:Name="HelpOverlay" AutomationProperties.AutomationId="HelpOverlay" Grid.RowSpan="4" Visibility="Collapsed"
               Canvas.ZIndex="200"
               Background="#80000000"
               PointerPressed="HelpOverlay_PointerPressed">

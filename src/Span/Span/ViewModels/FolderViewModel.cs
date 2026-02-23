@@ -165,13 +165,7 @@ namespace Span.ViewModels
         /// </summary>
         public async Task EnsureChildrenLoadedAsync()
         {
-            Helpers.DebugLogger.Log($"[FolderViewModel.EnsureChildrenLoadedAsync] START - Folder: {Name}, _isLoaded: {_isLoaded}");
-
-            if (_isLoaded)
-            {
-                Helpers.DebugLogger.Log($"[FolderViewModel.EnsureChildrenLoadedAsync] Already loaded - RETURN");
-                return;
-            }
+            if (_isLoaded) return;
 
             _isLoaded = true;
             IsLoading = true;
@@ -195,123 +189,24 @@ namespace Span.ViewModels
 
                 var folderPath = _folderModel.Path;
 
-                // ── Cache 확인: 캐시 히트 시 디스크 I/O 완전 스킵 ──
                 var cached = folderCache?.TryGet(folderPath, showHidden);
                 if (cached != null)
                 {
-                    Helpers.DebugLogger.Log($"[FolderViewModel.EnsureChildrenLoadedAsync] CACHE HIT: {folderPath}");
-                    var items = new List<FileSystemViewModel>();
-                    foreach (var d in cached.Folders)
-                        items.Add(new FolderViewModel(d, _fileService));
-                    foreach (var f in cached.Files)
-                        items.Add(new FileViewModel(f));
-
-                    PopulateChildren(items, token);
+                    LoadFromCache(cached, token);
                 }
                 else if (FileSystemRouter.IsRemotePath(folderPath))
                 {
-                    // ── 원격 경로: FileSystemRouter에서 provider 조회 ──
-                    Helpers.DebugLogger.Log($"[FolderViewModel.EnsureChildrenLoadedAsync] Loading from remote: {folderPath}");
-
-                    var router = App.Current.Services.GetRequiredService<FileSystemRouter>();
-                    var provider = router.GetConnectionForPath(folderPath);
-                    if (provider == null)
-                    {
-                        Helpers.DebugLogger.Log($"[FolderViewModel.EnsureChildrenLoadedAsync] No active connection for: {folderPath}");
-                        IsLoading = false;
-                        IsEmpty = true;
-                        return;
-                    }
-
-                    var remotePath = FileSystemRouter.ExtractRemotePath(folderPath);
-                    var uriPrefix = FileSystemRouter.GetUriPrefix(folderPath);
-                    var remoteItems = await provider.GetItemsAsync(remotePath, token);
-
-                    var items = new List<FileSystemViewModel>();
-                    foreach (var item in remoteItems)
-                    {
-                        if (token.IsCancellationRequested) break;
-                        var fullPath = uriPrefix + item.Path;
-                        if (item is FolderItem folder)
-                        {
-                            folder.Path = fullPath;
-                            items.Add(new FolderViewModel(folder, _fileService));
-                        }
-                        else if (item is FileItem file)
-                        {
-                            file.Path = fullPath;
-                            items.Add(new FileViewModel(file));
-                        }
-                    }
-
-                    if (!token.IsCancellationRequested)
-                        PopulateChildren(items, token);
+                    await LoadFromRemoteAsync(folderPath, token);
                 }
                 else
                 {
-                    // ── Cache 미스: 디스크에서 로드 ──
-                    Helpers.DebugLogger.Log($"[FolderViewModel.EnsureChildrenLoadedAsync] Loading from disk: {folderPath}");
-
-                    var (items, rawFolders, rawFiles) = await Task.Run(() =>
-                    {
-                        var result = new List<FileSystemViewModel>();
-                        var folders = new List<Models.FolderItem>();
-                        var files = new List<Models.FileItem>();
-
-                        if (string.IsNullOrEmpty(folderPath) || !System.IO.Directory.Exists(folderPath))
-                            return (result, folders, files);
-
-                        try
-                        {
-                            var dirInfo = new System.IO.DirectoryInfo(folderPath);
-
-                            foreach (var d in dirInfo.EnumerateDirectories())
-                            {
-                                if (token.IsCancellationRequested) return (new List<FileSystemViewModel>(), folders, files);
-                                if (!showHidden && (d.Attributes & System.IO.FileAttributes.Hidden) != 0) continue;
-                                if ((d.Attributes & System.IO.FileAttributes.System) != 0) continue;
-
-                                var folderItem = new FolderItem { Name = d.Name, Path = d.FullName, DateModified = d.LastWriteTime };
-                                folders.Add(folderItem);
-                                result.Add(new FolderViewModel(folderItem, _fileService));
-                            }
-
-                            foreach (var f in dirInfo.EnumerateFiles())
-                            {
-                                if (token.IsCancellationRequested) return (new List<FileSystemViewModel>(), folders, files);
-                                if (!showHidden && (f.Attributes & System.IO.FileAttributes.Hidden) != 0) continue;
-                                if ((f.Attributes & System.IO.FileAttributes.System) != 0) continue;
-
-                                var fileItem = new FileItem { Name = f.Name, Path = f.FullName, Size = f.Length, DateModified = f.LastWriteTime, FileType = f.Extension };
-                                files.Add(fileItem);
-                                result.Add(new FileViewModel(fileItem));
-                            }
-                        }
-                        catch (System.UnauthorizedAccessException) { }
-                        catch (System.Exception ex)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"Error: {ex.Message}");
-                        }
-
-                        return (result, folders, files);
-                    }, token);
-
-                    if (!token.IsCancellationRequested)
-                    {
-                        // 캐시에 저장 (raw models — ViewModel 없이)
-                        folderCache?.Set(folderPath, rawFolders, rawFiles, showHidden);
-                        PopulateChildren(items, token);
-                    }
+                    await LoadFromDiskAsync(folderPath, showHidden, folderCache, token);
                 }
             }
-            catch (TaskCanceledException)
-            {
-                Helpers.DebugLogger.Log($"[FolderViewModel.EnsureChildrenLoadedAsync] TaskCanceledException caught");
-            }
+            catch (TaskCanceledException) { }
             catch (Exception ex)
             {
-                // 원격 연결 실패 등 — _isLoaded 리셋하여 재시도 가능하게 함
-                Helpers.DebugLogger.Log($"[FolderViewModel.EnsureChildrenLoadedAsync] 예외 발생: {ex.Message}");
+                Helpers.DebugLogger.Log($"[EnsureChildrenLoadedAsync] 예외: {ex.Message}");
                 _isLoaded = false;
             }
             finally
@@ -326,7 +221,108 @@ namespace Span.ViewModels
                     _cts.Dispose();
                     _cts = null;
                 }
-                Helpers.DebugLogger.Log($"[FolderViewModel.EnsureChildrenLoadedAsync] ===== COMPLETE =====");
+            }
+        }
+
+        private void LoadFromCache(Services.FolderContentCache.CachedFolder cached, System.Threading.CancellationToken token)
+        {
+            var items = new List<FileSystemViewModel>();
+            foreach (var d in cached.Folders)
+                items.Add(new FolderViewModel(d, _fileService));
+            foreach (var f in cached.Files)
+                items.Add(new FileViewModel(f));
+            PopulateChildren(items, token);
+        }
+
+        private async Task LoadFromRemoteAsync(string folderPath, System.Threading.CancellationToken token)
+        {
+            var router = App.Current.Services.GetRequiredService<FileSystemRouter>();
+            var provider = router.GetConnectionForPath(folderPath);
+            if (provider == null)
+            {
+                IsLoading = false;
+                IsEmpty = true;
+                return;
+            }
+
+            var remotePath = FileSystemRouter.ExtractRemotePath(folderPath);
+            var uriPrefix = FileSystemRouter.GetUriPrefix(folderPath);
+            var remoteItems = await provider.GetItemsAsync(remotePath, token);
+
+            var items = new List<FileSystemViewModel>();
+            foreach (var item in remoteItems)
+            {
+                if (token.IsCancellationRequested) break;
+                var fullPath = uriPrefix + item.Path;
+                if (item is FolderItem folder)
+                {
+                    folder.Path = fullPath;
+                    items.Add(new FolderViewModel(folder, _fileService));
+                }
+                else if (item is FileItem file)
+                {
+                    file.Path = fullPath;
+                    items.Add(new FileViewModel(file));
+                }
+            }
+
+            if (!token.IsCancellationRequested)
+                PopulateChildren(items, token);
+        }
+
+        private async Task LoadFromDiskAsync(
+            string folderPath, bool showHidden,
+            Services.FolderContentCache? folderCache,
+            System.Threading.CancellationToken token)
+        {
+            var (items, rawFolders, rawFiles) = await Task.Run(() =>
+            {
+                var result = new List<FileSystemViewModel>();
+                var folders = new List<Models.FolderItem>();
+                var files = new List<Models.FileItem>();
+
+                if (string.IsNullOrEmpty(folderPath) || !System.IO.Directory.Exists(folderPath))
+                    return (result, folders, files);
+
+                try
+                {
+                    var dirInfo = new System.IO.DirectoryInfo(folderPath);
+
+                    foreach (var d in dirInfo.EnumerateDirectories())
+                    {
+                        if (token.IsCancellationRequested) return (new List<FileSystemViewModel>(), folders, files);
+                        if (!showHidden && (d.Attributes & System.IO.FileAttributes.Hidden) != 0) continue;
+                        if ((d.Attributes & System.IO.FileAttributes.System) != 0) continue;
+
+                        var folderItem = new FolderItem { Name = d.Name, Path = d.FullName, DateModified = d.LastWriteTime };
+                        folders.Add(folderItem);
+                        result.Add(new FolderViewModel(folderItem, _fileService));
+                    }
+
+                    foreach (var f in dirInfo.EnumerateFiles())
+                    {
+                        if (token.IsCancellationRequested) return (new List<FileSystemViewModel>(), folders, files);
+                        if (!showHidden && (f.Attributes & System.IO.FileAttributes.Hidden) != 0) continue;
+                        if ((f.Attributes & System.IO.FileAttributes.System) != 0) continue;
+
+                        var fileItem = new FileItem { Name = f.Name, Path = f.FullName, Size = f.Length, DateModified = f.LastWriteTime, FileType = f.Extension };
+                        files.Add(fileItem);
+                        result.Add(new FileViewModel(fileItem));
+                    }
+                }
+                catch (System.UnauthorizedAccessException) { }
+                catch (System.Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error: {ex.Message}");
+                }
+
+                return (result, folders, files);
+            }, token);
+
+            if (!token.IsCancellationRequested)
+            {
+                folderCache?.Set(folderPath, rawFolders, rawFiles, showHidden);
+                PopulateChildren(items, token);
             }
         }
 

@@ -340,53 +340,13 @@ namespace Span.Views
 
         private void OnDragItemsStarting(object sender, DragItemsStartingEventArgs e)
         {
-            // Filter out ".." from drag items
-            var items = e.Items.OfType<FileSystemViewModel>()
-                .Where(x => !IsParentDotDot(x))
-                .ToList();
-            if (items.Count == 0) { e.Cancel = true; return; }
+            // Filter out ".." before delegating to shared helper
+            var filtered = e.Items.OfType<FileSystemViewModel>()
+                .Where(x => IsParentDotDot(x)).ToList();
+            foreach (var item in filtered) e.Items.Remove(item);
 
-            var paths = items.Select(i => i.Path).ToList();
-            e.Data.SetText(string.Join("\n", paths));
-            e.Data.Properties["SourcePaths"] = paths;
-            e.Data.Properties["SourcePane"] = IsRightPane ? "Right" : "Left";
-            e.Data.RequestedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Copy
-                                      | Windows.ApplicationModel.DataTransfer.DataPackageOperation.Move;
-
-            var capturedPaths = new System.Collections.Generic.List<string>(paths);
-            e.Data.SetDataProvider(Windows.ApplicationModel.DataTransfer.StandardDataFormats.StorageItems, request =>
-            {
-                var deferral = request.GetDeferral();
-                _ = ProvideStorageItemsAsync(request, capturedPaths, deferral);
-            });
-        }
-
-        private static async System.Threading.Tasks.Task ProvideStorageItemsAsync(
-            Windows.ApplicationModel.DataTransfer.DataProviderRequest request,
-            System.Collections.Generic.List<string> paths,
-            Windows.ApplicationModel.DataTransfer.DataProviderDeferral deferral)
-        {
-            try
-            {
-                var storageItems = new System.Collections.Generic.List<Windows.Storage.IStorageItem>();
-                foreach (var p in paths)
-                {
-                    try
-                    {
-                        if (System.IO.Directory.Exists(p))
-                            storageItems.Add(await Windows.Storage.StorageFolder.GetFolderFromPathAsync(p));
-                        else if (System.IO.File.Exists(p))
-                            storageItems.Add(await Windows.Storage.StorageFile.GetFileFromPathAsync(p));
-                    }
-                    catch { }
-                }
-                request.SetData(storageItems);
-            }
-            catch { }
-            finally
-            {
-                deferral.Complete();
-            }
+            if (!Helpers.ViewDragDropHelper.SetupDragData(e, IsRightPane))
+                e.Cancel = true;
         }
 
         private void OnItemRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
@@ -465,11 +425,7 @@ namespace Span.Views
             var selected = GetSelectedItem();
             if (selected != null && !IsParentDotDot(selected) && selected.IsRenaming) return;
 
-            var ctrl = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control)
-                       .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
-            var alt = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Menu)
-                      .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
-            if (ctrl || alt) return;
+            if (Helpers.ViewItemHelper.HasModifierKey()) return;
 
             switch (e.Key)
             {

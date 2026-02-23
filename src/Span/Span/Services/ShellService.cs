@@ -1,13 +1,14 @@
 using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using Windows.ApplicationModel.DataTransfer;
 
 namespace Span.Services
 {
-    public class ShellService
+    public class ShellService : IShellService
     {
-        public async void OpenWithAsync(string filePath)
+        public async Task OpenWithAsync(string filePath)
         {
             try
             {
@@ -48,6 +49,10 @@ namespace Span.Services
         {
             try
             {
+                // Validate path to prevent command injection
+                if (string.IsNullOrWhiteSpace(path) || path.IndexOfAny(new[] { '"', '\n', '\r' }) >= 0)
+                    return;
+
                 Process.Start("explorer.exe", $"/select,\"{path}\"");
             }
             catch (Exception ex)
@@ -79,9 +84,9 @@ namespace Span.Services
             {
                 var (fileName, arguments) = terminalType switch
                 {
-                    "powershell" => ("powershell.exe", $"-NoExit -Command \"cd '{directoryPath}'\""),
-                    "cmd" => ("cmd.exe", $"/K cd /d \"{directoryPath}\""),
-                    _ => ("wt.exe", $"-d \"{directoryPath}\"") // Windows Terminal
+                    "powershell" => ("powershell.exe", $"-NoExit -Command \"Set-Location -LiteralPath '{EscapePowerShell(directoryPath)}'\""),
+                    "cmd" => ("cmd.exe", $"/K cd /d \"{EscapeCmd(directoryPath)}\""),
+                    _ => ("wt.exe", $"-d \"{directoryPath.Replace("\"", "")}\"") // Windows Terminal
                 };
 
                 Process.Start(new ProcessStartInfo
@@ -96,6 +101,13 @@ namespace Span.Services
                 Helpers.DebugLogger.Log($"[ShellService] OpenTerminal error: {ex.Message}");
             }
         }
+
+        #region Escape Helpers
+
+        private static string EscapePowerShell(string s) => s.Replace("'", "''");
+        private static string EscapeCmd(string s) => s.Replace("\"", "\"\"");
+
+        #endregion
 
         #region P/Invoke
 

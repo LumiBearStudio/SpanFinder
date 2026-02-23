@@ -8,7 +8,7 @@ using Span.Models;
 
 namespace Span.Services
 {
-    public class FileSystemService
+    public class FileSystemService : IFileSystemService
     {
         private const int DriveLoadTimeoutMs = 500; // 500ms timeout per drive
         private readonly SettingsService _settings;
