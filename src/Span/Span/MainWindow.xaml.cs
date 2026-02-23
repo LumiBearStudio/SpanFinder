@@ -64,6 +64,9 @@ namespace Span
         // Miller Columns checkbox mode tracking
         private ListViewSelectionMode _millerSelectionMode = ListViewSelectionMode.Extended;
 
+        // FileSystemWatcher 서비스 참조
+        private FileSystemWatcherService? _watcherService;
+
         // H1: FocusActiveView 중복 호출 제거 — UpdateViewModeVisibility 내에서 true로 설정
         private bool _suppressFocusOnViewModeChange = false;
 
@@ -299,6 +302,8 @@ namespace Span
             {
                 _loc.Language = savedLang;
             }
+            LocalizeViewModeTooltips();
+            _loc.LanguageChanged += LocalizeViewModeTooltips;
 
             // Restore split view state and preview state from persisted settings
             if (this.Content is FrameworkElement rootElement)
@@ -411,6 +416,9 @@ namespace Span
                         ViewModel.Explorer.EnableAutoNavigation = false;
                         ViewModel.RightExplorer.EnableAutoNavigation = false;
                     }
+
+                    // FileSystemWatcher 초기화
+                    InitializeFileSystemWatcher();
                 };
             }
         }
@@ -430,6 +438,9 @@ namespace Span
                     ViewModel.SaveActiveTabState();
                     ViewModel.SaveTabsToSettings();
                 }
+
+                // FileSystemWatcher 정리
+                _watcherService?.StopAll();
 
                 // Unsubscribe settings
                 _settings.SettingChanged -= OnSettingChanged;
@@ -517,46 +528,64 @@ namespace Span
                 ViewModel?.Cleanup();            // Save state, cancel ops, clear collections
 
                 // STEP 5: Stop timer and remove keyboard handlers
-                if (_typeAheadTimer != null)
+                try
                 {
-                    _typeAheadTimer.Stop();
-                    _typeAheadTimer = null;
+                    if (_typeAheadTimer != null)
+                    {
+                        _typeAheadTimer.Stop();
+                        _typeAheadTimer = null;
+                    }
+                    if (this.Content != null)
+                    {
+                        this.Content.RemoveHandler(UIElement.KeyDownEvent, (KeyEventHandler)OnGlobalKeyDown);
+                        this.Content.RemoveHandler(UIElement.PointerPressedEvent, (PointerEventHandler)OnGlobalPointerPressed);
+                        this.Content.RemoveHandler(UIElement.PointerWheelChangedEvent, (PointerEventHandler)OnGlobalPointerWheelChanged);
+                    }
+                    if (MillerColumnsControl != null)
+                    {
+                        MillerColumnsControl.RemoveHandler(UIElement.KeyDownEvent, (KeyEventHandler)OnMillerKeyDown);
+                    }
+                    if (MillerColumnsControlRight != null)
+                    {
+                        MillerColumnsControlRight.RemoveHandler(UIElement.KeyDownEvent, (KeyEventHandler)OnMillerKeyDown);
+                    }
                 }
-                if (this.Content != null)
+                catch (Exception ex)
                 {
-                    this.Content.RemoveHandler(UIElement.KeyDownEvent, (KeyEventHandler)OnGlobalKeyDown);
-                    this.Content.RemoveHandler(UIElement.PointerPressedEvent, (PointerEventHandler)OnGlobalPointerPressed);
-                    this.Content.RemoveHandler(UIElement.PointerWheelChangedEvent, (PointerEventHandler)OnGlobalPointerWheelChanged);
-                }
-                if (MillerColumnsControl != null)
-                {
-                    MillerColumnsControl.RemoveHandler(UIElement.KeyDownEvent, (KeyEventHandler)OnMillerKeyDown);
-                }
-                if (MillerColumnsControlRight != null)
-                {
-                    MillerColumnsControlRight.RemoveHandler(UIElement.KeyDownEvent, (KeyEventHandler)OnMillerKeyDown);
+                    Helpers.DebugLogger.Log($"[MainWindow.OnClosed] STEP 5 error: {ex.Message}");
                 }
 
                 // STEP 6: Remove window subclass for device change
-                if (_subclassProc != null)
+                try
                 {
-                    RemoveWindowSubclass(_hwnd, _subclassProc, IntPtr.Zero);
+                    if (_subclassProc != null)
+                    {
+                        RemoveWindowSubclass(_hwnd, _subclassProc, IntPtr.Zero);
+                    }
+                    if (_deviceChangeDebounceTimer != null)
+                    {
+                        _deviceChangeDebounceTimer.Stop();
+                        _deviceChangeDebounceTimer = null;
+                    }
                 }
-                if (_deviceChangeDebounceTimer != null)
+                catch (Exception ex)
                 {
-                    _deviceChangeDebounceTimer.Stop();
-                    _deviceChangeDebounceTimer = null;
+                    Helpers.DebugLogger.Log($"[MainWindow.OnClosed] STEP 6 error: {ex.Message}");
                 }
 
                 Helpers.DebugLogger.Log("[MainWindow.OnClosed] Cleanup complete");
-
-                // Unregister from multi-window tracking (may trigger app exit if last window)
-                App.Current.UnregisterWindow(this);
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[MainWindow.OnClosed] Error during close: {ex.Message}");
                 System.Diagnostics.Debug.WriteLine($"[MainWindow.OnClosed] Stack trace: {ex.StackTrace}");
+            }
+            finally
+            {
+                // CRITICAL: Always unregister window to ensure app exit.
+                // Previously inside try block — if any cleanup step threw,
+                // UnregisterWindow was skipped → Environment.Exit never called → process hung.
+                try { App.Current.UnregisterWindow(this); } catch { }
             }
         }
 
@@ -832,6 +861,8 @@ namespace Span
                         () => ApplyCheckboxToItemsControl(GetActiveMillerColumnsControl(), _millerSelectionMode));
                 }
             }
+
+            UpdateFileSystemWatcherPaths();
         }
 
         private void OnRightColumnsChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -846,6 +877,110 @@ namespace Span
                         () => ApplyCheckboxToItemsControl(MillerColumnsControlRight, _millerSelectionMode));
                 }
             }
+        }
+
+        // =================================================================
+        //  FileSystemWatcher: 자동 새로고침
+        // =================================================================
+
+        private void InitializeFileSystemWatcher()
+        {
+            try
+            {
+                _watcherService = App.Current.Services.GetRequiredService<FileSystemWatcherService>();
+                _watcherService.PathChanged += OnWatcherPathChanged;
+                UpdateFileSystemWatcherPaths();
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[FileSystemWatcher] 초기화 실패: {ex.Message}");
+            }
+        }
+
+        private void UpdateFileSystemWatcherPaths()
+        {
+            if (_watcherService == null || _isClosed) return;
+
+            var paths = new List<string>();
+
+            // 활성 탭의 Left explorer 컬럼 경로들
+            var leftExplorer = ViewModel?.Explorer;
+            if (leftExplorer != null)
+            {
+                foreach (var col in leftExplorer.Columns)
+                {
+                    if (!string.IsNullOrEmpty(col.Path))
+                        paths.Add(col.Path);
+                }
+            }
+
+            // Right explorer 컬럼 경로들 (Split View 시)
+            if (ViewModel?.IsSplitViewEnabled == true)
+            {
+                var rightExplorer = ViewModel.RightExplorer;
+                if (rightExplorer != null)
+                {
+                    foreach (var col in rightExplorer.Columns)
+                    {
+                        if (!string.IsNullOrEmpty(col.Path))
+                            paths.Add(col.Path);
+                    }
+                }
+            }
+
+            _watcherService.SetWatchedPaths(paths);
+        }
+
+        private void OnWatcherPathChanged(string changedPath)
+        {
+            if (_isClosed) return;
+
+            DispatcherQueue.TryEnqueue(async () =>
+            {
+                if (_isClosed) return;
+
+                // 캐시 무효화
+                try
+                {
+                    var cache = App.Current.Services.GetService(typeof(FolderContentCache)) as FolderContentCache;
+                    cache?.Invalidate(changedPath);
+
+                    // 폴더 크기 캐시도 무효화
+                    var sizeSvc = App.Current.Services.GetService(typeof(FolderSizeService)) as FolderSizeService;
+                    sizeSvc?.Invalidate(changedPath);
+                }
+                catch { }
+
+                // 변경된 경로의 컬럼 리로드
+                var leftExplorer = ViewModel?.Explorer;
+                if (leftExplorer != null)
+                {
+                    foreach (var col in leftExplorer.Columns.ToList())
+                    {
+                        if (col.Path.Equals(changedPath, StringComparison.OrdinalIgnoreCase))
+                        {
+                            await col.ReloadAsync();
+                            break;
+                        }
+                    }
+                }
+
+                if (ViewModel?.IsSplitViewEnabled == true)
+                {
+                    var rightExplorer = ViewModel.RightExplorer;
+                    if (rightExplorer != null)
+                    {
+                        foreach (var col in rightExplorer.Columns.ToList())
+                        {
+                            if (col.Path.Equals(changedPath, StringComparison.OrdinalIgnoreCase))
+                            {
+                                await col.ReloadAsync();
+                                break;
+                            }
+                        }
+                    }
+                }
+            });
         }
 
         /// <summary>
@@ -934,6 +1069,9 @@ namespace Span
                 if (ViewModel.IsLeftPreviewEnabled)
                     SubscribePreviewToLastColumn(isLeft: true);
             });
+
+            // FileSystemWatcher 감시 경로 갱신
+            UpdateFileSystemWatcherPaths();
         }
 
         /// <summary>
@@ -1031,10 +1169,26 @@ namespace Span
 
             // Breadcrumb lazy 갱신 (ResubscribeLeftExplorer에서 skip된 경우 보정)
             var explorer = ViewModel.Explorer;
-            if (!ViewModel.IsSplitViewEnabled && mode != ViewMode.Home && mode != ViewMode.Settings)
+            if (!ViewModel.IsSplitViewEnabled && mode != ViewMode.Settings)
             {
-                if (AddressBreadcrumbBar.ItemsSource != explorer?.PathSegments)
-                    AddressBreadcrumbBar.ItemsSource = explorer?.PathSegments;
+                if (mode == ViewMode.Home)
+                {
+                    // 홈 모드: 🏠 > 홈 > breadcrumb 표시
+                    HomeAddressIcon.Visibility = Visibility.Visible;
+                    var homeSegments = new[]
+                    {
+                        new Models.PathSegment(_loc.Get("Home"), "::home::", isLast: false)
+                    };
+                    AddressBreadcrumbBar.ItemsSource = homeSegments;
+                    SearchBox.PlaceholderText = _loc.Get("HomeSearch");
+                }
+                else
+                {
+                    HomeAddressIcon.Visibility = Visibility.Collapsed;
+                    if (AddressBreadcrumbBar.ItemsSource != explorer?.PathSegments)
+                        AddressBreadcrumbBar.ItemsSource = explorer?.PathSegments;
+                    SearchBox.PlaceholderText = "Search (kind: size: ext: date:)";
+                }
             }
         }
 
@@ -1235,6 +1389,7 @@ namespace Span
         private async void OnBrowseNetworkTapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
         {
             var networkService = App.Current.Services.GetRequiredService<NetworkBrowserService>();
+            var connService = App.Current.Services.GetRequiredService<ConnectionManagerService>();
 
             // Create dialog content
             var dialogPanel = new StackPanel { Spacing = 12, MinWidth = 360 };
@@ -1243,7 +1398,7 @@ namespace Span
             var pathInput = new TextBox
             {
                 PlaceholderText = @"\\server\share",
-                Header = "UNC 경로 직접 입력",
+                Header = _loc.Get("UncPathInput"),
                 MinWidth = 340
             };
             dialogPanel.Children.Add(pathInput);
@@ -1251,7 +1406,7 @@ namespace Span
             // Separator
             dialogPanel.Children.Add(new TextBlock
             {
-                Text = "또는 네트워크에서 찾기:",
+                Text = _loc.Get("SearchNetwork"),
                 Foreground = (SolidColorBrush)Application.Current.Resources["SpanTextSecondaryBrush"],
                 FontSize = 12,
                 Margin = new Thickness(0, 4, 0, 0)
@@ -1280,7 +1435,7 @@ namespace Span
             // Status text
             var statusText = new TextBlock
             {
-                Text = "네트워크 컴퓨터를 검색 중...",
+                Text = _loc.Get("SearchingComputers"),
                 FontSize = 12,
                 Foreground = (SolidColorBrush)Application.Current.Resources["SpanTextTertiaryBrush"]
             };
@@ -1298,11 +1453,11 @@ namespace Span
                 if (computers.Count > 0)
                 {
                     networkList.ItemsSource = computers;
-                    statusText.Text = $"{computers.Count}개의 컴퓨터를 찾았습니다.";
+                    statusText.Text = string.Format(_loc.Get("ComputersFound"), computers.Count);
                 }
                 else
                 {
-                    statusText.Text = "네트워크 컴퓨터를 찾을 수 없습니다. UNC 경로를 직접 입력하세요.";
+                    statusText.Text = _loc.Get("NoComputersFound");
                 }
             }
 
@@ -1313,18 +1468,18 @@ namespace Span
                     if (item.Type == NetworkItemType.Server)
                     {
                         // Load shares for this server
-                        statusText.Text = $"{item.Name} 서버의 공유 폴더를 검색 중...";
+                        statusText.Text = string.Format(_loc.Get("SearchingShares"), item.Name);
                         networkList.ItemsSource = null;
 
                         var shares = await networkService.GetServerSharesAsync(item.Name);
                         if (shares.Count > 0)
                         {
                             networkList.ItemsSource = shares;
-                            statusText.Text = $"{shares.Count}개의 공유 폴더를 찾았습니다. (뒤로: 더블클릭 없이 확인)";
+                            statusText.Text = string.Format(_loc.Get("SharesFound"), shares.Count);
                         }
                         else
                         {
-                            statusText.Text = "공유 폴더를 찾을 수 없습니다.";
+                            statusText.Text = _loc.Get("NoSharesFound");
                         }
                     }
                 }
@@ -1341,10 +1496,10 @@ namespace Span
 
             var dialog = new ContentDialog
             {
-                Title = "네트워크 찾아보기",
+                Title = _loc.Get("NetworkBrowse"),
                 Content = dialogPanel,
-                PrimaryButtonText = "열기",
-                CloseButtonText = "취소",
+                PrimaryButtonText = _loc.Get("Register"),
+                CloseButtonText = _loc.Get("Cancel"),
                 DefaultButton = ContentDialogButton.Primary,
                 XamlRoot = this.Content.XamlRoot
             };
@@ -1359,9 +1514,34 @@ namespace Span
 
                 if (!string.IsNullOrEmpty(targetPath))
                 {
-                    Helpers.DebugLogger.Log($"[Network] Navigating to: {targetPath}");
+                    // 중복 등록 방지: 같은 UNC 경로가 이미 등록되어 있는지 확인
+                    var existing = connService.SavedConnections.FirstOrDefault(
+                        c => c.Protocol == Models.RemoteProtocol.SMB
+                             && string.Equals(c.UncPath, targetPath, StringComparison.OrdinalIgnoreCase));
 
-                    // Ensure we're in a navigable view mode
+                    if (existing == null)
+                    {
+                        // DisplayName: \\server\share → server\share
+                        var displayName = targetPath.TrimStart('\\');
+
+                        var newConn = new Models.ConnectionInfo
+                        {
+                            Protocol = Models.RemoteProtocol.SMB,
+                            UncPath = targetPath,
+                            DisplayName = displayName,
+                            Port = Models.ConnectionInfo.GetDefaultPort(Models.RemoteProtocol.SMB),
+                            LastConnected = DateTime.Now
+                        };
+
+                        connService.AddConnection(newConn);
+                        Helpers.DebugLogger.Log($"[Network] SMB 연결 등록: {targetPath}");
+                    }
+                    else
+                    {
+                        Helpers.DebugLogger.Log($"[Network] SMB 연결 이미 등록됨: {targetPath}");
+                    }
+
+                    // 등록 후 해당 경로로 탐색
                     if (ViewModel.CurrentViewMode == ViewMode.Home)
                     {
                         ViewModel.SwitchViewMode(ViewMode.MillerColumns);
@@ -1373,118 +1553,264 @@ namespace Span
             }
         }
 
-        private async void OnConnectToServerTapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
+        /// <summary>
+        /// 연결 다이얼로그 표시. existing이 null이면 새 연결, non-null이면 편집 모드.
+        /// 반환: (result, connInfo, password, saveChecked)
+        /// </summary>
+        private async Task<(ContentDialogResult result, Models.ConnectionInfo? connInfo, string? password, bool saveChecked)>
+            ShowConnectionDialog(Models.ConnectionInfo? existing)
         {
-            var connService = App.Current.Services.GetRequiredService<ConnectionManagerService>();
+            var isEdit = existing != null;
+            var isSmbEdit = isEdit && existing!.Protocol == Models.RemoteProtocol.SMB;
 
             var dialogPanel = new StackPanel { Spacing = 12, MinWidth = 380 };
 
-            // 프로토콜 선택
-            var protocolCombo = new ComboBox
+            // SMB 편집: 표시 이름 + UNC 경로만
+            TextBox? smbDisplayNameInput = null;
+            TextBox? smbUncPathInput = null;
+            ComboBox? protocolCombo = null;
+            TextBox? hostInput = null;
+            NumberBox? portInput = null;
+            TextBox? usernameInput = null;
+            PasswordBox? passwordInput = null;
+            TextBox? pathInput = null;
+            TextBox? displayNameInput = null;
+            CheckBox? saveCheckBox = null;
+
+            if (isSmbEdit)
             {
-                Header = "프로토콜",
-                ItemsSource = new[] { "SFTP", "FTP", "FTPS" },
-                SelectedIndex = 0,
-                HorizontalAlignment = Microsoft.UI.Xaml.HorizontalAlignment.Stretch
-            };
-            dialogPanel.Children.Add(protocolCombo);
-
-            // 호스트 + 포트
-            var hostPortPanel = new Grid();
-            hostPortPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            hostPortPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
-
-            var hostInput = new TextBox { Header = "호스트", PlaceholderText = "example.com" };
-            Grid.SetColumn(hostInput, 0);
-            hostPortPanel.Children.Add(hostInput);
-
-            var portInput = new NumberBox
-            {
-                Header = "포트",
-                Value = 22,
-                Minimum = 1,
-                Maximum = 65535,
-                SpinButtonPlacementMode = Microsoft.UI.Xaml.Controls.NumberBoxSpinButtonPlacementMode.Compact,
-                Margin = new Thickness(8, 0, 0, 0)
-            };
-            Grid.SetColumn(portInput, 1);
-            hostPortPanel.Children.Add(portInput);
-
-            dialogPanel.Children.Add(hostPortPanel);
-
-            // 포트 자동 변경
-            protocolCombo.SelectionChanged += (s, args) =>
-            {
-                portInput.Value = protocolCombo.SelectedIndex switch
+                smbDisplayNameInput = new TextBox
                 {
-                    0 => 22,   // SFTP
-                    1 => 21,   // FTP
-                    2 => 990,  // FTPS
-                    _ => 22
+                    Header = _loc.Get("DisplayNameOptional"),
+                    Text = existing!.DisplayName,
+                    PlaceholderText = existing.UncPath ?? ""
                 };
-            };
+                dialogPanel.Children.Add(smbDisplayNameInput);
 
-            // 사용자명
-            var usernameInput = new TextBox { Header = "사용자명", PlaceholderText = "user" };
-            dialogPanel.Children.Add(usernameInput);
+                smbUncPathInput = new TextBox
+                {
+                    Header = "UNC",
+                    Text = existing.UncPath ?? "",
+                    PlaceholderText = @"\\server\share"
+                };
+                dialogPanel.Children.Add(smbUncPathInput);
+            }
+            else
+            {
+                // 프로토콜 선택
+                protocolCombo = new ComboBox
+                {
+                    Header = _loc.Get("Protocol"),
+                    ItemsSource = new[] { "SFTP", "FTP", "FTPS" },
+                    SelectedIndex = isEdit ? (int)existing!.Protocol : 0,
+                    HorizontalAlignment = Microsoft.UI.Xaml.HorizontalAlignment.Stretch
+                };
+                dialogPanel.Children.Add(protocolCombo);
 
-            // 비밀번호
-            var passwordInput = new PasswordBox { Header = "비밀번호", PlaceholderText = "비밀번호" };
-            dialogPanel.Children.Add(passwordInput);
+                // 호스트 + 포트
+                var hostPortPanel = new Grid();
+                hostPortPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                hostPortPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
 
-            // 원격 경로
-            var pathInput = new TextBox { Header = "원격 경로", PlaceholderText = "/", Text = "/" };
-            dialogPanel.Children.Add(pathInput);
+                hostInput = new TextBox
+                {
+                    Header = _loc.Get("Host"),
+                    PlaceholderText = "example.com",
+                    Text = isEdit ? existing!.Host : ""
+                };
+                Grid.SetColumn(hostInput, 0);
+                hostPortPanel.Children.Add(hostInput);
 
-            // 표시 이름
-            var displayNameInput = new TextBox { Header = "표시 이름 (선택)", PlaceholderText = "내 서버" };
-            dialogPanel.Children.Add(displayNameInput);
+                portInput = new NumberBox
+                {
+                    Header = _loc.Get("Port"),
+                    Value = isEdit ? existing!.Port : 22,
+                    Minimum = 1,
+                    Maximum = 65535,
+                    SpinButtonPlacementMode = Microsoft.UI.Xaml.Controls.NumberBoxSpinButtonPlacementMode.Compact,
+                    Margin = new Thickness(8, 0, 0, 0)
+                };
+                Grid.SetColumn(portInput, 1);
+                hostPortPanel.Children.Add(portInput);
 
-            // 연결 저장 체크박스
-            var saveCheckBox = new CheckBox { Content = "이 연결 저장", IsChecked = true };
-            dialogPanel.Children.Add(saveCheckBox);
+                dialogPanel.Children.Add(hostPortPanel);
+
+                // 포트 자동 변경 (새 연결 모드에서만)
+                if (!isEdit)
+                {
+                    protocolCombo.SelectionChanged += (s, args) =>
+                    {
+                        portInput.Value = protocolCombo.SelectedIndex switch
+                        {
+                            0 => 22,   // SFTP
+                            1 => 21,   // FTP
+                            2 => 990,  // FTPS
+                            _ => 22
+                        };
+                    };
+                }
+
+                // 사용자명
+                usernameInput = new TextBox
+                {
+                    Header = _loc.Get("Username"),
+                    PlaceholderText = "user",
+                    Text = isEdit ? existing!.Username : ""
+                };
+                dialogPanel.Children.Add(usernameInput);
+
+                // 비밀번호
+                passwordInput = new PasswordBox
+                {
+                    Header = _loc.Get("Password"),
+                    PlaceholderText = _loc.Get("Password")
+                };
+                if (isEdit)
+                {
+                    var connService = App.Current.Services.GetRequiredService<ConnectionManagerService>();
+                    var savedPw = connService.LoadCredential(existing!.Id);
+                    if (!string.IsNullOrEmpty(savedPw))
+                        passwordInput.Password = savedPw;
+                }
+                dialogPanel.Children.Add(passwordInput);
+
+                // 원격 경로
+                pathInput = new TextBox
+                {
+                    Header = _loc.Get("RemotePath"),
+                    PlaceholderText = "/",
+                    Text = isEdit ? existing!.RemotePath : "/"
+                };
+                dialogPanel.Children.Add(pathInput);
+
+                // 표시 이름
+                displayNameInput = new TextBox
+                {
+                    Header = _loc.Get("DisplayNameOptional"),
+                    PlaceholderText = isEdit ? existing!.DisplayName : "",
+                    Text = isEdit ? existing!.DisplayName : ""
+                };
+                dialogPanel.Children.Add(displayNameInput);
+
+                // 연결 저장 체크박스 (새 연결 모드에서만)
+                if (!isEdit)
+                {
+                    saveCheckBox = new CheckBox { Content = _loc.Get("SaveConnection"), IsChecked = true };
+                    dialogPanel.Children.Add(saveCheckBox);
+                }
+            }
 
             var dialog = new ContentDialog
             {
-                Title = "서버에 연결",
+                Title = isEdit ? _loc.Get("EditConnection").TrimEnd('.') : _loc.Get("ConnectToServer"),
                 Content = dialogPanel,
-                PrimaryButtonText = "연결",
-                CloseButtonText = "취소",
+                PrimaryButtonText = isEdit ? _loc.Get("Save") : _loc.Get("Connect"),
+                CloseButtonText = _loc.Get("Cancel"),
                 DefaultButton = ContentDialogButton.Primary,
                 XamlRoot = this.Content.XamlRoot
             };
 
             var result = await dialog.ShowAsync();
 
-            if (result == ContentDialogResult.Primary && !string.IsNullOrWhiteSpace(hostInput.Text))
+            if (result != ContentDialogResult.Primary)
+                return (result, null, null, false);
+
+            if (isSmbEdit)
             {
-                var protocol = (Models.RemoteProtocol)protocolCombo.SelectedIndex;
-                var connInfo = new Models.ConnectionInfo
+                var updated = new Models.ConnectionInfo
                 {
-                    DisplayName = !string.IsNullOrWhiteSpace(displayNameInput.Text)
-                        ? displayNameInput.Text.Trim()
-                        : $"{hostInput.Text.Trim()}:{(int)portInput.Value}",
-                    Protocol = protocol,
-                    Host = hostInput.Text.Trim(),
-                    Port = (int)portInput.Value,
-                    Username = usernameInput.Text.Trim(),
-                    RemotePath = string.IsNullOrWhiteSpace(pathInput.Text) ? "/" : pathInput.Text.Trim(),
-                    LastConnected = DateTime.Now
+                    Id = existing!.Id,
+                    Protocol = Models.RemoteProtocol.SMB,
+                    DisplayName = !string.IsNullOrWhiteSpace(smbDisplayNameInput!.Text)
+                        ? smbDisplayNameInput.Text.Trim()
+                        : (smbUncPathInput!.Text.Trim()),
+                    UncPath = smbUncPathInput!.Text.Trim(),
+                    Host = existing.Host,
+                    Port = existing.Port,
+                    Username = existing.Username,
+                    RemotePath = existing.RemotePath,
+                    LastConnected = existing.LastConnected
                 };
-
-                // 연결 저장
-                if (saveCheckBox.IsChecked == true)
-                {
-                    connService.AddConnection(connInfo);
-                    if (!string.IsNullOrEmpty(passwordInput.Password))
-                        connService.SaveCredential(connInfo.Id, passwordInput.Password);
-                }
-
-                Helpers.DebugLogger.Log($"[Network] 서버 연결 시도: {connInfo.ToUri()}");
-
-                // 저장된 연결이면 HandleRemoteConnectionTapped으로, 아니면 직접 연결
-                await HandleRemoteConnectionTapped(connInfo.Id);
+                return (result, updated, null, false);
             }
+
+            if (string.IsNullOrWhiteSpace(hostInput!.Text))
+                return (ContentDialogResult.None, null, null, false);
+
+            var protocol = (Models.RemoteProtocol)protocolCombo!.SelectedIndex;
+            var connInfoResult = new Models.ConnectionInfo
+            {
+                Id = isEdit ? existing!.Id : Guid.NewGuid().ToString("N"),
+                DisplayName = !string.IsNullOrWhiteSpace(displayNameInput!.Text)
+                    ? displayNameInput.Text.Trim()
+                    : $"{hostInput.Text.Trim()}:{(int)portInput!.Value}",
+                Protocol = protocol,
+                Host = hostInput.Text.Trim(),
+                Port = (int)portInput!.Value,
+                Username = usernameInput!.Text.Trim(),
+                RemotePath = string.IsNullOrWhiteSpace(pathInput!.Text) ? "/" : pathInput.Text.Trim(),
+                LastConnected = isEdit ? existing!.LastConnected : DateTime.Now
+            };
+
+            return (result, connInfoResult, passwordInput!.Password, saveCheckBox?.IsChecked == true);
+        }
+
+        private async void OnConnectToServerTapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
+        {
+            var (result, connInfo, password, saveChecked) = await ShowConnectionDialog(null);
+            if (result != ContentDialogResult.Primary || connInfo == null) return;
+
+            Helpers.DebugLogger.Log($"[Network] 서버 연결 시도: {connInfo.ToUri()}");
+
+            // 먼저 연결 시도 — 성공 시에만 저장
+            var connService = App.Current.Services.GetRequiredService<ConnectionManagerService>();
+            var router = App.Current.Services.GetRequiredService<FileSystemRouter>();
+            var uriPrefix = FileSystemRouter.GetUriPrefix(connInfo.ToUri());
+
+            IFileSystemProvider provider;
+            try
+            {
+                if (connInfo.Protocol == Models.RemoteProtocol.SFTP)
+                {
+                    var sftp = new SftpProvider();
+                    await sftp.ConnectAsync(connInfo, password ?? "");
+                    if (!sftp.IsConnected) throw new Exception("SFTP 연결 실패");
+                    provider = sftp;
+                }
+                else
+                {
+                    var ftp = new FtpProvider();
+                    await ftp.ConnectAsync(connInfo, password ?? "");
+                    if (!ftp.IsConnected) throw new Exception("FTP 연결 실패");
+                    provider = ftp;
+                }
+            }
+            catch (Exception ex)
+            {
+                await ShowRemoteConnectionError(connInfo, ex.Message);
+                return;
+            }
+
+            // 연결 성공 → 저장 + Router 등록 + 탐색
+            if (saveChecked)
+            {
+                connService.AddConnection(connInfo);
+                if (!string.IsNullOrEmpty(password))
+                    connService.SaveCredential(connInfo.Id, password);
+            }
+
+            router.RegisterConnection(uriPrefix, provider);
+            connInfo.LastConnected = DateTime.Now;
+            if (saveChecked)
+                _ = connService.SaveConnectionsAsync();
+
+            ViewModel.ShowToast($"{connInfo.DisplayName}에 연결되었습니다.");
+
+            if (ViewModel.CurrentViewMode == ViewMode.Home)
+                ViewModel.SwitchViewMode(ViewMode.MillerColumns);
+
+            await ViewModel.ActiveExplorer.NavigateToPath(connInfo.ToUri());
+            FocusColumnAsync(0);
         }
 
         private async void OnSavedConnectionTapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
@@ -1511,7 +1837,7 @@ namespace Span
                 Services.IconService.Current?.FontFamilyPath ?? "/Assets/Fonts/remixicon.ttf#remixicon");
             var browseNetwork = new MenuFlyoutItem
             {
-                Text = "네트워크 찾아보기...",
+                Text = _loc.Get("NetworkBrowse") + "...",
                 Icon = new FontIcon
                 {
                     Glyph = Services.IconService.Current?.NetworkGlyph ?? "\uEDD4",
@@ -1524,7 +1850,7 @@ namespace Span
 
             var connectServer = new MenuFlyoutItem
             {
-                Text = "서버에 연결...",
+                Text = _loc.Get("ConnectToServer") + "...",
                 Icon = new FontIcon
                 {
                     Glyph = Services.IconService.Current?.ServerGlyph ?? "\uEE71",
@@ -1549,6 +1875,21 @@ namespace Span
             {
                 Helpers.DebugLogger.Log($"[Sidebar] 연결 정보를 찾을 수 없음: {connectionId}");
                 ViewModel.ShowToast("연결 정보를 찾을 수 없습니다. 연결이 삭제되었을 수 있습니다.");
+                return;
+            }
+
+            // SMB 연결: 비밀번호/프로세스 없이 UNC 경로로 직접 탐색
+            if (connInfo.Protocol == Models.RemoteProtocol.SMB && !string.IsNullOrEmpty(connInfo.UncPath))
+            {
+                Helpers.DebugLogger.Log($"[Sidebar] SMB 직접 탐색: {connInfo.UncPath}");
+                connInfo.LastConnected = DateTime.Now;
+                _ = connService.SaveConnectionsAsync();
+
+                if (ViewModel.CurrentViewMode == ViewMode.Home)
+                    ViewModel.SwitchViewMode(ViewMode.MillerColumns);
+
+                await ViewModel.ActiveExplorer.NavigateToPath(connInfo.UncPath);
+                FocusColumnAsync(0);
                 return;
             }
 
@@ -1651,9 +1992,9 @@ namespace Span
             Helpers.DebugLogger.Log($"[Network] 연결 실패: {connInfo.DisplayName} - {detail}");
             var errorDialog = new ContentDialog
             {
-                Title = "연결 실패",
+                Title = _loc.Get("ConnectionFailed"),
                 Content = detail,
-                CloseButtonText = "확인",
+                CloseButtonText = _loc.Get("OK"),
                 XamlRoot = this.Content.XamlRoot
             };
             await errorDialog.ShowAsync();
@@ -2053,6 +2394,10 @@ namespace Span
 
         private void OnDragItemsStarting(object sender, DragItemsStartingEventArgs e)
         {
+            // Cancel file D&D if rubber-band selection is active
+            if (_rubberBandHelpers.Values.Any(h => h.IsActive))
+            { e.Cancel = true; return; }
+
             // Allow dragging both files and folders
             var items = e.Items.OfType<FileSystemViewModel>().ToList();
             if (items.Count == 0) { e.Cancel = true; return; }
@@ -2062,6 +2407,16 @@ namespace Span
             e.Data.Properties["SourcePaths"] = paths;
             e.Data.Properties["SourcePane"] = DeterminePane(sender);
             e.Data.RequestedOperation = DataPackageOperation.Copy | DataPackageOperation.Move;
+
+            // Span→외부 앱: StorageItems를 지연 로딩 (외부 앱이 요청할 때만 로드)
+            // DragItemsStarting에서 await 사용 금지 — async void + await는 드래그 종료 시
+            // UI 스레드 데드락 유발 (DataPackage freeze 후 async 연속이 수정 시도)
+            var capturedPaths = new List<string>(paths);
+            e.Data.SetDataProvider(StandardDataFormats.StorageItems, request =>
+            {
+                var deferral = request.GetDeferral();
+                _ = ProvideStorageItemsAsync(request, capturedPaths, deferral);
+            });
         }
 
         private string DeterminePane(object sender)
@@ -2074,9 +2429,45 @@ namespace Span
             return "Left";
         }
 
+        /// <summary>
+        /// Deferred StorageItems provider for drag-and-drop to external apps.
+        /// Called lazily only when an external app (e.g. Windows Explorer) requests the data.
+        /// </summary>
+        private static async System.Threading.Tasks.Task ProvideStorageItemsAsync(
+            Windows.ApplicationModel.DataTransfer.DataProviderRequest request,
+            List<string> paths,
+            Windows.ApplicationModel.DataTransfer.DataProviderDeferral deferral)
+        {
+            try
+            {
+                var storageItems = new List<Windows.Storage.IStorageItem>();
+                foreach (var p in paths)
+                {
+                    try
+                    {
+                        if (System.IO.Directory.Exists(p))
+                            storageItems.Add(await Windows.Storage.StorageFolder.GetFolderFromPathAsync(p));
+                        else if (System.IO.File.Exists(p))
+                            storageItems.Add(await Windows.Storage.StorageFile.GetFileFromPathAsync(p));
+                    }
+                    catch { }
+                }
+                request.SetData(storageItems);
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[DragDrop] StorageItems provider error: {ex.Message}");
+            }
+            finally
+            {
+                deferral.Complete();
+            }
+        }
+
         private void OnFavoritesDragOver(object sender, DragEventArgs e)
         {
-            if (e.DataView.Contains(StandardDataFormats.Text))
+            if (e.DataView.Contains(StandardDataFormats.Text) ||
+                e.DataView.Contains(StandardDataFormats.StorageItems))
             {
                 e.AcceptedOperation = DataPackageOperation.Link;
                 e.DragUIOverride.Caption = "즐겨찾기에 추가";
@@ -2094,6 +2485,18 @@ namespace Span
                     Helpers.DebugLogger.Log($"[Sidebar] Folder dropped to favorites: {path}");
                 }
             }
+            else if (e.DataView.Contains(StandardDataFormats.StorageItems))
+            {
+                var items = await e.DataView.GetStorageItemsAsync();
+                foreach (var item in items)
+                {
+                    if (!string.IsNullOrEmpty(item.Path) && System.IO.Directory.Exists(item.Path))
+                    {
+                        ViewModel.AddToFavorites(item.Path);
+                        Helpers.DebugLogger.Log($"[Sidebar] External folder dropped to favorites: {item.Path}");
+                    }
+                }
+            }
         }
 
         // =================================================================
@@ -2104,9 +2507,10 @@ namespace Span
         {
             if (sender is not Grid grid || grid.DataContext is not FolderViewModel targetFolder) return;
 
-            // Check if data contains paths
+            // Check if data contains paths (internal or external app)
             if (!e.DataView.Contains(StandardDataFormats.Text) &&
-                !e.DataView.Properties.ContainsKey("SourcePaths")) return;
+                !e.DataView.Properties.ContainsKey("SourcePaths") &&
+                !e.DataView.Contains(StandardDataFormats.StorageItems)) return;
 
             // Prevent dropping onto self (check source paths)
             if (e.DataView.Properties.TryGetValue("SourcePaths", out var srcObj) && srcObj is List<string> srcPaths)
@@ -2114,12 +2518,14 @@ namespace Span
                 if (srcPaths.Any(p => p.Equals(targetFolder.Path, StringComparison.OrdinalIgnoreCase)))
                 {
                     e.AcceptedOperation = DataPackageOperation.None;
+                    e.Handled = true;
                     return;
                 }
                 // Prevent dropping parent into child
                 if (srcPaths.Any(p => targetFolder.Path.StartsWith(p + "\\", StringComparison.OrdinalIgnoreCase)))
                 {
                     e.AcceptedOperation = DataPackageOperation.None;
+                    e.Handled = true;
                     return;
                 }
             }
@@ -2148,6 +2554,7 @@ namespace Span
         private async void OnFolderItemDrop(object sender, DragEventArgs e)
         {
             if (sender is not Grid grid || grid.DataContext is not FolderViewModel targetFolder) return;
+            e.Handled = true; // Prevent bubbling BEFORE await (avoid duplicate execution)
 
             // Reset highlight and cancel spring-load
             grid.Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
@@ -2158,7 +2565,6 @@ namespace Span
 
             bool isMove = ResolveDragDropOperation(e, targetFolder.Path);
             await HandleDropAsync(paths, targetFolder.Path, isMove: isMove);
-            e.Handled = true;
         }
 
         private void OnFolderItemDragLeave(object sender, DragEventArgs e)
@@ -2231,28 +2637,35 @@ namespace Span
         {
             if (sender is not ListView listView || listView.DataContext is not FolderViewModel folderVm) return;
             if (!e.DataView.Contains(StandardDataFormats.Text) &&
-                !e.DataView.Properties.ContainsKey("SourcePaths")) return;
+                !e.DataView.Properties.ContainsKey("SourcePaths") &&
+                !e.DataView.Contains(StandardDataFormats.StorageItems)) return;
 
-            // Prevent dropping into the same folder the items came from
+            // Same-folder check: block Move, allow Copy (Ctrl)
+            bool isSameFolder = false;
             if (e.DataView.Properties.TryGetValue("SourcePaths", out var srcObj) && srcObj is List<string> srcPaths)
             {
-                if (srcPaths.All(p => System.IO.Path.GetDirectoryName(p)?.Equals(folderVm.Path, StringComparison.OrdinalIgnoreCase) == true))
-                {
-                    e.AcceptedOperation = DataPackageOperation.None;
-                    return;
-                }
+                isSameFolder = srcPaths.All(p => System.IO.Path.GetDirectoryName(p)?.Equals(folderVm.Path, StringComparison.OrdinalIgnoreCase) == true);
             }
 
             bool isMove = ResolveDragDropOperation(e, folderVm.Path);
 
+            if (isSameFolder && isMove)
+            {
+                e.AcceptedOperation = DataPackageOperation.None;
+                e.Handled = true;
+                return;
+            }
+
             e.AcceptedOperation = isMove ? DataPackageOperation.Move : DataPackageOperation.Copy;
             e.DragUIOverride.Caption = isMove ? $"Move to {folderVm.Name}" : $"Copy to {folderVm.Name}";
             e.DragUIOverride.IsCaptionVisible = true;
+            e.Handled = true; // Prevent bubbling to PaneDragOver
         }
 
         private async void OnColumnDrop(object sender, DragEventArgs e)
         {
             if (sender is not ListView listView || listView.DataContext is not FolderViewModel folderVm) return;
+            e.Handled = true; // Prevent bubbling to OnPaneDrop (duplicate execution)
 
             var paths = await ExtractDropPaths(e);
             if (paths.Count == 0) return;
@@ -2275,6 +2688,13 @@ namespace Span
                 var text = await e.DataView.GetTextAsync();
                 if (!string.IsNullOrEmpty(text))
                     return text.Split('\n', StringSplitOptions.RemoveEmptyEntries).ToList();
+            }
+
+            // 외부 앱(Windows 탐색기 등)에서 드래그된 StorageItems 처리
+            if (e.DataView.Contains(StandardDataFormats.StorageItems))
+            {
+                var items = await e.DataView.GetStorageItemsAsync();
+                return items.Select(i => i.Path).Where(p => !string.IsNullOrEmpty(p)).ToList();
             }
 
             return new List<string>();
@@ -2310,11 +2730,19 @@ namespace Span
 
         private async System.Threading.Tasks.Task HandleDropAsync(List<string> sourcePaths, string destFolder, bool isMove)
         {
-            // Validate: don't drop onto itself
+            // Validate: don't drop onto itself or into child
             sourcePaths = sourcePaths.Where(p =>
                 !p.Equals(destFolder, StringComparison.OrdinalIgnoreCase) &&
                 !destFolder.StartsWith(p + "\\", StringComparison.OrdinalIgnoreCase)
             ).ToList();
+
+            // Safety net: filter out same-folder Move (items already in destFolder)
+            if (isMove)
+            {
+                sourcePaths = sourcePaths.Where(p =>
+                    !string.Equals(System.IO.Path.GetDirectoryName(p), destFolder, StringComparison.OrdinalIgnoreCase)
+                ).ToList();
+            }
 
             if (sourcePaths.Count == 0) return;
 
@@ -2337,22 +2765,29 @@ namespace Span
             if (sender is not FrameworkElement fe) return;
 
             // Determine source and target panes
-            var sourcePane = "Left";
-            if (e.DataView.Properties.TryGetValue("SourcePane", out var sp) && sp is string s)
-                sourcePane = s;
+            // External drags (Windows Explorer etc.) won't have "SourcePane" property
+            bool isInternalDrag = e.DataView.Properties.TryGetValue("SourcePane", out var sp) && sp is string s;
+            var sourcePane = isInternalDrag ? (string)sp! : "";
 
             bool isLeftTarget = fe.Name == "LeftPaneContainer";
             string targetPane = isLeftTarget ? "Left" : "Right";
 
-            // Only handle cross-pane drops (same-pane handled by folder/column handlers)
-            if (sourcePane == targetPane)
-            {
-                return;
-            }
-
             var targetExplorer = isLeftTarget ? ViewModel.Explorer : ViewModel.RightExplorer;
             var destFolder = targetExplorer?.CurrentFolder?.Path ?? "";
             bool isMove = ResolveDragDropOperation(e, destFolder);
+
+            // Same-pane drag: block Move (no-op), allow Copy (Ctrl)
+            // Only applies to internal drags — external drops always allowed
+            if (isInternalDrag && sourcePane == targetPane)
+            {
+                if (isMove)
+                {
+                    e.AcceptedOperation = DataPackageOperation.None;
+                    e.Handled = true;
+                    return;
+                }
+                // Same-pane Copy → allow (fall through to set operation below)
+            }
 
             e.AcceptedOperation = isMove
                 ? Windows.ApplicationModel.DataTransfer.DataPackageOperation.Move
@@ -2372,15 +2807,21 @@ namespace Span
         {
             if (sender is not FrameworkElement fe) return;
 
-            var sourcePane = "Left";
-            if (e.DataView.Properties.TryGetValue("SourcePane", out var sp) && sp is string s)
-                sourcePane = s;
+            // External drags (Windows Explorer etc.) won't have "SourcePane" property
+            bool isInternalDrag = e.DataView.Properties.TryGetValue("SourcePane", out var sp) && sp is string s;
+            var sourcePane = isInternalDrag ? (string)sp! : "";
 
             bool isLeftTarget = fe.Name == "LeftPaneContainer";
             string targetPane = isLeftTarget ? "Left" : "Right";
 
-            // Only handle cross-pane
-            if (sourcePane == targetPane) return;
+            // Same-pane Move is blocked (only Copy allowed) — only for internal drags
+            bool isMove = false;
+            {
+                var targetExplorer2 = isLeftTarget ? ViewModel.Explorer : ViewModel.RightExplorer;
+                var destFolder2 = targetExplorer2?.CurrentFolder?.Path ?? "";
+                isMove = ResolveDragDropOperation(e, destFolder2);
+            }
+            if (isInternalDrag && sourcePane == targetPane && isMove) return;
 
             // Hide overlay
             var overlay = isLeftTarget ? LeftDropOverlay : RightDropOverlay;
@@ -2394,7 +2835,7 @@ namespace Span
             var destFolder = targetExplorer?.CurrentFolder?.Path;
             if (string.IsNullOrEmpty(destFolder)) return;
 
-            bool isMove = ResolveDragDropOperation(e, destFolder);
+            // isMove already resolved above (same-pane Move was early-returned)
             await HandleDropAsync(paths, destFolder, isMove: isMove);
             e.Handled = true;
         }
@@ -2896,7 +3337,8 @@ namespace Span
                         break;
 
                     case Windows.System.VirtualKey.L:
-                        ShowAddressBarEditMode();
+                        if (ViewModel.CurrentViewMode != ViewMode.Home)
+                            ShowAddressBarEditMode();
                         e.Handled = true;
                         break;
 
@@ -3768,6 +4210,14 @@ namespace Span
             if (activeIndex < 0 || activeIndex >= columns.Count) return;
 
             var currentColumn = columns[activeIndex];
+
+            // 다중 선택 → 배치 이름 변경 다이얼로그
+            if (currentColumn.HasMultiSelection)
+            {
+                _ = ShowBatchRenameDialogAsync(currentColumn);
+                return;
+            }
+
             var selected = currentColumn.SelectedChild;
 
             // 선택된 항목이 없으면 첫 번째 항목 선택
@@ -3804,6 +4254,27 @@ namespace Span
                 if (_isClosed) return;
                 FocusRenameTextBox(activeIndex);
             });
+        }
+
+        /// <summary>
+        /// 다중 선택된 항목의 배치 이름 변경 다이얼로그 표시.
+        /// </summary>
+        private async System.Threading.Tasks.Task ShowBatchRenameDialogAsync(FolderViewModel currentColumn)
+        {
+            var items = currentColumn.GetSelectedItemsList();
+            if (items.Count < 2) return;
+
+            var dialog = new Views.Dialogs.BatchRenameDialog(items);
+            dialog.XamlRoot = this.Content.XamlRoot;
+
+            var result = await dialog.ShowAsync();
+            if (result != ContentDialogResult.Primary) return;
+
+            var renameList = dialog.GetRenameList();
+            if (renameList.Count == 0) return;
+
+            var op = new Services.FileOperations.BatchRenameOperation(renameList);
+            await ViewModel.ExecuteFileOperationAsync(op);
         }
 
         /// <summary>
@@ -4582,6 +5053,9 @@ namespace Span
         /// </summary>
         private void OnAddressBarContainerClicked(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
         {
+            // 홈 모드에서는 편집 모드 불필요
+            if (ViewModel.CurrentViewMode == ViewMode.Home) return;
+
             // BreadcrumbBar 항목 클릭은 ItemClicked에서 처리하므로
             // 빈 공간 클릭만 편집 모드로 전환
             var element = e.OriginalSource as DependencyObject;
@@ -6431,6 +6905,12 @@ namespace Span
             => (!isSplitViewEnabled && mode != Models.ViewMode.Home) ? Visibility.Visible : Visibility.Collapsed;
 
         /// <summary>
+        /// Single mode nav/address bar: visible when NOT split AND NOT Settings mode (Home included)
+        /// </summary>
+        public Visibility IsSingleNonSettingsVisible(bool isSplitViewEnabled, Models.ViewMode mode)
+            => (!isSplitViewEnabled && mode != Models.ViewMode.Settings) ? Visibility.Visible : Visibility.Collapsed;
+
+        /// <summary>
         /// Left pane header (split mode): visible when split enabled (including Home mode for accent bar)
         /// </summary>
         public Visibility IsLeftPaneHeaderVisible(bool isSplitViewEnabled)
@@ -6513,14 +6993,45 @@ namespace Span
             ViewModel.ActivePane = ActivePane.Right;
         }
 
+        private void OnMainViewModeMenuOpening(object sender, object e)
+        {
+            LocalizeViewMenuItems(MainVm_Miller, MainVm_Details, MainVm_Icons,
+                MainVm_ExtraLarge, MainVm_Large, MainVm_Medium, MainVm_Small);
+        }
+
         private void OnLeftPaneViewModeMenuOpening(object sender, object e)
         {
             ViewModel.ActivePane = ActivePane.Left;
+            LocalizeViewMenuItems(LeftVm_Miller, LeftVm_Details, LeftVm_Icons,
+                LeftVm_ExtraLarge, LeftVm_Large, LeftVm_Medium, LeftVm_Small);
         }
 
         private void OnRightPaneViewModeMenuOpening(object sender, object e)
         {
             ViewModel.ActivePane = ActivePane.Right;
+            LocalizeViewMenuItems(RightVm_Miller, RightVm_Details, RightVm_Icons,
+                RightVm_ExtraLarge, RightVm_Large, RightVm_Medium, RightVm_Small);
+        }
+
+        private void LocalizeViewMenuItems(
+            MenuFlyoutItem miller, MenuFlyoutItem details, MenuFlyoutSubItem icons,
+            MenuFlyoutItem extraLarge, MenuFlyoutItem large, MenuFlyoutItem medium, MenuFlyoutItem small)
+        {
+            miller.Text = _loc.Get("MillerColumns");
+            details.Text = _loc.Get("Details");
+            icons.Text = _loc.Get("Icons");
+            extraLarge.Text = _loc.Get("ExtraLargeIcons");
+            large.Text = _loc.Get("LargeIcons");
+            medium.Text = _loc.Get("MediumIcons");
+            small.Text = _loc.Get("SmallIcons");
+        }
+
+        private void LocalizeViewModeTooltips()
+        {
+            var tip = _loc.Get("ViewModeSwitch");
+            ToolTipService.SetToolTip(ViewModeButton, tip);
+            ToolTipService.SetToolTip(LeftViewModeButton, tip);
+            ToolTipService.SetToolTip(RightViewModeButton, tip);
         }
 
         private void OnPanePreviewToggle(object sender, RoutedEventArgs e)
@@ -6592,6 +7103,13 @@ namespace Span
         {
             if (sender is Button btn && btn.Tag is string fullPath)
             {
+                // 홈 breadcrumb 클릭 → 홈으로 전환
+                if (fullPath == "::home::")
+                {
+                    ViewModel.SwitchViewMode(ViewMode.Home);
+                    return;
+                }
+
                 // Detect pane from visual tree
                 if (IsDescendant(RightPaneContainer, btn))
                 {
@@ -7569,17 +8087,16 @@ namespace Span
 
         async void Services.IContextMenuHost.RemoveRemoteConnection(string connectionId)
         {
-            // 삭제 확인 다이얼로그
             var connService = App.Current.Services.GetRequiredService<ConnectionManagerService>();
             var connInfo = ViewModel.SavedConnections.FirstOrDefault(c => c.Id == connectionId);
             string displayName = connInfo?.DisplayName ?? connectionId;
 
             var dialog = new ContentDialog
             {
-                Title = "연결 제거",
-                Content = $"'{displayName}' 연결을 제거하시겠습니까?\n\n저장된 자격 증명도 함께 삭제됩니다.",
-                PrimaryButtonText = "제거",
-                CloseButtonText = "취소",
+                Title = _loc.Get("RemoveConnectionTitle"),
+                Content = string.Format(_loc.Get("RemoveConnectionConfirm"), displayName),
+                PrimaryButtonText = _loc.Get("Delete"),
+                CloseButtonText = _loc.Get("Cancel"),
                 DefaultButton = ContentDialogButton.Close,
                 XamlRoot = this.Content.XamlRoot
             };
@@ -7597,8 +8114,33 @@ namespace Span
 
                 connService.RemoveConnection(connectionId);
                 Helpers.DebugLogger.Log($"[Sidebar] 원격 연결 제거: {displayName}");
-                ViewModel.ShowToast($"'{displayName}' 연결이 제거되었습니다.");
+                ViewModel.ShowToast(string.Format(_loc.Get("ConnectionRemoved"), displayName));
             }
+        }
+
+        async void Services.IContextMenuHost.EditRemoteConnection(string connectionId)
+        {
+            var connService = App.Current.Services.GetRequiredService<ConnectionManagerService>();
+            var existing = ViewModel.SavedConnections.FirstOrDefault(c => c.Id == connectionId);
+            if (existing == null) return;
+
+            var (result, updated, password, _) = await ShowConnectionDialog(existing);
+            if (result != ContentDialogResult.Primary || updated == null) return;
+
+            // SMB: 표시 이름 + UNC 경로만 업데이트
+            if (updated.Protocol == Models.RemoteProtocol.SMB)
+            {
+                connService.UpdateConnection(updated);
+                Helpers.DebugLogger.Log($"[Sidebar] SMB 연결 편집 완료: {updated.DisplayName}");
+                return;
+            }
+
+            // SFTP/FTP: 속성 업데이트 + 비밀번호 저장
+            connService.UpdateConnection(updated);
+            if (!string.IsNullOrEmpty(password))
+                connService.SaveCredential(updated.Id, password);
+
+            Helpers.DebugLogger.Log($"[Sidebar] 원격 연결 편집 완료: {updated.DisplayName}");
         }
 
         bool Services.IContextMenuHost.IsFavorite(string path)

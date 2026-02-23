@@ -97,6 +97,31 @@ namespace Span.Services
             _ = SaveConnectionsAsync();
         }
 
+        public void UpdateConnection(ConnectionInfo updated)
+        {
+            if (updated == null) return;
+
+            var index = -1;
+            for (int i = 0; i < SavedConnections.Count; i++)
+            {
+                if (SavedConnections[i].Id == updated.Id)
+                {
+                    index = i;
+                    break;
+                }
+            }
+
+            if (index < 0)
+            {
+                DebugLogger.Log($"[ConnectionManager] Connection with ID {updated.Id} not found for update");
+                return;
+            }
+
+            SavedConnections[index] = updated;
+            _ = SaveConnectionsAsync();
+            DebugLogger.Log($"[ConnectionManager] Connection updated: {updated.DisplayName}");
+        }
+
         public void RemoveConnection(string id)
         {
             var existing = SavedConnections.FirstOrDefault(c => c.Id == id);

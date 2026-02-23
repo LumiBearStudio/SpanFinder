@@ -351,10 +351,15 @@ namespace Span.Services
             }
             else
             {
-                // 원격 연결 (SFTP/FTP): 경로 복사 + 제거
+                // 원격 연결 (SFTP/FTP): 경로 복사 + 편집 + 제거
                 menu.Items.Add(CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => _shellService.CopyPathToClipboard(drive.Path)));
                 menu.Items.Add(new MenuFlyoutSeparator());
-                menu.Items.Add(CreateItem("저장된 연결 제거", "\uE74D", () =>
+                menu.Items.Add(CreateItem(_loc.Get("EditConnection"), "\uE70F", () =>
+                {
+                    if (!string.IsNullOrEmpty(drive.ConnectionId))
+                        host.EditRemoteConnection(drive.ConnectionId);
+                }));
+                menu.Items.Add(CreateItem(_loc.Get("RemoveConnection"), "\uE74D", () =>
                 {
                     if (!string.IsNullOrEmpty(drive.ConnectionId))
                         host.RemoveRemoteConnection(drive.ConnectionId);

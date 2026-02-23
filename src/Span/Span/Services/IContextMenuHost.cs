@@ -23,6 +23,7 @@ namespace Span.Services
         void RemoveFromFavorites(string path);
         bool IsFavorite(string path);
         void RemoveRemoteConnection(string connectionId);
+        void EditRemoteConnection(string connectionId);
         void SwitchViewMode(ViewMode mode);
         void ApplySort(string field);
         void ApplySortDirection(bool ascending);
