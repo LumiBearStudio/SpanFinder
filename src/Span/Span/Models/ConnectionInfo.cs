@@ -4,7 +4,8 @@ namespace Span.Models
     {
         SFTP,
         FTP,
-        FTPS
+        FTPS,
+        SMB
     }
 
     public enum AuthMethod
@@ -26,14 +27,22 @@ namespace Span.Models
         public string RemotePath { get; set; } = "/";
         public DateTime LastConnected { get; set; }
 
+        /// <summary>
+        /// SMB 전용: UNC 경로 (예: \\server\share)
+        /// </summary>
+        public string? UncPath { get; set; }
+
         public static int GetDefaultPort(RemoteProtocol protocol) => protocol switch
         {
             RemoteProtocol.SFTP => 22,
             RemoteProtocol.FTP => 21,
             RemoteProtocol.FTPS => 990,
+            RemoteProtocol.SMB => 445,
             _ => 22
         };
 
-        public string ToUri() => $"{Protocol.ToString().ToLower()}://{Username}@{Host}:{Port}{RemotePath}";
+        public string ToUri() => Protocol == RemoteProtocol.SMB
+            ? UncPath ?? string.Empty
+            : $"{Protocol.ToString().ToLower()}://{Username}@{Host}:{Port}{RemotePath}";
     }
 }

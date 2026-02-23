@@ -15,6 +15,7 @@ namespace Span.ViewModels
         private readonly FileSystemService _fileService;
         private readonly FolderItem _folderModel;
         private bool _isLoaded = false;
+        private string? _calculatedSize;
 
         [ObservableProperty]
         private ObservableCollection<FileSystemViewModel> _children = new();
@@ -59,6 +60,82 @@ namespace Span.ViewModels
 
         public override string IconGlyph => Services.IconService.Current.FolderIcon;
         public override Microsoft.UI.Xaml.Media.Brush IconBrush => Services.IconService.Current.FolderBrush;
+
+        /// <summary>
+        /// 폴더 크기: 백그라운드 계산 완료 시 표시, 미완료 시 빈칸.
+        /// </summary>
+        public override string Size => _calculatedSize ?? string.Empty;
+
+        public override long SizeValue
+        {
+            get
+            {
+                var svc = App.Current.Services.GetService(typeof(FolderSizeService)) as FolderSizeService;
+                return svc?.TryGetCachedSize(Path) ?? 0;
+            }
+        }
+
+        /// <summary>
+        /// 폴더 크기 계산 요청 (Details 뷰에서 호출).
+        /// </summary>
+        public void RequestFolderSizeCalculation()
+        {
+            if (_calculatedSize != null) return; // 이미 계산됨
+
+            var svc = App.Current.Services.GetService(typeof(FolderSizeService)) as FolderSizeService;
+            if (svc == null) return;
+
+            var cached = svc.TryGetCachedSize(Path);
+            if (cached.HasValue)
+            {
+                _calculatedSize = cached.Value >= 0 ? FormatFolderSize(cached.Value) : string.Empty;
+                OnPropertyChanged(nameof(Size));
+                OnPropertyChanged(nameof(SizeValue));
+                return;
+            }
+
+            svc.SizeCalculated += OnFolderSizeCalculated;
+            svc.RequestCalculation(Path);
+        }
+
+        private void OnFolderSizeCalculated(string folderPath, long bytes)
+        {
+            if (!folderPath.Equals(Path, System.StringComparison.OrdinalIgnoreCase)) return;
+
+            var svc = App.Current.Services.GetService(typeof(FolderSizeService)) as FolderSizeService;
+            if (svc != null) svc.SizeCalculated -= OnFolderSizeCalculated;
+
+            _calculatedSize = bytes >= 0 ? FormatFolderSize(bytes) : string.Empty;
+
+            // UI 스레드에서 PropertyChanged 발생
+            try
+            {
+                Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread()?.TryEnqueue(() =>
+                {
+                    OnPropertyChanged(nameof(Size));
+                    OnPropertyChanged(nameof(SizeValue));
+                });
+            }
+            catch
+            {
+                OnPropertyChanged(nameof(Size));
+                OnPropertyChanged(nameof(SizeValue));
+            }
+        }
+
+        private static string FormatFolderSize(long bytes)
+        {
+            if (bytes == 0) return "0 B";
+            string[] sizes = { "B", "KB", "MB", "GB", "TB" };
+            int order = 0;
+            double size = bytes;
+            while (size >= 1024 && order < sizes.Length - 1)
+            {
+                order++;
+                size /= 1024;
+            }
+            return $"{size:0.##} {sizes[order]}";
+        }
 
         /// <summary>
         /// Item count text for folder badge display.
@@ -265,6 +342,20 @@ namespace Span.ViewModels
                 .OrderBy(x => x is FileViewModel ? 1 : 0)
                 .ThenBy(x => x.Name, Helpers.NaturalStringComparer.Instance)
                 .ToList();
+
+            // 클라우드 동기화 상태 주입
+            try
+            {
+                var cloudSvc = App.Current.Services.GetService(typeof(CloudSyncService)) as CloudSyncService;
+                if (cloudSvc != null && cloudSvc.IsCloudPath(Path))
+                {
+                    foreach (var item in sortedItems)
+                    {
+                        item.CloudState = cloudSvc.GetCloudState(item.Path);
+                    }
+                }
+            }
+            catch { }
 
             Children.Clear();
             foreach (var item in sortedItems)

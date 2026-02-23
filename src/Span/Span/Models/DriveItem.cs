@@ -49,8 +49,12 @@ namespace Span.Models
         public static DriveItem FromConnection(ConnectionInfo conn) => new()
         {
             Name = conn.DisplayName,
-            Path = conn.ToUri(),
-            IconGlyph = Span.Services.IconService.Current?.ServerGlyph ?? "\uEE71",
+            Path = conn.Protocol == RemoteProtocol.SMB
+                ? conn.UncPath ?? string.Empty
+                : conn.ToUri(),
+            IconGlyph = conn.Protocol == RemoteProtocol.SMB
+                ? Span.Services.IconService.Current?.NetworkGlyph ?? "\uEDD4"
+                : Span.Services.IconService.Current?.ServerGlyph ?? "\uEE71",
             IsRemoteConnection = true,
             ConnectionId = conn.Id
         };

@@ -15,6 +15,7 @@ namespace Span.Views
 
         private MainViewModel? _mainViewModel;
         private SettingsService? _settings;
+        private LocalizationService? _loc;
 
         public ObservableCollection<DriveItem>? LocalDrives => _mainViewModel?.Drives;
         public ObservableCollection<DriveItem>? NetworkDrivesList => _mainViewModel?.NetworkDrives;
@@ -50,6 +51,9 @@ namespace Span.Views
                 try
                 {
                     _settings = App.Current.Services.GetService(typeof(SettingsService)) as SettingsService;
+                    _loc = App.Current.Services.GetService(typeof(LocalizationService)) as LocalizationService;
+                    LocalizeUI();
+                    if (_loc != null) _loc.LanguageChanged += LocalizeUI;
                 }
                 catch { }
             };
@@ -60,6 +64,7 @@ namespace Span.Views
                 {
                     _mainViewModel.NetworkDrives.CollectionChanged -= OnNetworkDrivesChanged;
                 }
+                if (_loc != null) _loc.LanguageChanged -= LocalizeUI;
                 _settings = null;
             };
         }
@@ -67,6 +72,14 @@ namespace Span.Views
         private void OnNetworkDrivesChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
             Bindings.Update();
+        }
+
+        private void LocalizeUI()
+        {
+            if (_loc == null) return;
+            DevicesHeader.Text = _loc.Get("DevicesAndDrives");
+            NetworkHeader.Text = _loc.Get("NetworkLocations");
+            FavoritesHeader.Text = _loc.Get("Favorites");
         }
 
         /// <summary>

@@ -324,6 +324,15 @@
 
                             <MenuFlyoutSeparator/>
 
+                            <!-- List -->
+                            <MenuFlyoutItem x:Name="MainVm_List" Text="List" Click="OnViewModeList">
+                                <MenuFlyoutItem.Icon>
+                                    <FontIcon Glyph="&#xE80A;"/>
+                                </MenuFlyoutItem.Icon>
+                            </MenuFlyoutItem>
+
+                            <MenuFlyoutSeparator/>
+
                             <!-- Icon Submenu -->
                             <MenuFlyoutSubItem x:Name="MainVm_Icons" Text="Icons">
                                 <MenuFlyoutSubItem.Icon>
@@ -698,6 +707,9 @@
                                         <MenuFlyoutItem x:Name="LeftVm_Details" Text="Details" Click="OnViewModeDetails">
                                             <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE8EF;"/></MenuFlyoutItem.Icon>
                                         </MenuFlyoutItem>
+                                        <MenuFlyoutItem x:Name="LeftVm_List" Text="List" Click="OnViewModeList">
+                                            <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE80A;"/></MenuFlyoutItem.Icon>
+                                        </MenuFlyoutItem>
                                         <MenuFlyoutSeparator/>
                                         <MenuFlyoutSubItem x:Name="LeftVm_Icons" Text="Icons">
                                             <MenuFlyoutSubItem.Icon><FontIcon Glyph="&#xE91B;"/></MenuFlyoutSubItem.Icon>
@@ -984,6 +996,11 @@
                                 <views:DetailsModeView x:Name="DetailsView"/>
                             </Grid>
 
+                            <!-- List View Host — 탭별 패널을 Show/Hide로 전환 -->
+                            <Grid x:Name="ListTabsHost" Visibility="Collapsed">
+                                <views:ListModeView x:Name="ListView"/>
+                            </Grid>
+
                             <!-- Icon View Host — 탭별 패널을 Show/Hide로 전환 -->
                             <Grid x:Name="IconTabsHost" Visibility="Collapsed">
                                 <views:IconModeView x:Name="IconView"/>
@@ -1157,6 +1174,9 @@
                                         </MenuFlyoutItem>
                                         <MenuFlyoutItem x:Name="RightVm_Details" Text="Details" Click="OnViewModeDetails">
                                             <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE8EF;"/></MenuFlyoutItem.Icon>
+                                        </MenuFlyoutItem>
+                                        <MenuFlyoutItem x:Name="RightVm_List" Text="List" Click="OnViewModeList">
+                                            <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE80A;"/></MenuFlyoutItem.Icon>
                                         </MenuFlyoutItem>
                                         <MenuFlyoutSeparator/>
                                         <MenuFlyoutSubItem x:Name="RightVm_Icons" Text="Icons">

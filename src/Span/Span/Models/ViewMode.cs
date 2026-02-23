@@ -43,6 +43,11 @@ namespace Span.Models
         /// <summary>
         /// Settings: 임베디드 설정 페이지
         /// </summary>
-        Settings = 7
+        Settings = 7,
+
+        /// <summary>
+        /// List: 고밀도 멀티컬럼 리스트 (세로 흐름, Windows Explorer List 스타일)
+        /// </summary>
+        List = 8
     }
 }

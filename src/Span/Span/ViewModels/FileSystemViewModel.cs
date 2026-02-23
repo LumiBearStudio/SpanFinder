@@ -28,6 +28,34 @@ namespace Span.ViewModels
         [ObservableProperty]
         private BitmapImage? _thumbnailSource;
 
+        /// <summary>
+        /// 클라우드 동기화 상태 글리프 (OneDrive 등).
+        /// 빈 문자열이면 뱃지 숨김.
+        /// </summary>
+        [ObservableProperty]
+        private string _cloudStateGlyph = string.Empty;
+
+        /// <summary>
+        /// 클라우드 동기화 상태.
+        /// </summary>
+        [ObservableProperty]
+        private Models.CloudState _cloudState = Models.CloudState.None;
+
+        partial void OnCloudStateChanged(Models.CloudState value)
+        {
+            CloudStateGlyph = Services.CloudSyncService.GetCloudStateGlyph(value);
+        }
+
+        /// <summary>
+        /// 클라우드 뱃지 표시 여부.
+        /// </summary>
+        public bool HasCloudBadge => CloudState != Models.CloudState.None;
+
+        partial void OnCloudStateGlyphChanged(string value)
+        {
+            OnPropertyChanged(nameof(HasCloudBadge));
+        }
+
         public string Name => _model.Name;
         public string Path => _model.Path;
 

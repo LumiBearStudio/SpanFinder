@@ -79,11 +79,13 @@ namespace Span
         private readonly Dictionary<string, (ScrollViewer scroller, ItemsControl items)> _tabMillerPanels = new();
         private string? _activeMillerTabId;
 
-        // ── Per-Tab Details/Icon Panels (Show/Hide pattern — Miller와 동일 패턴) ──
+        // ── Per-Tab Details/Icon/List Panels (Show/Hide pattern — Miller와 동일 패턴) ──
         private readonly Dictionary<string, Views.DetailsModeView> _tabDetailsPanels = new();
         private readonly Dictionary<string, Views.IconModeView> _tabIconPanels = new();
+        private readonly Dictionary<string, Views.ListModeView> _tabListPanels = new();
         private string? _activeDetailsTabId;
         private string? _activeIconTabId;
+        private string? _activeListTabId;
 
         // Clipboard
         private readonly List<string> _clipboardPaths = new();
@@ -184,17 +186,20 @@ namespace Span
             _tabMillerPanels[firstTabId] = (MillerScrollViewer, MillerColumnsControl);
             _activeMillerTabId = firstTabId;
 
-            // ── Per-Tab Details/Icon Panel 초기화 ──
+            // ── Per-Tab Details/Icon/List Panel 초기화 ──
             _tabDetailsPanels[firstTabId] = DetailsView;
             _tabIconPanels[firstTabId] = IconView;
+            _tabListPanels[firstTabId] = ListView;
             _activeDetailsTabId = firstTabId;
             _activeIconTabId = firstTabId;
+            _activeListTabId = firstTabId;
 
             // Focus management on ViewMode change
             ViewModel.PropertyChanged += OnViewModelPropertyChanged;
 
-            // Set ViewModel for Details and Icon views (left pane)
+            // Set ViewModel for Details, List and Icon views (left pane)
             DetailsView.ViewModel = ViewModel.Explorer;
+            ListView.ViewModel = ViewModel.Explorer;
             IconView.ViewModel = ViewModel.Explorer;
             HomeView.MainViewModel = ViewModel;
             SettingsView.BackRequested += (s, e) => CloseCurrentSettingsTab();
@@ -217,6 +222,9 @@ namespace Span
             DetailsView.ContextMenuService = _contextMenuService;
             DetailsView.ContextMenuHost = this;
             DetailsView.OwnerHwnd = _hwnd;
+            ListView.ContextMenuService = _contextMenuService;
+            ListView.ContextMenuHost = this;
+            ListView.OwnerHwnd = _hwnd;
             IconView.ContextMenuService = _contextMenuService;
             IconView.ContextMenuHost = this;
             IconView.OwnerHwnd = _hwnd;
@@ -504,10 +512,14 @@ namespace Span
                 }
                 catch { }
 
-                // STEP 3: Per-tab Details/Icon 인스턴스 전체 정리
+                // STEP 3: Per-tab Details/List/Icon 인스턴스 전체 정리
                 foreach (var kvp in _tabDetailsPanels)
                     try { kvp.Value?.Cleanup(); } catch { }
                 _tabDetailsPanels.Clear();
+
+                foreach (var kvp in _tabListPanels)
+                    try { kvp.Value?.Cleanup(); } catch { }
+                _tabListPanels.Clear();
 
                 foreach (var kvp in _tabIconPanels)
                     try { kvp.Value?.Cleanup(); } catch { }
@@ -1360,6 +1372,7 @@ namespace Span
             // HOST 단위 Visibility
             MillerTabsHost.Visibility = mode == ViewMode.MillerColumns ? Visibility.Visible : Visibility.Collapsed;
             DetailsTabsHost.Visibility = mode == ViewMode.Details ? Visibility.Visible : Visibility.Collapsed;
+            ListTabsHost.Visibility = mode == ViewMode.List ? Visibility.Visible : Visibility.Collapsed;
             IconTabsHost.Visibility = Helpers.ViewModeExtensions.IsIconMode(mode) ? Visibility.Visible : Visibility.Collapsed;
             HomeView.Visibility = mode == ViewMode.Home ? Visibility.Visible : Visibility.Collapsed;
             SettingsView.Visibility = mode == ViewMode.Settings ? Visibility.Visible : Visibility.Collapsed;
@@ -1402,6 +1415,14 @@ namespace Span
                 if (_tabDetailsPanels.TryGetValue(tabId, out var dp))
                     dp.Visibility = Visibility.Visible;
                 _activeDetailsTabId = tabId;
+            }
+            if (tabId != null && mode == ViewMode.List)
+            {
+                if (!_tabListPanels.ContainsKey(tabId))
+                    CreateListPanelForTab(ViewModel.ActiveTab!);
+                if (_tabListPanels.TryGetValue(tabId, out var mp))
+                    mp.Visibility = Visibility.Visible;
+                _activeListTabId = tabId;
             }
             if (tabId != null && Helpers.ViewModeExtensions.IsIconMode(mode))
             {
@@ -1504,6 +1525,11 @@ namespace Span
                     case Models.ViewMode.Details:
                         GetActiveDetailsView()?.FocusListView();
                         Helpers.DebugLogger.Log("[MainWindow] Focus: Details");
+                        break;
+
+                    case Models.ViewMode.List:
+                        GetActiveListView()?.FocusGridView();
+                        Helpers.DebugLogger.Log("[MainWindow] Focus: List");
                         break;
 
                     case Models.ViewMode.IconSmall:
@@ -3488,7 +3514,8 @@ namespace Span
                     {
                         case Windows.System.VirtualKey.Number1: // Ctrl+1: Miller
                         case Windows.System.VirtualKey.Number2: // Ctrl+2: Details
-                        case Windows.System.VirtualKey.Number3: // Ctrl+3: Icons
+                        case Windows.System.VirtualKey.Number3: // Ctrl+3: List
+                        case Windows.System.VirtualKey.Number4: // Ctrl+4: Icons
                         case (Windows.System.VirtualKey)188:    // Ctrl+,: Settings
                         case (Windows.System.VirtualKey)192:    // Ctrl+`: Terminal (VK_OEM_3)
                         case (Windows.System.VirtualKey)222:    // Ctrl+': Terminal (VK_OEM_7)
@@ -3704,7 +3731,13 @@ namespace Span
                         break;
 
                     case Windows.System.VirtualKey.Number3:
-                        // Ctrl+3: Icon (마지막 Icon 크기)
+                        // Ctrl+3: List
+                        ViewModel.SwitchViewMode(Models.ViewMode.List);
+                        e.Handled = true;
+                        break;
+
+                    case Windows.System.VirtualKey.Number4:
+                        // Ctrl+4: Icon (마지막 Icon 크기)
                         ViewModel.SwitchViewMode(ViewModel.CurrentIconSize);
                         GetActiveIconView()?.UpdateIconSize(ViewModel.CurrentIconSize);
                         e.Handled = true;
@@ -5991,6 +6024,11 @@ namespace Span
             ViewModel.SwitchViewMode(Models.ViewMode.Details);
         }
 
+        private void OnViewModeList(object sender, RoutedEventArgs e)
+        {
+            ViewModel.SwitchViewMode(Models.ViewMode.List);
+        }
+
         private void OnViewModeIconExtraLarge(object sender, RoutedEventArgs e)
         {
             ViewModel.SwitchViewMode(Models.ViewMode.IconExtraLarge);
@@ -6026,6 +6064,7 @@ namespace Span
         {
             Models.ViewMode.MillerColumns,
             Models.ViewMode.Details,
+            Models.ViewMode.List,
             Models.ViewMode.IconSmall,
             Models.ViewMode.IconMedium,
             Models.ViewMode.IconLarge,
@@ -6078,6 +6117,14 @@ namespace Span
             if (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
                 return DetailsViewRight;
             if (_activeDetailsTabId != null && _tabDetailsPanels.TryGetValue(_activeDetailsTabId, out var view))
+                return view;
+            return null;
+        }
+
+        private Views.ListModeView? GetActiveListView()
+        {
+            // List has no right pane variant yet — left pane only
+            if (_activeListTabId != null && _tabListPanels.TryGetValue(_activeListTabId, out var view))
                 return view;
             return null;
         }
@@ -6138,7 +6185,7 @@ namespace Span
                 // 비활성 탭은 SwitchMillerPanel 호출 시 Lazy 생성
             }
 
-            // ── Per-Tab Details/Icon Panels 초기화 ──
+            // ── Per-Tab Details/List/Icon Panels 초기화 ──
             // 기존 동적 패널 정리 (XAML 정의 인스턴스 제외)
             foreach (var kvp in _tabDetailsPanels)
             {
@@ -6149,6 +6196,16 @@ namespace Span
                 }
             }
             _tabDetailsPanels.Clear();
+
+            foreach (var kvp in _tabListPanels)
+            {
+                if (kvp.Value != ListView)
+                {
+                    try { kvp.Value?.Cleanup(); } catch { }
+                    ListTabsHost.Children.Remove(kvp.Value);
+                }
+            }
+            _tabListPanels.Clear();
 
             foreach (var kvp in _tabIconPanels)
             {
@@ -6165,8 +6222,10 @@ namespace Span
             if (activeTab != null)
             {
                 _tabDetailsPanels[activeTab.Id] = DetailsView;
+                _tabListPanels[activeTab.Id] = ListView;
                 _tabIconPanels[activeTab.Id] = IconView;
                 _activeDetailsTabId = activeTab.Id;
+                _activeListTabId = activeTab.Id;
                 _activeIconTabId = activeTab.Id;
             }
 
@@ -6331,6 +6390,66 @@ namespace Span
         }
 
         // =================================================================
+        //  Per-Tab List Panel Management (Show/Hide pattern)
+        // =================================================================
+
+        private Views.ListModeView CreateListPanelForTab(Models.TabItem tab)
+        {
+            var listView = new Views.ListModeView
+            {
+                IsManualViewModel = true,
+                ViewModel = tab.Explorer,
+                ContextMenuService = _contextMenuService,
+                ContextMenuHost = this,
+                OwnerHwnd = _hwnd,
+                Visibility = Visibility.Collapsed
+            };
+
+            ListTabsHost.Children.Add(listView);
+            _tabListPanels[tab.Id] = listView;
+
+            Helpers.DebugLogger.Log($"[ListPanel] Created panel for tab {tab.Id} ({tab.Header})");
+            return listView;
+        }
+
+        private void SwitchListPanel(string newTabId, bool shouldCreate)
+        {
+            if (_activeListTabId == newTabId) return;
+
+            if (_activeListTabId != null && _tabListPanels.TryGetValue(_activeListTabId, out var oldPanel))
+            {
+                oldPanel.Visibility = Visibility.Collapsed;
+            }
+
+            if (_tabListPanels.TryGetValue(newTabId, out var newPanel))
+            {
+                newPanel.Visibility = Visibility.Visible;
+            }
+            else if (shouldCreate)
+            {
+                var tab = ViewModel.Tabs.FirstOrDefault(t => t.Id == newTabId);
+                if (tab != null)
+                {
+                    newPanel = CreateListPanelForTab(tab);
+                    newPanel.Visibility = Visibility.Visible;
+                }
+            }
+
+            _activeListTabId = newTabId;
+        }
+
+        private void RemoveListPanel(string tabId)
+        {
+            if (_tabListPanels.TryGetValue(tabId, out var panel))
+            {
+                try { panel.Cleanup(); } catch { }
+                ListTabsHost.Children.Remove(panel);
+                _tabListPanels.Remove(tabId);
+                Helpers.DebugLogger.Log($"[ListPanel] Removed panel for tab {tabId}");
+            }
+        }
+
+        // =================================================================
         //  Per-Tab Icon Panel Management (Show/Hide pattern)
         // =================================================================
 
@@ -6429,6 +6548,7 @@ namespace Span
                         // Show/Hide 패널 전환 (ViewModel.SwitchToTab 전에 실행하여 바인딩 재평가 방지)
                         SwitchMillerPanel(tab.Id);
                         SwitchDetailsPanel(tab.Id, tab.ViewMode == ViewMode.Details);
+                        SwitchListPanel(tab.Id, tab.ViewMode == ViewMode.List);
                         SwitchIconPanel(tab.Id, Helpers.ViewModeExtensions.IsIconMode(tab.ViewMode));
                     }
                     ViewModel.SwitchToTab(index);
@@ -6598,6 +6718,7 @@ namespace Span
 
                 RemoveMillerPanel(tab.Id);
                 RemoveDetailsPanel(tab.Id);
+                RemoveListPanel(tab.Id);
                 RemoveIconPanel(tab.Id);
                 ViewModel.CloseTab(index);
 
@@ -6606,6 +6727,7 @@ namespace Span
                 {
                     SwitchMillerPanel(ViewModel.ActiveTab.Id);
                     SwitchDetailsPanel(ViewModel.ActiveTab.Id, ViewModel.ActiveTab.ViewMode == ViewMode.Details);
+                    SwitchListPanel(ViewModel.ActiveTab.Id, ViewModel.ActiveTab.ViewMode == ViewMode.List);
                     SwitchIconPanel(ViewModel.ActiveTab.Id, Helpers.ViewModeExtensions.IsIconMode(ViewModel.ActiveTab.ViewMode));
                 }
                 ResubscribeLeftExplorer();
@@ -6900,6 +7022,7 @@ namespace Span
                         // 패널 제거 (닫히는 탭)
                         RemoveMillerPanel(tab.Id);
                         RemoveDetailsPanel(tab.Id);
+                        RemoveListPanel(tab.Id);
                         RemoveIconPanel(tab.Id);
                         ViewModel.CloseTab(index);
                         // CloseTab이 SwitchToTab을 호출하면 활성 탭이 변경됨 — 패널 전환
@@ -6907,6 +7030,7 @@ namespace Span
                         {
                             SwitchMillerPanel(ViewModel.ActiveTab.Id);
                             SwitchDetailsPanel(ViewModel.ActiveTab.Id, ViewModel.ActiveTab.ViewMode == ViewMode.Details);
+                            SwitchListPanel(ViewModel.ActiveTab.Id, ViewModel.ActiveTab.ViewMode == ViewMode.List);
                             SwitchIconPanel(ViewModel.ActiveTab.Id, Helpers.ViewModeExtensions.IsIconMode(ViewModel.ActiveTab.ViewMode));
                         }
                     }
@@ -6930,6 +7054,7 @@ namespace Span
                 SwitchMillerPanel(newTab.Id);
                 // Details/Icon은 ViewMode 전환 시 lazy 생성 (새 탭은 보통 Home 또는 Miller)
                 SwitchDetailsPanel(newTab.Id, newTab.ViewMode == ViewMode.Details);
+                SwitchListPanel(newTab.Id, newTab.ViewMode == ViewMode.List);
                 SwitchIconPanel(newTab.Id, Helpers.ViewModeExtensions.IsIconMode(newTab.ViewMode));
             }
             ResubscribeLeftExplorer();
@@ -6964,12 +7089,14 @@ namespace Span
                     {
                         RemoveMillerPanel(tab.Id);
                         RemoveDetailsPanel(tab.Id);
+                        RemoveListPanel(tab.Id);
                         RemoveIconPanel(tab.Id);
                         ViewModel.CloseTab(index);
                         if (ViewModel.ActiveTab != null)
                         {
                             SwitchMillerPanel(ViewModel.ActiveTab.Id);
                             SwitchDetailsPanel(ViewModel.ActiveTab.Id, ViewModel.ActiveTab.ViewMode == ViewMode.Details);
+                            SwitchListPanel(ViewModel.ActiveTab.Id, ViewModel.ActiveTab.ViewMode == ViewMode.List);
                             SwitchIconPanel(ViewModel.ActiveTab.Id, Helpers.ViewModeExtensions.IsIconMode(ViewModel.ActiveTab.ViewMode));
                         }
                         ResubscribeLeftExplorer();
@@ -6993,12 +7120,14 @@ namespace Span
                     {
                         RemoveMillerPanel(id);
                         RemoveDetailsPanel(id);
+                        RemoveListPanel(id);
                         RemoveIconPanel(id);
                     }
                     if (ViewModel.ActiveTab != null)
                     {
                         SwitchMillerPanel(ViewModel.ActiveTab.Id);
                         SwitchDetailsPanel(ViewModel.ActiveTab.Id, ViewModel.ActiveTab.ViewMode == ViewMode.Details);
+                        SwitchListPanel(ViewModel.ActiveTab.Id, ViewModel.ActiveTab.ViewMode == ViewMode.List);
                         SwitchIconPanel(ViewModel.ActiveTab.Id, Helpers.ViewModeExtensions.IsIconMode(ViewModel.ActiveTab.ViewMode));
                     }
                     ResubscribeLeftExplorer();
@@ -7022,12 +7151,14 @@ namespace Span
                     {
                         RemoveMillerPanel(id);
                         RemoveDetailsPanel(id);
+                        RemoveListPanel(id);
                         RemoveIconPanel(id);
                     }
                     if (ViewModel.ActiveTab != null)
                     {
                         SwitchMillerPanel(ViewModel.ActiveTab.Id);
                         SwitchDetailsPanel(ViewModel.ActiveTab.Id, ViewModel.ActiveTab.ViewMode == ViewMode.Details);
+                        SwitchListPanel(ViewModel.ActiveTab.Id, ViewModel.ActiveTab.ViewMode == ViewMode.List);
                         SwitchIconPanel(ViewModel.ActiveTab.Id, Helpers.ViewModeExtensions.IsIconMode(ViewModel.ActiveTab.ViewMode));
                     }
                     ResubscribeLeftExplorer();
@@ -8553,6 +8684,7 @@ namespace Span
                 CreateMillerPanelForTab(newTab);
                 SwitchMillerPanel(newTab.Id);
                 SwitchDetailsPanel(newTab.Id, newTab.ViewMode == ViewMode.Details);
+                SwitchListPanel(newTab.Id, newTab.ViewMode == ViewMode.List);
                 SwitchIconPanel(newTab.Id, Helpers.ViewModeExtensions.IsIconMode(newTab.ViewMode));
                 ViewModel.SwitchToTab(ViewModel.Tabs.Count - 1);
                 ResubscribeLeftExplorer();

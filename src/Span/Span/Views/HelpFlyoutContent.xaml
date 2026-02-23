@@ -57,7 +57,7 @@
             <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="10" Margin="0,0,0,16">
                 <FontIcon Glyph="&#xE897;" FontSize="18"
                           Foreground="{ThemeResource SpanAccentBrush}"/>
-                <TextBlock Text="키보드 단축키" FontSize="18" FontWeight="SemiBold"
+                <TextBlock x:Name="HelpTitleText" Text="키보드 단축키" FontSize="18" FontWeight="SemiBold"
                            Foreground="{ThemeResource SpanTextPrimaryBrush}"/>
             </StackPanel>
 
@@ -79,138 +79,138 @@
 
                     <!-- 탐색 -->
                     <StackPanel Grid.Row="0" Grid.Column="0" Spacing="5">
-                        <TextBlock Style="{StaticResource CategoryHeader}" Text="탐색"/>
+                        <TextBlock x:Name="NavHeader" Style="{StaticResource CategoryHeader}" Text="탐색"/>
                         <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="← →"/></Border>
-                            <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="컬럼 간 이동"/></Grid>
+                            <TextBlock x:Name="DescColumnNav" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="컬럼 간 이동"/></Grid>
                         <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Enter"/></Border>
-                            <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="폴더 열기 / 파일 실행"/></Grid>
+                            <TextBlock x:Name="DescOpenFolder" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="폴더 열기 / 파일 실행"/></Grid>
                         <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Backspace"/></Border>
-                            <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="상위 폴더"/></Grid>
+                            <TextBlock x:Name="DescParentFolder" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="상위 폴더"/></Grid>
                         <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Alt+← →"/></Border>
-                            <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="뒤로 / 앞으로"/></Grid>
+                            <TextBlock x:Name="DescBackForward" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="뒤로 / 앞으로"/></Grid>
                         <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+L"/></Border>
-                            <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="주소 표시줄 포커스"/></Grid>
+                            <TextBlock x:Name="DescAddressBar" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="주소 표시줄 포커스"/></Grid>
                         <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+F"/></Border>
-                            <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="검색"/></Grid>
+                            <TextBlock x:Name="DescSearch" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="검색"/></Grid>
                         <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Space"/></Border>
-                            <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="Quick Look 미리보기"/></Grid>
+                            <TextBlock x:Name="DescQuickLook" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="Quick Look 미리보기"/></Grid>
                     </StackPanel>
 
                     <!-- 편집 -->
                     <StackPanel Grid.Row="1" Grid.Column="0" Spacing="5">
-                        <TextBlock Style="{StaticResource CategoryHeader}" Text="편집"/>
+                        <TextBlock x:Name="EditHeader" Style="{StaticResource CategoryHeader}" Text="편집"/>
                         <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+C"/></Border>
-                            <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="복사"/></Grid>
+                            <TextBlock x:Name="DescCopy" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="복사"/></Grid>
                         <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+X"/></Border>
-                            <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="잘라내기"/></Grid>
+                            <TextBlock x:Name="DescCut" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="잘라내기"/></Grid>
                         <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+V"/></Border>
-                            <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="붙여넣기"/></Grid>
+                            <TextBlock x:Name="DescPaste" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="붙여넣기"/></Grid>
                         <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+D"/></Border>
-                            <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="복제"/></Grid>
+                            <TextBlock x:Name="DescDuplicate" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="복제"/></Grid>
                         <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="F2"/></Border>
-                            <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="이름 변경"/></Grid>
+                            <TextBlock x:Name="DescRename" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="이름 변경"/></Grid>
                         <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Delete"/></Border>
-                            <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="삭제 (휴지통)"/></Grid>
+                            <TextBlock x:Name="DescDelete" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="삭제 (휴지통)"/></Grid>
                         <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Shift+Del"/></Border>
-                            <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="영구 삭제"/></Grid>
+                            <TextBlock x:Name="DescPermDelete" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="영구 삭제"/></Grid>
                         <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+Shift+N"/></Border>
-                            <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="새 폴더"/></Grid>
+                            <TextBlock x:Name="DescNewFolder" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="새 폴더"/></Grid>
                         <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+Z / Y"/></Border>
-                            <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="실행 취소 / 다시 실행"/></Grid>
+                            <TextBlock x:Name="DescUndoRedo" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="실행 취소 / 다시 실행"/></Grid>
                     </StackPanel>
 
                     <!-- ===== Right Column ===== -->
 
                     <!-- 선택 -->
                     <StackPanel Grid.Row="0" Grid.Column="1" Spacing="5">
-                        <TextBlock Style="{StaticResource CategoryHeader}" Text="선택"/>
+                        <TextBlock x:Name="SelectionHeader" Style="{StaticResource CategoryHeader}" Text="선택"/>
                         <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+A"/></Border>
-                            <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="전체 선택"/></Grid>
+                            <TextBlock x:Name="DescSelectAll" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="전체 선택"/></Grid>
                         <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+Shift+A"/></Border>
-                            <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="선택 해제"/></Grid>
+                            <TextBlock x:Name="DescDeselectAll" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="선택 해제"/></Grid>
                         <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+I"/></Border>
-                            <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="선택 반전"/></Grid>
+                            <TextBlock x:Name="DescInvertSel" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="선택 반전"/></Grid>
                     </StackPanel>
 
                     <!-- 보기 & 레이아웃 -->
                     <StackPanel Grid.Row="1" Grid.Column="1" Spacing="5">
-                        <TextBlock Style="{StaticResource CategoryHeader}" Text="보기"/>
+                        <TextBlock x:Name="ViewHeader" Style="{StaticResource CategoryHeader}" Text="보기"/>
                         <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+1"/></Border>
-                            <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="밀러 컬럼"/></Grid>
+                            <TextBlock x:Name="DescMillerCol" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="밀러 컬럼"/></Grid>
                         <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+2"/></Border>
-                            <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="상세 목록"/></Grid>
+                            <TextBlock x:Name="DescDetailList" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="상세 목록"/></Grid>
                         <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+3"/></Border>
-                            <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="아이콘"/></Grid>
+                            <TextBlock x:Name="DescIcons" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="아이콘"/></Grid>
                         <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+Shift+E"/></Border>
-                            <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="분할 뷰 토글"/></Grid>
+                            <TextBlock x:Name="DescSplitView" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="분할 뷰 토글"/></Grid>
                         <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+Shift+P"/></Border>
-                            <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="미리보기 패널"/></Grid>
+                            <TextBlock x:Name="DescPreviewPanel" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="미리보기 패널"/></Grid>
                         <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+Tab"/></Border>
-                            <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="패널 전환 (분할 뷰)"/></Grid>
+                            <TextBlock x:Name="DescSwitchPanel" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="패널 전환 (분할 뷰)"/></Grid>
                         <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+Shift+="/></Border>
-                            <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="컬럼 너비 통일"/></Grid>
+                            <TextBlock x:Name="DescEqColumns" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="컬럼 너비 통일"/></Grid>
                         <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+Shift+-"/></Border>
-                            <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="컬럼 자동 맞춤"/></Grid>
+                            <TextBlock x:Name="DescAutoFit" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="컬럼 자동 맞춤"/></Grid>
                         <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="F5"/></Border>
-                            <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="새로고침"/></Grid>
+                            <TextBlock x:Name="DescRefresh" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="새로고침"/></Grid>
                     </StackPanel>
 
                     <!-- 창 & 탭 -->
                     <StackPanel Grid.Row="2" Grid.Column="0" Spacing="5">
-                        <TextBlock Style="{StaticResource CategoryHeader}" Text="창 / 탭"/>
+                        <TextBlock x:Name="WindowTabHeader" Style="{StaticResource CategoryHeader}" Text="창 / 탭"/>
                         <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+T"/></Border>
-                            <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="새 탭"/></Grid>
+                            <TextBlock x:Name="DescNewTab" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="새 탭"/></Grid>
                         <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+W"/></Border>
-                            <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="탭 닫기"/></Grid>
+                            <TextBlock x:Name="DescCloseTab" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="탭 닫기"/></Grid>
                         <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+N"/></Border>
-                            <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="새 창"/></Grid>
+                            <TextBlock x:Name="DescNewWindow" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="새 창"/></Grid>
                         <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+`"/></Border>
-                            <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="터미널 열기"/></Grid>
+                            <TextBlock x:Name="DescOpenTerminal" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="터미널 열기"/></Grid>
                         <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+,"/></Border>
-                            <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="설정"/></Grid>
+                            <TextBlock x:Name="DescSettings" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="설정"/></Grid>
                         <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Alt+Enter"/></Border>
-                            <TextBlock Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="속성"/></Grid>
+                            <TextBlock x:Name="DescProperties" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="속성"/></Grid>
                     </StackPanel>
 
                 </Grid>
             </ScrollViewer>
 
             <!-- Footer hint -->
-            <TextBlock Grid.Row="2" Margin="0,16,0,0"
+            <TextBlock x:Name="FooterHint" Grid.Row="2" Margin="0,16,0,0"
                        HorizontalAlignment="Center"
                        FontSize="11" Foreground="{ThemeResource SpanTextSecondaryBrush}"
                        Text="Esc 또는 아무 곳이나 클릭하여 닫기"/>

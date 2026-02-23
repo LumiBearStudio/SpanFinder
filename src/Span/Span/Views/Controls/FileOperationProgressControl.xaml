@@ -33,11 +33,11 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
-                    <TextBlock Grid.Column="0" Text="File Operations"
+                    <TextBlock x:Name="HeaderText" Grid.Column="0" Text="File Operations"
                                FontWeight="SemiBold" FontSize="13"
                                VerticalAlignment="Center"/>
 
-                    <Button Grid.Column="1" Content="Cancel All"
+                    <Button x:Name="CancelAllButton" Grid.Column="1" Content="Cancel All"
                             FontSize="11" Padding="8,4"
                             Command="{x:Bind ViewModel.CancelAllCommand}"
                             Style="{StaticResource DefaultButtonStyle}"/>

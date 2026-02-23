@@ -21,7 +21,7 @@
         <!-- Conflict Message -->
         <TextBlock Grid.Row="0"
                    TextWrapping="Wrap">
-            <Run Text="A file with the same name already exists in this location:"/>
+            <Run x:Name="ConflictMessageRun" Text="A file with the same name already exists in this location:"/>
             <LineBreak/>
             <Run Text="{x:Bind ViewModel.DestinationPath, Mode=OneWay}"
                  FontWeight="SemiBold"/>
@@ -41,7 +41,7 @@
                     CornerRadius="4"
                     Padding="12">
                 <StackPanel Spacing="8">
-                    <TextBlock Text="Source File"
+                    <TextBlock x:Name="SourceFileHeader" Text="Source File"
                                FontWeight="SemiBold"
                                Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
                     <TextBlock Text="{x:Bind ViewModel.SourcePath, Mode=OneWay}"
@@ -58,7 +58,7 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 
-                        <TextBlock Grid.Row="0" Grid.Column="0"
+                        <TextBlock x:Name="SourceSizeLabel" Grid.Row="0" Grid.Column="0"
                                    Text="Size:"
                                    FontSize="12"/>
                         <TextBlock Grid.Row="0" Grid.Column="1"
@@ -66,7 +66,7 @@
                                    FontSize="12"
                                    Margin="4,0,0,0"/>
 
-                        <TextBlock Grid.Row="1" Grid.Column="0"
+                        <TextBlock x:Name="SourceModifiedLabel" Grid.Row="1" Grid.Column="0"
                                    Text="Modified:"
                                    FontSize="12"/>
                         <TextBlock Grid.Row="1" Grid.Column="1"
@@ -84,7 +84,7 @@
                     CornerRadius="4"
                     Padding="12">
                 <StackPanel Spacing="8">
-                    <TextBlock Text="Existing File"
+                    <TextBlock x:Name="ExistingFileHeader" Text="Existing File"
                                FontWeight="SemiBold"
                                Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
                     <TextBlock Text="{x:Bind ViewModel.DestinationPath, Mode=OneWay}"
@@ -101,7 +101,7 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 
-                        <TextBlock Grid.Row="0" Grid.Column="0"
+                        <TextBlock x:Name="DestSizeLabel" Grid.Row="0" Grid.Column="0"
                                    Text="Size:"
                                    FontSize="12"/>
                         <TextBlock Grid.Row="0" Grid.Column="1"
@@ -109,7 +109,7 @@
                                    FontSize="12"
                                    Margin="4,0,0,0"/>
 
-                        <TextBlock Grid.Row="1" Grid.Column="0"
+                        <TextBlock x:Name="DestModifiedLabel" Grid.Row="1" Grid.Column="0"
                                    Text="Modified:"
                                    FontSize="12"/>
                         <TextBlock Grid.Row="1" Grid.Column="1"
@@ -123,60 +123,48 @@
 
         <!-- Resolution Options -->
         <StackPanel Grid.Row="2" Spacing="8">
-            <TextBlock Text="Choose what to do:"
+            <TextBlock x:Name="ChooseActionText" Text="Choose what to do:"
                        FontWeight="SemiBold"/>
 
-            <RadioButton Content="Replace the file in the destination"
+            <RadioButton x:Name="ReplaceRadio"
                          GroupName="ConflictResolution"
                          IsChecked="{x:Bind IsReplace, Mode=TwoWay}">
-                <RadioButton.ContentTemplate>
-                    <DataTemplate>
-                        <StackPanel>
-                            <TextBlock Text="Replace the file in the destination"
-                                       FontWeight="SemiBold"/>
-                            <TextBlock Text="The existing file will be overwritten"
-                                       FontSize="12"
-                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                        </StackPanel>
-                    </DataTemplate>
-                </RadioButton.ContentTemplate>
+                <StackPanel>
+                    <TextBlock x:Name="ReplaceText" Text="Replace the file in the destination"
+                               FontWeight="SemiBold"/>
+                    <TextBlock x:Name="ReplaceDesc" Text="The existing file will be overwritten"
+                               FontSize="12"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                </StackPanel>
             </RadioButton>
 
-            <RadioButton Content="Keep both files"
+            <RadioButton x:Name="KeepBothRadio"
                          GroupName="ConflictResolution"
                          IsChecked="{x:Bind IsKeepBoth, Mode=TwoWay}">
-                <RadioButton.ContentTemplate>
-                    <DataTemplate>
-                        <StackPanel>
-                            <TextBlock Text="Keep both files"
-                                       FontWeight="SemiBold"/>
-                            <TextBlock Text="The new file will be renamed automatically"
-                                       FontSize="12"
-                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                        </StackPanel>
-                    </DataTemplate>
-                </RadioButton.ContentTemplate>
+                <StackPanel>
+                    <TextBlock x:Name="KeepBothText" Text="Keep both files"
+                               FontWeight="SemiBold"/>
+                    <TextBlock x:Name="KeepBothDesc" Text="The new file will be renamed automatically"
+                               FontSize="12"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                </StackPanel>
             </RadioButton>
 
-            <RadioButton Content="Skip this file"
+            <RadioButton x:Name="SkipRadio"
                          GroupName="ConflictResolution"
                          IsChecked="{x:Bind IsSkip, Mode=TwoWay}">
-                <RadioButton.ContentTemplate>
-                    <DataTemplate>
-                        <StackPanel>
-                            <TextBlock Text="Skip this file"
-                                       FontWeight="SemiBold"/>
-                            <TextBlock Text="No changes will be made"
-                                       FontSize="12"
-                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                        </StackPanel>
-                    </DataTemplate>
-                </RadioButton.ContentTemplate>
+                <StackPanel>
+                    <TextBlock x:Name="SkipText" Text="Skip this file"
+                               FontWeight="SemiBold"/>
+                    <TextBlock x:Name="SkipDesc" Text="No changes will be made"
+                               FontSize="12"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                </StackPanel>
             </RadioButton>
         </StackPanel>
 
         <!-- Apply to All Checkbox -->
-        <CheckBox Grid.Row="3"
+        <CheckBox x:Name="ApplyToAllCheckbox" Grid.Row="3"
                   Content="Apply this action to all conflicts"
                   IsChecked="{x:Bind ViewModel.ApplyToAll, Mode=TwoWay}"/>
     </Grid>

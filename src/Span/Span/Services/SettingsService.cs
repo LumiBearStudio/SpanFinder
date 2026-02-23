@@ -226,4 +226,24 @@ public class SettingsService
         get => Get("ActiveTabIndex", 0);
         set => Set("ActiveTabIndex", value);
     }
+
+    // ── List View Settings ──
+
+    public bool ListShowSize
+    {
+        get => Get("ListShowSize", true);
+        set => Set("ListShowSize", value);
+    }
+
+    public bool ListShowDate
+    {
+        get => Get("ListShowDate", false);
+        set => Set("ListShowDate", value);
+    }
+
+    public int ListColumnWidth
+    {
+        get => Get("ListColumnWidth", 250);
+        set => Set("ListColumnWidth", value);
+    }
 }

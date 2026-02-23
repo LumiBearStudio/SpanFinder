@@ -137,14 +137,13 @@
         </DataTemplate>
     </UserControl.Resources>
 
-    <Grid x:Name="RootGrid">
+    <Grid x:Name="RootGrid" Loaded="OnRootGridLoaded" Unloaded="OnRootGridUnloaded">
         <GridView
             x:Name="IconGridView"
             ItemsSource="{Binding CurrentItems, Mode=OneWay}"
             SelectedItem="{Binding CurrentFolder.SelectedChild, Mode=TwoWay}"
             SelectionMode="Extended"
             CanDragItems="True"
-            AllowDrop="True"
             Background="Transparent"
             DragItemsStarting="OnDragItemsStarting"
             DoubleTapped="OnItemDoubleClick"

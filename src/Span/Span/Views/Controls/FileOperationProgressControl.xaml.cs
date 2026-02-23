@@ -9,16 +9,38 @@ public sealed partial class FileOperationProgressControl : UserControl
 {
     public FileOperationProgressViewModel ViewModel { get; set; }
 
+    private LocalizationService? _loc;
+
     public FileOperationProgressControl()
     {
         ViewModel = new FileOperationProgressViewModel();
         this.InitializeComponent();
+        this.Loaded += (s, e) =>
+        {
+            _loc = App.Current.Services.GetService(typeof(LocalizationService)) as LocalizationService;
+            LocalizeUI();
+            if (_loc != null) _loc.LanguageChanged += LocalizeUI;
+        };
+        this.Unloaded += (s, e) =>
+        {
+            if (_loc != null) _loc.LanguageChanged -= LocalizeUI;
+        };
     }
 
     public FileOperationProgressControl(FileOperationProgressViewModel viewModel)
     {
         ViewModel = viewModel;
         this.InitializeComponent();
+        this.Loaded += (s, e) =>
+        {
+            _loc = App.Current.Services.GetService(typeof(LocalizationService)) as LocalizationService;
+            LocalizeUI();
+            if (_loc != null) _loc.LanguageChanged += LocalizeUI;
+        };
+        this.Unloaded += (s, e) =>
+        {
+            if (_loc != null) _loc.LanguageChanged -= LocalizeUI;
+        };
     }
 
     /// <summary>
@@ -59,5 +81,12 @@ public sealed partial class FileOperationProgressControl : UserControl
         {
             ViewModel.OperationManager?.CancelOperation(operationId);
         }
+    }
+
+    private void LocalizeUI()
+    {
+        if (_loc == null) return;
+        HeaderText.Text = _loc.Get("FileOperations");
+        CancelAllButton.Content = _loc.Get("CancelAll");
     }
 }

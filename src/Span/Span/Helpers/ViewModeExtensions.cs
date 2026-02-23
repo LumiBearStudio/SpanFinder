@@ -42,6 +42,7 @@ namespace Span.Helpers
                 ViewMode.IconExtraLarge => "Extra Large Icons",
                 ViewMode.Home => "Home",
                 ViewMode.Settings => "Settings",
+                ViewMode.List => "List",
                 _ => mode.ToString()
             };
         }
@@ -55,7 +56,8 @@ namespace Span.Helpers
             {
                 ViewMode.MillerColumns => "Ctrl+1",
                 ViewMode.Details => "Ctrl+2",
-                ViewMode.IconSmall or ViewMode.IconMedium or ViewMode.IconLarge or ViewMode.IconExtraLarge => "Ctrl+3",
+                ViewMode.List => "Ctrl+3",
+                ViewMode.IconSmall or ViewMode.IconMedium or ViewMode.IconLarge or ViewMode.IconExtraLarge => "Ctrl+4",
                 ViewMode.Home => "",
                 _ => ""
             };

@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentDialog
+    x:Class="Span.Views.Dialogs.BatchRenameDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="일괄 이름 변경"
+    PrimaryButtonText="이름 변경"
+    CloseButtonText="취소"
+    DefaultButton="Primary"
+    MinWidth="600"
+    MaxHeight="700">
+
+    <StackPanel Spacing="12" MinWidth="560">
+        <!-- Mode Selection -->
+        <Pivot x:Name="ModePivot" SelectionChanged="OnPivotSelectionChanged">
+            <!-- 찾기/바꾸기 -->
+            <PivotItem Header="찾기/바꾸기">
+                <StackPanel Spacing="8" Margin="0,8,0,0">
+                    <TextBox x:Name="FindTextBox" Header="찾기" PlaceholderText="찾을 텍스트" TextChanged="OnInputChanged"/>
+                    <TextBox x:Name="ReplaceTextBox" Header="바꾸기" PlaceholderText="바꿀 텍스트" TextChanged="OnInputChanged"/>
+                    <StackPanel Orientation="Horizontal" Spacing="16">
+                        <CheckBox x:Name="CaseSensitiveCheck" Content="대소문자 구분" Click="OnOptionChanged"/>
+                        <CheckBox x:Name="UseRegexCheck" Content="정규식 사용" Click="OnOptionChanged"/>
+                    </StackPanel>
+                </StackPanel>
+            </PivotItem>
+
+            <!-- 접두사/접미사 -->
+            <PivotItem Header="접두사/접미사">
+                <StackPanel Spacing="8" Margin="0,8,0,0">
+                    <TextBox x:Name="PrefixTextBox" Header="접두사" PlaceholderText="파일명 앞에 추가" TextChanged="OnInputChanged"/>
+                    <TextBox x:Name="SuffixTextBox" Header="접미사" PlaceholderText="파일명 뒤에 추가 (확장자 전)" TextChanged="OnInputChanged"/>
+                </StackPanel>
+            </PivotItem>
+
+            <!-- 번호 매기기 -->
+            <PivotItem Header="번호 매기기">
+                <StackPanel Spacing="8" Margin="0,8,0,0">
+                    <TextBox x:Name="PatternTextBox" Header="패턴" TextChanged="OnInputChanged"/>
+                    <TextBlock FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               Opacity="0.7">
+                        <Run Text="{}{name}=원래 이름, {n}=번호, {ext}=확장자"/>
+                    </TextBlock>
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <NumberBox x:Name="StartNumberBox" Header="시작 번호" Value="1" Minimum="0" SpinButtonPlacementMode="Compact" Width="120"
+                                   ValueChanged="OnNumberChanged"/>
+                        <NumberBox x:Name="IncrementBox" Header="증가값" Value="1" Minimum="1" SpinButtonPlacementMode="Compact" Width="120"
+                                   ValueChanged="OnNumberChanged"/>
+                        <NumberBox x:Name="DigitsBox" Header="자릿수" Value="2" Minimum="1" Maximum="10" SpinButtonPlacementMode="Compact" Width="120"
+                                   ValueChanged="OnNumberChanged"/>
+                    </StackPanel>
+                </StackPanel>
+            </PivotItem>
+        </Pivot>
+
+        <!-- Preview -->
+        <TextBlock Text="미리보기" FontWeight="SemiBold" Margin="0,4,0,0"/>
+        <ListView x:Name="PreviewListView"
+                  MaxHeight="300"
+                  SelectionMode="None"
+                  BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                  BorderThickness="1"
+                  CornerRadius="4">
+            <ListView.ItemTemplate>
+                <DataTemplate>
+                    <Grid ColumnSpacing="4" Padding="4,2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="{Binding OldName}" VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis" Opacity="0.7"/>
+                        <TextBlock Grid.Column="1" Text=" → " VerticalAlignment="Center" Opacity="0.5"/>
+                        <TextBlock Grid.Column="2" Text="{Binding NewName}" VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"
+                                   Foreground="{ThemeResource TextFillColorPrimaryBrush}" FontWeight="SemiBold"/>
+                    </Grid>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+
+        <!-- Conflict Warning -->
+        <InfoBar x:Name="ConflictInfoBar"
+                 Title="이름 충돌"
+                 Message="동일한 이름이 있습니다. 충돌을 해결해주세요."
+                 Severity="Error"
+                 IsOpen="False"
+                 IsClosable="False"/>
+    </StackPanel>
+</ContentDialog>

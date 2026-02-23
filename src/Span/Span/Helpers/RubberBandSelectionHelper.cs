@@ -12,24 +12,27 @@ using Windows.Foundation;
 namespace Span.Helpers
 {
     /// <summary>
-    /// Rubber-band (marquee) selection helper for a single Miller column ListView.
-    /// Attaches to the content Grid that wraps the ListView, adding an overlay Canvas
+    /// Rubber-band (marquee) selection helper for ListView/GridView.
+    /// Attaches to the content Grid that wraps the ListViewBase, adding an overlay Canvas
     /// with a selection rectangle. Mouse-only (v1).
     /// </summary>
     internal sealed class RubberBandSelectionHelper
     {
         private enum State { Inactive, Starting, Active }
 
+        public bool IsActive => _state != State.Inactive;
+
         private const double DragThreshold = 5.0;
         private const double AutoScrollEdge = 30.0;
         private const double AutoScrollSpeed = 6.0;
 
         private readonly Grid _contentGrid;
-        private readonly ListView _listView;
+        private readonly ListViewBase _listView;
         private readonly Canvas _overlayCanvas;
         private readonly Rectangle _selectionRect;
         private readonly Func<bool> _getIsSyncing;
         private readonly Action<bool> _setIsSyncing;
+        private readonly Action<IList<object>>? _syncCallback;
 
         private bool _detached;
         private State _state = State.Inactive;
@@ -37,6 +40,8 @@ namespace Span.Helpers
         private bool _isCtrlHeld;
         private List<(FileSystemViewModel vm, Rect bounds)> _itemBoundsCache = new();
         private HashSet<FileSystemViewModel> _preSelectionSnapshot = new();
+        private bool _isCapturing; // guard: ignore PointerCaptureLost from our own CapturePointer call
+        private bool _savedCanDragItems = true; // saved CanDragItems value to restore after rubber band
 
         // Auto-scroll
         private DispatcherTimer? _autoScrollTimer;
@@ -45,14 +50,16 @@ namespace Span.Helpers
 
         public RubberBandSelectionHelper(
             Grid contentGrid,
-            ListView listView,
+            ListViewBase listView,
             Func<bool> getIsSyncing,
-            Action<bool> setIsSyncing)
+            Action<bool> setIsSyncing,
+            Action<IList<object>>? syncCallback = null)
         {
             _contentGrid = contentGrid;
             _listView = listView;
             _getIsSyncing = getIsSyncing;
             _setIsSyncing = setIsSyncing;
+            _syncCallback = syncCallback;
 
             // Create overlay canvas (transparent, not hit-testable when inactive)
             _overlayCanvas = new Canvas
@@ -126,8 +133,16 @@ namespace Span.Helpers
                 if (!props.IsLeftButtonPressed)
                     return;
 
+                // Clean up any stuck state from previous operation
+                if (_state != State.Inactive) Cleanup();
+
                 // Hit-test: if pointer is on actual item content (text/icon), let ListView handle it
                 if (IsPointerOnItemContent(e))
+                    return;
+
+                // Multi-selection + dead zone of a SELECTED item → let ListView handle for drag (move/copy)
+                // Only start rubber band from: empty space, unselected item dead zone, or single/no selection
+                if (_listView.SelectedItems.Count >= 2 && IsOnSelectedItem(e))
                     return;
 
                 // Empty space or item padding click — start rubber-band
@@ -148,8 +163,19 @@ namespace Span.Helpers
                 }
 
                 _state = State.Starting;
-                _contentGrid.CapturePointer(e.Pointer);
+
+                // Disable ListView's built-in drag to prevent DragItemsStarting from firing.
+                // This must happen BEFORE the next PointerMoved triggers the drag threshold check.
+                _savedCanDragItems = _listView.CanDragItems;
+                _listView.CanDragItems = false;
+
+                // DON'T capture pointer here — the ListViewItem's internal handlers have already
+                // processed this press and started drag tracking. Capturing now causes conflicts
+                // (PointerCaptureLost bubbling, internal drag state machine interference).
+                // Pointer capture will happen in OnPointerMoved when transitioning to Active.
+
                 e.Handled = true;
+                DebugLogger.Log($"[RubberBand] PointerPressed: Starting at ({point.X:F0},{point.Y:F0}), CanDragItems saved={_savedCanDragItems}");
             }
             catch (Exception ex)
             {
@@ -175,8 +201,14 @@ namespace Span.Helpers
 
                     // Transition to Active
                     _state = State.Active;
-                    _overlayCanvas.IsHitTestVisible = false; // keep it non-blocking
                     _selectionRect.Visibility = Visibility.Visible;
+
+                    // Make overlay hit-test visible so it blocks events from reaching ListView
+                    // and capture pointer on overlay canvas (isolated from ListView internals)
+                    _overlayCanvas.IsHitTestVisible = true;
+                    _isCapturing = true;
+                    try { _overlayCanvas.CapturePointer(e.Pointer); } catch { }
+                    _isCapturing = false;
 
                     // Cache item bounds
                     CacheItemBounds();
@@ -191,6 +223,8 @@ namespace Span.Helpers
 
                     // Start auto-scroll timer
                     StartAutoScroll();
+
+                    DebugLogger.Log($"[RubberBand] Transitioned to Active, captured on overlay");
                 }
 
                 if (_state == State.Active)
@@ -214,35 +248,28 @@ namespace Span.Helpers
             try
             {
                 var wasActive = _state == State.Active;
+                DebugLogger.Log($"[RubberBand] PointerReleased: state={_state}, wasActive={wasActive}");
 
-                if (_state == State.Starting && !wasActive)
+                if (_state == State.Starting)
                 {
-                    // Click on empty space without drag — clear selection
+                    // Click on empty/dead-zone without drag — clear selection
                     if (!_isCtrlHeld)
                     {
                         _setIsSyncing(true);
                         try { _listView.SelectedItems.Clear(); }
                         finally { _setIsSyncing(false); }
 
-                        // Sync to ViewModel
-                        if (_listView.DataContext is FolderViewModel folderVm)
-                        {
-                            folderVm.SyncSelectedItems(_listView.SelectedItems);
-                        }
+                        SyncToViewModel();
                     }
                 }
 
                 if (wasActive)
                 {
-                    // Final sync to ViewModel
-                    if (_listView.DataContext is FolderViewModel folderVm)
-                    {
-                        folderVm.SyncSelectedItems(_listView.SelectedItems);
-                    }
+                    SyncToViewModel();
                 }
 
                 Cleanup();
-                _contentGrid.ReleasePointerCapture(e.Pointer);
+                try { _overlayCanvas.ReleasePointerCapture(e.Pointer); } catch { }
                 e.Handled = true;
             }
             catch (Exception ex)
@@ -255,13 +282,33 @@ namespace Span.Helpers
         private void OnPointerCaptureLost(object sender, PointerRoutedEventArgs e)
         {
             if (_detached || _state == State.Inactive) return;
+
+            // Guard: ignore PointerCaptureLost fired by our own CapturePointer call
+            if (_isCapturing) return;
+
+            // During Starting state, we haven't captured anything ourselves.
+            // PointerCaptureLost is from ListView/ListViewItem internals (e.g. drag cancel) → ignore
+            if (_state == State.Starting)
+            {
+                DebugLogger.Log("[RubberBand] PointerCaptureLost: in Starting state, ignoring (internal ListView event)");
+                return;
+            }
+
+            // During Active state, only react if OUR capture target (overlay canvas) lost the pointer.
+            // Ignore PointerCaptureLost from other elements (ListViewItem drag cancellation, etc.)
+            if (_state == State.Active)
+            {
+                if (e.OriginalSource != _overlayCanvas)
+                {
+                    DebugLogger.Log($"[RubberBand] PointerCaptureLost: source is not overlay canvas, ignoring");
+                    return;
+                }
+            }
+
+            DebugLogger.Log("[RubberBand] PointerCaptureLost: genuine loss of overlay capture, cleaning up");
             try
             {
-                // Final sync
-                if (_listView.DataContext is FolderViewModel folderVm)
-                {
-                    folderVm.SyncSelectedItems(_listView.SelectedItems);
-                }
+                SyncToViewModel();
                 Cleanup();
             }
             catch (Exception ex)
@@ -271,12 +318,28 @@ namespace Span.Helpers
             }
         }
 
+        private void SyncToViewModel()
+        {
+            if (_syncCallback != null)
+            {
+                _syncCallback(_listView.SelectedItems);
+            }
+            else if (_listView.DataContext is FolderViewModel folderVm)
+            {
+                folderVm.SyncSelectedItems(_listView.SelectedItems);
+            }
+        }
+
         private void Cleanup()
         {
             _state = State.Inactive;
             _itemBoundsCache.Clear();
             _preSelectionSnapshot.Clear();
             StopAutoScroll();
+
+            // Restore ListView's CanDragItems (disabled during rubber band to prevent built-in drag)
+            try { _listView.CanDragItems = _savedCanDragItems; } catch { }
+
             try
             {
                 _selectionRect.Visibility = Visibility.Collapsed;
@@ -287,23 +350,45 @@ namespace Span.Helpers
 
         /// <summary>
         /// Walk the visual tree from OriginalSource upward to check if pointer hit
-        /// actual item CONTENT (text, icon, image). In WinUI, TextBlock without Background
-        /// is only hit-testable on its text glyphs — clicks on empty area within a stretched
-        /// TextBlock fall through to the parent Grid. This allows rubber-band to start from
-        /// the "dead zone" within item rows (right of text, padding areas).
+        /// actual item CONTENT (text, icon, image).
+        /// Special handling for TextBlock: In WinUI 3, a TextBlock with HorizontalAlignment="Stretch"
+        /// is hit-testable across its ENTIRE layout bounds, including the empty area to the right of
+        /// the text. We compare the pointer position against DesiredSize (the text's natural width)
+        /// to distinguish actual text hits from dead-zone hits.
         /// </summary>
         private bool IsPointerOnItemContent(PointerRoutedEventArgs e)
         {
             var source = e.OriginalSource as DependencyObject;
             while (source != null)
             {
-                // Content elements: pointer is on actual visible item content
-                if (source is TextBlock || source is FontIcon ||
-                    source is Image || source is TextBox)
+                // FontIcon, Image, TextBox: always content
+                if (source is FontIcon || source is Image || source is TextBox)
                     return true;
 
-                // Reached ListViewItem without hitting content → on padding/dead zone
-                if (source is ListViewItem)
+                // TextBlock: check if pointer is on the actual text area, not the stretched dead zone
+                if (source is TextBlock tb)
+                {
+                    try
+                    {
+                        var pos = e.GetCurrentPoint(tb).Position;
+                        double textW = tb.DesiredSize.Width;
+                        double textH = tb.DesiredSize.Height;
+
+                        // If pointer is within the text's natural bounds, it's on content
+                        if (pos.X >= 0 && pos.X <= textW && pos.Y >= 0 && pos.Y <= textH)
+                            return true;
+
+                        // Dead zone: past the text's natural bounds but within the stretched TextBlock
+                        // Continue walking up to reach SelectorItem → return false
+                    }
+                    catch
+                    {
+                        return true; // Fallback to treating as content on error
+                    }
+                }
+
+                // Reached SelectorItem (ListViewItem/GridViewItem) without hitting content → on padding/dead zone
+                if (source is Microsoft.UI.Xaml.Controls.Primitives.SelectorItem)
                     return false;
 
                 if (source == _contentGrid)
@@ -315,18 +400,36 @@ namespace Span.Helpers
         }
 
         /// <summary>
+        /// Check if pointer is on a SelectorItem that is currently selected.
+        /// Used to allow drag (move/copy) from dead zone when multi-selection is active.
+        /// </summary>
+        private bool IsOnSelectedItem(PointerRoutedEventArgs e)
+        {
+            var source = e.OriginalSource as DependencyObject;
+            while (source != null)
+            {
+                if (source is Microsoft.UI.Xaml.Controls.Primitives.SelectorItem selectorItem)
+                {
+                    var itemData = _listView.ItemFromContainer(selectorItem);
+                    return itemData != null && _listView.SelectedItems.Contains(itemData);
+                }
+                if (source == _contentGrid)
+                    break;
+                source = VisualTreeHelper.GetParent(source);
+            }
+            return false; // Empty space — not on any item
+        }
+
+        /// <summary>
         /// Cache the bounds of all realized items relative to _contentGrid.
         /// </summary>
         private void CacheItemBounds()
         {
             _itemBoundsCache.Clear();
 
-            if (_listView.DataContext is not FolderViewModel folderVm)
-                return;
-
             for (int i = 0; i < _listView.Items.Count; i++)
             {
-                var container = _listView.ContainerFromIndex(i) as ListViewItem;
+                var container = _listView.ContainerFromIndex(i) as Microsoft.UI.Xaml.Controls.Primitives.SelectorItem;
                 if (container == null)
                     continue; // virtualized out — skip
 

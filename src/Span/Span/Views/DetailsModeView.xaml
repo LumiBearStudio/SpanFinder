@@ -217,8 +217,9 @@
         </Grid>
 
         <!-- Items List -->
-        <ListView Grid.Row="1"
-                  x:Name="DetailsListView"
+        <Grid Grid.Row="1" x:Name="ListViewWrapper"
+              Loaded="OnListViewWrapperLoaded" Unloaded="OnListViewWrapperUnloaded">
+        <ListView x:Name="DetailsListView"
                   ItemsSource="{Binding CurrentItems, Mode=OneWay}"
                   SelectedItem="{Binding CurrentFolder.SelectedChild, Mode=TwoWay}"
                   SelectionMode="Extended"
@@ -324,5 +325,6 @@
                 </DataTemplate>
             </ListView.ItemTemplate>
         </ListView>
+        </Grid>
     </Grid>
 </UserControl>
