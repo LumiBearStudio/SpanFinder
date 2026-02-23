@@ -63,6 +63,7 @@ namespace Span
 
         // Miller Columns checkbox mode tracking
         private ListViewSelectionMode _millerSelectionMode = ListViewSelectionMode.Extended;
+        private Thickness _densityPadding = new(12, 2, 12, 2); // comfortable default
 
         // FileSystemWatcher 서비스 참조
         private FileSystemWatcherService? _watcherService;
@@ -722,20 +723,41 @@ namespace Span
 
         private void ApplyDensity(string density)
         {
-            var itemHeight = density switch
+            _densityPadding = density switch
             {
-                "compact" => 28.0,
-                "spacious" => 40.0,
-                _ => 32.0 // comfortable
+                "compact" => new Thickness(12, 0, 12, 0),
+                "spacious" => new Thickness(12, 4, 12, 4),
+                _ => new Thickness(12, 2, 12, 2) // comfortable
             };
 
-            if (this.Content is FrameworkElement root && root.Resources != null)
-            {
-                root.Resources["ListViewItemMinHeight"] = itemHeight;
-            }
+            // Apply to all visible Miller Column ListViews
+            foreach (var kvp in _tabMillerPanels)
+                ApplyDensityToItemsControl(kvp.Value.items);
+            ApplyDensityToItemsControl(MillerColumnsControlRight);
 
-            // Force re-render existing items by refreshing current view
-            RefreshCurrentView();
+            // Apply to Details/Icon views via their public methods
+            foreach (var kvp in _tabDetailsPanels)
+                kvp.Value.ApplyDensity(density);
+            foreach (var kvp in _tabIconPanels)
+                kvp.Value.ApplyDensity(density);
+        }
+
+        private void ApplyDensityToItemsControl(ItemsControl? millerControl)
+        {
+            if (millerControl?.ItemsPanelRoot == null) return;
+            foreach (var columnContainer in millerControl.ItemsPanelRoot.Children)
+            {
+                var listView = FindChild<ListView>(columnContainer);
+                if (listView?.ItemsPanelRoot == null) continue;
+                for (int i = 0; i < listView.Items.Count; i++)
+                {
+                    if (listView.ContainerFromIndex(i) is ListViewItem item)
+                    {
+                        var grid = FindChild<Grid>(item);
+                        if (grid != null) grid.Padding = _densityPadding;
+                    }
+                }
+            }
         }
 
         private void ApplyMillerCheckboxMode(bool showCheckboxes)
@@ -2358,6 +2380,9 @@ namespace Span
             var listView = FindChild<ListView>(grid);
             if (listView == null) return;
 
+            // Apply density padding to new column items as they materialize
+            listView.ContainerContentChanging += OnMillerContainerContentChanging;
+
             var helper = new Helpers.RubberBandSelectionHelper(
                 grid,
                 listView,
@@ -2367,9 +2392,27 @@ namespace Span
             _rubberBandHelpers[grid] = helper;
         }
 
+        private void OnMillerContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
+        {
+            if (args.ItemContainer is ListViewItem item)
+            {
+                // Apply density padding to the content grid inside the item
+                DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+                {
+                    var grid = FindChild<Grid>(item);
+                    if (grid != null) grid.Padding = _densityPadding;
+                });
+            }
+        }
+
         private void OnMillerColumnContentGridUnloaded(object sender, RoutedEventArgs e)
         {
             if (sender is not Grid grid) return;
+
+            var listView = FindChild<ListView>(grid);
+            if (listView != null)
+                listView.ContainerContentChanging -= OnMillerContainerContentChanging;
+
             if (_rubberBandHelpers.TryGetValue(grid, out var helper))
             {
                 helper.Detach();

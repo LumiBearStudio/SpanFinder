@@ -38,6 +38,10 @@ namespace Span.Views
         private bool _isCleanedUp = false;
         private SettingsService? _settings;
 
+        // Rubber-band selection
+        private Helpers.RubberBandSelectionHelper? _rubberBandHelper;
+        private bool _isSyncingSelection;
+
         public IconModeView()
         {
             this.InitializeComponent();
@@ -129,6 +133,7 @@ namespace Span.Views
 
         private void OnIconSelectionChanged(object sender, Microsoft.UI.Xaml.Controls.SelectionChangedEventArgs e)
         {
+            if (_isSyncingSelection) return;
             if (ViewModel?.CurrentFolder == null) return;
             if (sender is GridView gridView)
             {
@@ -138,6 +143,9 @@ namespace Span.Views
 
         private void OnDragItemsStarting(object sender, Microsoft.UI.Xaml.Controls.DragItemsStartingEventArgs e)
         {
+            if (_rubberBandHelper?.IsActive == true)
+            { e.Cancel = true; return; }
+
             var items = e.Items.OfType<FileSystemViewModel>().ToList();
             if (items.Count == 0) { e.Cancel = true; return; }
 
@@ -147,6 +155,42 @@ namespace Span.Views
             e.Data.Properties["SourcePane"] = IsRightPane ? "Right" : "Left";
             e.Data.RequestedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Copy
                                       | Windows.ApplicationModel.DataTransfer.DataPackageOperation.Move;
+
+            // Deferred StorageItems for external app drops (avoid async in DragItemsStarting → deadlock)
+            var capturedPaths = new List<string>(paths);
+            e.Data.SetDataProvider(Windows.ApplicationModel.DataTransfer.StandardDataFormats.StorageItems, request =>
+            {
+                var deferral = request.GetDeferral();
+                _ = ProvideStorageItemsAsync(request, capturedPaths, deferral);
+            });
+        }
+
+        private static async System.Threading.Tasks.Task ProvideStorageItemsAsync(
+            Windows.ApplicationModel.DataTransfer.DataProviderRequest request,
+            List<string> paths,
+            Windows.ApplicationModel.DataTransfer.DataProviderDeferral deferral)
+        {
+            try
+            {
+                var storageItems = new List<Windows.Storage.IStorageItem>();
+                foreach (var p in paths)
+                {
+                    try
+                    {
+                        if (System.IO.Directory.Exists(p))
+                            storageItems.Add(await Windows.Storage.StorageFolder.GetFolderFromPathAsync(p));
+                        else if (System.IO.File.Exists(p))
+                            storageItems.Add(await Windows.Storage.StorageFile.GetFileFromPathAsync(p));
+                    }
+                    catch { }
+                }
+                request.SetData(storageItems);
+            }
+            catch { }
+            finally
+            {
+                deferral.Complete();
+            }
         }
 
         private void OnItemRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
@@ -281,7 +325,44 @@ namespace Span.Views
             }
         }
 
+        // ── Rubber Band Selection ──
+
+        private void OnRootGridLoaded(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Grid grid || _rubberBandHelper != null) return;
+
+            _rubberBandHelper = new Helpers.RubberBandSelectionHelper(
+                grid,
+                IconGridView,
+                () => _isSyncingSelection,
+                val => _isSyncingSelection = val,
+                items => ViewModel?.CurrentFolder?.SyncSelectedItems(items));
+        }
+
+        private void OnRootGridUnloaded(object sender, RoutedEventArgs e)
+        {
+            _rubberBandHelper?.Detach();
+            _rubberBandHelper = null;
+        }
+
         // Ctrl+Mouse Wheel view mode cycling is handled globally by MainWindow.OnGlobalPointerWheelChanged
+
+        public void ApplyDensity(string density)
+        {
+            var margin = density switch
+            {
+                "compact" => new Thickness(2),
+                "spacious" => new Thickness(8),
+                _ => new Thickness(4)
+            };
+
+            if (IconGridView != null)
+            {
+                var style = new Style(typeof(GridViewItem));
+                style.Setters.Add(new Setter(GridViewItem.MarginProperty, margin));
+                IconGridView.ItemContainerStyle = style;
+            }
+        }
 
         /// <summary>
         /// Focus the Icon GridView (called from MainWindow on view switch)
@@ -309,6 +390,9 @@ namespace Span.Views
             try
             {
                 Helpers.DebugLogger.Log("[IconModeView] Starting cleanup...");
+
+                _rubberBandHelper?.Detach();
+                _rubberBandHelper = null;
 
                 if (_settings != null)
                 {

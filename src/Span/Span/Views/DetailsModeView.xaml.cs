@@ -68,6 +68,10 @@ namespace Span.Views
         // Guard against double cleanup (Cleanup() from OnClosed + OnUnloaded from visual tree teardown)
         private bool _isCleanedUp = false;
 
+        // Rubber-band selection
+        private Helpers.RubberBandSelectionHelper? _rubberBandHelper;
+        private bool _isSyncingSelection;
+
         // ── Feature #29: Group By ──
         private string _currentGroupBy = "None";
 
@@ -196,6 +200,13 @@ namespace Span.Views
             if (args.ItemContainer?.ContentTemplateRoot is Grid grid)
             {
                 ApplyCellWidths(grid);
+                grid.Height = _densityRowHeight;
+            }
+
+            // Details 뷰에서 폴더 표시 시 크기 계산 요청 (lazy)
+            if (args.Item is ViewModels.FolderViewModel folderVm)
+            {
+                folderVm.RequestFolderSizeCalculation();
             }
         }
 
@@ -251,10 +262,54 @@ namespace Span.Views
 
         #endregion
 
+        #region Density
+
+        private double _densityRowHeight = 24.0; // comfortable default
+
+        public void ApplyDensity(string density)
+        {
+            _densityRowHeight = density switch
+            {
+                "compact" => 20.0,
+                "spacious" => 32.0,
+                _ => 24.0
+            };
+
+            // Update MinHeight on ListViewItem style
+            if (DetailsListView != null)
+            {
+                DetailsListView.ItemContainerStyle = CreateDetailsItemStyle(_densityRowHeight);
+            }
+
+            // Update existing realized containers
+            if (DetailsListView?.ItemsPanelRoot == null) return;
+            for (int i = 0; i < DetailsListView.Items.Count; i++)
+            {
+                if (DetailsListView.ContainerFromIndex(i) is ListViewItem container &&
+                    container.ContentTemplateRoot is Grid grid)
+                {
+                    grid.Height = _densityRowHeight;
+                }
+            }
+        }
+
+        private static Style CreateDetailsItemStyle(double minHeight)
+        {
+            var style = new Style(typeof(ListViewItem));
+            style.Setters.Add(new Setter(ListViewItem.PaddingProperty, new Thickness(0)));
+            style.Setters.Add(new Setter(ListViewItem.MarginProperty, new Thickness(0)));
+            style.Setters.Add(new Setter(ListViewItem.MinHeightProperty, minHeight));
+            style.Setters.Add(new Setter(ListViewItem.HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch));
+            return style;
+        }
+
+        #endregion
+
         #region Selection Sync
 
         private void OnDetailsSelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            if (_isSyncingSelection) return;
             if (ViewModel?.CurrentFolder == null) return;
             if (sender is ListView listView)
             {
@@ -284,6 +339,9 @@ namespace Span.Views
 
         private void OnDragItemsStarting(object sender, Microsoft.UI.Xaml.Controls.DragItemsStartingEventArgs e)
         {
+            if (_rubberBandHelper?.IsActive == true)
+            { e.Cancel = true; return; }
+
             var items = e.Items.OfType<FileSystemViewModel>().ToList();
             if (items.Count == 0) { e.Cancel = true; return; }
 
@@ -293,6 +351,42 @@ namespace Span.Views
             e.Data.Properties["SourcePane"] = IsRightPane ? "Right" : "Left";
             e.Data.RequestedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Copy
                                       | Windows.ApplicationModel.DataTransfer.DataPackageOperation.Move;
+
+            // Deferred StorageItems for external app drops (avoid async in DragItemsStarting → deadlock)
+            var capturedPaths = new List<string>(paths);
+            e.Data.SetDataProvider(Windows.ApplicationModel.DataTransfer.StandardDataFormats.StorageItems, request =>
+            {
+                var deferral = request.GetDeferral();
+                _ = ProvideStorageItemsAsync(request, capturedPaths, deferral);
+            });
+        }
+
+        private static async System.Threading.Tasks.Task ProvideStorageItemsAsync(
+            Windows.ApplicationModel.DataTransfer.DataProviderRequest request,
+            List<string> paths,
+            Windows.ApplicationModel.DataTransfer.DataProviderDeferral deferral)
+        {
+            try
+            {
+                var storageItems = new List<Windows.Storage.IStorageItem>();
+                foreach (var p in paths)
+                {
+                    try
+                    {
+                        if (System.IO.Directory.Exists(p))
+                            storageItems.Add(await Windows.Storage.StorageFolder.GetFolderFromPathAsync(p));
+                        else if (System.IO.File.Exists(p))
+                            storageItems.Add(await Windows.Storage.StorageFile.GetFileFromPathAsync(p));
+                    }
+                    catch { }
+                }
+                request.SetData(storageItems);
+            }
+            catch { }
+            finally
+            {
+                deferral.Complete();
+            }
         }
 
         private void OnItemRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
@@ -1168,6 +1262,28 @@ namespace Span.Views
 
         #endregion
 
+        #region Rubber Band Selection
+
+        private void OnListViewWrapperLoaded(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Grid grid || _rubberBandHelper != null) return;
+
+            _rubberBandHelper = new Helpers.RubberBandSelectionHelper(
+                grid,
+                DetailsListView,
+                () => _isSyncingSelection,
+                val => _isSyncingSelection = val,
+                items => ViewModel?.CurrentFolder?.SyncSelectedItems(items));
+        }
+
+        private void OnListViewWrapperUnloaded(object sender, RoutedEventArgs e)
+        {
+            _rubberBandHelper?.Detach();
+            _rubberBandHelper = null;
+        }
+
+        #endregion
+
         #region Cleanup
 
         /// <summary>
@@ -1189,6 +1305,9 @@ namespace Span.Views
             try
             {
                 Helpers.DebugLogger.Log("[DetailsModeView] Starting cleanup...");
+
+                _rubberBandHelper?.Detach();
+                _rubberBandHelper = null;
 
                 // Unregister column width callbacks (only if Loaded fired and registered them)
                 if (_isLoaded)
