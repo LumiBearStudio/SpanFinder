@@ -10,15 +10,21 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
     <PackageReference Include="coverlet.collector" Version="6.0.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageReference Include="Moq" Version="4.20.72" />
     <PackageReference Include="MSTest.TestAdapter" Version="3.1.1" />
     <PackageReference Include="MSTest.TestFramework" Version="3.1.1" />
   </ItemGroup>
 
-  <!-- Compile testable source files directly (avoids WinUI module initializer) -->
+  <!--
+    Compile testable source files directly (avoids WinUI module initializer).
+    Files that reference WinUI types (TabItem, LocalizationService) are excluded.
+    IconService is provided by Stubs/IconServiceStub.cs for FileItem/FolderItem/DriveItem.
+  -->
   <ItemGroup>
-    <!-- Models (pure C#, no WinUI dependency) -->
+    <!-- Models (pure C# + IconService stub) -->
     <Compile Include="..\Span\Models\ViewMode.cs" Link="Sources\Models\ViewMode.cs" />
     <Compile Include="..\Span\Models\PreviewType.cs" Link="Sources\Models\PreviewType.cs" />
     <Compile Include="..\Span\Models\ActivePane.cs" Link="Sources\Models\ActivePane.cs" />
@@ -26,13 +32,22 @@
     <Compile Include="..\Span\Models\FileItem.cs" Link="Sources\Models\FileItem.cs" />
     <Compile Include="..\Span\Models\FolderItem.cs" Link="Sources\Models\FolderItem.cs" />
     <Compile Include="..\Span\Models\DriveItem.cs" Link="Sources\Models\DriveItem.cs" />
-    <Compile Include="..\Span\Models\TabItem.cs" Link="Sources\Models\TabItem.cs" />
     <Compile Include="..\Span\Models\ShellMenuItem.cs" Link="Sources\Models\ShellMenuItem.cs" />
+    <Compile Include="..\Span\Models\ConnectionInfo.cs" Link="Sources\Models\ConnectionInfo.cs" />
+    <Compile Include="..\Span\Models\CloudState.cs" Link="Sources\Models\CloudState.cs" />
     <!-- Helpers (pure C#) -->
     <Compile Include="..\Span\Helpers\NaturalStringComparer.cs" Link="Sources\Helpers\NaturalStringComparer.cs" />
     <Compile Include="..\Span\Helpers\ViewModeExtensions.cs" Link="Sources\Helpers\ViewModeExtensions.cs" />
-    <!-- Services (pure C#) -->
-    <Compile Include="..\Span\Services\LocalizationService.cs" Link="Sources\Services\LocalizationService.cs" />
+    <Compile Include="..\Span\Helpers\DebugLogger.cs" Link="Sources\Helpers\DebugLogger.cs" />
+    <!-- Services - file operations (pure C#) -->
+    <Compile Include="..\Span\Services\FileOperations\OperationResult.cs" Link="Sources\Services\OperationResult.cs" />
+    <Compile Include="..\Span\Services\FileOperations\FileOperationProgress.cs" Link="Sources\Services\FileOperationProgress.cs" />
+    <Compile Include="..\Span\Services\FileOperations\FileOperationHistory.cs" Link="Sources\Services\FileOperationHistory.cs" />
+    <Compile Include="..\Span\Services\FileOperations\IFileOperation.cs" Link="Sources\Services\IFileOperation.cs" />
+    <Compile Include="..\Span\Services\FileOperations\CompletedOperationWrapper.cs" Link="Sources\Services\CompletedOperationWrapper.cs" />
+    <!-- Services - routing (pure C#) -->
+    <Compile Include="..\Span\Services\FileSystemRouter.cs" Link="Sources\Services\FileSystemRouter.cs" />
+    <Compile Include="..\Span\Services\IFileSystemProvider.cs" Link="Sources\Services\IFileSystemProvider.cs" />
   </ItemGroup>
 
   <ItemGroup>

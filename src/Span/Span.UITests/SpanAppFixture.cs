@@ -7,81 +7,76 @@ using System.IO;
 namespace Span.UITests;
 
 /// <summary>
-/// Shared fixture that launches and manages the Span application process.
-/// Tests use this to get a FlaUI automation handle to the main window.
+/// Shared fixture that manages FlaUI automation handle to the Span application.
+///
+/// WinUI 3 apps require MSIX packaging and cannot be launched via Application.Launch().
+/// Tests attach to an already-running Span process.
+///
+/// Usage:
+///   1. Launch Span from Visual Studio (F5) or Start Menu
+///   2. Run tests: dotnet test src/Span/Span.UITests/Span.UITests.csproj -p:Platform=x64
 /// </summary>
 public static class SpanAppFixture
 {
     private static Application? _app;
     private static UIA3Automation? _automation;
+    private static Window? _cachedWindow;
 
     /// <summary>
-    /// Path to the Span executable. Override via SPAN_EXE_PATH environment variable.
+    /// Attach to the running Span process and return its main window.
+    /// Caches the window handle across calls within the same test session.
     /// </summary>
-    public static string ExePath =>
-        Environment.GetEnvironmentVariable("SPAN_EXE_PATH")
-        ?? FindExePath();
-
-    /// <summary>
-    /// Launch Span and return the main window automation element.
-    /// If already running, returns the existing window.
-    /// </summary>
-    public static Window LaunchOrAttach(int timeoutSeconds = 15)
+    public static Window GetMainWindow(int timeoutSeconds = 10)
     {
+        if (_cachedWindow != null)
+        {
+            try
+            {
+                // Verify window is still valid
+                _ = _cachedWindow.Title;
+                return _cachedWindow;
+            }
+            catch
+            {
+                _cachedWindow = null;
+            }
+        }
+
         _automation ??= new UIA3Automation();
 
         if (_app == null || _app.HasExited)
         {
-            var exePath = ExePath;
-            if (!File.Exists(exePath))
-                throw new FileNotFoundException($"Span.exe not found at: {exePath}");
+            var processes = Process.GetProcessesByName("Span");
+            if (processes.Length == 0)
+            {
+                throw new InvalidOperationException(
+                    "No running Span process found.\n" +
+                    "WinUI 3 apps require MSIX packaging — launch Span from Visual Studio (F5) or Start Menu first.");
+            }
 
-            _app = Application.Launch(exePath);
+            _app = Application.Attach(processes[0]);
         }
 
         var mainWindow = _app.GetMainWindow(_automation, TimeSpan.FromSeconds(timeoutSeconds));
         if (mainWindow == null)
             throw new TimeoutException($"Span main window did not appear within {timeoutSeconds}s");
 
+        _cachedWindow = mainWindow;
         return mainWindow;
     }
 
     /// <summary>
-    /// Attach to an already-running Span process (useful for debugging).
+    /// Detach from the application (does NOT close it).
+    /// Tests should not close the app — the user controls the app lifecycle.
     /// </summary>
-    public static Window AttachToRunning(int timeoutSeconds = 10)
+    public static void Detach()
     {
-        _automation ??= new UIA3Automation();
-
-        var processes = Process.GetProcessesByName("Span");
-        if (processes.Length == 0)
-            throw new InvalidOperationException("No running Span process found. Launch the app first.");
-
-        _app = Application.Attach(processes[0]);
-        var mainWindow = _app.GetMainWindow(_automation, TimeSpan.FromSeconds(timeoutSeconds));
-        if (mainWindow == null)
-            throw new TimeoutException("Could not find Span main window");
-
-        return mainWindow;
-    }
-
-    /// <summary>
-    /// Close the application gracefully.
-    /// </summary>
-    public static void Close()
-    {
-        try
-        {
-            _app?.Close();
-        }
-        catch { }
-        finally
-        {
-            _app?.Dispose();
-            _automation?.Dispose();
-            _app = null;
-            _automation = null;
-        }
+        _cachedWindow = null;
+        // Do NOT call _app.Close() — we're just detaching, not closing
+        _app?.Dispose();
+        _automation?.Dispose();
+        _app = null;
+        _automation = null;
     }
 
     /// <summary>
@@ -101,24 +96,19 @@ public static class SpanAppFixture
             ?? throw new InvalidOperationException($"Element with AutomationId '{automationId}' not found");
     }
 
-    private static string FindExePath()
+    /// <summary>
+    /// Poll for an element by AutomationId until it appears or timeout.
+    /// Useful for elements that become visible after UI transitions (e.g., Collapsed → Visible).
+    /// </summary>
+    public static AutomationElement? WaitForElement(AutomationElement parent, string automationId, int timeoutMs = 3000)
     {
-        // Walk up from test bin dir to find the app executable
-        var baseDir = AppContext.BaseDirectory;
-        var candidates = new[]
+        var sw = Stopwatch.StartNew();
+        while (sw.ElapsedMilliseconds < timeoutMs)
         {
-            Path.Combine(baseDir, "..", "..", "..", "..", "Span", "bin", "x64", "Debug", "net8.0-windows10.0.19041.0", "Span.exe"),
-            Path.Combine(baseDir, "..", "..", "..", "..", "Span", "bin", "x64", "Release", "net8.0-windows10.0.19041.0", "Span.exe"),
-        };
-
-        foreach (var candidate in candidates)
-        {
-            var full = Path.GetFullPath(candidate);
-            if (File.Exists(full))
-                return full;
+            var el = FindById(parent, automationId);
+            if (el != null) return el;
+            Thread.Sleep(100);
         }
-
-        // Fallback: absolute path
-        return @"D:\11.AI\Span\src\Span\Span\bin\x64\Debug\net8.0-windows10.0.19041.0\Span.exe"!;
+        return null;
     }
 }

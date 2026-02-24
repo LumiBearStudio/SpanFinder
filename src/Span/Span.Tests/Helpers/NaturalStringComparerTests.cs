@@ -82,4 +82,47 @@ public class NaturalStringComparerTests
     {
         Assert.AreSame(NaturalStringComparer.Instance, NaturalStringComparer.Instance);
     }
+
+    [TestMethod]
+    public void Compare_EmptyStrings_ReturnsZero()
+    {
+        Assert.AreEqual(0, _comparer.Compare("", ""));
+    }
+
+    [TestMethod]
+    public void Compare_EmptyAndValue_ReturnsNegative()
+    {
+        Assert.IsTrue(_comparer.Compare("", "a") < 0);
+    }
+
+    [TestMethod]
+    public void Compare_LeadingZeros_SortsConsistently()
+    {
+        // StrCmpLogicalW distinguishes leading zeros: "file001" < "file1"
+        var result = _comparer.Compare("file001", "file1");
+        Assert.IsTrue(result < 0, "file001 should sort before file1 with StrCmpLogicalW");
+    }
+
+    [TestMethod]
+    public void Compare_MultipleNumberSequences_SortsCorrectly()
+    {
+        // v1.2.10 should come after v1.2.3 (10 > 3 numerically)
+        Assert.IsTrue(_comparer.Compare("v1.2.10", "v1.2.3") > 0);
+        Assert.IsTrue(_comparer.Compare("v1.2.3", "v1.2.10") < 0);
+    }
+
+    [TestMethod]
+    public void Compare_NumbersOnly_ComparesNumerically()
+    {
+        // 100 > 20 numerically (not lexicographic where "100" < "20")
+        Assert.IsTrue(_comparer.Compare("100", "20") > 0);
+        Assert.IsTrue(_comparer.Compare("20", "100") < 0);
+    }
+
+    [TestMethod]
+    public void Compare_CaseHandling_CaseInsensitiveOnWindows()
+    {
+        // StrCmpLogicalW is case-insensitive
+        Assert.AreEqual(0, _comparer.Compare("ABC", "abc"));
+    }
 }

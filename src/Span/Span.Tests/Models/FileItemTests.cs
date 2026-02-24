@@ -12,7 +12,7 @@ public class FileItemTests
         Assert.AreEqual(string.Empty, file.Path);
         Assert.AreEqual(string.Empty, file.FileType);
         Assert.AreEqual(0L, file.Size);
-        Assert.AreEqual("\uEDC9", file.IconGlyph);
+        Assert.AreEqual("\uECE0", file.IconGlyph);
     }
 
     [TestMethod]
@@ -23,7 +23,7 @@ public class FileItemTests
         Span.Models.IFileSystemItem item = file;
         Assert.AreEqual("test.txt", item.Name);
         Assert.AreEqual(@"C:\test.txt", item.Path);
-        Assert.AreEqual("\uEDC9", item.IconGlyph);
+        Assert.AreEqual("\uECE0", item.IconGlyph);
     }
 
     [TestMethod]

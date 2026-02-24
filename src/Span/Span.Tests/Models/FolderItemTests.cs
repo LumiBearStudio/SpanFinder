@@ -10,7 +10,7 @@ public class FolderItemTests
 
         Assert.AreEqual(string.Empty, folder.Name);
         Assert.AreEqual(string.Empty, folder.Path);
-        Assert.AreEqual("\uEEA7", folder.IconGlyph);
+        Assert.AreEqual("\uED53", folder.IconGlyph);
         Assert.IsNotNull(folder.Files);
         Assert.IsNotNull(folder.SubFolders);
         Assert.IsNotNull(folder.Children);
@@ -27,7 +27,7 @@ public class FolderItemTests
         Span.Models.IFileSystemItem item = folder;
         Assert.AreEqual("Documents", item.Name);
         Assert.AreEqual(@"C:\Documents", item.Path);
-        Assert.AreEqual("\uEEA7", item.IconGlyph);
+        Assert.AreEqual("\uED53", item.IconGlyph);
     }
 
     [TestMethod]

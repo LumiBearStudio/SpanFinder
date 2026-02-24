@@ -6,6 +6,10 @@ namespace Span.UITests.Tests;
 /// <summary>
 /// Smoke tests: verify the app launches and core UI elements are present.
 /// Run these first to confirm the test infrastructure works.
+///
+/// Note: WinUI 3 Grid/Border/ItemsRepeater elements don't have AutomationPeers,
+/// so they aren't exposed in the UIA tree. We verify container areas exist
+/// by finding interactive child elements (Buttons, TextBoxes) within them.
 /// </summary>
 [TestClass]
 public class SmokeTests
@@ -15,13 +19,13 @@ public class SmokeTests
     [ClassInitialize]
     public static void ClassInit(TestContext context)
     {
-        _window = SpanAppFixture.LaunchOrAttach();
+        _window = SpanAppFixture.GetMainWindow();
     }
 
     [ClassCleanup]
     public static void ClassCleanup()
     {
-        SpanAppFixture.Close();
+        SpanAppFixture.Detach();
     }
 
     [TestMethod]
@@ -45,10 +49,11 @@ public class SmokeTests
     }
 
     [TestMethod]
-    public void AddressBar_Exists()
+    public void AddressBar_Area_Exists()
     {
-        var addressBar = SpanAppFixture.FindById(_window!, "AddressBar");
-        Assert.IsNotNull(addressBar, "Address bar should exist");
+        // WinUI 3 Grid containers aren't in UIA tree — verify via child button
+        var copyPathBtn = SpanAppFixture.FindById(_window!, "Button_CopyPath");
+        Assert.IsNotNull(copyPathBtn, "Copy path button (inside address bar) should exist");
     }
 
     [TestMethod]
@@ -61,11 +66,10 @@ public class SmokeTests
     [TestMethod]
     public void Sidebar_Buttons_Exist()
     {
-        var sidebar = SpanAppFixture.FindById(_window!, "Sidebar");
+        // WinUI 3 Border containers aren't in UIA tree — verify sidebar via its child buttons
         var helpBtn = SpanAppFixture.FindById(_window!, "Button_Help");
         var settingsBtn = SpanAppFixture.FindById(_window!, "Button_Settings");
 
-        Assert.IsNotNull(sidebar, "Sidebar should exist");
         Assert.IsNotNull(helpBtn, "Help button should exist");
         Assert.IsNotNull(settingsBtn, "Settings button should exist");
     }
@@ -99,9 +103,10 @@ public class SmokeTests
     }
 
     [TestMethod]
-    public void LeftPane_Exists()
+    public void ContentArea_Exists()
     {
-        var leftPane = SpanAppFixture.FindById(_window!, "LeftPane");
-        Assert.IsNotNull(leftPane, "Left pane should exist");
+        // WinUI 3 Grid containers aren't in UIA tree — verify content area via preview toggle button
+        var previewBtn = SpanAppFixture.FindById(_window!, "Button_PreviewToggle");
+        Assert.IsNotNull(previewBtn, "Preview toggle button should exist (confirming content area)");
     }
 }
