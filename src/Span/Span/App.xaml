@@ -249,13 +249,9 @@
                             <Grid x:Name="ContentBorder" Background="Transparent">
                                 <VisualStateManager.VisualStateGroups>
                                     <VisualStateGroup x:Name="CommonStates">
-                                        <VisualStateGroup.Transitions>
-                                            <VisualTransition GeneratedDuration="0:0:0.15">
-                                                <VisualTransition.GeneratedEasingFunction>
-                                                    <CubicEase EasingMode="EaseOut" />
-                                                </VisualTransition.GeneratedEasingFunction>
-                                            </VisualTransition>
-                                        </VisualStateGroup.Transitions>
+                                        <!-- No VisualTransition: instant state changes prevent
+                                             flicker caused by animated StateOverlay competing
+                                             with DataTemplate PathBackground binding -->
                                         <VisualState x:Name="Normal" />
                                         <VisualState x:Name="PointerOver">
                                             <Storyboard>
@@ -285,9 +281,10 @@
                                             </Storyboard>
                                         </VisualState>
                                         <VisualState x:Name="PointerOverSelected">
+                                            <!-- Same as Selected: no visual change on hover over selected item -->
                                             <Storyboard>
                                                 <ObjectAnimationUsingKeyFrames Storyboard.TargetName="StateOverlay" Storyboard.TargetProperty="Background">
-                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource SpanBgSelectedHoverBrush}" />
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource SpanBgSelectedBrush}" />
                                                 </ObjectAnimationUsingKeyFrames>
                                                 <DoubleAnimation Storyboard.TargetName="StateOverlay" Storyboard.TargetProperty="Opacity"
                                                                  To="1" Duration="0" />

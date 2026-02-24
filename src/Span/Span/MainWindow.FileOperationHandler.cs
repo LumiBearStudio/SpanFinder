@@ -160,7 +160,17 @@ namespace Span
             _isCutOperation = false;
 
             var dataPackage = new DataPackage();
+            dataPackage.RequestedOperation = DataPackageOperation.Copy;
             dataPackage.SetText(string.Join("\n", _clipboardPaths));
+
+            // Provide StorageItems for Windows Explorer compatibility
+            var capturedPaths = new List<string>(_clipboardPaths);
+            dataPackage.SetDataProvider(StandardDataFormats.StorageItems, request =>
+            {
+                var deferral = request.GetDeferral();
+                _ = Helpers.ViewDragDropHelper.ProvideStorageItemsAsync(request, capturedPaths, deferral);
+            });
+
             Clipboard.SetContent(dataPackage);
 
             // Toast notification
@@ -203,7 +213,17 @@ namespace Span
             _isCutOperation = true;
 
             var dataPackage = new DataPackage();
+            dataPackage.RequestedOperation = DataPackageOperation.Move;
             dataPackage.SetText(string.Join("\n", _clipboardPaths));
+
+            // Provide StorageItems for Windows Explorer compatibility
+            var capturedCutPaths = new List<string>(_clipboardPaths);
+            dataPackage.SetDataProvider(StandardDataFormats.StorageItems, request =>
+            {
+                var deferral = request.GetDeferral();
+                _ = Helpers.ViewDragDropHelper.ProvideStorageItemsAsync(request, capturedCutPaths, deferral);
+            });
+
             Clipboard.SetContent(dataPackage);
 
             // Toast notification
@@ -223,8 +243,6 @@ namespace Span
 
         private async void HandlePaste()
         {
-            if (_clipboardPaths.Count == 0) return;
-
             var columns = ViewModel.ActiveExplorer.Columns;
             int activeIndex = GetActiveColumnIndex();
             if (activeIndex < 0) activeIndex = columns.Count - 1;
@@ -233,14 +251,50 @@ namespace Span
             var targetFolder = columns[activeIndex];
             string destDir = targetFolder.Path;
 
+            List<string> sourcePaths;
+            bool isCut;
+
+            if (_clipboardPaths.Count > 0)
+            {
+                // Internal clipboard (Span → Span copy/cut)
+                sourcePaths = new List<string>(_clipboardPaths);
+                isCut = _isCutOperation;
+            }
+            else
+            {
+                // External clipboard (Windows Explorer → Span)
+                try
+                {
+                    var content = Clipboard.GetContent();
+                    if (!content.Contains(StandardDataFormats.StorageItems)) return;
+
+                    var items = await content.GetStorageItemsAsync();
+                    sourcePaths = items
+                        .Select(i => i.Path)
+                        .Where(p => !string.IsNullOrEmpty(p))
+                        .ToList();
+                    if (sourcePaths.Count == 0) return;
+
+                    // Detect Cut vs Copy from Windows clipboard
+                    isCut = content.RequestedOperation.HasFlag(DataPackageOperation.Move);
+
+                    Helpers.DebugLogger.Log($"[Clipboard] External paste: {sourcePaths.Count} item(s), isCut={isCut}");
+                }
+                catch (Exception ex)
+                {
+                    Helpers.DebugLogger.Log($"[Clipboard] External paste error: {ex.Message}");
+                    return;
+                }
+            }
+
             var router = App.Current.Services.GetRequiredService<FileSystemRouter>();
-            Span.Services.FileOperations.IFileOperation op = _isCutOperation
-                ? new Span.Services.FileOperations.MoveFileOperation(new List<string>(_clipboardPaths), destDir, router)
-                : new Span.Services.FileOperations.CopyFileOperation(new List<string>(_clipboardPaths), destDir, router);
+            Span.Services.FileOperations.IFileOperation op = isCut
+                ? new Span.Services.FileOperations.MoveFileOperation(sourcePaths, destDir, router)
+                : new Span.Services.FileOperations.CopyFileOperation(sourcePaths, destDir, router);
 
             await ViewModel.ExecuteFileOperationAsync(op, activeIndex);
 
-            if (_isCutOperation) _clipboardPaths.Clear();
+            if (isCut && _clipboardPaths.Count > 0) _clipboardPaths.Clear();
             UpdateToolbarButtonStates();
         }
 
@@ -688,7 +742,7 @@ namespace Span
             // Note: RefreshCurrentFolderAsync() already cleared selection and reloaded
             if (currentColumn.Children.Count > 0)
             {
-                int newIndex = Math.Min(selectedIndex, currentColumn.Children.Count - 1);
+                int newIndex = Math.Clamp(selectedIndex, 0, currentColumn.Children.Count - 1);
                 currentColumn.SelectedChild = currentColumn.Children[newIndex];
                 Helpers.DebugLogger.Log($"[HandleDelete] Smart selection: selectedIndex={selectedIndex}, newIndex={newIndex}, selected={currentColumn.Children[newIndex].Name}");
             }
@@ -759,7 +813,7 @@ namespace Span
             // Note: RefreshCurrentFolderAsync() already cleared selection and reloaded
             if (currentColumn.Children.Count > 0)
             {
-                int newIndex = Math.Min(selectedIndex, currentColumn.Children.Count - 1);
+                int newIndex = Math.Clamp(selectedIndex, 0, currentColumn.Children.Count - 1);
                 currentColumn.SelectedChild = currentColumn.Children[newIndex];
             }
 

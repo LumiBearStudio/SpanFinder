@@ -484,46 +484,135 @@
                         </TreeView>
                         </StackPanel>
 
-                        <!-- Separator -->
+                        <!-- ═══════ Section 3: 로컬 디스크 ═══════ -->
                         <Rectangle Height="1" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="12,12"/>
-
-                        <!-- Section 3: 드라이브 (로컬 + 네트워크 + 원격 통합) -->
-                        <TextBlock Text="드라이브"
-                                   Style="{StaticResource CaptionTextBlockStyle}"
-                                   Foreground="{ThemeResource SpanTextTertiaryBrush}"
-                                   FontWeight="SemiBold"
-                                   Margin="16,0,16,8"/>
-
-                        <!-- Drives List (AllDrives: local + network + remote) -->
-                        <ItemsControl ItemsSource="{x:Bind ViewModel.AllDrives, Mode=OneWay}">
+                        <Grid Height="24" Padding="12,0" Background="Transparent"
+                              Tapped="OnSidebarSectionHeaderTapped" Tag="Local">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <FontIcon Glyph="&#xE70D;" FontSize="10" Margin="0,0,6,0"
+                                      VerticalAlignment="Center"
+                                      RenderTransformOrigin="0.5,0.5">
+                                <FontIcon.RenderTransform>
+                                    <RotateTransform Angle="{x:Bind helpers:ConverterHelpers.ChevronAngle(ViewModel.IsLocalDrivesExpanded), Mode=OneWay}"/>
+                                </FontIcon.RenderTransform>
+                            </FontIcon>
+                            <TextBlock Grid.Column="1" Text="로컬 디스크"
+                                       Style="{StaticResource CaptionTextBlockStyle}"
+                                       Foreground="{ThemeResource SpanTextTertiaryBrush}" FontWeight="SemiBold"
+                                       VerticalAlignment="Center"/>
+                        </Grid>
+                        <ItemsControl ItemsSource="{x:Bind ViewModel.Drives, Mode=OneWay}"
+                                      Visibility="{x:Bind ViewModel.IsLocalDrivesExpanded, Mode=OneWay}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="models:DriveItem">
-                                    <Grid Height="26"
-                                          Padding="12,0,8,0"
-                                          Background="Transparent"
-                                          Tapped="OnDriveItemTapped"
-                                          RightTapped="OnSidebarDriveRightTapped"
-                                          PointerEntered="OnSidebarItemPointerEntered"
-                                          PointerExited="OnSidebarItemPointerExited">
+                                    <Grid Height="26" Padding="12,0,8,0" Background="Transparent"
+                                          Tapped="OnDriveItemTapped" RightTapped="OnSidebarDriveRightTapped"
+                                          PointerEntered="OnSidebarItemPointerEntered" PointerExited="OnSidebarItemPointerExited">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0"
-                                                   Text="{x:Bind IconGlyph}"
-                                                   FontFamily="{StaticResource RemixIcons}"
-                                                   FontSize="16"
+                                        <TextBlock Grid.Column="0" Text="{x:Bind IconGlyph}"
+                                                   FontFamily="{StaticResource RemixIcons}" FontSize="16"
                                                    Foreground="{ThemeResource SpanTextSecondaryBrush}"
-                                                   VerticalAlignment="Center"
-                                                   Margin="0,0,12,0"/>
-                                        <TextBlock Grid.Column="1"
-                                                   Text="{x:Bind Name}"
-                                                   FontSize="13"
+                                                   VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                        <TextBlock Grid.Column="1" Text="{x:Bind Name}" FontSize="13"
                                                    VerticalAlignment="Center"/>
                                     </Grid>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
+
+                        <!-- ═══════ Section 4: 클라우드 (CloudDrives 있을 때만) ═══════ -->
+                        <StackPanel Visibility="{x:Bind ViewModel.HasCloudDrives, Mode=OneWay}">
+                            <Rectangle Height="1" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="12,12"/>
+                            <Grid Height="24" Padding="12,0" Background="Transparent"
+                                  Tapped="OnSidebarSectionHeaderTapped" Tag="Cloud">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <FontIcon Glyph="&#xE70D;" FontSize="10" Margin="0,0,6,0"
+                                          VerticalAlignment="Center"
+                                          RenderTransformOrigin="0.5,0.5">
+                                    <FontIcon.RenderTransform>
+                                        <RotateTransform Angle="{x:Bind helpers:ConverterHelpers.ChevronAngle(ViewModel.IsCloudDrivesExpanded), Mode=OneWay}"/>
+                                    </FontIcon.RenderTransform>
+                                </FontIcon>
+                                <TextBlock Grid.Column="1" Text="클라우드"
+                                           Style="{StaticResource CaptionTextBlockStyle}"
+                                           Foreground="{ThemeResource SpanTextTertiaryBrush}" FontWeight="SemiBold"
+                                           VerticalAlignment="Center"/>
+                            </Grid>
+                            <ItemsControl ItemsSource="{x:Bind ViewModel.CloudDrives, Mode=OneWay}"
+                                          Visibility="{x:Bind ViewModel.IsCloudDrivesExpanded, Mode=OneWay}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="models:DriveItem">
+                                        <Grid Height="26" Padding="12,0,8,0" Background="Transparent"
+                                              Tapped="OnDriveItemTapped" RightTapped="OnSidebarDriveRightTapped"
+                                              PointerEntered="OnSidebarItemPointerEntered" PointerExited="OnSidebarItemPointerExited">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="{x:Bind IconGlyph}"
+                                                       FontFamily="{StaticResource RemixIcons}" FontSize="16"
+                                                       Foreground="{ThemeResource SpanTextSecondaryBrush}"
+                                                       VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                            <TextBlock Grid.Column="1" Text="{x:Bind Name}" FontSize="13"
+                                                       VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+
+                        <!-- ═══════ Section 5: 네트워크 (NetworkAndRemoteDrives 있을 때만) ═══════ -->
+                        <StackPanel Visibility="{x:Bind ViewModel.HasNetworkDrives, Mode=OneWay}">
+                            <Rectangle Height="1" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="12,12"/>
+                            <Grid Height="24" Padding="12,0" Background="Transparent"
+                                  Tapped="OnSidebarSectionHeaderTapped" Tag="Network">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <FontIcon Glyph="&#xE70D;" FontSize="10" Margin="0,0,6,0"
+                                          VerticalAlignment="Center"
+                                          RenderTransformOrigin="0.5,0.5">
+                                    <FontIcon.RenderTransform>
+                                        <RotateTransform Angle="{x:Bind helpers:ConverterHelpers.ChevronAngle(ViewModel.IsNetworkDrivesExpanded), Mode=OneWay}"/>
+                                    </FontIcon.RenderTransform>
+                                </FontIcon>
+                                <TextBlock Grid.Column="1" Text="네트워크"
+                                           Style="{StaticResource CaptionTextBlockStyle}"
+                                           Foreground="{ThemeResource SpanTextTertiaryBrush}" FontWeight="SemiBold"
+                                           VerticalAlignment="Center"/>
+                            </Grid>
+                            <ItemsControl ItemsSource="{x:Bind ViewModel.NetworkAndRemoteDrives, Mode=OneWay}"
+                                          Visibility="{x:Bind ViewModel.IsNetworkDrivesExpanded, Mode=OneWay}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="models:DriveItem">
+                                        <Grid Height="26" Padding="12,0,8,0" Background="Transparent"
+                                              Tapped="OnDriveItemTapped" RightTapped="OnSidebarDriveRightTapped"
+                                              PointerEntered="OnSidebarItemPointerEntered" PointerExited="OnSidebarItemPointerExited">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="{x:Bind IconGlyph}"
+                                                       FontFamily="{StaticResource RemixIcons}" FontSize="16"
+                                                       Foreground="{ThemeResource SpanTextSecondaryBrush}"
+                                                       VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                            <TextBlock Grid.Column="1" Text="{x:Bind Name}" FontSize="13"
+                                                       VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
 
                     </StackPanel>
                 </ScrollViewer>
@@ -774,7 +863,7 @@
                                                         <Rectangle Grid.Row="0" Height="2"
                                                                    Fill="{Binding IsActive, Converter={StaticResource BoolToBrushConverter}}"/>
                                                         <Grid Grid.Row="1" Loaded="OnMillerColumnContentGridLoaded" Unloaded="OnMillerColumnContentGridUnloaded">
-                                                            <ListView ItemsSource="{x:Bind Children}" SelectedItem="{x:Bind SelectedChild, Mode=OneWay}"
+                                                            <ListView ItemsSource="{x:Bind Children, Mode=OneWay}" SelectedItem="{x:Bind SelectedChild, Mode=OneWay}"
                                                                       SelectionMode="Extended" IsItemClickEnabled="False"
                                                                       CanDragItems="True" AllowDrop="True"
                                                                       Background="Transparent"
@@ -1261,7 +1350,7 @@
                                                         <Rectangle Grid.Row="0" Height="2"
                                                                    Fill="{Binding IsActive, Converter={StaticResource BoolToBrushConverter}}"/>
                                                         <Grid Grid.Row="1" Loaded="OnMillerColumnContentGridLoaded" Unloaded="OnMillerColumnContentGridUnloaded">
-                                                            <ListView ItemsSource="{x:Bind Children}" SelectedItem="{x:Bind SelectedChild, Mode=OneWay}"
+                                                            <ListView ItemsSource="{x:Bind Children, Mode=OneWay}" SelectedItem="{x:Bind SelectedChild, Mode=OneWay}"
                                                                       SelectionMode="Extended" IsItemClickEnabled="False"
                                                                       CanDragItems="True" AllowDrop="True"
                                                                       Background="Transparent"
@@ -1485,8 +1574,8 @@
                           Foreground="{ThemeResource SpanAccentBrush}"/>
                 <TextBlock x:Name="ToastText" Text="" FontSize="13"
                            Foreground="{ThemeResource SpanTextPrimaryBrush}"
-                           VerticalAlignment="Center" MaxWidth="400"
-                           TextTrimming="CharacterEllipsis"/>
+                           VerticalAlignment="Center" MaxWidth="500"
+                           TextWrapping="WrapWholeWords"/>
             </StackPanel>
         </Border>
     </Grid>

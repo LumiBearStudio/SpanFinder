@@ -24,6 +24,8 @@ namespace Span.Services
         bool IsFavorite(string path);
         void RemoveRemoteConnection(string connectionId);
         void EditRemoteConnection(string connectionId);
+        void PerformEjectDrive(DriveItem drive);
+        void PerformDisconnectDrive(DriveItem drive);
         void SwitchViewMode(ViewMode mode);
         void ApplySort(string field);
         void ApplySortDirection(bool ascending);

@@ -54,6 +54,7 @@ namespace Span.Services
         public string ChevronRightGlyph { get; private set; } = "\uEA6E";
         public string NewFolderGlyph { get; private set; } = "\uED59";
         public string SplitViewGlyph { get; private set; } = "\uEE8C";
+        public string CloudGlyph { get; private set; } = "\uEB9C"; // ri-cloud-fill
 
         public static IconService Current { get; private set; }
 
@@ -100,12 +101,12 @@ namespace Span.Services
                 _          => ("\uED53", "\uED6F", "\uECE0", "\uEC65", "\uEDD4", "\uEE71", "\uEA6E", "\uED59", "\uEE8C")
             };
 
-            // Additional structural glyphs per pack (Removable/USB, CD-ROM)
-            (RemovableGlyph, CdRomGlyph) = pack switch
+            // Additional structural glyphs per pack (Removable/USB, CD-ROM, Cloud)
+            (RemovableGlyph, CdRomGlyph, CloudGlyph) = pack switch
             {
-                "phosphor" => ("\ue2a0", "\ue0e0"),  // hard-drives, disc
-                "tabler"   => ("\ueb1f", "\ueb3d"),  // device-floppy, disc
-                _          => ("\uEDFA", "\uECA4")   // ri-hard-drive-fill, ri-disc-fill
+                "phosphor" => ("\ue2a0", "\ue0e0", "\ue288"),  // hard-drives, disc, globe
+                "tabler"   => ("\ueb1f", "\ueb3d", "\uf673"),  // device-floppy, disc, cloud-filled
+                _          => ("\uEDFA", "\uECA4", "\uEB9C")   // ri-hard-drive-fill, ri-disc-fill, ri-cloud-fill
             };
 
             try
@@ -163,6 +164,7 @@ namespace Span.Services
                 "Removable" => RemovableGlyph,
                 "Network" => NetworkGlyph,
                 "CDRom" => CdRomGlyph,
+                "CloudStorage" => CloudGlyph,
                 _ => DriveGlyph
             };
         }

@@ -89,6 +89,12 @@ namespace Span.Services
                 ["ExtractHere"] = "Extract here",
                 ["ExtractTo"] = "Extract to folder...",
 
+                // Drive actions
+                ["Eject"] = "Eject",
+                ["DisconnectDrive"] = "Disconnect",
+                ["DriveCapacity"] = "{0} free of {1}",
+                ["Opening"] = "Opening",
+
                 // Connection management
                 ["EditConnection"] = "Edit Connection...",
                 ["RemoveConnection"] = "Remove Connection",
@@ -369,6 +375,12 @@ namespace Span.Services
                 ["ExtractHere"] = "\uc5ec\uae30\uc5d0 \uc555\ucd95 \ud480\uae30",
                 ["ExtractTo"] = "\ud3f4\ub354\uc5d0 \uc555\ucd95 \ud480\uae30...",
 
+                // Drive actions
+                ["Eject"] = "꺼내기",
+                ["DisconnectDrive"] = "연결 끊기",
+                ["DriveCapacity"] = "{1} 중 {0} 사용 가능",
+                ["Opening"] = "여는 중",
+
                 // Connection management
                 ["EditConnection"] = "\uc5f0\uacb0 \ud3b8\uc9d1...",
                 ["RemoveConnection"] = "\uc800\uc7a5\ub41c \uc5f0\uacb0 \uc81c\uac70",
@@ -641,6 +653,12 @@ namespace Span.Services
                 ["CompressToZip"] = "ZIP\u306b\u5727\u7e2e",
                 ["ExtractHere"] = "\u3053\u3053\u306b\u5c55\u958b",
                 ["ExtractTo"] = "\u30d5\u30a9\u30eb\u30c0\u30fc\u306b\u5c55\u958b...",
+
+                // Drive actions
+                ["Eject"] = "\u53d6\u308a\u51fa\u3059",
+                ["DisconnectDrive"] = "\u5207\u65ad",
+                ["DriveCapacity"] = "{1}\u306e\u3046\u3061{0}\u7a7a\u304d",
+                ["Opening"] = "\u958b\u3044\u3066\u3044\u307e\u3059",
 
                 // Connection management
                 ["EditConnection"] = "\u63a5\u7d9a\u3092\u7de8\u96c6...",

@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.DependencyInjection;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using Span.Models;
 using Span.Services;
@@ -20,6 +21,7 @@ namespace Span.ViewModels
         public ObservableCollection<TabItem> Tabs { get; } = new();
         public ObservableCollection<DriveItem> Drives { get; } = new();
         public ObservableCollection<DriveItem> NetworkDrives { get; } = new();
+        public ObservableCollection<DriveItem> CloudDrives { get; } = new();
         public ObservableCollection<FavoriteItem> Favorites { get; } = new();
         public ObservableCollection<FavoriteItem> RecentFolders { get; } = new();
         public ObservableCollection<Models.ConnectionInfo> SavedConnections { get; } = new();
@@ -28,6 +30,42 @@ namespace Span.ViewModels
         /// 사이드바 "드라이브" 섹션에 표시할 통합 컬렉션 (로컬 + 네트워크 + 원격 연결)
         /// </summary>
         public ObservableCollection<DriveItem> AllDrives { get; } = new();
+
+        /// <summary>
+        /// 네트워크 매핑 드라이브 + 원격 연결 통합 (사이드바 네트워크 그룹용)
+        /// </summary>
+        public ObservableCollection<DriveItem> NetworkAndRemoteDrives { get; } = new();
+
+        // 사이드바 섹션 접기/펴기 상태
+        [ObservableProperty]
+        private bool _isLocalDrivesExpanded = true;
+
+        [ObservableProperty]
+        private bool _isCloudDrivesExpanded = true;
+
+        [ObservableProperty]
+        private bool _isNetworkDrivesExpanded = true;
+
+        partial void OnIsLocalDrivesExpandedChanged(bool value)
+        {
+            if (_isCleaningUp) return;
+            try { App.Current.Services.GetRequiredService<SettingsService>().Set("SidebarLocalExpanded", value); } catch { }
+        }
+
+        partial void OnIsCloudDrivesExpandedChanged(bool value)
+        {
+            if (_isCleaningUp) return;
+            try { App.Current.Services.GetRequiredService<SettingsService>().Set("SidebarCloudExpanded", value); } catch { }
+        }
+
+        partial void OnIsNetworkDrivesExpandedChanged(bool value)
+        {
+            if (_isCleaningUp) return;
+            try { App.Current.Services.GetRequiredService<SettingsService>().Set("SidebarNetworkExpanded", value); } catch { }
+        }
+
+        public bool HasCloudDrives => CloudDrives.Count > 0;
+        public bool HasNetworkDrives => NetworkAndRemoteDrives.Count > 0;
 
         // Engine — Split View (Dual-Pane)
         private ExplorerViewModel _leftExplorer;
@@ -336,6 +374,16 @@ namespace Span.ViewModels
             // Load ViewMode preference (includes split state)
             LoadViewModePreference();
 
+            // Restore sidebar section expand state
+            try
+            {
+                var settings = App.Current.Services.GetRequiredService<SettingsService>();
+                _isLocalDrivesExpanded = settings.Get("SidebarLocalExpanded", true);
+                _isCloudDrivesExpanded = settings.Get("SidebarCloudExpanded", true);
+                _isNetworkDrivesExpanded = settings.Get("SidebarNetworkExpanded", true);
+            }
+            catch { }
+
             // LeftExplorer PropertyChanged는 setter에서 자동 구독됨
             // RightExplorer는 탭과 무관하므로 별도 구독
             RightExplorer.PropertyChanged += (s, e) =>
@@ -419,9 +467,27 @@ namespace Span.ViewModels
 
                 // Step 5: Save updated list to cache
                 SaveDrivesCache(drives);
-                Helpers.DebugLogger.Log($"[MainViewModel] Loaded {Drives.Count} local + {NetworkDrives.Count} network drives (changed={drivesChanged})");
 
-                // Step 6: Rebuild unified AllDrives collection
+                // Step 6: Detect cloud storage providers (iCloud, OneDrive, Dropbox, etc.)
+                var cloudService = new CloudStorageProviderService();
+                var newCloudDrives = await Task.Run(() => cloudService.GetCloudStorageDrives());
+
+                // Filter out cloud drives that overlap with physical drives
+                var physicalPaths = new HashSet<string>(
+                    drives.Select(d => d.Path.TrimEnd('\\')),
+                    StringComparer.OrdinalIgnoreCase);
+                newCloudDrives.RemoveAll(c => physicalPaths.Contains(c.Path.TrimEnd('\\')));
+
+                if (!AreDriveListsEqual(CloudDrives, newCloudDrives))
+                {
+                    CloudDrives.Clear();
+                    foreach (var cd in newCloudDrives)
+                        CloudDrives.Add(cd);
+                }
+
+                Helpers.DebugLogger.Log($"[MainViewModel] Loaded {Drives.Count} local + {NetworkDrives.Count} network + {CloudDrives.Count} cloud drives (changed={drivesChanged})");
+
+                // Step 7: Rebuild unified AllDrives collection
                 RebuildAllDrives();
             }
             catch (System.OperationCanceledException)
@@ -435,13 +501,16 @@ namespace Span.ViewModels
         }
 
         /// <summary>
-        /// 로컬 + 네트워크 + 원격 연결을 AllDrives에 통합
-        /// 순서: 로컬 드라이브 → 네트워크 매핑 드라이브 → SMB → FTP/FTPS → SFTP (이름순)
+        /// 로컬 + 클라우드 + 네트워크 + 원격 연결을 AllDrives에 통합
+        /// 순서: 로컬 드라이브 → 클라우드 스토리지 → 네트워크 매핑 드라이브 → SMB → FTP/FTPS → SFTP (이름순)
         /// </summary>
         private void RebuildAllDrives()
         {
+            // AllDrives: 하위 호환용 (전체 통합)
             AllDrives.Clear();
             foreach (var d in Drives)
+                AllDrives.Add(d);
+            foreach (var d in CloudDrives)
                 AllDrives.Add(d);
             foreach (var d in NetworkDrives)
                 AllDrives.Add(d);
@@ -458,6 +527,17 @@ namespace Span.ViewModels
                 .ThenBy(c => c.DisplayName, StringComparer.OrdinalIgnoreCase);
             foreach (var conn in sortedConnections)
                 AllDrives.Add(DriveItem.FromConnection(conn));
+
+            // NetworkAndRemoteDrives: 네트워크 매핑 + 원격 연결 통합
+            NetworkAndRemoteDrives.Clear();
+            foreach (var d in NetworkDrives)
+                NetworkAndRemoteDrives.Add(d);
+            foreach (var conn in sortedConnections)
+                NetworkAndRemoteDrives.Add(DriveItem.FromConnection(conn));
+
+            // 가시성 알림
+            OnPropertyChanged(nameof(HasCloudDrives));
+            OnPropertyChanged(nameof(HasNetworkDrives));
         }
 
         /// <summary>
@@ -521,8 +601,10 @@ namespace Span.ViewModels
 
                 // Clear collections (safe now - _isCleaningUp suppresses side effects)
                 AllDrives.Clear();
+                NetworkAndRemoteDrives.Clear();
                 Drives.Clear();
                 NetworkDrives.Clear();
+                CloudDrives.Clear();
                 Tabs.Clear();
                 Favorites.Clear();
                 RecentFolders.Clear();

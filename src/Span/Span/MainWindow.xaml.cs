@@ -48,6 +48,8 @@ namespace Span
         private IntPtr _hwnd;
         private SUBCLASSPROC? _subclassProc; // prevent GC collection
         private DispatcherTimer? _deviceChangeDebounceTimer;
+        private DispatcherTimer? _drivePollingTimer;
+        private HashSet<char> _lastKnownDriveLetters = new();
 
         private readonly Services.ContextMenuService _contextMenuService;
         private readonly Services.LocalizationService _loc;
@@ -151,6 +153,10 @@ namespace Span
             _contextMenuService = App.Current.Services.GetRequiredService<Services.ContextMenuService>();
             _loc = App.Current.Services.GetRequiredService<Services.LocalizationService>();
             _settings = App.Current.Services.GetRequiredService<Services.SettingsService>();
+
+            // Subscribe to file open events for toast feedback
+            var shellService = App.Current.Services.GetRequiredService<ShellService>();
+            shellService.FileOpening += OnShellFileOpening;
 
             // Wire up file operation progress panel
             var fileOpManager = App.Current.Services.GetRequiredService<Services.FileOperationManager>();
@@ -298,6 +304,15 @@ namespace Span
                     ViewModel.RefreshDrives();
                 }
             };
+
+            // Periodic drive polling: detect virtual drive mount/unmount
+            // (Google Drive, OneDrive, etc. don't fire WM_DEVICECHANGE)
+            _lastKnownDriveLetters = new HashSet<char>(
+                System.IO.DriveInfo.GetDrives().Select(d => d.Name[0]));
+            _drivePollingTimer = new DispatcherTimer();
+            _drivePollingTimer.Interval = TimeSpan.FromSeconds(5);
+            _drivePollingTimer.Tick += OnDrivePollingTick;
+            _drivePollingTimer.Start();
 
             // Initialize preview panels
             InitializePreviewPanels();
@@ -457,6 +472,14 @@ namespace Span
                 // Unsubscribe settings
                 _settings.SettingChanged -= OnSettingChanged;
 
+                // Unsubscribe file open toast
+                try
+                {
+                    var shellService = App.Current.Services.GetRequiredService<ShellService>();
+                    shellService.FileOpening -= OnShellFileOpening;
+                }
+                catch { }
+
                 // STEP 1: Suppress ViewModel notifications FIRST (prevents PropertyChanged
                 // from reaching UI during teardown — the primary crash cause).
                 ViewModel?.Explorer?.Cleanup();       // Left pane
@@ -583,6 +606,12 @@ namespace Span
                         _deviceChangeDebounceTimer.Stop();
                         _deviceChangeDebounceTimer = null;
                     }
+                    if (_drivePollingTimer != null)
+                    {
+                        _drivePollingTimer.Stop();
+                        _drivePollingTimer.Tick -= OnDrivePollingTick;
+                        _drivePollingTimer = null;
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -618,6 +647,29 @@ namespace Span
                 Helpers.DebugLogger.Log("[MainWindow] WM_DEVICECHANGE: Device change detected");
             }
             return DefSubclassProc(hWnd, uMsg, wParam, lParam);
+        }
+
+        /// <summary>
+        /// Lightweight poll: compare drive letters to detect virtual drive mount/unmount.
+        /// </summary>
+        private void OnDrivePollingTick(object? sender, object e)
+        {
+            if (_isClosed) return;
+            try
+            {
+                var current = new HashSet<char>(
+                    System.IO.DriveInfo.GetDrives().Select(d => d.Name[0]));
+                if (!current.SetEquals(_lastKnownDriveLetters))
+                {
+                    Helpers.DebugLogger.Log($"[MainWindow] Drive poll: letters changed ({string.Join(",", _lastKnownDriveLetters)} → {string.Join(",", current)})");
+                    _lastKnownDriveLetters = current;
+                    ViewModel.RefreshDrives();
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[MainWindow] Drive poll error: {ex.Message}");
+            }
         }
 
         // =================================================================
@@ -812,6 +864,7 @@ namespace Span
                         if (col.Path.Equals(changedPath, StringComparison.OrdinalIgnoreCase))
                         {
                             await col.ReloadAsync();
+                            leftExplorer.NotifyCurrentItemsChanged();
                             break;
                         }
                     }
@@ -827,6 +880,7 @@ namespace Span
                             if (col.Path.Equals(changedPath, StringComparison.OrdinalIgnoreCase))
                             {
                                 await col.ReloadAsync();
+                                rightExplorer.NotifyCurrentItemsChanged();
                                 break;
                             }
                         }
@@ -1155,6 +1209,22 @@ namespace Span
             {
                 ViewModel.OpenDrive(drive);
                 FocusColumnAsync(0);
+            }
+        }
+
+        /// <summary>
+        /// 사이드바 섹션 헤더 접기/펴기 토글
+        /// </summary>
+        private void OnSidebarSectionHeaderTapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
+        {
+            if (sender is Grid grid && grid.Tag is string tag)
+            {
+                switch (tag)
+                {
+                    case "Local":   ViewModel.IsLocalDrivesExpanded = !ViewModel.IsLocalDrivesExpanded; break;
+                    case "Cloud":   ViewModel.IsCloudDrivesExpanded = !ViewModel.IsCloudDrivesExpanded; break;
+                    case "Network": ViewModel.IsNetworkDrivesExpanded = !ViewModel.IsNetworkDrivesExpanded; break;
+                }
             }
         }
 
@@ -2136,6 +2206,14 @@ namespace Span
 
         private void OnMillerContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
         {
+            // 재활용 큐: 화면 밖 아이템의 썸네일 해제 (메모리 절약)
+            if (args.InRecycleQueue)
+            {
+                if (args.Item is ViewModels.FileViewModel recycledFile)
+                    recycledFile.UnloadThumbnail();
+                return;
+            }
+
             if (args.ItemContainer is ListViewItem item)
             {
                 // Reset any stale padding on the template root Grid (ContentBorder)
@@ -2151,6 +2229,19 @@ namespace Span
                     var grid = FindChild<Grid>(cp);
                     if (grid != null) grid.Padding = _densityPadding;
                 }
+            }
+
+            // On-demand 썸네일 로딩: 보이는 아이템만 로드
+            if (args.Item is ViewModels.FileViewModel fileVm && fileVm.IsThumbnailSupported && !fileVm.HasThumbnail)
+            {
+                _ = fileVm.LoadThumbnailAsync();
+            }
+
+            // On-demand 클라우드 상태 주입: 보이는 아이템만
+            if (args.Item is ViewModels.FileSystemViewModel fsVm
+                && sender.DataContext is ViewModels.FolderViewModel folderVm)
+            {
+                folderVm.InjectCloudStateIfNeeded(fsVm);
             }
         }
 
@@ -2377,16 +2468,10 @@ namespace Span
                 var selected = folderVm.SelectedChild;
                 if (selected is FileViewModel file)
                 {
-                    // Open file with default application
-                    try
-                    {
-                        _ = Windows.System.Launcher.LaunchUriAsync(new Uri(file.Path));
-                        Helpers.DebugLogger.Log($"[MainWindow] Miller Column DoubleClick: Opening file {file.Name}");
-                    }
-                    catch (Exception ex)
-                    {
-                        Helpers.DebugLogger.Log($"[MainWindow] Error opening file: {ex.Message}");
-                    }
+                    // Open file with default application via ShellExecute (faster than WinRT Launcher)
+                    var shellService = App.Current.Services.GetRequiredService<ShellService>();
+                    shellService.OpenFile(file.Path);
+                    Helpers.DebugLogger.Log($"[MainWindow] Miller Column DoubleClick: Opening file {file.Name}");
                 }
                 else if (selected is FolderViewModel folder && _settings.MillerClickBehavior == "double")
                 {
@@ -2885,24 +2970,57 @@ namespace Span
 
         async void Services.IContextMenuHost.PerformPaste(string targetFolderPath)
         {
-            if (_clipboardPaths.Count == 0) return;
+            List<string> sourcePaths;
+            bool isCut;
+
+            if (_clipboardPaths.Count > 0)
+            {
+                // Internal clipboard (Span → Span)
+                sourcePaths = new List<string>(_clipboardPaths);
+                isCut = _isCutOperation;
+            }
+            else
+            {
+                // External clipboard (Windows Explorer → Span)
+                try
+                {
+                    var content = Windows.ApplicationModel.DataTransfer.Clipboard.GetContent();
+                    if (!content.Contains(Windows.ApplicationModel.DataTransfer.StandardDataFormats.StorageItems)) return;
+
+                    var items = await content.GetStorageItemsAsync();
+                    sourcePaths = items
+                        .Select(i => i.Path)
+                        .Where(p => !string.IsNullOrEmpty(p))
+                        .ToList();
+                    if (sourcePaths.Count == 0) return;
+
+                    isCut = content.RequestedOperation.HasFlag(
+                        Windows.ApplicationModel.DataTransfer.DataPackageOperation.Move);
+                }
+                catch { return; }
+            }
+
+            // Find target column index for targeted refresh
+            int? targetColumnIndex = null;
+            var columns = ViewModel.ActiveExplorer.Columns;
+            for (int i = 0; i < columns.Count; i++)
+            {
+                if (columns[i].Path.Equals(targetFolderPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    targetColumnIndex = i;
+                    break;
+                }
+            }
 
             var router = App.Current.Services.GetRequiredService<FileSystemRouter>();
-            Span.Services.FileOperations.IFileOperation op = _isCutOperation
-                ? new Span.Services.FileOperations.MoveFileOperation(new List<string>(_clipboardPaths), targetFolderPath, router)
-                : new Span.Services.FileOperations.CopyFileOperation(new List<string>(_clipboardPaths), targetFolderPath, router);
+            Span.Services.FileOperations.IFileOperation op = isCut
+                ? new Span.Services.FileOperations.MoveFileOperation(sourcePaths, targetFolderPath, router)
+                : new Span.Services.FileOperations.CopyFileOperation(sourcePaths, targetFolderPath, router);
 
-            await ViewModel.ExecuteFileOperationAsync(op);
+            await ViewModel.ExecuteFileOperationAsync(op, targetColumnIndex);
 
-            if (_isCutOperation) _clipboardPaths.Clear();
+            if (isCut && _clipboardPaths.Count > 0) _clipboardPaths.Clear();
             UpdateToolbarButtonStates();
-
-            // Refresh the target folder if it's in the current columns
-            var columns = ViewModel.ActiveExplorer.Columns;
-            var targetColumn = columns.FirstOrDefault(c =>
-                c.Path.Equals(targetFolderPath, StringComparison.OrdinalIgnoreCase));
-            if (targetColumn != null)
-                await targetColumn.ReloadAsync();
         }
 
         async void Services.IContextMenuHost.PerformDelete(string path, string itemName)
@@ -2953,21 +3071,38 @@ namespace Span
             }
             else if (item is FileViewModel file)
             {
-                try
-                {
-                    _ = Windows.System.Launcher.LaunchUriAsync(new Uri(file.Path));
-                }
-                catch (Exception ex)
-                {
-                    Helpers.DebugLogger.Log($"[ContextMenu] Open file error: {ex.Message}");
-                }
+                var shellService = App.Current.Services.GetRequiredService<ShellService>();
+                shellService.OpenFile(file.Path);
             }
+        }
+
+        private void OnShellFileOpening(string fileName)
+        {
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                if (_isClosed) return;
+                ViewModel?.ShowToast($"\"{fileName}\" {_loc.Get("Opening")}...", 2000);
+            });
         }
 
         void Services.IContextMenuHost.PerformOpenDrive(DriveItem drive)
         {
             ViewModel.OpenDrive(drive);
             FocusColumnAsync(0);
+        }
+
+        void Services.IContextMenuHost.PerformEjectDrive(DriveItem drive)
+        {
+            var shellService = App.Current.Services.GetRequiredService<ShellService>();
+            shellService.EjectDrive(drive.Path);
+            // WM_DEVICECHANGE 이벤트가 자동으로 드라이브 목록 갱신
+        }
+
+        void Services.IContextMenuHost.PerformDisconnectDrive(DriveItem drive)
+        {
+            var shellService = App.Current.Services.GetRequiredService<ShellService>();
+            if (shellService.DisconnectNetworkDrive(drive.Path))
+                ViewModel.RefreshDrives();
         }
 
         void Services.IContextMenuHost.PerformOpenFavorite(FavoriteItem fav)

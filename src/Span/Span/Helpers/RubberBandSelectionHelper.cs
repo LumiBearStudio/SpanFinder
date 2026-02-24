@@ -136,6 +136,10 @@ namespace Span.Helpers
                 // Clean up any stuck state from previous operation
                 if (_state != State.Inactive) Cleanup();
 
+                // Scrollbar: let ScrollViewer handle scrollbar interaction
+                if (IsPointerOnScrollbar(e))
+                    return;
+
                 // Hit-test: if pointer is on actual item content (text/icon), let ListView handle it
                 if (IsPointerOnItemContent(e))
                     return;
@@ -346,6 +350,24 @@ namespace Span.Helpers
                 _overlayCanvas.IsHitTestVisible = false;
             }
             catch { /* UI element may already be disposed */ }
+        }
+
+        /// <summary>
+        /// Check if the pointer is on a ScrollBar element (thumb, track, arrows).
+        /// Prevents rubber-band selection from starting when the user grabs the scrollbar.
+        /// </summary>
+        private bool IsPointerOnScrollbar(PointerRoutedEventArgs e)
+        {
+            var source = e.OriginalSource as DependencyObject;
+            while (source != null)
+            {
+                if (source is Microsoft.UI.Xaml.Controls.Primitives.ScrollBar)
+                    return true;
+                if (source == _contentGrid)
+                    break;
+                source = VisualTreeHelper.GetParent(source);
+            }
+            return false;
         }
 
         /// <summary>

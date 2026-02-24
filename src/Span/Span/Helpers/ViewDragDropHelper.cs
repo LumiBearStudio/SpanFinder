@@ -24,8 +24,10 @@ namespace Span.Helpers
             e.Data.SetText(string.Join("\n", paths));
             e.Data.Properties["SourcePaths"] = paths;
             e.Data.Properties["SourcePane"] = isRightPane ? "Right" : "Left";
-            e.Data.RequestedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Copy
-                                      | Windows.ApplicationModel.DataTransfer.DataPackageOperation.Move;
+            // Default to Copy for external drop targets (Windows Explorer, Desktop).
+            // WinUI→Shell bridge defaults to Move when Move flag is present, ignoring
+            // cross-drive convention. Internal Span drops use HandleDropAsync directly.
+            e.Data.RequestedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Copy;
 
             var capturedPaths = new List<string>(paths);
             e.Data.SetDataProvider(Windows.ApplicationModel.DataTransfer.StandardDataFormats.StorageItems, request =>

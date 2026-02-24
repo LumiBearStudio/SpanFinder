@@ -8,6 +8,34 @@ namespace Span.Services
 {
     public class ShellService : IShellService
     {
+        /// <summary>
+        /// Fired just before a file is opened, with the file name as argument.
+        /// Subscribe to show immediate UI feedback (e.g. toast notification).
+        /// </summary>
+        public event Action<string>? FileOpening;
+
+        /// <summary>
+        /// Open a file with its default application using Win32 ShellExecute.
+        /// Faster than WinRT Launcher.LaunchUriAsync — no URI parsing overhead,
+        /// and handles ISO/disc images, executables, and all file types natively.
+        /// </summary>
+        public void OpenFile(string filePath)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(filePath)) return;
+
+                var fileName = System.IO.Path.GetFileName(filePath);
+                FileOpening?.Invoke(fileName);
+
+                Process.Start(new ProcessStartInfo(filePath) { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[ShellService] OpenFile error: {ex.Message}");
+            }
+        }
+
         public async Task OpenWithAsync(string filePath)
         {
             try
@@ -102,6 +130,40 @@ namespace Span.Services
             }
         }
 
+        public void EjectDrive(string drivePath)
+        {
+            try
+            {
+                var info = new SHELLEXECUTEINFO
+                {
+                    cbSize = Marshal.SizeOf<SHELLEXECUTEINFO>(),
+                    lpVerb = "eject",
+                    lpFile = drivePath,
+                    nShow = 0,
+                    fMask = SEE_MASK_INVOKEIDLIST
+                };
+                ShellExecuteEx(ref info);
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[ShellService] EjectDrive error: {ex.Message}");
+            }
+        }
+
+        public bool DisconnectNetworkDrive(string drivePath)
+        {
+            try
+            {
+                int result = WNetCancelConnection2W(drivePath.TrimEnd('\\'), 0, true);
+                return result == 0;
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[ShellService] DisconnectNetworkDrive error: {ex.Message}");
+                return false;
+            }
+        }
+
         #region Escape Helpers
 
         private static string EscapePowerShell(string s) => s.Replace("'", "''");
@@ -135,6 +197,9 @@ namespace Span.Services
 
         [DllImport("shell32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
         private static extern bool ShellExecuteEx(ref SHELLEXECUTEINFO lpExecInfo);
+
+        [DllImport("mpr.dll", CharSet = CharSet.Unicode)]
+        private static extern int WNetCancelConnection2W(string lpName, int dwFlags, bool fForce);
 
         #endregion
     }

@@ -234,6 +234,9 @@ namespace Span.ViewModels
             await targetColumn.ReloadAsync();
             Helpers.DebugLogger.Log($"[RefreshCurrentFolderAsync] ReloadAsync() completed. Children after reload: {targetColumn.Children.Count}");
 
+            // Explicitly notify ExplorerViewModel so Details/List/Icon views rebind
+            explorer.NotifyCurrentItemsChanged();
+
             // Restore previous selection by name
             if (savedName != null)
             {

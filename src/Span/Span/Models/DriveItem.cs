@@ -19,6 +19,11 @@ namespace Span.Models
         public bool IsRemoteConnection { get; set; }
 
         /// <summary>
+        /// 클라우드 스토리지 프로바이더 여부 (iCloud, OneDrive, Dropbox 등)
+        /// </summary>
+        public bool IsCloudStorage { get; set; }
+
+        /// <summary>
         /// ConnectionInfo.Id (원격 연결 식별)
         /// </summary>
         public string? ConnectionId { get; set; }

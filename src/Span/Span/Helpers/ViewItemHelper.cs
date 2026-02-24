@@ -1,4 +1,5 @@
 using System;
+using Microsoft.Extensions.DependencyInjection;
 using Span.ViewModels;
 
 namespace Span.Helpers
@@ -26,7 +27,8 @@ namespace Span.Helpers
             {
                 try
                 {
-                    _ = Windows.System.Launcher.LaunchUriAsync(new Uri(file.Path));
+                    var shellService = App.Current.Services.GetRequiredService<Services.ShellService>();
+                    shellService.OpenFile(file.Path);
                     DebugLogger.Log($"[{viewName}] Opening file {file.Name}");
                 }
                 catch (Exception ex)

@@ -813,8 +813,30 @@ namespace Span.ViewModels
             RemoveColumnsFrom(startIndex);
         }
 
+        /// <summary>
+        /// Notify that CurrentItems has changed (e.g. after ReloadAsync on the current folder).
+        /// Needed because Details/List/Icon views bind to CurrentItems on ExplorerViewModel,
+        /// and ReloadAsync replaces Children with a new ObservableCollection.
+        /// </summary>
+        public void NotifyCurrentItemsChanged()
+        {
+            OnPropertyChanged(nameof(CurrentFolder));
+            OnPropertyChanged(nameof(CurrentItems));
+        }
+
         private async void FolderVm_PropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
+            // When a column's Children collection is replaced (ReloadAsync / PopulateChildren),
+            // notify CurrentItems so Details/List/Icon views rebind to the new collection.
+            if (e.PropertyName == nameof(FolderViewModel.Children))
+            {
+                if (sender == CurrentFolder)
+                {
+                    OnPropertyChanged(nameof(CurrentItems));
+                }
+                return;
+            }
+
             if (e.PropertyName != nameof(FolderViewModel.SelectedChild)) return;
             if (sender is not FolderViewModel parentFolder) return;
 

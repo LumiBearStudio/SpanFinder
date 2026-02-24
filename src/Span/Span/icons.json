@@ -701,8 +701,8 @@
             "extensions": [
                 "iso"
             ],
-            "icon": "disc-fill",
-            "color": "#FFCA28"
+            "icon": "drive-fill",
+            "color": "#78909C"
         },
         {
             "extensions": [

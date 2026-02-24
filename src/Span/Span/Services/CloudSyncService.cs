@@ -21,6 +21,28 @@ namespace Span.Services
         [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
         private static extern uint GetFileAttributesW(string lpFileName);
 
+        /// <summary>
+        /// 프로바이더 무관하게, 파일이 클라우드 전용(로컬에 데이터 없음)인지 확인.
+        /// 데이터 읽기 시 다운로드가 트리거되는 파일을 식별.
+        /// OneDrive, iCloud, Dropbox, Google Drive 등 모든 Cloud Files API 프로바이더에 동작.
+        /// </summary>
+        public static bool IsCloudOnlyFile(string path)
+        {
+            try
+            {
+                uint attrs = GetFileAttributesW(path);
+                if (attrs == 0xFFFFFFFF) return false; // INVALID_FILE_ATTRIBUTES
+
+                return (attrs & (FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS
+                               | FILE_ATTRIBUTE_RECALL_ON_OPEN
+                               | FILE_ATTRIBUTE_OFFLINE)) != 0;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         private string? _oneDrivePath;
         private bool _oneDriveChecked;
 

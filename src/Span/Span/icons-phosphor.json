@@ -456,8 +456,8 @@
         },
         {
             "extensions": ["iso"],
-            "icon": "disc",
-            "color": "#FFCA28"
+            "icon": "hard-drives",
+            "color": "#78909C"
         },
         {
             "extensions": ["ttf", "otf"],

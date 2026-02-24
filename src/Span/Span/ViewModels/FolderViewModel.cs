@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using Span.Models;
+using System.Threading;
 using System.Threading.Tasks;
 using Span.Services;
 using System.Linq;
@@ -16,6 +17,12 @@ namespace Span.ViewModels
         private readonly FolderItem _folderModel;
         private bool _isLoaded = false;
         private string? _calculatedSize;
+
+        /// <summary>
+        /// 이 폴더가 클라우드 경로인지 캐시 (on-demand cloud state 주입용).
+        /// </summary>
+        private bool _isCloudFolder;
+        private CloudSyncService? _cloudSvc;
 
         [ObservableProperty]
         private ObservableCollection<FileSystemViewModel> _children = new();
@@ -369,8 +376,9 @@ namespace Span.ViewModels
         }
 
         /// <summary>
-        /// Children 컬렉션에 정렬된 아이템을 채우고 썸네일 로드를 시작한다.
-        /// 캐시 히트와 디스크 로드 양쪽에서 공통으로 사용.
+        /// Children 컬렉션에 정렬된 아이템을 채운다.
+        /// 썸네일과 클라우드 상태는 on-demand (ContainerContentChanging)로 로드.
+        /// 배치 교체로 CollectionChanged 이벤트를 최소화.
         /// </summary>
         private void PopulateChildren(List<FileSystemViewModel> items, System.Threading.CancellationToken token)
         {
@@ -381,29 +389,35 @@ namespace Span.ViewModels
                 .ThenBy(x => x.Name, Helpers.NaturalStringComparer.Instance)
                 .ToList();
 
-            // 클라우드 동기화 상태 주입
+            // 클라우드 폴더 여부 캐시 (on-demand 주입용)
             try
             {
-                var cloudSvc = App.Current.Services.GetService(typeof(CloudSyncService)) as CloudSyncService;
-                if (cloudSvc != null && cloudSvc.IsCloudPath(Path))
-                {
-                    foreach (var item in sortedItems)
-                    {
-                        item.CloudState = cloudSvc.GetCloudState(item.Path);
-                    }
-                }
+                _cloudSvc = App.Current.Services.GetService(typeof(CloudSyncService)) as CloudSyncService;
+                _isCloudFolder = _cloudSvc != null && _cloudSvc.IsCloudPath(Path);
             }
-            catch { }
+            catch { _isCloudFolder = false; }
 
-            Children.Clear();
-            foreach (var item in sortedItems)
-                Children.Add(item);
+            // 배치 교체: 1회 PropertyChanged("Children") → ListView 전체 리바인딩
+            // (기존: 14,000회 CollectionChanged.Add 이벤트)
+            Children = new ObservableCollection<FileSystemViewModel>(sortedItems);
 
-            Helpers.DebugLogger.Log($"[FolderViewModel] Children populated: {sortedItems.Count} items");
+            Helpers.DebugLogger.Log($"[FolderViewModel] Children populated: {sortedItems.Count} items (batch)");
 
             OnPropertyChanged(nameof(ChildCountText));
 
-            _ = LoadThumbnailsAsync(sortedItems, token);
+            // 썸네일은 ContainerContentChanging에서 on-demand 로드
+            // (기존: 전체 순차 로드 제거)
+        }
+
+        /// <summary>
+        /// On-demand: 보이는 아이템에 클라우드 상태 주입.
+        /// ContainerContentChanging에서 호출.
+        /// </summary>
+        public void InjectCloudStateIfNeeded(FileSystemViewModel item)
+        {
+            if (!_isCloudFolder || _cloudSvc == null) return;
+            if (item.CloudState != CloudState.None) return;
+            item.CloudState = _cloudSvc.GetCloudState(item.Path);
         }
 
         public void CancelLoading()
@@ -462,33 +476,7 @@ namespace Span.ViewModels
             }
         }
 
-        /// <summary>
-        /// Load thumbnails for image files in the background.
-        /// Processes in batches to avoid flooding the UI thread.
-        /// </summary>
-        private async Task LoadThumbnailsAsync(List<FileSystemViewModel> items, System.Threading.CancellationToken token)
-        {
-            try
-            {
-                var imageFiles = items.OfType<FileViewModel>()
-                    .Where(f => f.IsThumbnailSupported)
-                    .ToList();
-
-                if (imageFiles.Count == 0) return;
-
-                Helpers.DebugLogger.Log($"[FolderViewModel] Loading thumbnails for {imageFiles.Count} image files");
-
-                foreach (var file in imageFiles)
-                {
-                    if (token.IsCancellationRequested) break;
-                    await file.LoadThumbnailAsync();
-                }
-            }
-            catch (System.Exception ex)
-            {
-                Helpers.DebugLogger.Log($"[FolderViewModel] Thumbnail batch load error: {ex.Message}");
-            }
-        }
+        // LoadThumbnailsAsync 제거됨 — 썸네일은 ContainerContentChanging에서 on-demand 로드
 
         /// <summary>
         /// Alias for ReloadAsync (used by settings refresh).

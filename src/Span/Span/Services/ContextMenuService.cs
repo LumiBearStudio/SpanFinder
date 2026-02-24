@@ -339,19 +339,20 @@ namespace Span.Services
             var menu = new MenuFlyout();
 
             menu.Items.Add(CreateItem(_loc.Get("Open"), "\uE8E5", () => host.PerformOpenDrive(drive)));
+
+            // 용량 정보 (disabled label) — 로컬/리무버블/CD/네트워크 드라이브만
+            if (!drive.IsRemoteConnection && !drive.IsCloudStorage && drive.TotalSize > 0)
+            {
+                var capItem = CreateItem(drive.SizeDescription, null, () => { });
+                capItem.IsEnabled = false;
+                menu.Items.Add(capItem);
+            }
+
             menu.Items.Add(new MenuFlyoutSeparator());
 
-            if (!drive.IsRemoteConnection)
+            if (drive.IsRemoteConnection)
             {
-                // 로컬/네트워크 매핑 드라이브: 경로 복사, 탐색기에서 열기, 속성
-                menu.Items.Add(CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => _shellService.CopyPathToClipboard(drive.Path)));
-                menu.Items.Add(CreateItem(_loc.Get("OpenInExplorer"), "\uED25", () => _shellService.OpenInExplorer(drive.Path)));
-                menu.Items.Add(new MenuFlyoutSeparator());
-                menu.Items.Add(CreateItem(_loc.Get("Properties"), "\uE946", () => _shellService.ShowProperties(drive.Path)));
-            }
-            else
-            {
-                // 원격 연결 (SFTP/FTP): 경로 복사 + 편집 + 제거
+                // 원격 연결 (SFTP/FTP): 편집 + 제거
                 menu.Items.Add(CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => _shellService.CopyPathToClipboard(drive.Path)));
                 menu.Items.Add(new MenuFlyoutSeparator());
                 menu.Items.Add(CreateItem(_loc.Get("EditConnection"), "\uE70F", () =>
@@ -364,6 +365,37 @@ namespace Span.Services
                     if (!string.IsNullOrEmpty(drive.ConnectionId))
                         host.RemoveRemoteConnection(drive.ConnectionId);
                 }));
+            }
+            else if (drive.IsCloudStorage)
+            {
+                // 클라우드 스토리지: 경로 복사 + 탐색기
+                menu.Items.Add(CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => _shellService.CopyPathToClipboard(drive.Path)));
+                menu.Items.Add(CreateItem(_loc.Get("OpenInExplorer"), "\uED25", () => _shellService.OpenInExplorer(drive.Path)));
+            }
+            else
+            {
+                // 로컬/리무버블/CD/네트워크 매핑 드라이브
+                bool isRemovableOrCdrom = drive.DriveType == "Removable" || drive.DriveType == "CDRom";
+                bool isNetwork = drive.DriveType == "Network";
+
+                // 꺼내기 (Removable / CDRom)
+                if (isRemovableOrCdrom)
+                {
+                    menu.Items.Add(CreateItem(_loc.Get("Eject"), "\uE7E7", () => host.PerformEjectDrive(drive)));
+                    menu.Items.Add(new MenuFlyoutSeparator());
+                }
+
+                // 연결 끊기 (Network mapped)
+                if (isNetwork)
+                {
+                    menu.Items.Add(CreateItem(_loc.Get("DisconnectDrive"), "\uE8CD", () => host.PerformDisconnectDrive(drive)));
+                    menu.Items.Add(new MenuFlyoutSeparator());
+                }
+
+                menu.Items.Add(CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => _shellService.CopyPathToClipboard(drive.Path)));
+                menu.Items.Add(CreateItem(_loc.Get("OpenInExplorer"), "\uED25", () => _shellService.OpenInExplorer(drive.Path)));
+                menu.Items.Add(new MenuFlyoutSeparator());
+                menu.Items.Add(CreateItem(_loc.Get("Properties"), "\uE946", () => _shellService.ShowProperties(drive.Path)));
             }
 
             return menu;

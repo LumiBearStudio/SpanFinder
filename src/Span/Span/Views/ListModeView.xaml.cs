@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Span.Models;
@@ -408,7 +409,11 @@ namespace Span.Views
             }
             else if (selected is FileViewModel file)
             {
-                try { _ = Windows.System.Launcher.LaunchUriAsync(new Uri(file.Path)); }
+                try
+                {
+                    var shellService = App.Current.Services.GetRequiredService<Services.ShellService>();
+                    shellService.OpenFile(file.Path);
+                }
                 catch { }
             }
         }
@@ -482,7 +487,11 @@ namespace Span.Views
             }
             else if (selected is FileViewModel file)
             {
-                try { _ = Windows.System.Launcher.LaunchUriAsync(new Uri(file.Path)); }
+                try
+                {
+                    var shellService = App.Current.Services.GetRequiredService<Services.ShellService>();
+                    shellService.OpenFile(file.Path);
+                }
                 catch { }
             }
         }

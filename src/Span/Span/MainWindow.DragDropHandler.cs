@@ -33,7 +33,11 @@ namespace Span
             e.Data.SetText(string.Join("\n", paths));
             e.Data.Properties["SourcePaths"] = paths;
             e.Data.Properties["SourcePane"] = DeterminePane(sender);
-            e.Data.RequestedOperation = DataPackageOperation.Copy | DataPackageOperation.Move;
+            // Default to Copy for external drop targets (Windows Explorer, Desktop).
+            // WinUI→Shell bridge defaults to Move when Move flag is present, ignoring
+            // cross-drive convention. Internal Span drops use HandleDropAsync directly,
+            // so they are unaffected by RequestedOperation.
+            e.Data.RequestedOperation = DataPackageOperation.Copy;
 
             // Span→외부 앱: StorageItems를 지연 로딩 (외부 앱이 요청할 때만 로드)
             // DragItemsStarting에서 await 사용 금지 — async void + await는 드래그 종료 시
@@ -159,8 +163,10 @@ namespace Span
 
             bool isMove = ResolveDragDropOperation(e, targetFolder.Path);
 
-            e.AcceptedOperation = isMove ? DataPackageOperation.Move : DataPackageOperation.Copy;
-            e.DragUIOverride.Caption = isMove ? $"Move to {targetFolder.Name}" : $"Copy to {targetFolder.Name}";
+            e.AcceptedOperation = DataPackageOperation.Copy;
+            e.DragUIOverride.Caption = isMove
+                ? $"{_loc.Get("Move")} → {targetFolder.Name}"
+                : $"{_loc.Get("Copy")} → {targetFolder.Name}";
             e.DragUIOverride.IsCaptionVisible = true;
 
             // Visual feedback: highlight background
@@ -283,8 +289,10 @@ namespace Span
                 return;
             }
 
-            e.AcceptedOperation = isMove ? DataPackageOperation.Move : DataPackageOperation.Copy;
-            e.DragUIOverride.Caption = isMove ? $"Move to {folderVm.Name}" : $"Copy to {folderVm.Name}";
+            e.AcceptedOperation = DataPackageOperation.Copy;
+            e.DragUIOverride.Caption = isMove
+                ? $"{_loc.Get("Move")} → {folderVm.Name}"
+                : $"{_loc.Get("Copy")} → {folderVm.Name}";
             e.DragUIOverride.IsCaptionVisible = true;
             e.Handled = true; // Prevent bubbling to PaneDragOver
         }
@@ -378,7 +386,21 @@ namespace Span
                 ? new MoveFileOperation(sourcePaths, destFolder, router)
                 : new CopyFileOperation(sourcePaths, destFolder, router);
 
-            await ViewModel.ExecuteFileOperationAsync(op);
+            // Find which column corresponds to destFolder for targeted refresh
+            int? targetColumnIndex = null;
+            if (ViewModel?.ActiveExplorer?.Columns != null)
+            {
+                for (int i = 0; i < ViewModel.ActiveExplorer.Columns.Count; i++)
+                {
+                    if (ViewModel.ActiveExplorer.Columns[i].Path.Equals(destFolder, StringComparison.OrdinalIgnoreCase))
+                    {
+                        targetColumnIndex = i;
+                        break;
+                    }
+                }
+            }
+
+            await ViewModel.ExecuteFileOperationAsync(op, targetColumnIndex);
 
             Helpers.DebugLogger.Log($"[DragDrop] {(isMove ? "Moved" : "Copied")} {sourcePaths.Count} item(s) to {destFolder}");
         }
@@ -416,9 +438,7 @@ namespace Span
                 // Same-pane Copy → allow (fall through to set operation below)
             }
 
-            e.AcceptedOperation = isMove
-                ? Windows.ApplicationModel.DataTransfer.DataPackageOperation.Move
-                : Windows.ApplicationModel.DataTransfer.DataPackageOperation.Copy;
+            e.AcceptedOperation = DataPackageOperation.Copy;
             e.DragUIOverride.Caption = isMove ? _loc.Get("Move") : _loc.Get("Copy");
             e.DragUIOverride.IsCaptionVisible = true;
             e.DragUIOverride.IsGlyphVisible = true;

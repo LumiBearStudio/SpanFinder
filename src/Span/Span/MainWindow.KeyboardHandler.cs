@@ -504,11 +504,8 @@ namespace Span
             }
             else if (currentColumn.SelectedChild is FileViewModel fileVm)
             {
-                try
-                {
-                    _ = Windows.System.Launcher.LaunchUriAsync(new Uri(fileVm.Path));
-                }
-                catch { }
+                var shellService = App.Current.Services.GetRequiredService<Services.ShellService>();
+                shellService.OpenFile(fileVm.Path);
             }
         }
 

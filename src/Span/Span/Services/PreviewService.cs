@@ -106,11 +106,18 @@ namespace Span.Services
                 var fi = new FileInfo(filePath);
                 if (fi.Length > MaxPreviewFileSize) return null;
 
+                bool isCloudOnly = CloudSyncService.IsCloudOnlyFile(filePath);
+
                 var file = await StorageFile.GetFileFromPathAsync(filePath);
                 ct.ThrowIfCancellationRequested();
 
+                // Cloud-only: use cached thumbnail only to avoid triggering download
+                var thumbOptions = isCloudOnly
+                    ? ThumbnailOptions.ReturnOnlyIfCached
+                    : ThumbnailOptions.UseCurrentScale;
+
                 using var thumbnail = await file.GetThumbnailAsync(
-                    ThumbnailMode.SingleItem, maxSize, ThumbnailOptions.UseCurrentScale);
+                    ThumbnailMode.SingleItem, maxSize, thumbOptions);
 
                 ct.ThrowIfCancellationRequested();
 
@@ -121,7 +128,9 @@ namespace Span.Services
                     return bitmap;
                 }
 
-                // Fallback: load full image
+                // Fallback: load full image (skip for cloud-only files to prevent download)
+                if (isCloudOnly) return null;
+
                 using var stream = await file.OpenReadAsync();
                 ct.ThrowIfCancellationRequested();
 
