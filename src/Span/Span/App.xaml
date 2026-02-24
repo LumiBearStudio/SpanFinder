@@ -242,10 +242,11 @@
                 <Setter Property="HorizontalContentAlignment" Value="Stretch" />
                 <Setter Property="VerticalContentAlignment" Value="Center" />
                 <Setter Property="MinHeight" Value="0" />
+                <Setter Property="HorizontalAlignment" Value="Stretch" />
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="ListViewItem">
-                            <Grid x:Name="RootGrid" Background="Transparent">
+                            <Grid x:Name="ContentBorder" Background="Transparent">
                                 <VisualStateManager.VisualStateGroups>
                                     <VisualStateGroup x:Name="CommonStates">
                                         <VisualStateGroup.Transitions>
@@ -302,13 +303,46 @@
                                             </Storyboard>
                                         </VisualState>
                                     </VisualStateGroup>
+                                    <VisualStateGroup x:Name="DisabledStates">
+                                        <VisualState x:Name="Enabled" />
+                                        <VisualState x:Name="Disabled" />
+                                    </VisualStateGroup>
+                                    <VisualStateGroup x:Name="MultiSelectStates">
+                                        <VisualState x:Name="MultiSelectDisabled" />
+                                        <VisualState x:Name="MultiSelectEnabled" />
+                                    </VisualStateGroup>
+                                    <VisualStateGroup x:Name="DataVirtualizationStates">
+                                        <VisualState x:Name="DataAvailable" />
+                                        <VisualState x:Name="DataPlaceholder" />
+                                    </VisualStateGroup>
+                                    <VisualStateGroup x:Name="ReorderHintStates">
+                                        <VisualState x:Name="NoReorderHint" />
+                                        <VisualState x:Name="BottomReorderHint" />
+                                        <VisualState x:Name="TopReorderHint" />
+                                        <VisualState x:Name="RightReorderHint" />
+                                        <VisualState x:Name="LeftReorderHint" />
+                                    </VisualStateGroup>
+                                    <VisualStateGroup x:Name="DragStates">
+                                        <VisualState x:Name="NotDragging" />
+                                        <VisualState x:Name="Dragging" />
+                                        <VisualState x:Name="DraggingTarget" />
+                                        <VisualState x:Name="MultipleDraggingPrimary" />
+                                        <VisualState x:Name="MultipleDraggingSecondary" />
+                                        <VisualState x:Name="DraggedPlaceholder" />
+                                        <VisualState x:Name="Reordering" />
+                                        <VisualState x:Name="ReorderingTarget" />
+                                        <VisualState x:Name="MultipleReorderingPrimary" />
+                                        <VisualState x:Name="ReorderedPlaceholder" />
+                                        <VisualState x:Name="DragOver" />
+                                    </VisualStateGroup>
                                 </VisualStateManager.VisualStateGroups>
                                 <Border x:Name="StateOverlay" Background="Transparent" Opacity="0" />
                                 <ContentPresenter x:Name="ContentPresenter"
                                                   Content="{TemplateBinding Content}"
-                                                  ContentTransitions="{TemplateBinding ContentTransitions}"
                                                   ContentTemplate="{TemplateBinding ContentTemplate}"
                                                   Padding="{TemplateBinding Padding}"
+                                                  HorizontalAlignment="Stretch"
+                                                  VerticalAlignment="Stretch"
                                                   HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
                                                   VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
                                                   Foreground="{TemplateBinding Foreground}"/>

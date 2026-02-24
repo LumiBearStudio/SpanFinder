@@ -66,6 +66,7 @@ namespace Span
         // Miller Columns checkbox mode tracking
         private ListViewSelectionMode _millerSelectionMode = ListViewSelectionMode.Extended;
         private Thickness _densityPadding = new(12, 2, 12, 2); // comfortable default
+        private static readonly Thickness _zeroPadding = new(0);
 
         // FileSystemWatcher 서비스 참조
         private FileSystemWatcherService? _watcherService;
@@ -2124,9 +2125,6 @@ namespace Span
             var listView = FindChild<ListView>(grid);
             if (listView == null) return;
 
-            // Apply density padding to new column items as they materialize
-            listView.ContainerContentChanging += OnMillerContainerContentChanging;
-
             var helper = new Helpers.RubberBandSelectionHelper(
                 grid,
                 listView,
@@ -2140,22 +2138,25 @@ namespace Span
         {
             if (args.ItemContainer is ListViewItem item)
             {
-                // Apply density padding to the content grid inside the item
-                DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+                // Reset any stale padding on the template root Grid (ContentBorder)
+                var rootGrid = FindChild<Grid>(item);
+                if (rootGrid != null && rootGrid.Padding != _zeroPadding)
+                    rootGrid.Padding = _zeroPadding;
+
+                // Apply density padding to the DATA TEMPLATE Grid (inside ContentPresenter),
+                // NOT the template root Grid (ContentBorder).
+                var cp = FindChild<ContentPresenter>(item);
+                if (cp != null)
                 {
-                    var grid = FindChild<Grid>(item);
+                    var grid = FindChild<Grid>(cp);
                     if (grid != null) grid.Padding = _densityPadding;
-                });
+                }
             }
         }
 
         private void OnMillerColumnContentGridUnloaded(object sender, RoutedEventArgs e)
         {
             if (sender is not Grid grid) return;
-
-            var listView = FindChild<ListView>(grid);
-            if (listView != null)
-                listView.ContainerContentChanging -= OnMillerContainerContentChanging;
 
             if (_rubberBandHelpers.TryGetValue(grid, out var helper))
             {

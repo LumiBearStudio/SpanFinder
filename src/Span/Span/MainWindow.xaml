@@ -784,12 +784,16 @@
                                                                       GotFocus="OnMillerColumnGotFocus"
                                                                       SelectionChanged="OnMillerColumnSelectionChanged"
                                                                       DoubleTapped="OnMillerColumnDoubleTapped"
-                                                                      RightTapped="OnMillerColumnEmptyAreaRightTapped">
+                                                                      RightTapped="OnMillerColumnEmptyAreaRightTapped"
+                                                                      ContainerContentChanging="OnMillerContainerContentChanging">
+                                                                <ListView.ItemContainerTransitions>
+                                                                    <TransitionCollection/>
+                                                                </ListView.ItemContainerTransitions>
                                                                 <ListView.ItemTemplateSelector>
                                                                     <local:FileSystemItemTemplateSelector>
                                                                         <local:FileSystemItemTemplateSelector.FolderTemplate>
                                                                             <DataTemplate x:DataType="viewmodels:FolderViewModel">
-                                                                                <Grid Padding="12,4" RightTapped="OnFolderRightTapped"
+                                                                                <Grid Padding="12,2" RightTapped="OnFolderRightTapped"
                                                                                       ToolTipService.ToolTip="{x:Bind TooltipText}"
                                                                                       Background="{x:Bind PathBackground, Mode=OneWay}"
                                                                                       AllowDrop="True" DragOver="OnFolderItemDragOver" Drop="OnFolderItemDrop" DragLeave="OnFolderItemDragLeave">
@@ -821,14 +825,17 @@
                                                                         </local:FileSystemItemTemplateSelector.FolderTemplate>
                                                                         <local:FileSystemItemTemplateSelector.FileTemplate>
                                                                             <DataTemplate x:DataType="viewmodels:FileViewModel">
-                                                                                <Grid Padding="12,4" RightTapped="OnFileRightTapped"
+                                                                                <Grid Padding="12,2" RightTapped="OnFileRightTapped"
                                                                                       ToolTipService.ToolTip="{x:Bind TooltipText}"
                                                                                       Background="{x:Bind PathBackground, Mode=OneWay}">
                                                                                     <Grid.ColumnDefinitions>
                                                                                         <ColumnDefinition Width="Auto"/>
+                                                                                        <ColumnDefinition Width="Auto"/>
                                                                                         <ColumnDefinition Width="*"/>
                                                                                     </Grid.ColumnDefinitions>
-                                                                                    <Grid Width="16" Height="16" Margin="0,0,12,0" VerticalAlignment="Center">
+                                                                                    <!-- Col0: path indicator placeholder (matches FolderTemplate column structure) -->
+                                                                                    <Border Grid.Column="0" Width="3" CornerRadius="1.5" Margin="-8,2,6,2" Visibility="Collapsed"/>
+                                                                                    <Grid Grid.Column="1" Width="16" Height="16" Margin="0,0,12,0" VerticalAlignment="Center">
                                                                                         <Image Source="{x:Bind ThumbnailSource, Mode=OneWay}" Stretch="UniformToFill"
                                                                                                Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfTrue(HasThumbnail), Mode=OneWay}"/>
                                                                                         <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{x:Bind IconGlyph}" FontSize="16" Foreground="{x:Bind IconBrush}"
@@ -838,9 +845,9 @@
                                                                                                   HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-3,-3"
                                                                                                   Foreground="{ThemeResource SystemAccentColor}"/>
                                                                                     </Grid>
-                                                                                    <TextBlock Grid.Column="1" Text="{x:Bind TruncatedDisplayName, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                                                    <TextBlock Grid.Column="2" Text="{x:Bind TruncatedDisplayName, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                                                                                Visibility="{x:Bind viewmodels:FileSystemViewModel.NotRenaming(IsRenaming), Mode=OneWay}"/>
-                                                                                    <TextBox Grid.Column="1" Text="{x:Bind EditableName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                                                    <TextBox Grid.Column="2" Text="{x:Bind EditableName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                                                              Visibility="{x:Bind IsRenaming, Mode=OneWay}"
                                                                                              VerticalAlignment="Center" Padding="2" MinHeight="0" FontSize="13"
                                                                                              LostFocus="OnRenameTextBoxLostFocus" KeyDown="OnRenameTextBoxKeyDown"/>
@@ -1264,12 +1271,16 @@
                                                                       GotFocus="OnMillerColumnGotFocus"
                                                                       SelectionChanged="OnMillerColumnSelectionChanged"
                                                                       DoubleTapped="OnMillerColumnDoubleTapped"
-                                                                      RightTapped="OnMillerColumnEmptyAreaRightTapped">
+                                                                      RightTapped="OnMillerColumnEmptyAreaRightTapped"
+                                                                      ContainerContentChanging="OnMillerContainerContentChanging">
+                                                                <ListView.ItemContainerTransitions>
+                                                                    <TransitionCollection/>
+                                                                </ListView.ItemContainerTransitions>
                                                                 <ListView.ItemTemplateSelector>
                                                                     <local:FileSystemItemTemplateSelector>
                                                                         <local:FileSystemItemTemplateSelector.FolderTemplate>
                                                                             <DataTemplate x:DataType="viewmodels:FolderViewModel">
-                                                                                <Grid Padding="12,4" RightTapped="OnFolderRightTapped"
+                                                                                <Grid Padding="12,2" RightTapped="OnFolderRightTapped"
                                                                                       ToolTipService.ToolTip="{x:Bind TooltipText}"
                                                                                       Background="{x:Bind PathBackground, Mode=OneWay}"
                                                                                       AllowDrop="True" DragOver="OnFolderItemDragOver" Drop="OnFolderItemDrop" DragLeave="OnFolderItemDragLeave">
@@ -1301,14 +1312,17 @@
                                                                         </local:FileSystemItemTemplateSelector.FolderTemplate>
                                                                         <local:FileSystemItemTemplateSelector.FileTemplate>
                                                                             <DataTemplate x:DataType="viewmodels:FileViewModel">
-                                                                                <Grid Padding="12,4" RightTapped="OnFileRightTapped"
+                                                                                <Grid Padding="12,2" RightTapped="OnFileRightTapped"
                                                                                       ToolTipService.ToolTip="{x:Bind TooltipText}"
                                                                                       Background="{x:Bind PathBackground, Mode=OneWay}">
                                                                                     <Grid.ColumnDefinitions>
                                                                                         <ColumnDefinition Width="Auto"/>
+                                                                                        <ColumnDefinition Width="Auto"/>
                                                                                         <ColumnDefinition Width="*"/>
                                                                                     </Grid.ColumnDefinitions>
-                                                                                    <Grid Width="16" Height="16" Margin="0,0,12,0" VerticalAlignment="Center">
+                                                                                    <!-- Col0: path indicator placeholder (matches FolderTemplate column structure) -->
+                                                                                    <Border Grid.Column="0" Width="3" CornerRadius="1.5" Margin="-8,2,6,2" Visibility="Collapsed"/>
+                                                                                    <Grid Grid.Column="1" Width="16" Height="16" Margin="0,0,12,0" VerticalAlignment="Center">
                                                                                         <Image Source="{x:Bind ThumbnailSource, Mode=OneWay}" Stretch="UniformToFill"
                                                                                                Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfTrue(HasThumbnail), Mode=OneWay}"/>
                                                                                         <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{x:Bind IconGlyph}" FontSize="16" Foreground="{x:Bind IconBrush}"
@@ -1318,9 +1332,9 @@
                                                                                                   HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-3,-3"
                                                                                                   Foreground="{ThemeResource SystemAccentColor}"/>
                                                                                     </Grid>
-                                                                                    <TextBlock Grid.Column="1" Text="{x:Bind TruncatedDisplayName, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                                                    <TextBlock Grid.Column="2" Text="{x:Bind TruncatedDisplayName, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                                                                                Visibility="{x:Bind viewmodels:FileSystemViewModel.NotRenaming(IsRenaming), Mode=OneWay}"/>
-                                                                                    <TextBox Grid.Column="1" Text="{x:Bind EditableName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                                                    <TextBox Grid.Column="2" Text="{x:Bind EditableName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                                                              Visibility="{x:Bind IsRenaming, Mode=OneWay}"
                                                                                              VerticalAlignment="Center" Padding="2" MinHeight="0" FontSize="13"
                                                                                              LostFocus="OnRenameTextBoxLostFocus" KeyDown="OnRenameTextBoxKeyDown"/>

@@ -358,8 +358,12 @@ namespace Span
                 {
                     if (listView.ContainerFromIndex(i) is ListViewItem item)
                     {
-                        var grid = FindChild<Grid>(item);
-                        if (grid != null) grid.Padding = _densityPadding;
+                        var cp = FindChild<ContentPresenter>(item);
+                        if (cp != null)
+                        {
+                            var grid = FindChild<Grid>(cp);
+                            if (grid != null) grid.Padding = _densityPadding;
+                        }
                     }
                 }
             }
