@@ -865,6 +865,21 @@
                                                                            Foreground="{ThemeResource SpanTextTertiaryBrush}"
                                                                            HorizontalAlignment="Center"/>
                                                             </StackPanel>
+                                                            <!-- Error state -->
+                                                            <StackPanel Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfTrue(HasError), Mode=OneWay}"
+                                                                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                        Spacing="8" Opacity="0.7">
+                                                                <FontIcon Glyph="{x:Bind ErrorIcon, Mode=OneWay}" FontSize="28"
+                                                                          Foreground="{ThemeResource SystemFillColorCautionBrush}"
+                                                                          HorizontalAlignment="Center"/>
+                                                                <TextBlock Text="{x:Bind ErrorMessage, Mode=OneWay}" FontSize="12"
+                                                                           Foreground="{ThemeResource SpanTextSecondaryBrush}"
+                                                                           TextWrapping="Wrap" MaxWidth="200" TextAlignment="Center"
+                                                                           HorizontalAlignment="Center"/>
+                                                                <HyperlinkButton Content="다시 시도" FontSize="11"
+                                                                                 HorizontalAlignment="Center"
+                                                                                 Click="OnRetryFolderLoad" Tag="{x:Bind}" />
+                                                            </StackPanel>
                                                         </Grid>
                                                     </Grid>
                                                 </Border>
@@ -1329,6 +1344,21 @@
                                                                 <TextBlock Text="빈 폴더" FontSize="12"
                                                                            Foreground="{ThemeResource SpanTextTertiaryBrush}"
                                                                            HorizontalAlignment="Center"/>
+                                                            </StackPanel>
+                                                            <!-- Error state -->
+                                                            <StackPanel Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfTrue(HasError), Mode=OneWay}"
+                                                                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                        Spacing="8" Opacity="0.7">
+                                                                <FontIcon Glyph="{x:Bind ErrorIcon, Mode=OneWay}" FontSize="28"
+                                                                          Foreground="{ThemeResource SystemFillColorCautionBrush}"
+                                                                          HorizontalAlignment="Center"/>
+                                                                <TextBlock Text="{x:Bind ErrorMessage, Mode=OneWay}" FontSize="12"
+                                                                           Foreground="{ThemeResource SpanTextSecondaryBrush}"
+                                                                           TextWrapping="Wrap" MaxWidth="200" TextAlignment="Center"
+                                                                           HorizontalAlignment="Center"/>
+                                                                <HyperlinkButton Content="다시 시도" FontSize="11"
+                                                                                 HorizontalAlignment="Center"
+                                                                                 Click="OnRetryFolderLoad" Tag="{x:Bind}" />
                                                             </StackPanel>
                                                         </Grid>
                                                     </Grid>

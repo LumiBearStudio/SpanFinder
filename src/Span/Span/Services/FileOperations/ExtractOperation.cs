@@ -35,7 +35,15 @@ public class ExtractOperation : IFileOperation
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                string fullPath = Path.GetFullPath(Path.Combine(_destinationPath, entry.FullName));
+                string fullPath;
+                try
+                {
+                    fullPath = Path.GetFullPath(Path.Combine(_destinationPath, entry.FullName));
+                }
+                catch (PathTooLongException)
+                {
+                    continue; // Skip entries with paths exceeding MAX_PATH
+                }
 
                 // Security: prevent path traversal
                 if (!fullPath.StartsWith(Path.GetFullPath(_destinationPath), StringComparison.OrdinalIgnoreCase))

@@ -470,8 +470,9 @@ namespace Span.ViewModels
 
             if (!System.IO.Directory.Exists(path)) return;
 
-            // Normalize path
-            path = System.IO.Path.GetFullPath(path);
+            // Normalize path (guard against PathTooLongException)
+            try { path = System.IO.Path.GetFullPath(path); }
+            catch (System.IO.PathTooLongException) { return; }
 
             // Push current path to history before navigating
             PushToHistory(path);

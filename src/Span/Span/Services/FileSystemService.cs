@@ -173,7 +173,11 @@ namespace Span.Services
                 }
                 catch (UnauthorizedAccessException)
                 {
-                    // Ignore permission errors for now (or maybe add a placeholder item?)
+                    // Ignore permission errors — FolderViewModel handles error UI
+                }
+                catch (PathTooLongException)
+                {
+                    // Skip items with paths exceeding MAX_PATH
                 }
                 catch (Exception ex)
                 {

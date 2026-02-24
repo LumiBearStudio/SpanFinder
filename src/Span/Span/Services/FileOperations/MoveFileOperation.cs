@@ -246,6 +246,10 @@ public class MoveFileOperation : IFileOperation, IPausableOperation
                 {
                     throw;
                 }
+                catch (PathTooLongException)
+                {
+                    errors.Add($"경로가 너무 깁니다: {fileName}");
+                }
                 catch (Exception ex)
                 {
                     errors.Add($"Failed to move {fileName}: {ex.Message}");

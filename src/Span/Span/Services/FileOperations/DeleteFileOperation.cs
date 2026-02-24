@@ -118,6 +118,10 @@ public class DeleteFileOperation : IFileOperation
 
                     result.AffectedPaths.Add(sourcePath);
                 }
+                catch (PathTooLongException)
+                {
+                    errors.Add($"경로가 너무 깁니다: {fileName}");
+                }
                 catch (Exception ex)
                 {
                     errors.Add($"Failed to delete {fileName}: {ex.Message}");

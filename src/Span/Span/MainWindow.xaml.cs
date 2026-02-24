@@ -2343,6 +2343,15 @@ namespace Span
             }
         }
 
+        private async void OnRetryFolderLoad(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+        {
+            if (sender is Microsoft.UI.Xaml.Controls.HyperlinkButton btn && btn.Tag is FolderViewModel folder)
+            {
+                folder.ResetLoadState();
+                await folder.EnsureChildrenLoadedAsync();
+            }
+        }
+
         private FileSystemViewModel? GetCurrentSelected()
         {
             var columns = ViewModel.ActiveExplorer.Columns;

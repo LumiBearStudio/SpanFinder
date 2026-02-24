@@ -88,8 +88,15 @@ public class CompressOperation : IFileOperation
         foreach (var file in Directory.EnumerateFiles(dirPath, "*", SearchOption.AllDirectories))
         {
             ct.ThrowIfCancellationRequested();
-            string relativePath = Path.GetRelativePath(Path.GetDirectoryName(dirPath)!, file);
-            archive.CreateEntryFromFile(file, relativePath, CompressionLevel.Optimal);
+            try
+            {
+                string relativePath = Path.GetRelativePath(Path.GetDirectoryName(dirPath)!, file);
+                archive.CreateEntryFromFile(file, relativePath, CompressionLevel.Optimal);
+            }
+            catch (PathTooLongException)
+            {
+                // Skip files with paths exceeding MAX_PATH
+            }
         }
     }
 }

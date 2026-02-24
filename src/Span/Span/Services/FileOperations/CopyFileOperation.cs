@@ -239,6 +239,10 @@ public class CopyFileOperation : IFileOperation, IPausableOperation
                 {
                     throw;
                 }
+                catch (PathTooLongException)
+                {
+                    errors.Add($"경로가 너무 깁니다: {fileName}");
+                }
                 catch (Exception ex)
                 {
                     errors.Add($"Failed to copy {fileName}: {ex.Message}");

@@ -45,6 +45,23 @@ namespace Span.ViewModels
         [ObservableProperty]
         private bool _isEmpty = false;
 
+        /// <summary>
+        /// Error message shown when folder loading fails (e.g., access denied, path too long).
+        /// </summary>
+        [ObservableProperty]
+        private string? _errorMessage;
+
+        /// <summary>
+        /// Segoe Fluent icon glyph for the error state.
+        /// </summary>
+        [ObservableProperty]
+        private string? _errorIcon;
+
+        public bool HasError => !string.IsNullOrEmpty(ErrorMessage);
+
+        partial void OnErrorMessageChanged(string? value)
+            => OnPropertyChanged(nameof(HasError));
+
         [ObservableProperty]
         private bool _isActive = false; // Indicates if this column has focus
 
@@ -214,7 +231,7 @@ namespace Span.ViewModels
                 if (!token.IsCancellationRequested)
                 {
                     IsLoading = false;
-                    IsEmpty = Children.Count == 0;
+                    IsEmpty = Children.Count == 0 && !HasError;
                 }
                 if (_cts?.Token == token)
                 {
@@ -241,7 +258,8 @@ namespace Span.ViewModels
             if (provider == null)
             {
                 IsLoading = false;
-                IsEmpty = true;
+                ErrorMessage = "\uC6D0\uACA9 \uC5F0\uACB0\uC744 \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4";
+                ErrorIcon = "\uE871";
                 return;
             }
 
@@ -275,14 +293,14 @@ namespace Span.ViewModels
             Services.FolderContentCache? folderCache,
             System.Threading.CancellationToken token)
         {
-            var (items, rawFolders, rawFiles) = await Task.Run(() =>
+            var (items, rawFolders, rawFiles, errorMsg, errorIcon) = await Task.Run(() =>
             {
                 var result = new List<FileSystemViewModel>();
                 var folders = new List<Models.FolderItem>();
                 var files = new List<Models.FileItem>();
 
                 if (string.IsNullOrEmpty(folderPath) || !System.IO.Directory.Exists(folderPath))
-                    return (result, folders, files);
+                    return (result, folders, files, (string?)null, (string?)null);
 
                 try
                 {
@@ -290,7 +308,7 @@ namespace Span.ViewModels
 
                     foreach (var d in dirInfo.EnumerateDirectories())
                     {
-                        if (token.IsCancellationRequested) return (new List<FileSystemViewModel>(), folders, files);
+                        if (token.IsCancellationRequested) return (new List<FileSystemViewModel>(), folders, files, (string?)null, (string?)null);
                         if (!showHidden && (d.Attributes & System.IO.FileAttributes.Hidden) != 0) continue;
                         if ((d.Attributes & System.IO.FileAttributes.System) != 0) continue;
 
@@ -301,7 +319,7 @@ namespace Span.ViewModels
 
                     foreach (var f in dirInfo.EnumerateFiles())
                     {
-                        if (token.IsCancellationRequested) return (new List<FileSystemViewModel>(), folders, files);
+                        if (token.IsCancellationRequested) return (new List<FileSystemViewModel>(), folders, files, (string?)null, (string?)null);
                         if (!showHidden && (f.Attributes & System.IO.FileAttributes.Hidden) != 0) continue;
                         if ((f.Attributes & System.IO.FileAttributes.System) != 0) continue;
 
@@ -310,18 +328,42 @@ namespace Span.ViewModels
                         result.Add(new FileViewModel(fileItem));
                     }
                 }
-                catch (System.UnauthorizedAccessException) { }
+                catch (System.UnauthorizedAccessException)
+                {
+                    return (result, folders, files, "\uC811\uADFC\uC774 \uAC70\uBD80\uB418\uC5C8\uC2B5\uB2C8\uB2E4", "\uE72E");
+                }
+                catch (System.IO.PathTooLongException)
+                {
+                    return (result, folders, files, "\uACBD\uB85C\uAC00 \uB108\uBB34 \uAE41\uB2C8\uB2E4 (260\uC790 \uCD08\uACFC)", "\uE7BA");
+                }
+                catch (System.IO.DirectoryNotFoundException)
+                {
+                    return (result, folders, files, "\uD3F4\uB354\uB97C \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4", "\uE711");
+                }
+                catch (System.IO.IOException ex) when (ex.HResult is unchecked((int)0x80070035) or unchecked((int)0x8007052E))
+                {
+                    return (result, folders, files, "\uB124\uD2B8\uC6CC\uD06C \uC5F0\uACB0\uC774 \uB04A\uACBC\uC2B5\uB2C8\uB2E4", "\uE871");
+                }
                 catch (System.Exception ex)
                 {
                     System.Diagnostics.Debug.WriteLine($"Error: {ex.Message}");
+                    return (result, folders, files, $"\uB85C\uB4DC \uC2E4\uD328: {ex.Message}", "\uE783");
                 }
 
-                return (result, folders, files);
+                return (result, folders, files, (string?)null, (string?)null);
             }, token);
 
             if (!token.IsCancellationRequested)
             {
-                folderCache?.Set(folderPath, rawFolders, rawFiles, showHidden);
+                if (errorMsg != null)
+                {
+                    ErrorMessage = errorMsg;
+                    ErrorIcon = errorIcon;
+                }
+                else
+                {
+                    folderCache?.Set(folderPath, rawFolders, rawFiles, showHidden);
+                }
                 PopulateChildren(items, token);
             }
         }
@@ -370,6 +412,16 @@ namespace Span.ViewModels
             _cts?.Dispose();
             _cts = null;
             IsLoading = false;
+        }
+
+        /// <summary>
+        /// Reset only the load flag and error state so the folder can be reloaded (retry button).
+        /// </summary>
+        public void ResetLoadState()
+        {
+            _isLoaded = false;
+            ErrorMessage = null;
+            ErrorIcon = null;
         }
 
         /// <summary>
@@ -459,6 +511,8 @@ namespace Span.ViewModels
             catch { }
 
             _isLoaded = false;
+            ErrorMessage = null;
+            ErrorIcon = null;
             await EnsureChildrenLoadedAsync();
 
             Helpers.DebugLogger.Log($"[FolderViewModel.ReloadAsync] ===== COMPLETE =====");
