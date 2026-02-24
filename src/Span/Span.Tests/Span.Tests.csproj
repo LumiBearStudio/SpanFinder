@@ -35,9 +35,11 @@
     <Compile Include="..\Span\Models\ShellMenuItem.cs" Link="Sources\Models\ShellMenuItem.cs" />
     <Compile Include="..\Span\Models\ConnectionInfo.cs" Link="Sources\Models\ConnectionInfo.cs" />
     <Compile Include="..\Span\Models\CloudState.cs" Link="Sources\Models\CloudState.cs" />
+    <Compile Include="..\Span\Models\SearchQuery.cs" Link="Sources\Models\SearchQuery.cs" />
     <!-- Helpers (pure C#) -->
     <Compile Include="..\Span\Helpers\NaturalStringComparer.cs" Link="Sources\Helpers\NaturalStringComparer.cs" />
     <Compile Include="..\Span\Helpers\ViewModeExtensions.cs" Link="Sources\Helpers\ViewModeExtensions.cs" />
+    <Compile Include="..\Span\Helpers\SearchQueryParser.cs" Link="Sources\Helpers\SearchQueryParser.cs" />
     <Compile Include="..\Span\Helpers\DebugLogger.cs" Link="Sources\Helpers\DebugLogger.cs" />
     <!-- Services - file operations (pure C#) -->
     <Compile Include="..\Span\Services\FileOperations\OperationResult.cs" Link="Sources\Services\OperationResult.cs" />
@@ -52,8 +54,13 @@
     <Compile Include="..\Span\Services\FileOperations\NewFolderOperation.cs" Link="Sources\Services\NewFolderOperation.cs" />
     <Compile Include="..\Span\Services\FileOperations\NewFileOperation.cs" Link="Sources\Services\NewFileOperation.cs" />
     <Compile Include="..\Span\Services\FileOperations\BatchRenameOperation.cs" Link="Sources\Services\BatchRenameOperation.cs" />
+    <Compile Include="..\Span\Services\FileOperations\DeleteFileOperation.cs" Link="Sources\Services\DeleteFileOperation.cs" />
+    <Compile Include="..\Span\Services\FileOperations\CompressOperation.cs" Link="Sources\Services\CompressOperation.cs" />
+    <Compile Include="..\Span\Services\FileOperations\ExtractOperation.cs" Link="Sources\Services\ExtractOperation.cs" />
     <!-- Services - folder size (pure C#) -->
     <Compile Include="..\Span\Services\FolderSizeService.cs" Link="Sources\Services\FolderSizeService.cs" />
+    <!-- Services - cache (pure C#) -->
+    <Compile Include="..\Span\Services\FolderContentCache.cs" Link="Sources\Services\FolderContentCache.cs" />
     <!-- Services - routing (pure C#) -->
     <Compile Include="..\Span\Services\FileSystemRouter.cs" Link="Sources\Services\FileSystemRouter.cs" />
     <Compile Include="..\Span\Services\IFileSystemProvider.cs" Link="Sources\Services\IFileSystemProvider.cs" />
