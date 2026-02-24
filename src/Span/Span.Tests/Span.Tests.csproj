@@ -45,6 +45,15 @@
     <Compile Include="..\Span\Services\FileOperations\FileOperationHistory.cs" Link="Sources\Services\FileOperationHistory.cs" />
     <Compile Include="..\Span\Services\FileOperations\IFileOperation.cs" Link="Sources\Services\IFileOperation.cs" />
     <Compile Include="..\Span\Services\FileOperations\CompletedOperationWrapper.cs" Link="Sources\Services\CompletedOperationWrapper.cs" />
+    <!-- Services - file operations (integration testable) -->
+    <Compile Include="..\Span\Services\FileOperations\CopyFileOperation.cs" Link="Sources\Services\CopyFileOperation.cs" />
+    <Compile Include="..\Span\Services\FileOperations\MoveFileOperation.cs" Link="Sources\Services\MoveFileOperation.cs" />
+    <Compile Include="..\Span\Services\FileOperations\RenameFileOperation.cs" Link="Sources\Services\RenameFileOperation.cs" />
+    <Compile Include="..\Span\Services\FileOperations\NewFolderOperation.cs" Link="Sources\Services\NewFolderOperation.cs" />
+    <Compile Include="..\Span\Services\FileOperations\NewFileOperation.cs" Link="Sources\Services\NewFileOperation.cs" />
+    <Compile Include="..\Span\Services\FileOperations\BatchRenameOperation.cs" Link="Sources\Services\BatchRenameOperation.cs" />
+    <!-- Services - folder size (pure C#) -->
+    <Compile Include="..\Span\Services\FolderSizeService.cs" Link="Sources\Services\FolderSizeService.cs" />
     <!-- Services - routing (pure C#) -->
     <Compile Include="..\Span\Services\FileSystemRouter.cs" Link="Sources\Services\FileSystemRouter.cs" />
     <Compile Include="..\Span\Services\IFileSystemProvider.cs" Link="Sources\Services\IFileSystemProvider.cs" />
