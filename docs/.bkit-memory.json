@@ -10,10 +10,10 @@
   },
   "pdca": {
     "feature": "test-coverage",
-    "phase": "completed",
+    "phase": "archived",
     "matchRate": 93.3,
     "startedAt": "2026-02-24T00:00:00.000Z",
-    "analysisDoc": "docs/03-analysis/test-coverage.analysis.md",
-    "reportDoc": "docs/04-report/test-coverage.report.md"
+    "archivedAt": "2026-02-24T00:00:00.000Z",
+    "archivedTo": "docs/archive/2026-02/test-coverage/"
   }
 }
