@@ -485,6 +485,14 @@ namespace Span.ViewModels
                         CloudDrives.Add(cd);
                 }
 
+                // Step 6b: 클라우드 경로를 CloudSyncService에 등록 (아이콘 오버레이용)
+                var cloudSync = App.Current.Services.GetService(typeof(CloudSyncService)) as CloudSyncService;
+                if (cloudSync != null)
+                {
+                    foreach (var cd in newCloudDrives)
+                        cloudSync.RegisterCloudRoot(cd.Path);
+                }
+
                 Helpers.DebugLogger.Log($"[MainViewModel] Loaded {Drives.Count} local + {NetworkDrives.Count} network + {CloudDrives.Count} cloud drives (changed={drivesChanged})");
 
                 // Step 7: Rebuild unified AllDrives collection

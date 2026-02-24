@@ -44,12 +44,30 @@ namespace Span.ViewModels
         partial void OnCloudStateChanged(Models.CloudState value)
         {
             CloudStateGlyph = Services.CloudSyncService.GetCloudStateGlyph(value);
+            OnPropertyChanged(nameof(CloudBadgeBrush));
         }
 
         /// <summary>
         /// 클라우드 뱃지 표시 여부.
         /// </summary>
         public bool HasCloudBadge => CloudState != Models.CloudState.None;
+
+        /// <summary>
+        /// 클라우드 상태별 배지 배경색.
+        /// CloudOnly=파랑, Synced=초록, PendingUpload=주황, Syncing=파랑.
+        /// </summary>
+        public Microsoft.UI.Xaml.Media.Brush CloudBadgeBrush => CloudState switch
+        {
+            Models.CloudState.CloudOnly => new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                Windows.UI.Color.FromArgb(255, 0, 120, 212)),    // #0078D4 Blue
+            Models.CloudState.Synced => new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                Windows.UI.Color.FromArgb(255, 16, 124, 16)),    // #107C10 Green
+            Models.CloudState.PendingUpload => new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                Windows.UI.Color.FromArgb(255, 255, 140, 0)),    // #FF8C00 Orange
+            Models.CloudState.Syncing => new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                Windows.UI.Color.FromArgb(255, 0, 120, 212)),    // #0078D4 Blue
+            _ => new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent),
+        };
 
         partial void OnCloudStateGlyphChanged(string value)
         {

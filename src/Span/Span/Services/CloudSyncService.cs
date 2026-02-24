@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
 using Span.Models;
@@ -6,8 +7,9 @@ using Span.Models;
 namespace Span.Services
 {
     /// <summary>
-    /// OneDrive 등 클라우드 동기화 상태를 감지하는 서비스.
+    /// Cloud Files API 기반 클라우드 동기화 상태를 감지하는 서비스.
     /// Win32 파일 속성(FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS, PINNED, UNPINNED)으로 판별.
+    /// OneDrive, iCloud, Dropbox 등 cfapi 프로바이더에 동작.
     /// </summary>
     public class CloudSyncService
     {
@@ -24,7 +26,7 @@ namespace Span.Services
         /// <summary>
         /// 프로바이더 무관하게, 파일이 클라우드 전용(로컬에 데이터 없음)인지 확인.
         /// 데이터 읽기 시 다운로드가 트리거되는 파일을 식별.
-        /// OneDrive, iCloud, Dropbox, Google Drive 등 모든 Cloud Files API 프로바이더에 동작.
+        /// OneDrive, iCloud, Dropbox 등 모든 Cloud Files API 프로바이더에 동작.
         /// </summary>
         public static bool IsCloudOnlyFile(string path)
         {
@@ -47,6 +49,12 @@ namespace Span.Services
         private bool _oneDriveChecked;
 
         /// <summary>
+        /// 등록된 모든 클라우드 루트 경로 (OneDrive, iCloud, Dropbox 등).
+        /// 끝에 Path.DirectorySeparatorChar가 붙어있어 StartsWith 비교가 정확함.
+        /// </summary>
+        private readonly List<string> _cloudRoots = new();
+
+        /// <summary>
         /// OneDrive 경로를 감지하여 캐시.
         /// </summary>
         public string? OneDrivePath
@@ -63,14 +71,53 @@ namespace Span.Services
         }
 
         /// <summary>
+        /// 클라우드 루트 경로를 등록. CloudStorageProviderService에서 감지한 경로를 전달.
+        /// </summary>
+        public void RegisterCloudRoot(string rootPath)
+        {
+            if (string.IsNullOrEmpty(rootPath)) return;
+
+            // StartsWith 비교를 위해 끝에 구분자 보장
+            var normalized = rootPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                           + Path.DirectorySeparatorChar;
+
+            lock (_cloudRoots)
+            {
+                foreach (var existing in _cloudRoots)
+                {
+                    if (existing.Equals(normalized, StringComparison.OrdinalIgnoreCase))
+                        return; // 중복 방지
+                }
+                _cloudRoots.Add(normalized);
+            }
+
+            Helpers.DebugLogger.Log($"[CloudSync] Registered cloud root: {rootPath}");
+        }
+
+        /// <summary>
         /// 지정된 파일/폴더가 클라우드 폴더 내에 있는지 확인.
+        /// 등록된 모든 클라우드 루트와 OneDrive 경로를 검사.
         /// </summary>
         public bool IsCloudPath(string path)
         {
-            if (string.IsNullOrEmpty(path) || string.IsNullOrEmpty(OneDrivePath))
-                return false;
+            if (string.IsNullOrEmpty(path)) return false;
 
-            return path.StartsWith(OneDrivePath, StringComparison.OrdinalIgnoreCase);
+            // 등록된 클라우드 루트 검사
+            lock (_cloudRoots)
+            {
+                foreach (var root in _cloudRoots)
+                {
+                    if (path.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+            }
+
+            // 폴백: OneDrive 환경변수 경로
+            if (!string.IsNullOrEmpty(OneDrivePath)
+                && path.StartsWith(OneDrivePath, StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            return false;
         }
 
         /// <summary>

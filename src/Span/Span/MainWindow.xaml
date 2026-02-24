@@ -929,10 +929,13 @@
                                                                                                Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfTrue(HasThumbnail), Mode=OneWay}"/>
                                                                                         <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{x:Bind IconGlyph}" FontSize="16" Foreground="{x:Bind IconBrush}"
                                                                                                   Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfFalse(HasThumbnail), Mode=OneWay}"/>
-                                                                                        <FontIcon Glyph="{x:Bind CloudStateGlyph, Mode=OneWay}" FontSize="8"
-                                                                                                  Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfTrue(HasCloudBadge), Mode=OneWay}"
-                                                                                                  HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-3,-3"
-                                                                                                  Foreground="{ThemeResource SystemAccentColor}"/>
+                                                                                        <Border Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfTrue(HasCloudBadge), Mode=OneWay}"
+                                                                                                HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-4,-4"
+                                                                                                Width="12" Height="12" CornerRadius="6"
+                                                                                                Background="{x:Bind CloudBadgeBrush, Mode=OneWay}">
+                                                                                            <FontIcon Glyph="{x:Bind CloudStateGlyph, Mode=OneWay}" FontSize="8"
+                                                                                                      Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                                        </Border>
                                                                                     </Grid>
                                                                                     <TextBlock Grid.Column="2" Text="{x:Bind TruncatedDisplayName, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                                                                                Visibility="{x:Bind viewmodels:FileSystemViewModel.NotRenaming(IsRenaming), Mode=OneWay}"/>
@@ -1416,10 +1419,13 @@
                                                                                                Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfTrue(HasThumbnail), Mode=OneWay}"/>
                                                                                         <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{x:Bind IconGlyph}" FontSize="16" Foreground="{x:Bind IconBrush}"
                                                                                                   Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfFalse(HasThumbnail), Mode=OneWay}"/>
-                                                                                        <FontIcon Glyph="{x:Bind CloudStateGlyph, Mode=OneWay}" FontSize="8"
-                                                                                                  Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfTrue(HasCloudBadge), Mode=OneWay}"
-                                                                                                  HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-3,-3"
-                                                                                                  Foreground="{ThemeResource SystemAccentColor}"/>
+                                                                                        <Border Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfTrue(HasCloudBadge), Mode=OneWay}"
+                                                                                                HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-4,-4"
+                                                                                                Width="12" Height="12" CornerRadius="6"
+                                                                                                Background="{x:Bind CloudBadgeBrush, Mode=OneWay}">
+                                                                                            <FontIcon Glyph="{x:Bind CloudStateGlyph, Mode=OneWay}" FontSize="8"
+                                                                                                      Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                                        </Border>
                                                                                     </Grid>
                                                                                     <TextBlock Grid.Column="2" Text="{x:Bind TruncatedDisplayName, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                                                                                Visibility="{x:Bind viewmodels:FileSystemViewModel.NotRenaming(IsRenaming), Mode=OneWay}"/>
