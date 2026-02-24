@@ -12,9 +12,11 @@ using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
+using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Threading;
 using Microsoft.UI.Input;
+using Microsoft.UI.Xaml.Hosting;
 using Windows.ApplicationModel.DataTransfer;
 
 namespace Span
@@ -659,6 +661,19 @@ namespace Span
                 }
             }
 
+            // Column slide-in animation: only for Add when not the root column
+            if (e.Action == NotifyCollectionChangedAction.Add &&
+                ViewModel.LeftExplorer.Columns.Count > 1)
+            {
+                var control = GetActiveMillerColumnsControl();
+                DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+                {
+                    var container = control.ContainerFromIndex(control.Items.Count - 1);
+                    if (container is UIElement el)
+                        AnimateColumnEntrance(el);
+                });
+            }
+
             UpdateFileSystemWatcherPaths();
         }
 
@@ -674,6 +689,45 @@ namespace Span
                         () => ApplyCheckboxToItemsControl(MillerColumnsControlRight, _millerSelectionMode));
                 }
             }
+
+            // Column slide-in animation for right pane
+            if (e.Action == NotifyCollectionChangedAction.Add &&
+                ViewModel.RightExplorer.Columns.Count > 1)
+            {
+                DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+                {
+                    var container = MillerColumnsControlRight.ContainerFromIndex(
+                        MillerColumnsControlRight.Items.Count - 1);
+                    if (container is UIElement el)
+                        AnimateColumnEntrance(el);
+                });
+            }
+        }
+
+        private static void AnimateColumnEntrance(UIElement element)
+        {
+            var visual = ElementCompositionPreview.GetElementVisual(element);
+            var compositor = visual.Compositor;
+
+            // Apple-style deceleration curve
+            var easing = compositor.CreateCubicBezierEasingFunction(
+                new Vector2(0.1f, 0.9f), new Vector2(0.2f, 1.0f));
+
+            // Opacity: 0 → 1
+            var fadeIn = compositor.CreateScalarKeyFrameAnimation();
+            fadeIn.InsertKeyFrame(0f, 0f);
+            fadeIn.InsertKeyFrame(1f, 1f, easing);
+            fadeIn.Duration = TimeSpan.FromMilliseconds(250);
+
+            // Translation.X: 20 → 0
+            ElementCompositionPreview.SetIsTranslationEnabled(element, true);
+            var slideIn = compositor.CreateScalarKeyFrameAnimation();
+            slideIn.InsertKeyFrame(0f, 20f);
+            slideIn.InsertKeyFrame(1f, 0f, easing);
+            slideIn.Duration = TimeSpan.FromMilliseconds(250);
+
+            visual.StartAnimation("Opacity", fadeIn);
+            visual.StartAnimation("Translation.X", slideIn);
         }
 
         // =================================================================

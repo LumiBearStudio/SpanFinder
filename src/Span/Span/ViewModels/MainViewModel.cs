@@ -436,6 +436,7 @@ namespace Span.ViewModels
 
         /// <summary>
         /// 로컬 + 네트워크 + 원격 연결을 AllDrives에 통합
+        /// 순서: 로컬 드라이브 → 네트워크 매핑 드라이브 → SMB → FTP/FTPS → SFTP (이름순)
         /// </summary>
         private void RebuildAllDrives()
         {
@@ -444,7 +445,18 @@ namespace Span.ViewModels
                 AllDrives.Add(d);
             foreach (var d in NetworkDrives)
                 AllDrives.Add(d);
-            foreach (var conn in SavedConnections)
+
+            var sortedConnections = SavedConnections
+                .OrderBy(c => c.Protocol switch
+                {
+                    Models.RemoteProtocol.SMB  => 0,
+                    Models.RemoteProtocol.FTP  => 1,
+                    Models.RemoteProtocol.FTPS => 2,
+                    Models.RemoteProtocol.SFTP => 3,
+                    _ => 9
+                })
+                .ThenBy(c => c.DisplayName, StringComparer.OrdinalIgnoreCase);
+            foreach (var conn in sortedConnections)
                 AllDrives.Add(DriveItem.FromConnection(conn));
         }
 
@@ -630,27 +642,25 @@ namespace Span.ViewModels
                 return;
 
             var updated = _favoritesService.AddFavorite(path, Favorites.ToList());
-            _favoritesService.SaveFavorites(updated);
 
             Favorites.Clear();
             foreach (var item in updated)
             {
                 Favorites.Add(item);
             }
-            Helpers.DebugLogger.Log($"[MainViewModel] Added to favorites: {path}");
+            Helpers.DebugLogger.Log($"[MainViewModel] Added to favorites (Quick Access): {path}");
         }
 
         public void RemoveFromFavorites(string path)
         {
             var updated = _favoritesService.RemoveFavorite(path, Favorites.ToList());
-            _favoritesService.SaveFavorites(updated);
 
             Favorites.Clear();
             foreach (var item in updated)
             {
                 Favorites.Add(item);
             }
-            Helpers.DebugLogger.Log($"[MainViewModel] Removed from favorites: {path}");
+            Helpers.DebugLogger.Log($"[MainViewModel] Removed from favorites (Quick Access): {path}");
         }
 
         public bool IsFavorite(string path)
