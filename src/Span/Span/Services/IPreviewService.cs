@@ -17,5 +17,7 @@ namespace Span.Services
         Task<MediaSource?> LoadMediaSourceAsync(string filePath, CancellationToken ct);
         Task<ImageMetadata?> GetImageMetadataAsync(string filePath, CancellationToken ct);
         Task<MediaMetadata?> GetMediaMetadataAsync(string filePath, CancellationToken ct);
+        Task<string?> LoadHexPreviewAsync(string filePath, CancellationToken ct);
+        FontPreviewData? GetFontPreviewData(string filePath);
     }
 }

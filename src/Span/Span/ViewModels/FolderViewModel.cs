@@ -551,6 +551,19 @@ namespace Span.ViewModels
             }
         }
 
+        /// <summary>
+        /// Fully release all child ViewModels and their resources.
+        /// Used during tab close / window close to ensure GC can reclaim everything.
+        /// Unlike UnloadAllThumbnails (which keeps Children for re-visit caching),
+        /// this method clears the entire collection.
+        /// </summary>
+        public void ClearChildren()
+        {
+            UnloadAllThumbnails();
+            Children = new System.Collections.ObjectModel.ObservableCollection<FileSystemViewModel>();
+            _isLoaded = false;
+        }
+
         // LoadThumbnailsAsync 제거됨 — 썸네일은 ContainerContentChanging에서 on-demand 로드
 
         /// <summary>

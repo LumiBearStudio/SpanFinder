@@ -19,6 +19,7 @@ namespace Span.Services
         private readonly object _lock = new();
 
         private const int DebounceMs = 300;
+        private const int ErrorDebounceMs = 1000; // 버퍼 오버플로우 시 더 긴 대기
         private const int BufferSize = 65536;
 
         /// <summary>
@@ -114,24 +115,72 @@ namespace Span.Services
         private void OnWatcherError(object sender, ErrorEventArgs e)
         {
             if (sender is not FileSystemWatcher watcher) return;
-            Helpers.DebugLogger.Log($"[FileSystemWatcher] 에러: {watcher.Path} - {e.GetException().Message}");
+            var path = watcher.Path;
+            Helpers.DebugLogger.Log($"[FileSystemWatcher] 버퍼 오버플로우: {path} - {e.GetException().Message}");
 
-            // 에러 발생 시 해당 경로 리프레시 트리거
-            DebouncedNotify(watcher.Path);
+            // 버퍼 오버플로우 시: watcher 재생성 + 긴 디바운스로 전체 리프레시
+            RecreateWatcher(path);
+            DebouncedNotify(path, ErrorDebounceMs);
         }
 
-        private void DebouncedNotify(string folderPath)
+        /// <summary>
+        /// 죽은 watcher를 dispose하고 동일 경로로 새로 생성.
+        /// 버퍼 오버플로우 후 watcher는 더 이상 이벤트를 발생시키지 않으므로
+        /// 반드시 재생성해야 이후 변경 감지가 유지됨.
+        /// </summary>
+        private void RecreateWatcher(string path)
+        {
+            lock (_lock)
+            {
+                if (_watchers.TryGetValue(path, out var oldWatcher))
+                {
+                    oldWatcher.EnableRaisingEvents = false;
+                    oldWatcher.Dispose();
+                    _watchers.Remove(path);
+                }
+
+                if (!Directory.Exists(path)) return;
+
+                try
+                {
+                    var newWatcher = new FileSystemWatcher(path)
+                    {
+                        NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName,
+                        IncludeSubdirectories = false,
+                        InternalBufferSize = BufferSize,
+                    };
+
+                    newWatcher.Created += OnFileSystemEvent;
+                    newWatcher.Deleted += OnFileSystemEvent;
+                    newWatcher.Renamed += OnFileSystemEvent;
+                    newWatcher.Error += OnWatcherError;
+                    newWatcher.EnableRaisingEvents = true;
+
+                    _watchers[path] = newWatcher;
+                    Helpers.DebugLogger.Log($"[FileSystemWatcher] 재생성 완료: {path}");
+                }
+                catch (Exception ex)
+                {
+                    Helpers.DebugLogger.Log($"[FileSystemWatcher] 재생성 실패: {path} - {ex.Message}");
+                }
+            }
+        }
+
+        private void DebouncedNotify(string folderPath, int delayMs = DebounceMs)
         {
             if (_debounceTimers.TryGetValue(folderPath, out var existing))
             {
-                existing.Change(DebounceMs, Timeout.Infinite);
+                existing.Change(delayMs, Timeout.Infinite);
             }
             else
             {
                 var timer = new Timer(_ =>
                 {
+                    // 타이머 실행 후 딕셔너리에서 제거 (메모리 누적 방지)
+                    if (_debounceTimers.TryRemove(folderPath, out var removed))
+                        removed.Dispose();
                     PathChanged?.Invoke(folderPath);
-                }, null, DebounceMs, Timeout.Infinite);
+                }, null, delayMs, Timeout.Infinite);
                 _debounceTimers[folderPath] = timer;
             }
         }

@@ -8,6 +8,8 @@ namespace Span.Models
         Pdf,
         Media,
         Folder,
+        HexBinary,
+        Font,
         Generic
     }
 }

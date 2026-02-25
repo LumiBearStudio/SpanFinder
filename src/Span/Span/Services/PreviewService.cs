@@ -39,8 +39,20 @@ namespace Span.Services
             ".m4a", ".m4v", ".mov", ".wmv", ".webm"
         };
 
+        private static readonly HashSet<string> FontExtensions = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".ttf", ".otf", ".woff", ".woff2", ".ttc"
+        };
+
+        private static readonly HashSet<string> BinaryExtensions = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".dll", ".exe", ".sys", ".bin", ".dat", ".so", ".dylib", ".o", ".obj",
+            ".class", ".pyc", ".pdb", ".lib", ".a", ".wasm"
+        };
+
         private const long MaxPreviewFileSize = 100 * 1024 * 1024; // 100MB
         private const int MaxTextChars = 50000;
+        private const int HexPreviewBytes = 512; // Hex viewer: first 512 bytes
 
         public PreviewType GetPreviewType(string? filePath, bool isFolder)
         {
@@ -54,6 +66,8 @@ namespace Span.Services
             if (TextExtensions.Contains(ext)) return PreviewType.Text;
             if (PdfExtensions.Contains(ext)) return PreviewType.Pdf;
             if (MediaExtensions.Contains(ext)) return PreviewType.Media;
+            if (FontExtensions.Contains(ext)) return PreviewType.Font;
+            if (BinaryExtensions.Contains(ext)) return PreviewType.HexBinary;
 
             return PreviewType.Generic;
         }
@@ -249,6 +263,200 @@ namespace Span.Services
             }
         }
 
+        /// <summary>
+        /// Read the first N bytes of a binary file and format as hex dump.
+        /// Format: offset  hex bytes (16 per row)  ASCII representation
+        /// </summary>
+        public async Task<string?> LoadHexPreviewAsync(string filePath, CancellationToken ct)
+        {
+            try
+            {
+                var fi = new FileInfo(filePath);
+                if (fi.Length == 0) return "[빈 파일]";
+
+                int bytesToRead = (int)Math.Min(fi.Length, HexPreviewBytes);
+                var buffer = new byte[bytesToRead];
+
+                using var stream = File.OpenRead(filePath);
+                int read = await stream.ReadAsync(buffer.AsMemory(0, bytesToRead), ct);
+
+                ct.ThrowIfCancellationRequested();
+
+                var sb = new System.Text.StringBuilder((read / 16 + 1) * 80);
+                for (int i = 0; i < read; i += 16)
+                {
+                    // Offset
+                    sb.Append(i.ToString("X8"));
+                    sb.Append("  ");
+
+                    // Hex bytes
+                    int lineLen = Math.Min(16, read - i);
+                    for (int j = 0; j < 16; j++)
+                    {
+                        if (j < lineLen)
+                        {
+                            sb.Append(buffer[i + j].ToString("X2"));
+                            sb.Append(' ');
+                        }
+                        else
+                        {
+                            sb.Append("   ");
+                        }
+                        if (j == 7) sb.Append(' '); // mid-separator
+                    }
+
+                    sb.Append(' ');
+
+                    // ASCII
+                    for (int j = 0; j < lineLen; j++)
+                    {
+                        byte b = buffer[i + j];
+                        sb.Append(b is >= 0x20 and <= 0x7E ? (char)b : '.');
+                    }
+
+                    sb.AppendLine();
+                }
+
+                if (fi.Length > HexPreviewBytes)
+                    sb.AppendLine($"\n[{fi.Length:N0} bytes 중 처음 {HexPreviewBytes} bytes 표시]");
+
+                return sb.ToString();
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[PreviewService] Hex load error: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Get font metadata by parsing the TrueType/OpenType 'name' table
+        /// to extract the font family name for FontFamily binding.
+        /// </summary>
+        public FontPreviewData? GetFontPreviewData(string filePath)
+        {
+            try
+            {
+                var fi = new FileInfo(filePath);
+                if (!fi.Exists || fi.Length > MaxPreviewFileSize) return null;
+
+                var familyName = ExtractFontFamilyName(filePath);
+
+                return new FontPreviewData
+                {
+                    FilePath = filePath,
+                    FamilyName = familyName ?? fi.Name,
+                    FileName = fi.Name,
+                    FileSize = fi.Length,
+                    Extension = fi.Extension.ToUpperInvariant().TrimStart('.')
+                };
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[PreviewService] Font preview error: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Parse TrueType/OpenType 'name' table to extract font family name (nameID=1).
+        /// Prefers Windows platform (UTF-16 BE), falls back to Mac (ASCII).
+        /// </summary>
+        private static string? ExtractFontFamilyName(string filePath)
+        {
+            try
+            {
+                using var stream = File.OpenRead(filePath);
+                using var reader = new BinaryReader(stream);
+
+                if (stream.Length < 12) return null;
+
+                // Offset table header
+                reader.ReadBytes(4); // sfVersion
+                ushort numTables = ReadUInt16BE(reader);
+                reader.ReadBytes(6); // searchRange, entrySelector, rangeShift
+
+                // Find 'name' table
+                uint nameTableOffset = 0;
+                for (int i = 0; i < numTables; i++)
+                {
+                    if (stream.Position + 16 > stream.Length) return null;
+                    byte[] tagBytes = reader.ReadBytes(4);
+                    string tag = System.Text.Encoding.ASCII.GetString(tagBytes);
+                    reader.ReadBytes(4); // checksum
+                    uint offset = ReadUInt32BE(reader);
+                    reader.ReadBytes(4); // length
+
+                    if (tag == "name")
+                    {
+                        nameTableOffset = offset;
+                        break;
+                    }
+                }
+
+                if (nameTableOffset == 0) return null;
+
+                // Read name table header
+                stream.Seek(nameTableOffset, SeekOrigin.Begin);
+                if (stream.Position + 6 > stream.Length) return null;
+                reader.ReadBytes(2); // format
+                ushort nameCount = ReadUInt16BE(reader);
+                ushort stringOffset = ReadUInt16BE(reader);
+                long stringsBase = nameTableOffset + stringOffset;
+
+                // Scan name records for nameID=1 (Font Family)
+                string? windowsName = null;
+                string? macName = null;
+
+                for (int i = 0; i < nameCount; i++)
+                {
+                    if (stream.Position + 12 > stream.Length) break;
+                    ushort platformID = ReadUInt16BE(reader);
+                    reader.ReadBytes(2); // encodingID
+                    reader.ReadBytes(2); // languageID
+                    ushort nameID = ReadUInt16BE(reader);
+                    ushort length = ReadUInt16BE(reader);
+                    ushort strOff = ReadUInt16BE(reader);
+
+                    if (nameID != 1) continue;
+
+                    long savedPos = stream.Position;
+                    long targetPos = stringsBase + strOff;
+                    if (targetPos + length > stream.Length) continue;
+
+                    stream.Seek(targetPos, SeekOrigin.Begin);
+                    byte[] nameBytes = reader.ReadBytes(length);
+                    stream.Seek(savedPos, SeekOrigin.Begin);
+
+                    if (platformID == 3 && windowsName == null)
+                        windowsName = System.Text.Encoding.BigEndianUnicode.GetString(nameBytes);
+                    else if (platformID == 1 && macName == null)
+                        macName = System.Text.Encoding.ASCII.GetString(nameBytes);
+
+                    if (windowsName != null) break; // prefer Windows name
+                }
+
+                return windowsName ?? macName;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static ushort ReadUInt16BE(BinaryReader r)
+        {
+            byte[] b = r.ReadBytes(2);
+            return (ushort)((b[0] << 8) | b[1]);
+        }
+
+        private static uint ReadUInt32BE(BinaryReader r)
+        {
+            byte[] b = r.ReadBytes(4);
+            return (uint)((b[0] << 24) | (b[1] << 16) | (b[2] << 8) | b[3]);
+        }
+
         public async Task<MediaMetadata?> GetMediaMetadataAsync(string filePath, CancellationToken ct)
         {
             try
@@ -323,4 +531,13 @@ namespace Span.Services
     public record MediaMetadata(TimeSpan Duration, uint Bitrate,
                                  uint? Width, uint? Height,
                                  string? Artist, string? Album);
+
+    public record FontPreviewData
+    {
+        public string FilePath { get; init; } = "";
+        public string FamilyName { get; init; } = "";
+        public string FileName { get; init; } = "";
+        public long FileSize { get; init; }
+        public string Extension { get; init; } = "";
+    }
 }

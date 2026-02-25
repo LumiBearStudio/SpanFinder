@@ -70,6 +70,16 @@
                     <SolidColorBrush x:Key="SpanBorderSubtleBrush" Color="#0FFFFFFF" />
                     <SolidColorBrush x:Key="SpanBorderCardBrush" Color="#14FFFFFF" />
                     <SolidColorBrush x:Key="SpanBorderControlBrush" Color="#1AFFFFFF" />
+
+                    <!-- Depth shadows (Miller column + sidebar edge) -->
+                    <LinearGradientBrush x:Key="SpanColumnShadowBrush" StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Color="Transparent" Offset="0"/>
+                        <GradientStop Color="#1C000000" Offset="1"/>
+                    </LinearGradientBrush>
+                    <LinearGradientBrush x:Key="SpanSidebarShadowBrush" StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Color="#1C000000" Offset="0"/>
+                        <GradientStop Color="Transparent" Offset="1"/>
+                    </LinearGradientBrush>
                 </ResourceDictionary>
 
                 <!-- ==================== LIGHT THEME ==================== -->
@@ -127,6 +137,16 @@
                     <SolidColorBrush x:Key="SpanBorderSubtleBrush" Color="#0F000000" />
                     <SolidColorBrush x:Key="SpanBorderCardBrush" Color="#14000000" />
                     <SolidColorBrush x:Key="SpanBorderControlBrush" Color="#1A000000" />
+
+                    <!-- Depth shadows (Miller column + sidebar edge) -->
+                    <LinearGradientBrush x:Key="SpanColumnShadowBrush" StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Color="Transparent" Offset="0"/>
+                        <GradientStop Color="#0C000000" Offset="1"/>
+                    </LinearGradientBrush>
+                    <LinearGradientBrush x:Key="SpanSidebarShadowBrush" StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Color="#0C000000" Offset="0"/>
+                        <GradientStop Color="Transparent" Offset="1"/>
+                    </LinearGradientBrush>
                 </ResourceDictionary>
 
             </ResourceDictionary.ThemeDictionaries>

@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.Threading;
+using System.Threading.Tasks;
 using Span.Models;
 
 namespace Span.Services
@@ -437,6 +439,53 @@ namespace Span.Services
                 if (contextMenuPtr != IntPtr.Zero) Marshal.Release(contextMenuPtr);
                 if (shellFolderPtr != IntPtr.Zero) Marshal.Release(shellFolderPtr);
             }
+        }
+
+        /// <summary>
+        /// Timeout-guarded version of CreateSession.
+        /// Runs CreateSession on a dedicated STA thread with a timeout.
+        /// If the shell extension takes too long (e.g. unresponsive third-party),
+        /// returns null so the caller can show custom-only menu items.
+        /// </summary>
+        public static async Task<Session?> CreateSessionAsync(IntPtr hwnd, string path, int timeoutMs = 3000)
+        {
+            Session? result = null;
+            Exception? caught = null;
+
+            // Shell COM objects require STA — use a dedicated STA thread
+            var staThread = new Thread(() =>
+            {
+                try
+                {
+                    result = CreateSession(hwnd, path);
+                }
+                catch (Exception ex)
+                {
+                    caught = ex;
+                }
+            });
+            staThread.SetApartmentState(ApartmentState.STA);
+            staThread.IsBackground = true;
+            staThread.Start();
+
+            // Wait with timeout
+            var completed = await Task.Run(() => staThread.Join(timeoutMs));
+
+            if (!completed)
+            {
+                Helpers.DebugLogger.Log($"[ShellContextMenu] CreateSession timed out ({timeoutMs}ms) for: {path}");
+                // Thread is still blocked in QueryContextMenu — it will eventually finish
+                // and the Session will be orphaned (COM cleanup on thread exit).
+                return null;
+            }
+
+            if (caught != null)
+            {
+                Helpers.DebugLogger.Log($"[ShellContextMenu] CreateSessionAsync error: {caught.Message}");
+                return null;
+            }
+
+            return result;
         }
 
         /// <summary>

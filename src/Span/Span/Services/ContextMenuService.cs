@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.UI.Xaml.Controls;
 using Span.Models;
 using Span.ViewModels;
@@ -492,15 +493,25 @@ namespace Span.Services
         /// Standard items (open, copy, delete, etc.) are filtered out — only third-party
         /// extensions (Bandizip, 7-Zip, VS Code, etc.) are added.
         /// </summary>
+        /// <summary>
+        /// Schedule async loading of shell extension items.
+        /// Menu is shown immediately; shell items are inserted when ready.
+        /// Uses dedicated STA thread with timeout to prevent UI blocking from
+        /// unresponsive shell extensions.
+        /// </summary>
         private void AppendShellExtensionItems(MenuFlyout menu, string path)
         {
             if (OwnerHwnd == IntPtr.Zero) return;
+            _ = AppendShellExtensionItemsCoreAsync(menu, path);
+        }
 
+        private async Task AppendShellExtensionItemsCoreAsync(MenuFlyout menu, string path)
+        {
             try
             {
                 // Dispose previous session
                 _currentSession?.Dispose();
-                _currentSession = ShellContextMenu.CreateSession(OwnerHwnd, path);
+                _currentSession = await ShellContextMenu.CreateSessionAsync(OwnerHwnd, path);
 
                 if (_currentSession == null || _currentSession.Items.Count == 0)
                     return;
@@ -590,12 +601,18 @@ namespace Span.Services
                         filtered.RemoveAt(i);
                 }
 
-                // Append to menu
+                // Insert before the last 2 items (separator + Properties)
+                // so shell items appear in the correct position
                 if (filtered.Count > 0)
                 {
-                    menu.Items.Add(new MenuFlyoutSeparator());
+                    int insertAt = Math.Max(0, menu.Items.Count - 2);
+                    menu.Items.Insert(insertAt, new MenuFlyoutSeparator());
+                    insertAt++;
                     foreach (var item in filtered)
-                        menu.Items.Add(item);
+                    {
+                        menu.Items.Insert(insertAt, item);
+                        insertAt++;
+                    }
                 }
             }
             catch (Exception ex)

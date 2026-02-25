@@ -77,6 +77,65 @@
                                     AreTransportControlsEnabled="True"
                                     AutoPlay="False" MaxHeight="300"/>
 
+                <!-- Hex Binary Preview -->
+                <Border Visibility="{Binding IsHexBinaryVisible, Converter={StaticResource VisConv}}"
+                        Background="{ThemeResource SpanBgLayer1Brush}"
+                        CornerRadius="4" Padding="8" MaxHeight="360">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Auto"
+                                  MaxHeight="344">
+                        <TextBlock Text="{Binding HexPreview}"
+                                   FontFamily="Consolas" FontSize="10.5"
+                                   TextWrapping="NoWrap" LineHeight="16"
+                                   IsTextSelectionEnabled="True"
+                                   Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
+                    </ScrollViewer>
+                </Border>
+
+                <!-- Font Preview -->
+                <StackPanel Visibility="{Binding IsFontVisible, Converter={StaticResource VisConv}}"
+                            Spacing="12">
+                    <!-- Font format badge -->
+                    <Border Background="{ThemeResource SpanBgLayer1Brush}"
+                            CornerRadius="4" Padding="6,3" HorizontalAlignment="Center">
+                        <TextBlock Text="{Binding FontFormat}" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{ThemeResource SpanAccentBrush}"/>
+                    </Border>
+                    <!-- Sample text in the font itself -->
+                    <StackPanel Background="{ThemeResource SpanBgLayer1Brush}"
+                                CornerRadius="4" Padding="12" Spacing="8">
+                        <TextBlock Text="AaBbCcDdEeFfGgHhIiJjKk" FontSize="24"
+                                   FontFamily="{Binding FontFamilySource}"
+                                   TextWrapping="Wrap" TextAlignment="Center"
+                                   Foreground="{ThemeResource SpanTextPrimaryBrush}"/>
+                        <TextBlock Text="0123456789 !@#$%^&amp;*()" FontSize="18"
+                                   FontFamily="{Binding FontFamilySource}"
+                                   TextWrapping="Wrap" TextAlignment="Center"
+                                   Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
+                        <Rectangle Height="1" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="0,4"/>
+                        <TextBlock Text="다람쥐 헌 쳇바퀴에 타고파" FontSize="20"
+                                   FontFamily="{Binding FontFamilySource}"
+                                   TextWrapping="Wrap" TextAlignment="Center"
+                                   Foreground="{ThemeResource SpanTextPrimaryBrush}"/>
+                        <TextBlock Text="The quick brown fox jumps over the lazy dog" FontSize="14"
+                                   FontFamily="{Binding FontFamilySource}"
+                                   TextWrapping="Wrap" TextAlignment="Center"
+                                   Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
+                    </StackPanel>
+                    <!-- Size samples -->
+                    <StackPanel Background="{ThemeResource SpanBgLayer1Brush}"
+                                CornerRadius="4" Padding="12" Spacing="4">
+                        <TextBlock Text="12px - Preview" FontSize="12" FontFamily="{Binding FontFamilySource}"
+                                   Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
+                        <TextBlock Text="16px - Preview" FontSize="16" FontFamily="{Binding FontFamilySource}"
+                                   Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
+                        <TextBlock Text="24px - Preview" FontSize="24" FontFamily="{Binding FontFamilySource}"
+                                   Foreground="{ThemeResource SpanTextPrimaryBrush}"/>
+                        <TextBlock Text="36px - Preview" FontSize="36" FontFamily="{Binding FontFamilySource}"
+                                   Foreground="{ThemeResource SpanTextPrimaryBrush}"/>
+                    </StackPanel>
+                </StackPanel>
+
                 <!-- Folder Info -->
                 <StackPanel Visibility="{Binding IsFolderVisible, Converter={StaticResource VisConv}}"
                             HorizontalAlignment="Center" Spacing="8" Margin="0,8">

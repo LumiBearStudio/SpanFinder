@@ -976,13 +976,14 @@ namespace Span.ViewModels
             _selectionDebounce?.Dispose();
             _selectionDebounce = null;
 
-            // Clean up all columns
+            // Clean up all columns — release thumbnails and child references
             if (Columns != null)
             {
                 foreach (var column in Columns.ToList())
                 {
                     column.PropertyChanged -= FolderVm_PropertyChanged;
                     column.CancelLoading();
+                    column.ClearChildren();
                 }
                 Columns.Clear();
             }

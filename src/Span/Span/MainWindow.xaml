@@ -1005,6 +1005,9 @@
                                                         </Grid>
                                                     </Grid>
                                                 </Border>
+                                                <!-- Column edge shadow (depth) -->
+                                                <Rectangle Grid.Column="1" Width="8" HorizontalAlignment="Left" Margin="-7,0,0,0"
+                                                           Fill="{ThemeResource SpanColumnShadowBrush}" IsHitTestVisible="False"/>
                                                 <!-- Column resize grip -->
                                                 <Rectangle Grid.Column="1" Width="4" Fill="Transparent"
                                                            PointerEntered="OnColumnResizeGripPointerEntered"
@@ -1495,6 +1498,9 @@
                                                         </Grid>
                                                     </Grid>
                                                 </Border>
+                                                <!-- Column edge shadow (depth) -->
+                                                <Rectangle Grid.Column="1" Width="8" HorizontalAlignment="Left" Margin="-7,0,0,0"
+                                                           Fill="{ThemeResource SpanColumnShadowBrush}" IsHitTestVisible="False"/>
                                                 <!-- Column resize grip -->
                                                 <Rectangle Grid.Column="1" Width="4" Fill="Transparent"
                                                            PointerEntered="OnColumnResizeGripPointerEntered"
@@ -1534,6 +1540,9 @@
                 </Grid>
             </Grid>
 
+            <!-- Sidebar edge shadow (renders on top of content for depth) -->
+            <Rectangle Grid.Column="1" Width="8" HorizontalAlignment="Left" IsHitTestVisible="False"
+                       Fill="{ThemeResource SpanSidebarShadowBrush}"/>
         </Grid>
 
         <!-- 4. Status Bar -->

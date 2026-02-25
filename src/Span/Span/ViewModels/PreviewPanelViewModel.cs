@@ -51,6 +51,8 @@ namespace Span.ViewModels
         [NotifyPropertyChangedFor(nameof(IsPdfVisible))]
         [NotifyPropertyChangedFor(nameof(IsMediaVisible))]
         [NotifyPropertyChangedFor(nameof(IsFolderVisible))]
+        [NotifyPropertyChangedFor(nameof(IsHexBinaryVisible))]
+        [NotifyPropertyChangedFor(nameof(IsFontVisible))]
         [NotifyPropertyChangedFor(nameof(IsGenericVisible))]
         private PreviewType _currentPreviewType = PreviewType.None;
 
@@ -58,6 +60,9 @@ namespace Span.ViewModels
         [ObservableProperty] private string? _textPreview;
         [ObservableProperty] private BitmapImage? _pdfPreview;
         [ObservableProperty] private MediaSource? _mediaSource;
+        [ObservableProperty] private string? _hexPreview;
+        [ObservableProperty] private string _fontFamilySource = "";
+        [ObservableProperty] private string _fontFormat = "";
 
         // --- Computed visibility ---
 
@@ -66,6 +71,8 @@ namespace Span.ViewModels
         public bool IsPdfVisible => CurrentPreviewType == PreviewType.Pdf;
         public bool IsMediaVisible => CurrentPreviewType == PreviewType.Media;
         public bool IsFolderVisible => CurrentPreviewType == PreviewType.Folder;
+        public bool IsHexBinaryVisible => CurrentPreviewType == PreviewType.HexBinary;
+        public bool IsFontVisible => CurrentPreviewType == PreviewType.Font;
         public bool IsGenericVisible => CurrentPreviewType == PreviewType.Generic;
 
         public PreviewPanelViewModel(PreviewService previewService)
@@ -159,6 +166,19 @@ namespace Span.ViewModels
                         }
                         break;
 
+                    case PreviewType.HexBinary:
+                        HexPreview = await _previewService.LoadHexPreviewAsync(item.Path, ct);
+                        break;
+
+                    case PreviewType.Font:
+                        var fontData = _previewService.GetFontPreviewData(item.Path);
+                        if (fontData != null)
+                        {
+                            FontFamilySource = fontData.FamilyName;
+                            FontFormat = fontData.Extension;
+                        }
+                        break;
+
                     case PreviewType.Generic:
                         break;
                 }
@@ -218,6 +238,9 @@ namespace Span.ViewModels
             ImagePreview = null;
             TextPreview = null;
             PdfPreview = null;
+            HexPreview = null;
+            FontFamilySource = "";
+            FontFormat = "";
             Dimensions = "";
             Duration = "";
             FolderItemCount = "";

@@ -101,8 +101,14 @@ namespace Span.ViewModels
                 await stream.CopyToAsync(memStream);
                 memStream.Position = 0;
 
+                // Guard: column may have been removed during async I/O
+                if (!_thumbnailLoading) return;
+
                 var ras = memStream.AsRandomAccessStream();
                 await bitmap.SetSourceAsync(ras);
+
+                // Guard again after SetSourceAsync (another await point)
+                if (!_thumbnailLoading) return;
 
                 ThumbnailSource = bitmap;
                 _thumbnailLoaded = true;
@@ -139,10 +145,15 @@ namespace Span.ViewModels
 
                 if (thumbnail != null && thumbnail.Type == ThumbnailType.Image)
                 {
+                    // Guard: column may have been removed during async I/O
+                    if (!_thumbnailLoading) return;
+
                     var bitmap = new BitmapImage();
                     bitmap.DecodePixelWidth = decodePixelWidth;
                     bitmap.DecodePixelType = DecodePixelType.Logical;
                     await bitmap.SetSourceAsync(thumbnail);
+
+                    if (!_thumbnailLoading) return;
 
                     ThumbnailSource = bitmap;
                     _thumbnailLoaded = true;
@@ -156,11 +167,14 @@ namespace Span.ViewModels
 
         /// <summary>
         /// Clear loaded thumbnail to free memory.
+        /// Also resets the loading flag to prevent orphaned async tasks
+        /// from writing back to this ViewModel after column removal.
         /// </summary>
         public void UnloadThumbnail()
         {
-            ThumbnailSource = null;
+            _thumbnailLoading = false;
             _thumbnailLoaded = false;
+            ThumbnailSource = null;
         }
     }
 }
