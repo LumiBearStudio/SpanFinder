@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Span.Models;
 using Span.ViewModels;
 using System;
+using System.Linq;
 
 namespace Span
 {
@@ -42,6 +43,10 @@ namespace Span
                 {
                     // 비커스텀: 오버라이드 제거 후 테마 적용
                     ApplyCustomThemeOverrides(root, theme);
+                    // 반대 테마로 한 번 토글하여 {ThemeResource} 바인딩 강제 갱신
+                    // (커스텀(Dark기반) → dark 전환 시 동일 ElementTheme이면 갱신 안 됨)
+                    root.RequestedTheme = targetTheme == ElementTheme.Light
+                        ? ElementTheme.Dark : ElementTheme.Light;
                     root.RequestedTheme = targetTheme;
                 }
             }
@@ -309,6 +314,11 @@ namespace Span
                 case "ShowFavoritesTree":
                     DispatcherQueue.TryEnqueue(() => ApplyFavoritesTreeMode(value is bool v && v));
                     break;
+
+                case "ShowGitIntegration":
+                    // Git 통합 ON/OFF 시 모든 로드된 컬럼 새로고침 (git 감지 재실행)
+                    DispatcherQueue.TryEnqueue(() => RefreshAllColumnsForGit());
+                    break;
             }
         }
 
@@ -489,6 +499,24 @@ namespace Span
             UpdateViewModeVisibility();
             // Tab count changed — update passthrough region
             DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, UpdateTitleBarRegions);
+        }
+
+        /// <summary>
+        /// Git 통합 설정 변경 시 양쪽 패인의 모든 컬럼을 새로고침.
+        /// 일반 RefreshCurrentView()는 마지막 컬럼만 새로고침하므로 부족.
+        /// </summary>
+        private void RefreshAllColumnsForGit()
+        {
+            Helpers.DebugLogger.Log("[Git.Setting] ShowGitIntegration changed, refreshing all columns");
+            // 양쪽 Explorer의 모든 컬럼을 리로드
+            foreach (var explorer in new[] { ViewModel.Explorer, ViewModel.RightExplorer })
+            {
+                foreach (var col in explorer.Columns.ToArray())
+                {
+                    col.ResetLoadState();
+                    _ = col.EnsureChildrenLoadedAsync();
+                }
+            }
         }
 
         private void RefreshCurrentView()

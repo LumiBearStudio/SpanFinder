@@ -1117,6 +1117,15 @@ namespace Span
             SettingsView.Visibility = mode == ViewMode.Settings ? Visibility.Visible : Visibility.Collapsed;
             if (mode == ViewMode.Settings) SettingsView.RefreshSettings();
 
+            // Settings 모드: 스플릿뷰 강제 해제
+            if (isSpecialMode && ViewModel.IsSplitViewEnabled)
+            {
+                ViewModel.IsSplitViewEnabled = false;
+                SplitterCol.Width = new GridLength(0);
+                RightPaneCol.Width = new GridLength(0);
+                ViewModel.ActivePane = ActivePane.Left;
+            }
+
             // Settings/Home 모드: 사이드바 + 프리뷰 패널 숨김
             if (isSpecialMode)
             {

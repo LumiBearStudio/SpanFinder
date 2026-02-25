@@ -53,6 +53,12 @@ namespace Span
             => isSplitViewEnabled ? Visibility.Collapsed : Visibility.Visible;
 
         /// <summary>
+        /// Split/Preview buttons: hidden in Settings mode
+        /// </summary>
+        public Visibility IsNotSettingsMode(Models.ViewMode mode)
+            => mode != Models.ViewMode.Settings ? Visibility.Visible : Visibility.Collapsed;
+
+        /// <summary>
         /// Single mode toolbar/address bar: visible when NOT split AND NOT Home mode
         /// </summary>
         public Visibility IsSingleNonHomeVisible(bool isSplitViewEnabled, Models.ViewMode mode)
@@ -593,9 +599,15 @@ namespace Span
             if (isLeft) _leftPreviewSubscribedColumn = lastColumn;
             else _rightPreviewSubscribedColumn = lastColumn;
 
-            // Immediately update preview with current selection
-            var previewPanel = isLeft ? LeftPreviewPanel : RightPreviewPanel;
-            previewPanel.UpdatePreview(lastColumn.SelectedChild);
+            // Immediately update preview with current selection.
+            // 새 컬럼이 추가된 직후엔 SelectedChild가 null — 이 경우 기존 미리보기(부모 폴더)를 유지.
+            // 사용자가 새 컬럼에서 항목을 선택하면 PropertyChanged로 자동 업데이트됨.
+            var selectedChild = lastColumn.SelectedChild;
+            if (selectedChild != null)
+            {
+                var previewPanel = isLeft ? LeftPreviewPanel : RightPreviewPanel;
+                previewPanel.UpdatePreview(selectedChild);
+            }
         }
 
         private void UnsubscribePreviewSelection(bool isLeft)

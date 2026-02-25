@@ -48,6 +48,7 @@ namespace Span.Services
     {
         bool ShowDeveloperMenu { get; set; }
         bool ShowGitIntegration { get; set; }
+        bool ShowHexPreview { get; set; }
     }
 
     /// <summary>

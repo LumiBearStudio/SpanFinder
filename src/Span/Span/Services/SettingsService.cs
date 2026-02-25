@@ -187,6 +187,12 @@ public class SettingsService : ISettingsService
         set => Set("ShowGitIntegration", value);
     }
 
+    public bool ShowHexPreview
+    {
+        get => Get("ShowHexPreview", false);
+        set => Set("ShowHexPreview", value);
+    }
+
     public bool ShowWindowsShellExtras
     {
         get => Get("ShowWindowsShellExtras", false);

@@ -109,6 +109,7 @@
                 <DataTemplate x:DataType="vm:FileSystemViewModel">
                     <Grid Height="24" RightTapped="OnItemRightTapped"
                           ToolTipService.ToolTip="{x:Bind TooltipText}"
+                          Opacity="{x:Bind ItemOpacity}"
                           Padding="4,0">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="20"/>

@@ -14,6 +14,8 @@ namespace Span.Models
         // Unified collection for UI
         public System.Collections.ObjectModel.ObservableCollection<IFileSystemItem> Children { get; set; } = new();
 
+        public bool IsHidden { get; set; }
+
         // UI Helper
         public string IconGlyph => Span.Services.IconService.Current?.FolderGlyph ?? "\uED53";
     }

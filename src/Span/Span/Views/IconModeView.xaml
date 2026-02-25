@@ -11,7 +11,8 @@
         <!-- Small Icon Template (16px) - Horizontal -->
         <DataTemplate x:Key="SmallIconTemplate" x:DataType="vm:FileSystemViewModel">
             <Grid Width="120" Height="22"
-                  ToolTipService.ToolTip="{x:Bind TooltipText}">
+                  ToolTipService.ToolTip="{x:Bind TooltipText}"
+                  Opacity="{x:Bind ItemOpacity}">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
@@ -38,7 +39,8 @@
         <!-- Medium Icon Template (48px) - Horizontal -->
         <DataTemplate x:Key="MediumIconTemplate" x:DataType="vm:FileSystemViewModel">
             <Grid Width="160" Height="48"
-                  ToolTipService.ToolTip="{x:Bind TooltipText}">
+                  ToolTipService.ToolTip="{x:Bind TooltipText}"
+                  Opacity="{x:Bind ItemOpacity}">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
@@ -67,7 +69,8 @@
         <!-- Large Icon Template (96px) - Vertical -->
         <DataTemplate x:Key="LargeIconTemplate" x:DataType="vm:FileSystemViewModel">
             <Grid Width="110" Height="120"
-                  ToolTipService.ToolTip="{x:Bind TooltipText}">
+                  ToolTipService.ToolTip="{x:Bind TooltipText}"
+                  Opacity="{x:Bind ItemOpacity}">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
@@ -98,7 +101,8 @@
         <!-- Extra Large Icon Template (256px) - Vertical -->
         <DataTemplate x:Key="ExtraLargeIconTemplate" x:DataType="vm:FileSystemViewModel">
             <Grid Width="240" Height="260"
-                  ToolTipService.ToolTip="{x:Bind TooltipText}">
+                  ToolTipService.ToolTip="{x:Bind TooltipText}"
+                  Opacity="{x:Bind ItemOpacity}">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>

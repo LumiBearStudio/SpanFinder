@@ -239,6 +239,12 @@ namespace Span.ViewModels
             if (tab.IconSize != CurrentIconSize)
                 tab.IconSize = CurrentIconSize;
             tab.Path = tab.Explorer?.CurrentPath ?? "";
+
+            // Header도 동기화 (Home 모드 전환 후 저장 시 Header 불일치 방지)
+            if (CurrentViewMode == ViewMode.Home)
+                tab.Header = "Home";
+            else
+                tab.Header = tab.Explorer?.CurrentFolderName ?? "Home";
         }
 
         /// <summary>
@@ -409,7 +415,7 @@ namespace Span.ViewModels
                     var tab = new TabItem
                     {
                         Id = dto.Id,
-                        Header = dto.Header,
+                        Header = tabViewMode == ViewMode.Home ? "Home" : dto.Header,
                         Path = dto.Path,
                         ViewMode = tabViewMode,
                         IconSize = tabIconSize,

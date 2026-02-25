@@ -366,7 +366,8 @@
                 <!-- Split View Toggle -->
                 <Button x:Name="SplitViewButton" AutomationProperties.AutomationId="Button_SplitView" Style="{StaticResource UnifiedButtonStyle}"
                         ToolTipService.ToolTip="Split View (Ctrl+Shift+E)"
-                        Click="OnSplitViewToggleClick">
+                        Click="OnSplitViewToggleClick"
+                        Visibility="{x:Bind IsNotSettingsMode(ViewModel.CurrentViewMode), Mode=OneWay}">
                     <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_SplitView}" FontSize="16"/>
                 </Button>
 
@@ -908,6 +909,7 @@
                                                                                 <Grid Padding="12,2" RightTapped="OnFolderRightTapped"
                                                                                       ToolTipService.ToolTip="{x:Bind TooltipText}"
                                                                                       Background="{x:Bind PathBackground, Mode=OneWay}"
+                                                                                      Opacity="{x:Bind ItemOpacity}"
                                                                                       AllowDrop="True" DragOver="OnFolderItemDragOver" Drop="OnFolderItemDrop" DragLeave="OnFolderItemDragLeave">
                                                                                     <Grid.ColumnDefinitions>
                                                                                         <ColumnDefinition Width="Auto"/>
@@ -917,7 +919,7 @@
                                                                                         <ColumnDefinition Width="Auto"/>
                                                                                     </Grid.ColumnDefinitions>
                                                                                     <!-- Path indicator bar (accent left edge for items on navigation path) -->
-                                                                                    <Border Grid.Column="0" Width="3" CornerRadius="1.5" Margin="-8,2,6,2"
+                                                                                    <Border Grid.Column="0" Width="3" CornerRadius="1.5" Margin="-8,2,0,2"
                                                                                             Background="{ThemeResource SpanAccentBrush}"
                                                                                             Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfTrue(IsOnPath), Mode=OneWay}"/>
                                                                                     <FontIcon Grid.Column="1" FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Folder}" FontSize="16" Foreground="{x:Bind IconBrush}" Margin="0,0,12,0"/>
@@ -939,14 +941,15 @@
                                                                             <DataTemplate x:DataType="viewmodels:FileViewModel">
                                                                                 <Grid Padding="12,2" RightTapped="OnFileRightTapped"
                                                                                       ToolTipService.ToolTip="{x:Bind TooltipText}"
-                                                                                      Background="{x:Bind PathBackground, Mode=OneWay}">
+                                                                                      Background="{x:Bind PathBackground, Mode=OneWay}"
+                                                                                      Opacity="{x:Bind ItemOpacity}">
                                                                                     <Grid.ColumnDefinitions>
                                                                                         <ColumnDefinition Width="Auto"/>
                                                                                         <ColumnDefinition Width="Auto"/>
                                                                                         <ColumnDefinition Width="*"/>
                                                                                     </Grid.ColumnDefinitions>
                                                                                     <!-- Col0: path indicator placeholder (matches FolderTemplate column structure) -->
-                                                                                    <Border Grid.Column="0" Width="3" CornerRadius="1.5" Margin="-8,2,6,2" Visibility="Collapsed"/>
+                                                                                    <Border Grid.Column="0" Width="3" CornerRadius="1.5" Margin="-8,2,0,2" Visibility="Collapsed"/>
                                                                                     <Grid Grid.Column="1" Width="16" Height="16" Margin="0,0,12,0" VerticalAlignment="Center">
                                                                                         <Image Source="{x:Bind ThumbnailSource, Mode=OneWay}" Stretch="UniformToFill"
                                                                                                Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfTrue(HasThumbnail), Mode=OneWay}"/>
@@ -1410,6 +1413,7 @@
                                                                                 <Grid Padding="12,2" RightTapped="OnFolderRightTapped"
                                                                                       ToolTipService.ToolTip="{x:Bind TooltipText}"
                                                                                       Background="{x:Bind PathBackground, Mode=OneWay}"
+                                                                                      Opacity="{x:Bind ItemOpacity}"
                                                                                       AllowDrop="True" DragOver="OnFolderItemDragOver" Drop="OnFolderItemDrop" DragLeave="OnFolderItemDragLeave">
                                                                                     <Grid.ColumnDefinitions>
                                                                                         <ColumnDefinition Width="Auto"/>
@@ -1419,7 +1423,7 @@
                                                                                         <ColumnDefinition Width="Auto"/>
                                                                                     </Grid.ColumnDefinitions>
                                                                                     <!-- Path indicator bar (accent left edge for items on navigation path) -->
-                                                                                    <Border Grid.Column="0" Width="3" CornerRadius="1.5" Margin="-8,2,6,2"
+                                                                                    <Border Grid.Column="0" Width="3" CornerRadius="1.5" Margin="-8,2,0,2"
                                                                                             Background="{ThemeResource SpanAccentBrush}"
                                                                                             Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfTrue(IsOnPath), Mode=OneWay}"/>
                                                                                     <FontIcon Grid.Column="1" FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Folder}" FontSize="16" Foreground="{x:Bind IconBrush}" Margin="0,0,12,0"/>
@@ -1441,14 +1445,15 @@
                                                                             <DataTemplate x:DataType="viewmodels:FileViewModel">
                                                                                 <Grid Padding="12,2" RightTapped="OnFileRightTapped"
                                                                                       ToolTipService.ToolTip="{x:Bind TooltipText}"
-                                                                                      Background="{x:Bind PathBackground, Mode=OneWay}">
+                                                                                      Background="{x:Bind PathBackground, Mode=OneWay}"
+                                                                                      Opacity="{x:Bind ItemOpacity}">
                                                                                     <Grid.ColumnDefinitions>
                                                                                         <ColumnDefinition Width="Auto"/>
                                                                                         <ColumnDefinition Width="Auto"/>
                                                                                         <ColumnDefinition Width="*"/>
                                                                                     </Grid.ColumnDefinitions>
                                                                                     <!-- Col0: path indicator placeholder (matches FolderTemplate column structure) -->
-                                                                                    <Border Grid.Column="0" Width="3" CornerRadius="1.5" Margin="-8,2,6,2" Visibility="Collapsed"/>
+                                                                                    <Border Grid.Column="0" Width="3" CornerRadius="1.5" Margin="-8,2,0,2" Visibility="Collapsed"/>
                                                                                     <Grid Grid.Column="1" Width="16" Height="16" Margin="0,0,12,0" VerticalAlignment="Center">
                                                                                         <Image Source="{x:Bind ThumbnailSource, Mode=OneWay}" Stretch="UniformToFill"
                                                                                                Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfTrue(HasThumbnail), Mode=OneWay}"/>
@@ -1571,7 +1576,8 @@
             </Grid.ColumnDefinitions>
             
             <StackPanel Orientation="Horizontal" Spacing="16" VerticalAlignment="Center" Margin="12,0">
-                <StackPanel Orientation="Horizontal" Spacing="6">
+                <StackPanel Orientation="Horizontal" Spacing="6"
+                            Visibility="{x:Bind helpers:StatusBarHelper.ShowIfNotEmpty(ViewModel.StatusItemCountText), Mode=OneWay}">
                     <FontIcon Glyph="&#xE8A5;" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}"/>
                     <TextBlock Text="{x:Bind ViewModel.StatusItemCountText, Mode=OneWay}" FontSize="11" Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
                 </StackPanel>

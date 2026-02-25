@@ -41,7 +41,8 @@ namespace Span.Services
                         {
                             Name = d.Name,
                             Path = d.FullName,
-                            DateModified = d.LastWriteTime
+                            DateModified = d.LastWriteTime,
+                            IsHidden = (d.Attributes & FileAttributes.Hidden) != 0
                         });
                     }
 
@@ -56,7 +57,8 @@ namespace Span.Services
                             Path = f.FullName,
                             Size = f.Length,
                             DateModified = f.LastWriteTime,
-                            FileType = f.Extension
+                            FileType = f.Extension,
+                            IsHidden = (f.Attributes & FileAttributes.Hidden) != 0
                         });
                     }
                 }

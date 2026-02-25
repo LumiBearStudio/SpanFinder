@@ -325,7 +325,7 @@ namespace Span.ViewModels
                         if (!showHidden && (d.Attributes & System.IO.FileAttributes.Hidden) != 0) continue;
                         if ((d.Attributes & System.IO.FileAttributes.System) != 0) continue;
 
-                        var folderItem = new FolderItem { Name = d.Name, Path = d.FullName, DateModified = d.LastWriteTime };
+                        var folderItem = new FolderItem { Name = d.Name, Path = d.FullName, DateModified = d.LastWriteTime, IsHidden = (d.Attributes & System.IO.FileAttributes.Hidden) != 0 };
                         folders.Add(folderItem);
                         result.Add(new FolderViewModel(folderItem, _fileService));
                     }
@@ -336,7 +336,7 @@ namespace Span.ViewModels
                         if (!showHidden && (f.Attributes & System.IO.FileAttributes.Hidden) != 0) continue;
                         if ((f.Attributes & System.IO.FileAttributes.System) != 0) continue;
 
-                        var fileItem = new FileItem { Name = f.Name, Path = f.FullName, Size = f.Length, DateModified = f.LastWriteTime, FileType = f.Extension };
+                        var fileItem = new FileItem { Name = f.Name, Path = f.FullName, Size = f.Length, DateModified = f.LastWriteTime, FileType = f.Extension, IsHidden = (f.Attributes & System.IO.FileAttributes.Hidden) != 0 };
                         files.Add(fileItem);
                         result.Add(new FileViewModel(fileItem));
                     }
@@ -482,17 +482,22 @@ namespace Span.ViewModels
             try
             {
                 var settings = App.Current.Services.GetService(typeof(Services.SettingsService)) as Services.SettingsService;
+                Helpers.DebugLogger.Log($"[Git.Detect] Settings resolved={settings != null}, ShowGitIntegration={settings?.ShowGitIntegration}");
                 if (settings != null && settings.ShowGitIntegration)
                 {
                     _gitSvc = App.Current.Services.GetService(typeof(GitStatusService)) as GitStatusService;
-                    _isGitFolder = _gitSvc != null && _gitSvc.IsAvailable && _gitSvc.FindRepoRoot(Path) != null;
+                    var isAvail = _gitSvc?.IsAvailable == true;
+                    var repoRoot = isAvail ? _gitSvc!.FindRepoRoot(Path) : null;
+                    _isGitFolder = repoRoot != null;
+                    Helpers.DebugLogger.Log($"[Git.Detect] GitSvc={_gitSvc != null}, IsAvailable={isAvail}, FindRepoRoot({Path})={repoRoot}, _isGitFolder={_isGitFolder}");
                 }
                 else
                 {
                     _isGitFolder = false;
+                    Helpers.DebugLogger.Log($"[Git.Detect] SKIPPED — setting off or null");
                 }
             }
-            catch { _isGitFolder = false; }
+            catch (Exception ex) { Helpers.DebugLogger.Log($"[Git.Detect] EXCEPTION: {ex.Message}"); _isGitFolder = false; }
 
             // 배치 교체: 1회 PropertyChanged("Children") → ListView 전체 리바인딩
             // (기존: 14,000회 CollectionChanged.Add 이벤트)
@@ -520,14 +525,18 @@ namespace Span.ViewModels
         {
             // UI 스레드의 DispatcherQueue를 먼저 캡처
             var dispatcher = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
+            Helpers.DebugLogger.Log($"[Git.Warm] START path={Path}, dispatcher={dispatcher != null}");
 
             try
             {
                 // 백그라운드에서 git status 실행 → 캐시 채움
+                Dictionary<string, Models.GitFileState>? states = null;
                 await Task.Run(async () =>
                 {
-                    await _gitSvc!.GetFolderStatesAsync(Path, ct);
+                    states = await _gitSvc!.GetFolderStatesAsync(Path, ct);
                 }, ct);
+
+                Helpers.DebugLogger.Log($"[Git.Warm] GetFolderStatesAsync returned {states?.Count ?? -1} entries");
 
                 if (ct.IsCancellationRequested) return;
 
@@ -536,18 +545,26 @@ namespace Span.ViewModels
                 {
                     dispatcher.TryEnqueue(() =>
                     {
+                        int injected = 0;
                         foreach (var child in Children)
                         {
                             if (ct.IsCancellationRequested) break;
+                            var before = child.GitState;
                             InjectGitStateIfNeeded(child);
+                            if (child.GitState != before) injected++;
                         }
+                        Helpers.DebugLogger.Log($"[Git.Warm] UI inject done: {injected}/{Children.Count} items got git state");
                     });
                 }
+                else
+                {
+                    Helpers.DebugLogger.Log("[Git.Warm] WARNING: dispatcher is null, cannot inject on UI thread");
+                }
             }
-            catch (OperationCanceledException) { }
+            catch (OperationCanceledException) { Helpers.DebugLogger.Log("[Git.Warm] Cancelled"); }
             catch (Exception ex)
             {
-                Helpers.DebugLogger.Log($"[FolderViewModel] Git cache warm error: {ex.Message}");
+                Helpers.DebugLogger.Log($"[Git.Warm] ERROR: {ex.Message}");
             }
         }
 

@@ -4,7 +4,7 @@ using Microsoft.UI.Xaml.Media;
 using System;
 
 namespace Span.Helpers
-{
+{ 
     public class BoolToBrushConverter : DependencyObject, IValueConverter
     {
         public static readonly DependencyProperty TrueBrushProperty =

@@ -158,6 +158,8 @@ namespace Span.ViewModels
                 // 2. Type-specific preview
                 bool isFolder = item is FolderViewModel;
                 var previewType = _previewService.GetPreviewType(item.Path, isFolder);
+                if (previewType == PreviewType.HexBinary && _settings != null && !_settings.ShowHexPreview)
+                    previewType = PreviewType.Generic;
                 ClearPreviewContent();
                 CurrentPreviewType = previewType;
 

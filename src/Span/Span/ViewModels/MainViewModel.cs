@@ -259,6 +259,17 @@ namespace Span.ViewModels
         {
             if (_isCleaningUp) return;
 
+            // Settings/Home 모드에서는 상태바 표시 불필요
+            if (CurrentViewMode == ViewMode.Settings || CurrentViewMode == ViewMode.Home)
+            {
+                StatusItemCountText = "";
+                StatusSelectionText = "";
+                StatusDiskSpaceText = "";
+                var modeText = Helpers.ViewModeExtensions.GetDisplayName(CurrentViewMode);
+                StatusViewModeText = modeText;
+                return;
+            }
+
             var explorer = ActiveExplorer;
             var folder = explorer?.CurrentFolder;
             int itemCount = folder?.Children?.Count ?? 0;

@@ -31,8 +31,9 @@ public sealed partial class SettingsModeView : UserControl
             AppearanceSection,
             BrowsingSection,
             ToolsSection,
-            ProSection,
-            AboutSection
+            AdvancedSection,
+            AboutSection,
+            OpenSourceSection
         };
 
         LoadSettingsToUI();
@@ -145,6 +146,7 @@ public sealed partial class SettingsModeView : UserControl
             ShellExtrasToggle.IsOn = _settings.ShowWindowsShellExtras;
             DeveloperMenuToggle.IsOn = _settings.ShowDeveloperMenu;
             GitIntegrationToggle.IsOn = _settings.ShowGitIntegration;
+            HexPreviewToggle.IsOn = _settings.ShowHexPreview;
             CopilotMenuToggle.IsOn = _settings.ShowCopilotMenu;
             ContextMenuToggle.IsOn = _settings.ShowContextMenu;
 
@@ -259,6 +261,7 @@ public sealed partial class SettingsModeView : UserControl
         ShellExtrasToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowWindowsShellExtras = ShellExtrasToggle.IsOn; };
         DeveloperMenuToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowDeveloperMenu = DeveloperMenuToggle.IsOn; };
         GitIntegrationToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowGitIntegration = GitIntegrationToggle.IsOn; };
+        HexPreviewToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowHexPreview = HexPreviewToggle.IsOn; };
         CopilotMenuToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowCopilotMenu = CopilotMenuToggle.IsOn; };
         ContextMenuToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowContextMenu = ContextMenuToggle.IsOn; };
     }
@@ -300,8 +303,9 @@ public sealed partial class SettingsModeView : UserControl
             "Appearance" => AppearanceSection,
             "Browsing" => BrowsingSection,
             "Tools" => ToolsSection,
-            "SpanPro" => ProSection,
+            "Advanced" => AdvancedSection,
             "About" => AboutSection,
+            "OpenSource" => OpenSourceSection,
             _ => GeneralSection
         };
 
@@ -344,8 +348,9 @@ public sealed partial class SettingsModeView : UserControl
         NavAppearance.Content = _loc.Get("Settings_Appearance");
         NavBrowsing.Content = _loc.Get("Settings_Browsing");
         NavTools.Content = _loc.Get("Settings_Tools");
-        NavSpanPro.Content = "Span Pro";
+        NavAdvanced.Content = _loc.Get("Settings_Advanced");
         NavAbout.Content = _loc.Get("Settings_AboutNav");
+        NavOpenSource.Content = _loc.Get("Settings_OpenSourceNav");
 
         // General
         GeneralTitle.Text = _loc.Get("Settings_General");
@@ -374,12 +379,6 @@ public sealed partial class SettingsModeView : UserControl
         ThemeSystemText.Text = _loc.Get("Settings_System");
         ThemeLightText.Text = _loc.Get("Settings_Light");
         ThemeDarkText.Text = _loc.Get("Settings_Dark");
-        ProThemesLabel.Text = _loc.Get("Settings_ProThemes");
-        ProThemesDesc.Text = _loc.Get("Settings_ProThemesDesc");
-        MidnightGoldDesc.Text = _loc.Get("Settings_MidnightGoldDesc");
-        CyberpunkDesc.Text = _loc.Get("Settings_CyberpunkDesc");
-        NordicDesc.Text = _loc.Get("Settings_NordicDesc");
-        UpgradeProThemesText.Text = _loc.Get("Settings_UpgradeProThemes");
         DensityLabel.Text = _loc.Get("Settings_LayoutDensity");
         DensityDesc.Text = _loc.Get("Settings_LayoutDensityDesc");
         IconPackLabel.Text = _loc.Get("Settings_IconPack");
@@ -410,39 +409,35 @@ public sealed partial class SettingsModeView : UserControl
 
         // Tools
         ToolsTitle.Text = _loc.Get("Settings_Tools");
-        DevBadge.Text = _loc.Get("Settings_Developer");
-        TerminalLabel.Text = _loc.Get("Settings_TerminalApp");
-        TerminalDesc.Text = _loc.Get("Settings_TerminalAppDesc");
-        // SmartRunLabel — hidden until implemented
         ShellExtLabel.Text = _loc.Get("Settings_ShellExtras");
         ShellExtDesc.Text = _loc.Get("Settings_ShellExtrasDesc");
-        DevMenuLabel.Text = _loc.Get("Settings_DeveloperMenu");
-        DevMenuDesc.Text = _loc.Get("Settings_DeveloperMenuDesc");
         CopilotLabel.Text = _loc.Get("Settings_CopilotMenu");
         CopilotDesc.Text = _loc.Get("Settings_CopilotMenuDesc");
         CtxMenuLabel.Text = _loc.Get("Settings_ContextMenu");
         CtxMenuDesc.Text = _loc.Get("Settings_ContextMenuDesc");
 
-        // Span Pro
-        ProTitle.Text = "Span Pro";
-        PlanBadgeText.Text = _loc.Get("Settings_PlanFree");
-        PlanStatusText.Text = _loc.Get("Settings_PlanFreeDesc");
-        UpgradeProTitle.Text = _loc.Get("Settings_UpgradePro");
-        UpgradeProDesc.Text = _loc.Get("Settings_UpgradeProDesc");
-        UnlockThemesText.Text = _loc.Get("Settings_UnlockThemes");
-        UnlimitedSmartRunText.Text = _loc.Get("Settings_UnlimitedSmartRun");
-        AllPremiumText.Text = _loc.Get("Settings_AllPremiumFeatures");
-        CoffeeLabel.Text = _loc.Get("Settings_BuyMeCoffee");
-        CoffeeDesc.Text = _loc.Get("Settings_BuyMeCoffeeDesc");
+        // Advanced
+        AdvancedTitle.Text = _loc.Get("Settings_Advanced");
+        TerminalLabel.Text = _loc.Get("Settings_TerminalApp");
+        TerminalDesc.Text = _loc.Get("Settings_TerminalAppDesc");
+        DevMenuLabel.Text = _loc.Get("Settings_DeveloperMenu");
+        DevMenuDesc.Text = _loc.Get("Settings_DeveloperMenuDesc");
 
         // About
         AboutTitle.Text = _loc.Get("Settings_AboutNav");
-        EvalCopyText.Text = _loc.Get("Settings_EvalCopy");
+        CopyrightLabel.Text = "© 2026 LumiBear Studio. All rights reserved.";
         UpdateText.Text = _loc.Get("Settings_CheckUpdate");
         LinksLabel.Text = _loc.Get("Settings_Links");
         GitHubText.Text = _loc.Get("Settings_GitHub");
         BugReportText.Text = _loc.Get("Settings_BugReport");
         PrivacyText.Text = _loc.Get("Settings_Privacy");
+        CoffeeLabel.Text = _loc.Get("Settings_BuyMeCoffee");
+        CoffeeDesc.Text = _loc.Get("Settings_BuyMeCoffeeDesc");
+
+        // Open Source
+        OpenSourceTitle.Text = _loc.Get("Settings_OpenSourceNav");
+        OpenSourceDesc.Text = _loc.Get("Settings_OpenSourceDesc");
+        FullLicenseLink.Text = _loc.Get("Settings_FullLicenseLink");
     }
 
     // ── Update check animation ──

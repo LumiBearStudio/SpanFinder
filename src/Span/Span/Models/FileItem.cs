@@ -10,5 +10,6 @@ namespace Span.Models
         public DateTime DateModified { get; set; }
         public string IconGlyph => Span.Services.IconService.Current?.FileDefaultGlyph ?? "\uECE0";
         public string FileType { get; set; } = string.Empty;
+        public bool IsHidden { get; set; }
     }
 }

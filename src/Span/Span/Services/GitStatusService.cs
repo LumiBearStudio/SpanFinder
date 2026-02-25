@@ -248,8 +248,8 @@ namespace Span.Services
             if (repoRoot == null) return null;
 
             // 병렬 실행: status + log
-            var statusTask = RunGitAsync(repoRoot, "status -sb --no-optional-locks", ct);
-            var logTask = RunGitAsync(repoRoot, $"log -{MaxRecentCommits} --format=\"%h|%cr|%s\" --no-optional-locks", ct);
+            var statusTask = RunGitAsync(repoRoot, "status -sb", ct);
+            var logTask = RunGitAsync(repoRoot, $"log -{MaxRecentCommits} --format=\"%h|%cr|%s\"", ct);
 
             await Task.WhenAll(statusTask, logTask);
 
@@ -323,8 +323,7 @@ namespace Span.Services
 
         /// <summary>
         /// 레포 전체의 파일 상태를 딕셔너리로 반환 (캐시 활용).
-        /// git status --porcelain=v1 -z --no-optional-locks
-        /// </summary>
+        /// git status --porcelain=v1 -z        /// </summary>
         public async Task<Dictionary<string, GitFileState>?> GetFolderStatesAsync(
             string folderPath, CancellationToken ct)
         {
@@ -352,7 +351,7 @@ namespace Span.Services
                 return cached.States;
             }
 
-            var result = await RunGitAsync(repoRoot, "status --porcelain=v1 -z --no-optional-locks", ct);
+            var result = await RunGitAsync(repoRoot, "status --porcelain=v1 -z", ct);
             if (result == null || result.ExitCode != 0) return null;
 
             var states = ParsePorcelainOutput(result.StdOut, repoRoot);
@@ -452,7 +451,7 @@ namespace Span.Services
                 process.StartInfo = new ProcessStartInfo
                 {
                     FileName = _gitExePath,
-                    Arguments = $"-C \"{repoRoot}\" {arguments}",
+                    Arguments = $"--no-optional-locks -C \"{repoRoot}\" {arguments}",
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,

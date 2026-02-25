@@ -131,6 +131,12 @@ namespace Span.ViewModels
         public string Path => _model.Path;
 
         /// <summary>
+        /// 숨김 파일/폴더 반투명 표시를 위한 불투명도.
+        /// Hidden=0.5, Normal=1.0
+        /// </summary>
+        public double ItemOpacity => _model.IsHidden ? 0.5 : 1.0;
+
+        /// <summary>
         /// Display name that respects ShowFileExtensions setting.
         /// Folders always show full name; files strip extension when setting is off.
         /// </summary>

@@ -7,5 +7,6 @@ namespace Span.Models
         string Name { get; set; }
         string Path { get; set; }
         string IconGlyph { get; }
+        bool IsHidden { get; set; }
     }
 }
