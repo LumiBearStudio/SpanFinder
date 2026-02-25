@@ -376,6 +376,83 @@ namespace Span.ViewModels
         }
 
         /// <summary>
+        /// 현재 정렬 기준. 기본=Name.
+        /// </summary>
+        private static string _globalSortBy = "Name";
+        private static bool _globalSortAscending = true;
+        private static bool _sortSettingsLoaded = false;
+
+        /// <summary>
+        /// 저장된 정렬 설정을 LocalSettings에서 복원 (최초 1회).
+        /// </summary>
+        private static void EnsureSortSettingsLoaded()
+        {
+            if (_sortSettingsLoaded) return;
+            _sortSettingsLoaded = true;
+            try
+            {
+                var settings = Windows.Storage.ApplicationData.Current.LocalSettings;
+                if (settings.Values.TryGetValue("MillerSortBy", out var sortObj) && sortObj is string sortBy)
+                    _globalSortBy = sortBy;
+                if (settings.Values.TryGetValue("MillerSortAsc", out var ascObj) && ascObj is bool asc)
+                    _globalSortAscending = asc;
+                Helpers.DebugLogger.Log($"[FolderViewModel] Sort settings loaded: {_globalSortBy}, ascending={_globalSortAscending}");
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// 정렬 기준 변경 후 현재 컬럼의 Children을 재정렬.
+        /// </summary>
+        public void SortChildren(string sortBy, bool ascending)
+        {
+            _globalSortBy = sortBy;
+            _globalSortAscending = ascending;
+
+            if (Children.Count == 0) return;
+            IsSorting = true;
+            var saved = SelectedChild;
+
+            try
+            {
+                var sorted = ApplySort(Children.ToList(), sortBy, ascending);
+                Children = new ObservableCollection<FileSystemViewModel>(sorted);
+                if (saved != null) SelectedChild = saved;
+            }
+            finally { IsSorting = false; }
+
+            // 설정 저장
+            try
+            {
+                var settings = Windows.Storage.ApplicationData.Current.LocalSettings;
+                settings.Values["MillerSortBy"] = sortBy;
+                settings.Values["MillerSortAsc"] = ascending;
+            }
+            catch { }
+        }
+
+        private static List<FileSystemViewModel> ApplySort(
+            List<FileSystemViewModel> items, string sortBy, bool ascending)
+        {
+            IEnumerable<FileSystemViewModel> sorted = sortBy switch
+            {
+                "DateModified" => ascending
+                    ? items.OrderBy(x => x is FileViewModel ? 1 : 0).ThenBy(x => x.DateModifiedValue)
+                    : items.OrderBy(x => x is FileViewModel ? 1 : 0).ThenByDescending(x => x.DateModifiedValue),
+                "Type" => ascending
+                    ? items.OrderBy(x => x is FileViewModel ? 1 : 0).ThenBy(x => x.FileType)
+                    : items.OrderBy(x => x is FileViewModel ? 1 : 0).ThenByDescending(x => x.FileType),
+                "Size" => ascending
+                    ? items.OrderBy(x => x is FileViewModel ? 1 : 0).ThenBy(x => x.SizeValue)
+                    : items.OrderBy(x => x is FileViewModel ? 1 : 0).ThenByDescending(x => x.SizeValue),
+                _ => ascending
+                    ? items.OrderBy(x => x is FileViewModel ? 1 : 0).ThenBy(x => x.Name, Helpers.NaturalStringComparer.Instance)
+                    : items.OrderBy(x => x is FileViewModel ? 1 : 0).ThenByDescending(x => x.Name, Helpers.NaturalStringComparer.Instance),
+            };
+            return sorted.ToList();
+        }
+
+        /// <summary>
         /// Children 컬렉션에 정렬된 아이템을 채운다.
         /// 썸네일과 클라우드 상태는 on-demand (ContainerContentChanging)로 로드.
         /// 배치 교체로 CollectionChanged 이벤트를 최소화.
@@ -384,10 +461,8 @@ namespace Span.ViewModels
         {
             if (token.IsCancellationRequested) return;
 
-            var sortedItems = items
-                .OrderBy(x => x is FileViewModel ? 1 : 0)
-                .ThenBy(x => x.Name, Helpers.NaturalStringComparer.Instance)
-                .ToList();
+            EnsureSortSettingsLoaded();
+            var sortedItems = ApplySort(items, _globalSortBy, _globalSortAscending);
 
             // 클라우드 폴더 여부 캐시 (on-demand 주입용)
             try

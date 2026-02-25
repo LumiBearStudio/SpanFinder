@@ -52,6 +52,10 @@ namespace Span.Services
                 ["Ascending"] = "Ascending",
                 ["Descending"] = "Descending",
 
+                // Group By submenu
+                ["GroupBy"] = "Group by",
+                ["None"] = "None",
+
                 // Selection submenu
                 ["Select"] = "Select",
                 ["SelectAll"] = "Select all",
@@ -177,6 +181,7 @@ namespace Span.Services
                 ["Help_ColumnNav"] = "Move between columns",
                 ["Help_OpenFolder"] = "Open folder / Run file",
                 ["Help_ParentFolder"] = "Parent folder",
+                ["Help_HomeEnd"] = "First / Last item",
                 ["Help_BackForward"] = "Back / Forward",
                 ["Help_AddressBar"] = "Focus address bar",
                 ["Help_Search"] = "Search",
@@ -185,6 +190,7 @@ namespace Span.Services
                 ["Help_Copy"] = "Copy",
                 ["Help_Cut"] = "Cut",
                 ["Help_Paste"] = "Paste",
+                ["Help_PasteShortcut"] = "Paste as shortcut",
                 ["Help_Duplicate"] = "Duplicate",
                 ["Help_Rename"] = "Rename",
                 ["Help_DeleteTrash"] = "Delete (Recycle Bin)",
@@ -198,6 +204,7 @@ namespace Span.Services
                 ["Help_View"] = "View",
                 ["Help_MillerColumns"] = "Columns",
                 ["Help_DetailList"] = "Detail list",
+                ["Help_ListView"] = "List",
                 ["Help_Icons"] = "Icons",
                 ["Help_SplitView"] = "Toggle split view",
                 ["Help_PreviewPanel"] = "Preview panel",
@@ -212,6 +219,7 @@ namespace Span.Services
                 ["Help_OpenTerminal"] = "Open terminal",
                 ["Help_Settings"] = "Settings",
                 ["Help_Properties"] = "Properties",
+                ["Help_Help"] = "Help",
                 ["Help_CloseHint"] = "Press Esc or click anywhere to close",
 
                 // Settings
@@ -223,6 +231,9 @@ namespace Span.Services
                 ["Settings_Browsing"] = "Browsing",
                 ["Settings_Tools"] = "Tools",
                 ["Settings_About"] = "License & About",
+                ["Settings_AboutNav"] = "About",
+                ["Settings_PlanFree"] = "Free",
+                ["Settings_PlanFreeDesc"] = "You are using the free version",
                 ["Settings_Language"] = "Language",
                 ["Settings_LanguageDesc"] = "App interface display language",
                 ["Settings_SystemDefault"] = "System Default (Recommended)",
@@ -238,6 +249,8 @@ namespace Span.Services
                 ["Settings_FavoritesTreeDesc"] = "Display favorites as a tree (sub-folder browsing)",
                 ["Settings_SystemTray"] = "System tray",
                 ["Settings_SystemTrayDesc"] = "Minimize to tray when close button is pressed",
+                ["Settings_WindowPosition"] = "Remember window position",
+                ["Settings_WindowPositionDesc"] = "Save window position and size on exit, restore on next launch",
                 ["Settings_AppTheme"] = "App theme",
                 ["Settings_ThemeDesc"] = "Overall color theme for the app",
                 ["Settings_System"] = "System",
@@ -337,6 +350,10 @@ namespace Span.Services
                 ["Type"] = "\uc885\ub958",
                 ["Ascending"] = "\uc624\ub984\ucc28\uc21c",
                 ["Descending"] = "\ub0b4\ub9bc\ucc28\uc21c",
+
+                // Group By submenu
+                ["GroupBy"] = "\uadf8\ub8f9\ud654",
+                ["None"] = "\uc5c6\uc74c",
 
                 // Selection submenu
                 ["Select"] = "\uc120\ud0dd",
@@ -463,6 +480,7 @@ namespace Span.Services
                 ["Help_ColumnNav"] = "컬럼 간 이동",
                 ["Help_OpenFolder"] = "폴더 열기 / 파일 실행",
                 ["Help_ParentFolder"] = "상위 폴더",
+                ["Help_HomeEnd"] = "목록 처음 / 끝",
                 ["Help_BackForward"] = "뒤로 / 앞으로",
                 ["Help_AddressBar"] = "주소 표시줄 포커스",
                 ["Help_Search"] = "검색",
@@ -471,6 +489,7 @@ namespace Span.Services
                 ["Help_Copy"] = "복사",
                 ["Help_Cut"] = "잘라내기",
                 ["Help_Paste"] = "붙여넣기",
+                ["Help_PasteShortcut"] = "바로가기로 붙여넣기",
                 ["Help_Duplicate"] = "복제",
                 ["Help_Rename"] = "이름 변경",
                 ["Help_DeleteTrash"] = "삭제 (휴지통)",
@@ -484,6 +503,7 @@ namespace Span.Services
                 ["Help_View"] = "보기",
                 ["Help_MillerColumns"] = "컬럼",
                 ["Help_DetailList"] = "상세 목록",
+                ["Help_ListView"] = "리스트",
                 ["Help_Icons"] = "아이콘",
                 ["Help_SplitView"] = "분할 뷰 토글",
                 ["Help_PreviewPanel"] = "미리보기 패널",
@@ -498,6 +518,7 @@ namespace Span.Services
                 ["Help_OpenTerminal"] = "터미널 열기",
                 ["Help_Settings"] = "설정",
                 ["Help_Properties"] = "속성",
+                ["Help_Help"] = "도움말",
                 ["Help_CloseHint"] = "Esc 또는 아무 곳이나 클릭하여 닫기",
 
                 // Settings
@@ -509,6 +530,9 @@ namespace Span.Services
                 ["Settings_Browsing"] = "탐색",
                 ["Settings_Tools"] = "도구",
                 ["Settings_About"] = "라이선스 및 정보",
+                ["Settings_AboutNav"] = "정보",
+                ["Settings_PlanFree"] = "Free",
+                ["Settings_PlanFreeDesc"] = "기본 기능을 사용 중입니다",
                 ["Settings_Language"] = "언어 (Language)",
                 ["Settings_LanguageDesc"] = "앱 인터페이스 표시 언어",
                 ["Settings_SystemDefault"] = "시스템 기본값 (권장)",
@@ -524,6 +548,8 @@ namespace Span.Services
                 ["Settings_FavoritesTreeDesc"] = "즐겨찾기를 트리뷰로 표시 (하위 폴더 탐색 가능)",
                 ["Settings_SystemTray"] = "시스템 트레이",
                 ["Settings_SystemTrayDesc"] = "닫기 버튼을 누르면 트레이로 최소화",
+                ["Settings_WindowPosition"] = "창 위치 기억",
+                ["Settings_WindowPositionDesc"] = "앱 종료 시 창 위치와 크기를 저장하여 다음 실행 시 복원",
                 ["Settings_AppTheme"] = "앱 테마",
                 ["Settings_ThemeDesc"] = "앱의 전체 색상 테마 설정",
                 ["Settings_System"] = "시스템",
@@ -618,6 +644,11 @@ namespace Span.Services
                 ["Type"] = "\u7a2e\u985e",
                 ["Ascending"] = "\u6607\u9806",
                 ["Descending"] = "\u964d\u9806",
+
+                // Group By submenu
+                ["GroupBy"] = "\u30b0\u30eb\u30fc\u30d7\u5316",
+                ["None"] = "\u306a\u3057",
+
                 ["ShellExtensions"] = "\u305d\u306e\u4ed6\u306e\u30aa\u30d7\u30b7\u30e7\u30f3",
 
                 // Selection submenu
@@ -742,6 +773,7 @@ namespace Span.Services
                 ["Help_ColumnNav"] = "カラム間の移動",
                 ["Help_OpenFolder"] = "フォルダーを開く / ファイルを実行",
                 ["Help_ParentFolder"] = "親フォルダー",
+                ["Help_HomeEnd"] = "リストの先頭 / 末尾",
                 ["Help_BackForward"] = "戻る / 進む",
                 ["Help_AddressBar"] = "アドレスバーにフォーカス",
                 ["Help_Search"] = "検索",
@@ -750,6 +782,7 @@ namespace Span.Services
                 ["Help_Copy"] = "コピー",
                 ["Help_Cut"] = "切り取り",
                 ["Help_Paste"] = "貼り付け",
+                ["Help_PasteShortcut"] = "ショートカットとして貼り付け",
                 ["Help_Duplicate"] = "複製",
                 ["Help_Rename"] = "名前の変更",
                 ["Help_DeleteTrash"] = "削除 (ごみ箱)",
@@ -763,6 +796,7 @@ namespace Span.Services
                 ["Help_View"] = "表示",
                 ["Help_MillerColumns"] = "カラム",
                 ["Help_DetailList"] = "詳細リスト",
+                ["Help_ListView"] = "リスト",
                 ["Help_Icons"] = "アイコン",
                 ["Help_SplitView"] = "分割ビュー切替",
                 ["Help_PreviewPanel"] = "プレビューパネル",
@@ -777,6 +811,7 @@ namespace Span.Services
                 ["Help_OpenTerminal"] = "ターミナルを開く",
                 ["Help_Settings"] = "設定",
                 ["Help_Properties"] = "プロパティ",
+                ["Help_Help"] = "ヘルプ",
                 ["Help_CloseHint"] = "Escまたは任意の場所をクリックして閉じる",
 
                 // Settings
@@ -788,6 +823,9 @@ namespace Span.Services
                 ["Settings_Browsing"] = "ブラウズ",
                 ["Settings_Tools"] = "ツール",
                 ["Settings_About"] = "ライセンスと情報",
+                ["Settings_AboutNav"] = "情報",
+                ["Settings_PlanFree"] = "Free",
+                ["Settings_PlanFreeDesc"] = "無料版をご利用中です",
                 ["Settings_Language"] = "言語 (Language)",
                 ["Settings_LanguageDesc"] = "アプリのインターフェース表示言語",
                 ["Settings_SystemDefault"] = "システムデフォルト（推奨）",
@@ -803,6 +841,8 @@ namespace Span.Services
                 ["Settings_FavoritesTreeDesc"] = "お気に入りをツリー表示（サブフォルダー参照可能）",
                 ["Settings_SystemTray"] = "システムトレイ",
                 ["Settings_SystemTrayDesc"] = "閉じるボタンでトレイに最小化",
+                ["Settings_WindowPosition"] = "ウィンドウ位置を記憶",
+                ["Settings_WindowPositionDesc"] = "終了時にウィンドウの位置とサイズを保存し、次回起動時に復元",
                 ["Settings_AppTheme"] = "アプリテーマ",
                 ["Settings_ThemeDesc"] = "アプリ全体のカラーテーマ設定",
                 ["Settings_System"] = "システム",

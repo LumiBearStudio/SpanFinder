@@ -298,6 +298,79 @@ namespace Span
             UpdateToolbarButtonStates();
         }
 
+        /// <summary>
+        /// Ctrl+Shift+V: 클립보드 항목을 바로가기(.lnk)로 붙여넣기.
+        /// WScript.Shell COM으로 .lnk 파일 생성.
+        /// </summary>
+        private async void HandlePasteAsShortcut()
+        {
+            var columns = ViewModel.ActiveExplorer.Columns;
+            int activeIndex = GetActiveColumnIndex();
+            if (activeIndex < 0) activeIndex = columns.Count - 1;
+            if (activeIndex < 0 || activeIndex >= columns.Count) return;
+
+            string destDir = columns[activeIndex].Path;
+
+            // 소스 경로 수집 (내부 or 외부 클립보드)
+            List<string> sourcePaths;
+            if (_clipboardPaths.Count > 0)
+            {
+                sourcePaths = new List<string>(_clipboardPaths);
+            }
+            else
+            {
+                try
+                {
+                    var content = Clipboard.GetContent();
+                    if (!content.Contains(StandardDataFormats.StorageItems)) return;
+                    var items = await content.GetStorageItemsAsync();
+                    sourcePaths = items.Select(i => i.Path).Where(p => !string.IsNullOrEmpty(p)).ToList();
+                    if (sourcePaths.Count == 0) return;
+                }
+                catch { return; }
+            }
+
+            int created = 0;
+            foreach (var srcPath in sourcePaths)
+            {
+                try
+                {
+                    var name = System.IO.Path.GetFileNameWithoutExtension(srcPath);
+                    var lnkPath = System.IO.Path.Combine(destDir, $"{name} - Shortcut.lnk");
+
+                    // 중복 방지
+                    int suffix = 1;
+                    while (System.IO.File.Exists(lnkPath))
+                    {
+                        lnkPath = System.IO.Path.Combine(destDir, $"{name} - Shortcut ({suffix}).lnk");
+                        suffix++;
+                    }
+
+                    // WScript.Shell COM으로 .lnk 생성
+                    var shellType = Type.GetTypeFromCLSID(new Guid("72C24DD5-D70A-438B-8A42-98424B88AFB8"));
+                    if (shellType == null) break;
+                    dynamic shell = Activator.CreateInstance(shellType)!;
+                    var shortcut = shell.CreateShortcut(lnkPath);
+                    shortcut.TargetPath = srcPath;
+                    shortcut.WorkingDirectory = System.IO.Path.GetDirectoryName(srcPath) ?? "";
+                    shortcut.Save();
+                    System.Runtime.InteropServices.Marshal.ReleaseComObject(shortcut);
+                    System.Runtime.InteropServices.Marshal.ReleaseComObject(shell);
+                    created++;
+                }
+                catch (Exception ex)
+                {
+                    Helpers.DebugLogger.Log($"[Shortcut] Failed to create shortcut for {srcPath}: {ex.Message}");
+                }
+            }
+
+            if (created > 0)
+            {
+                ViewModel.ShowToast($"{created} shortcut(s) created");
+                HandleRefresh();
+            }
+        }
+
         private static void CopyDirectory(string src, string dest)
         {
             var dir = new System.IO.DirectoryInfo(src);
@@ -1053,125 +1126,67 @@ namespace Span
             SortCurrentColumn(_currentSortField, _currentSortAscending);
         }
 
+        // ── Group By toolbar handlers ──
+
+        private void OnGroupByNone(object sender, RoutedEventArgs e)
+            => ((Services.IContextMenuHost)this).ApplyGroupBy("None");
+
+        private void OnGroupByName(object sender, RoutedEventArgs e)
+            => ((Services.IContextMenuHost)this).ApplyGroupBy("Name");
+
+        private void OnGroupByType(object sender, RoutedEventArgs e)
+            => ((Services.IContextMenuHost)this).ApplyGroupBy("Type");
+
+        private void OnGroupByDate(object sender, RoutedEventArgs e)
+            => ((Services.IContextMenuHost)this).ApplyGroupBy("DateModified");
+
+        private void OnGroupBySize(object sender, RoutedEventArgs e)
+            => ((Services.IContextMenuHost)this).ApplyGroupBy("Size");
+
+        /// <summary>
+        /// 정렬 필드명 매핑: UI("Date") → FolderViewModel("DateModified").
+        /// </summary>
+        private static string MapSortField(string uiField) => uiField switch
+        {
+            "Date" => "DateModified",
+            _ => uiField
+        };
+
         private void SortCurrentColumn(string sortBy, bool? ascending = null)
         {
-            var activeIndex = GetCurrentColumnIndex();
-            if (activeIndex < 0 || activeIndex >= ViewModel.ActiveExplorer.Columns.Count)
-                return;
+            bool isAscending = ascending ?? _currentSortAscending;
 
-            var column = ViewModel.ActiveExplorer.Columns[activeIndex];
-            if (column.Children == null || column.Children.Count == 0)
-                return;
+            // FolderViewModel.SortChildren에 위임 (전체 뷰 모드 공통 정렬)
+            var column = GetActiveSortColumn();
+            if (column == null || column.Children.Count == 0) return;
 
-            // CRITICAL: Save current selection BEFORE sorting
-            var savedSelection = column.SelectedChild;
+            var mappedField = MapSortField(sortBy);
+            column.SortChildren(mappedField, isAscending);
 
-            // Set sorting flag to prevent PropertyChanged events during sort
-            column.IsSorting = true;
-
-            try
+            // Icon/List 뷰 새로고침 (Miller 외 뷰에서는 별도 리빌드 필요)
+            if (ViewModel.CurrentViewMode != ViewMode.MillerColumns)
             {
-                // Determine sort direction
-                bool isAscending = ascending ?? true;
-
-            // Sort folders first, then files (Windows Explorer behavior)
-            IEnumerable<FileSystemViewModel> sorted;
-
-            switch (sortBy)
-            {
-                case "Name":
-                    sorted = isAscending
-                        ? column.Children
-                            .OrderBy(x => x is FileViewModel ? 1 : 0)  // Folders first
-                            .ThenBy(x => x.Name, Helpers.NaturalStringComparer.Instance)
-                        : column.Children
-                            .OrderBy(x => x is FileViewModel ? 1 : 0)  // Folders first
-                            .ThenByDescending(x => x.Name, Helpers.NaturalStringComparer.Instance);
-                    break;
-
-                case "Date":
-                    sorted = isAscending
-                        ? column.Children
-                            .OrderBy(x => x is FileViewModel ? 1 : 0)
-                            .ThenBy(x => GetDateModified(x))
-                        : column.Children
-                            .OrderBy(x => x is FileViewModel ? 1 : 0)
-                            .ThenByDescending(x => GetDateModified(x));
-                    break;
-
-                case "Size":
-                    sorted = isAscending
-                        ? column.Children
-                            .OrderBy(x => x is FileViewModel ? 1 : 0)
-                            .ThenBy(x => GetSize(x))
-                        : column.Children
-                            .OrderBy(x => x is FileViewModel ? 1 : 0)
-                            .ThenByDescending(x => GetSize(x));
-                    break;
-
-                case "Type":
-                    sorted = isAscending
-                        ? column.Children
-                            .OrderBy(x => x is FileViewModel ? 1 : 0)
-                            .ThenBy(x => GetFileType(x))
-                            .ThenBy(x => x.Name, Helpers.NaturalStringComparer.Instance)
-                        : column.Children
-                            .OrderBy(x => x is FileViewModel ? 1 : 0)
-                            .ThenByDescending(x => GetFileType(x))
-                            .ThenBy(x => x.Name, Helpers.NaturalStringComparer.Instance);
-                    break;
-
-                default:
-                    sorted = column.Children;
-                    break;
+                GetActiveListView()?.RebuildListItemsPublic();
             }
 
-                var sortedList = sorted.ToList();
+            UpdateSortButtonIcons();
+            Helpers.DebugLogger.Log($"[SortCurrentColumn] Sorted by {mappedField} ({(isAscending ? "Ascending" : "Descending")})");
+        }
 
-                // Update collection
-                column.Children.Clear();
-                foreach (var item in sortedList)
-                {
-                    column.Children.Add(item);
-                }
-
-                // CRITICAL: Restore selection AFTER sorting
-                // This prevents focus from jumping to last tab
-                if (savedSelection != null)
-                {
-                    column.SelectedChild = savedSelection;
-                }
-
-                Helpers.DebugLogger.Log($"[SortCurrentColumn] Sorted by {sortBy} ({(isAscending ? "Ascending" : "Descending")}), {sortedList.Count} items, selection restored: {savedSelection?.Name ?? "null"}");
-            }
-            finally
+        /// <summary>
+        /// 현재 활성 뷰 모드에 맞는 정렬 대상 FolderViewModel 반환.
+        /// </summary>
+        private FolderViewModel? GetActiveSortColumn()
+        {
+            if (ViewModel.CurrentViewMode == ViewMode.MillerColumns)
             {
-                // Always clear sorting flag, even if exception occurs
-                column.IsSorting = false;
+                var activeIndex = GetCurrentColumnIndex();
+                if (activeIndex < 0 || activeIndex >= ViewModel.ActiveExplorer.Columns.Count)
+                    return null;
+                return ViewModel.ActiveExplorer.Columns[activeIndex];
             }
-        }
-
-        private DateTime GetDateModified(FileSystemViewModel vm)
-        {
-            if (vm.Model is FileItem fileItem)
-                return fileItem.DateModified;
-            if (vm.Model is FolderItem folderItem)
-                return folderItem.DateModified;
-            return DateTime.MinValue;
-        }
-
-        private long GetSize(FileSystemViewModel vm)
-        {
-            if (vm.Model is FileItem fileItem)
-                return fileItem.Size;
-            return 0; // Folders have no size
-        }
-
-        private string GetFileType(FileSystemViewModel vm)
-        {
-            if (vm is FolderViewModel)
-                return "폴더";
-            return System.IO.Path.GetExtension(vm.Name);
+            // Icon/List/Details: 현재 폴더
+            return ViewModel.ActiveExplorer.CurrentFolder;
         }
 
         #endregion

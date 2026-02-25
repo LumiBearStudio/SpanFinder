@@ -181,6 +181,11 @@ namespace Span.Views
         #region ".." Parent Item + Sorting
 
         /// <summary>
+        /// Public entry point for external sort trigger.
+        /// </summary>
+        public void RebuildListItemsPublic() => RebuildListItems();
+
+        /// <summary>
         /// Rebuild the List items list: [..] + directories (sorted) + files (sorted).
         /// </summary>
         private void RebuildListItems()
@@ -207,11 +212,8 @@ namespace Span.Views
                     _listItems.Add(_parentDotDotVm);
                 }
 
-                // 2. Sort: directories first, then files, both by natural name order
-                var sorted = folder.Children
-                    .OrderBy(x => x is FileViewModel ? 1 : 0)
-                    .ThenBy(x => x.Name, Helpers.NaturalStringComparer.Instance)
-                    .ToList();
+                // 2. FolderViewModel.Children은 이미 정렬됨 (PopulateChildren/SortChildren)
+                var sorted = folder.Children.ToList();
 
                 foreach (var item in sorted)
                     _listItems.Add(item);
@@ -231,6 +233,45 @@ namespace Span.Views
             {
                 folder.IsSorting = false;
             }
+        }
+
+        // ── Group By ──
+        private string _currentGroupBy = "None";
+
+        public void ApplyGroupBy(string groupBy)
+        {
+            _currentGroupBy = groupBy;
+            RebuildGroupedListItems();
+        }
+
+        private void RebuildGroupedListItems()
+        {
+            if (ViewModel?.CurrentFolder == null) return;
+
+            if (_currentGroupBy == "None" || string.IsNullOrEmpty(_currentGroupBy))
+            {
+                // 그룹 해제 — 일반 리빌드
+                ListGridView.ItemsSource = _listItems;
+                RebuildListItems();
+                return;
+            }
+
+            // 그룹 모드: ".." 제외하고 그룹핑
+            var folder = ViewModel.CurrentFolder;
+            var items = folder.Children.ToList();
+
+            var groups = items
+                .GroupBy(item => Helpers.GroupByHelper.GetGroupKey(item, _currentGroupBy))
+                .OrderBy(g => g.Key)
+                .Select(g => new Helpers.ItemGroup(g.Key + " (" + g.Count() + ")", g))
+                .ToList();
+
+            var cvs = new Microsoft.UI.Xaml.Data.CollectionViewSource
+            {
+                Source = groups,
+                IsSourceGrouped = true
+            };
+            ListGridView.ItemsSource = cvs.View;
         }
 
         /// <summary>

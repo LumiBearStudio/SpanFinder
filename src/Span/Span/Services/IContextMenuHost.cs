@@ -29,6 +29,8 @@ namespace Span.Services
         void SwitchViewMode(ViewMode mode);
         void ApplySort(string field);
         void ApplySortDirection(bool ascending);
+        void ApplyGroupBy(string groupBy);
+        string CurrentGroupBy { get; }
         void PerformSelectAll();
         void PerformSelectNone();
         void PerformInvertSelection();

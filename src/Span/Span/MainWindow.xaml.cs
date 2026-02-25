@@ -42,6 +42,14 @@ namespace Span
         private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
         [DllImport("user32.dll")]
         private static extern bool IsIconic(IntPtr hWnd);
+        [DllImport("user32.dll")]
+        private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+        [DllImport("user32.dll")]
+        private static extern bool IsZoomed(IntPtr hWnd);
+
+        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+        private struct RECT { public int Left, Top, Right, Bottom; }
+
         private const int SW_HIDE = 0;
         private const int SW_SHOW = 5;
 
@@ -314,6 +322,10 @@ namespace Span
             _drivePollingTimer.Tick += OnDrivePollingTick;
             _drivePollingTimer.Start();
 
+            // ── Restore window position BEFORE Activate() to prevent flicker ──
+            if (_settings.RememberWindowPosition)
+                RestoreWindowPlacement();
+
             // Initialize preview panels
             InitializePreviewPanels();
 
@@ -391,6 +403,8 @@ namespace Span
                         return;
                     }
 
+                    // (Window placement is restored in constructor before Activate)
+
                     // ── Normal startup: restore session tabs ──
                     if (ViewModel.IsSplitViewEnabled)
                     {
@@ -444,11 +458,83 @@ namespace Span
                         ViewModel.RightExplorer.EnableAutoNavigation = false;
                     }
 
+                    // Restore saved sort/group settings
+                    try
+                    {
+                        var appSettings = Windows.Storage.ApplicationData.Current.LocalSettings;
+                        if (appSettings.Values.TryGetValue("MillerSortBy", out var sby) && sby is string sortField)
+                        {
+                            _currentSortField = sortField switch { "DateModified" => "Date", _ => sortField };
+                        }
+                        if (appSettings.Values.TryGetValue("MillerSortAsc", out var sasc) && sasc is bool sortAsc)
+                            _currentSortAscending = sortAsc;
+                        if (appSettings.Values.TryGetValue("ViewGroupBy", out var vgb) && vgb is string grp)
+                            _currentGroupBy = grp;
+                        UpdateSortButtonIcons();
+                    }
+                    catch { }
+
                     // FileSystemWatcher 초기화
                     InitializeFileSystemWatcher();
                 };
             }
         }
+
+        #region Window Placement Persistence
+
+        private void SaveWindowPlacement()
+        {
+            try
+            {
+                if (IsIconic(_hwnd) || IsZoomed(_hwnd)) return; // 최소화/최대화 상태는 저장 안 함
+                if (!GetWindowRect(_hwnd, out var rect)) return;
+
+                var settings = Windows.Storage.ApplicationData.Current.LocalSettings;
+                var composite = new Windows.Storage.ApplicationDataCompositeValue
+                {
+                    ["X"] = rect.Left,
+                    ["Y"] = rect.Top,
+                    ["Width"] = rect.Right - rect.Left,
+                    ["Height"] = rect.Bottom - rect.Top
+                };
+                settings.Values["WindowPlacement"] = composite;
+                Helpers.DebugLogger.Log($"[Window] Saved placement: {rect.Left},{rect.Top} {rect.Right - rect.Left}x{rect.Bottom - rect.Top}");
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[Window] SavePlacement error: {ex.Message}");
+            }
+        }
+
+        private void RestoreWindowPlacement()
+        {
+            try
+            {
+                var settings = Windows.Storage.ApplicationData.Current.LocalSettings;
+                if (settings.Values["WindowPlacement"] is not Windows.Storage.ApplicationDataCompositeValue composite)
+                    return;
+
+                if (composite.TryGetValue("X", out var xObj) && xObj is int x &&
+                    composite.TryGetValue("Y", out var yObj) && yObj is int y &&
+                    composite.TryGetValue("Width", out var wObj) && wObj is int w &&
+                    composite.TryGetValue("Height", out var hObj) && hObj is int h)
+                {
+                    // 최소 크기 보장
+                    if (w < 400) w = 400;
+                    if (h < 300) h = 300;
+
+                    this.AppWindow.MoveAndResize(
+                        new Windows.Graphics.RectInt32(x, y, w, h));
+                    Helpers.DebugLogger.Log($"[Window] Restored placement: {x},{y} {w}x{h}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[Window] RestorePlacement error: {ex.Message}");
+            }
+        }
+
+        #endregion
 
         private void OnClosed(object sender, WindowEventArgs args)
         {
@@ -458,6 +544,10 @@ namespace Span
 
                 // STEP 0: Block all queued DispatcherQueue callbacks and async continuations
                 _isClosed = true;
+
+                // Save window position/size (skip for tear-off windows)
+                if (!_isTearOffWindow && _settings.RememberWindowPosition)
+                    SaveWindowPlacement();
 
                 // Save tab state for session restore (skip for tear-off windows)
                 if (!_isTearOffWindow)
@@ -1886,22 +1976,31 @@ namespace Span
         private void OnFavoritesFlatItemTapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
         {
             if (sender is FrameworkElement fe && fe.DataContext is FavoriteItem fav)
-            {
-                if (!string.IsNullOrEmpty(fav.Path) && System.IO.Directory.Exists(fav.Path))
-                {
-                    var activeViewMode = (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
-                        ? ViewModel.RightViewMode : ViewModel.CurrentViewMode;
-                    if (activeViewMode == ViewMode.Home)
-                        ViewModel.SwitchViewMode(ViewMode.MillerColumns);
+                NavigateToFavorite(fav);
+        }
 
-                    var folder = new FolderItem
-                    {
-                        Name = System.IO.Path.GetFileName(fav.Path) ?? fav.Path,
-                        Path = fav.Path
-                    };
-                    _ = ViewModel.ActiveExplorer.NavigateTo(folder);
-                    FocusColumnAsync(0);
-                }
+        private void OnFavoritesFlatItemClick(object sender, ItemClickEventArgs e)
+        {
+            if (e.ClickedItem is FavoriteItem fav)
+                NavigateToFavorite(fav);
+        }
+
+        private void NavigateToFavorite(FavoriteItem fav)
+        {
+            if (!string.IsNullOrEmpty(fav.Path) && System.IO.Directory.Exists(fav.Path))
+            {
+                var activeViewMode = (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
+                    ? ViewModel.RightViewMode : ViewModel.CurrentViewMode;
+                if (activeViewMode == ViewMode.Home)
+                    ViewModel.SwitchViewMode(ViewMode.MillerColumns);
+
+                var folder = new FolderItem
+                {
+                    Name = System.IO.Path.GetFileName(fav.Path) ?? fav.Path,
+                    Path = fav.Path
+                };
+                _ = ViewModel.ActiveExplorer.NavigateTo(folder);
+                FocusColumnAsync(0);
             }
         }
 
@@ -1916,6 +2015,43 @@ namespace Span
                 });
                 e.Handled = true;
             }
+        }
+
+        private void OnFavoritesFlatListRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
+        {
+            // ListView의 우클릭 → 클릭된 아이템에서 컨텍스트 메뉴 표시
+            if (e.OriginalSource is FrameworkElement fe)
+            {
+                var fav = FindParentDataContext<FavoriteItem>(fe);
+                if (fav != null)
+                {
+                    var flyout = _contextMenuService.BuildFavoriteMenu(fav, this);
+                    flyout.ShowAt(fe, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
+                    {
+                        Position = e.GetPosition(fe)
+                    });
+                    e.Handled = true;
+                }
+            }
+        }
+
+        private static T? FindParentDataContext<T>(FrameworkElement fe) where T : class
+        {
+            var current = fe;
+            while (current != null)
+            {
+                if (current.DataContext is T item) return item;
+                current = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(current) as FrameworkElement;
+            }
+            return null;
+        }
+
+        private void OnFavoritesDragCompleted(ListViewBase sender, DragItemsCompletedEventArgs args)
+        {
+            // 드래그 리오더 완료 후 즐겨찾기 저장
+            var favService = App.Current.Services.GetService(typeof(Services.IFavoritesService)) as Services.IFavoritesService;
+            favService?.SaveFavorites(ViewModel.Favorites.ToList());
+            Helpers.DebugLogger.Log($"[Favorites] Reordered and saved ({ViewModel.Favorites.Count} items)");
         }
 
         /// <summary>
@@ -2843,6 +2979,13 @@ namespace Span
             else
                 SortDescendingItem.KeyboardAcceleratorTextOverride = "✓";
 
+            // Group By checkmarks
+            GroupByNoneItem.KeyboardAcceleratorTextOverride = _currentGroupBy == "None" ? "✓" : string.Empty;
+            GroupByNameItem.KeyboardAcceleratorTextOverride = _currentGroupBy == "Name" ? "✓" : string.Empty;
+            GroupByTypeItem.KeyboardAcceleratorTextOverride = _currentGroupBy == "Type" ? "✓" : string.Empty;
+            GroupByDateItem.KeyboardAcceleratorTextOverride = _currentGroupBy == "DateModified" ? "✓" : string.Empty;
+            GroupBySizeItem.KeyboardAcceleratorTextOverride = _currentGroupBy == "Size" ? "✓" : string.Empty;
+
             // Update button icons
             UpdateSortButtonIcons();
         }
@@ -3405,6 +3548,38 @@ namespace Span
         {
             _currentSortAscending = ascending;
             SortCurrentColumn(_currentSortField, _currentSortAscending);
+        }
+
+        // Group By state
+        private string _currentGroupBy = "None";
+
+        string Services.IContextMenuHost.CurrentGroupBy => _currentGroupBy;
+
+        void Services.IContextMenuHost.ApplyGroupBy(string groupBy)
+        {
+            _currentGroupBy = groupBy;
+
+            // Details 뷰 — 자체 GroupBy 시스템 사용
+            var detailsView = GetActiveDetailsView();
+            if (detailsView != null && ViewModel.CurrentViewMode == Models.ViewMode.Details)
+            {
+                detailsView.SetGroupByPublic(groupBy);
+                return;
+            }
+
+            // Icon/List 뷰 — FolderViewModel의 Children 기반 그룹핑
+            GetActiveIconView()?.ApplyGroupBy(groupBy);
+            GetActiveListView()?.ApplyGroupBy(groupBy);
+
+            // 설정 저장
+            try
+            {
+                var settings = Windows.Storage.ApplicationData.Current.LocalSettings;
+                settings.Values["ViewGroupBy"] = groupBy;
+            }
+            catch { }
+
+            Helpers.DebugLogger.Log($"[GroupBy] Applied: {groupBy}");
         }
 
         void Services.IContextMenuHost.PerformSelectAll()

@@ -122,20 +122,12 @@
                         IsBackButtonVisible="Collapsed"
                         IsSettingsVisible="False"
                         IsPaneToggleButtonVisible="False"
-                        PaneDisplayMode="Auto"
+                        PaneDisplayMode="Left"
                         OpenPaneLength="180"
                         IsPaneOpen="True"
                         SelectionChanged="SettingsNav_SelectionChanged"
                         SizeChanged="SettingsNav_SizeChanged"
                         Background="Transparent">
-
-            <!-- Search Header -->
-            <NavigationView.AutoSuggestBox>
-                <AutoSuggestBox x:Name="SettingsSearchBox"
-                                PlaceholderText="설정 검색..."
-                                QueryIcon="Find"
-                                TextChanged="SettingsSearchBox_TextChanged" />
-            </NavigationView.AutoSuggestBox>
 
             <NavigationView.MenuItems>
                 <NavigationViewItem x:Name="NavGeneral" Content="일반" Tag="General" IsSelected="True">
@@ -159,7 +151,12 @@
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
                 <NavigationViewItemSeparator />
-                <NavigationViewItem x:Name="NavAbout" Content="라이선스 및 정보" Tag="About">
+                <NavigationViewItem x:Name="NavSpanPro" Content="Span Pro" Tag="SpanPro">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE735;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem x:Name="NavAbout" Content="정보" Tag="About">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE946;" />
                     </NavigationViewItem.Icon>
@@ -276,6 +273,25 @@
                                         <TextBlock x:Name="SysTrayDesc" Text="닫기 버튼을 누르면 트레이로 최소화" Style="{StaticResource SettingsCardDesc}" />
                                     </StackPanel>
                                     <ToggleSwitch x:Name="SystemTrayToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="False" />
+                                </Grid>
+                            </Border>
+
+                            <!-- Remember Window Position -->
+                            <Border Style="{StaticResource SettingsCardBorder}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Style="{StaticResource CardIconContainer}">
+                                        <FontIcon Glyph="&#xE737;" Style="{StaticResource CardIconStyle}" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock x:Name="WinPosLabel" Text="창 위치 기억" Style="{StaticResource SettingsCardLabel}" />
+                                        <TextBlock x:Name="WinPosDesc" Text="앱 종료 시 창 위치와 크기를 저장하여 다음 실행 시 복원" Style="{StaticResource SettingsCardDesc}" />
+                                    </StackPanel>
+                                    <ToggleSwitch x:Name="WindowPositionToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="True" />
                                 </Grid>
                             </Border>
                         </StackPanel>
@@ -791,8 +807,8 @@
                                 </Grid>
                             </Border>
 
-                            <!-- Smart Run -->
-                            <Border Style="{StaticResource SettingsCardBorder}">
+                            <!-- Smart Run (hidden until implemented) -->
+                            <Border Style="{StaticResource SettingsCardBorder}" Visibility="Collapsed">
                                 <StackPanel Spacing="12">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
@@ -947,33 +963,24 @@
                         </StackPanel>
                     </ScrollViewer>
 
-                    <!-- ===== About Section ===== -->
-                    <ScrollViewer x:Name="AboutSection" Visibility="Collapsed">
+                    <!-- ===== Span Pro Section ===== -->
+                    <ScrollViewer x:Name="ProSection" Visibility="Collapsed">
                         <StackPanel Padding="20" Spacing="0">
-                            <TextBlock x:Name="AboutTitle" Text="라이선스 및 정보" Style="{StaticResource SettingsSectionTitle}" />
+                            <TextBlock x:Name="ProTitle" Text="Span Pro" Style="{StaticResource SettingsSectionTitle}" />
 
-                            <!-- App Info Hero -->
-                            <Border Style="{StaticResource SettingsCardBorder}">
+                            <!-- Current Plan Status -->
+                            <Border Style="{StaticResource SettingsCardBorder}"
+                                    Background="#187B68EE" BorderBrush="#337B68EE" BorderThickness="1">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
-                                        <FontIcon Glyph="&#xE80F;" FontSize="40" Foreground="{ThemeResource SpanAccentBrush}" />
-                                        <StackPanel Spacing="2">
-                                            <TextBlock Text="Span" FontSize="22" FontWeight="Bold" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
-                                            <TextBlock Text="v1.0.0 (Build 20260217)" FontSize="12" Foreground="{ThemeResource SpanTextSecondaryBrush}" />
-                                            <TextBlock x:Name="EvalCopyText" Text="Evaluation Copy (Unregistered)" FontSize="11" Foreground="#E8912D" FontWeight="SemiBold" />
-                                        </StackPanel>
-                                    </StackPanel>
-                                    <Button x:Name="UpdateButton" Grid.Column="1" VerticalAlignment="Center"
-                                            Click="CheckForUpdates_Click" Padding="12,8" CornerRadius="6">
-                                        <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <FontIcon x:Name="UpdateIcon" Glyph="&#xE72C;" FontSize="14" />
-                                            <TextBlock x:Name="UpdateText" Text="업데이트 확인" />
-                                        </StackPanel>
-                                    </Button>
+                                    <Border Grid.Column="0" Background="#337B68EE" CornerRadius="6" Padding="10,5" VerticalAlignment="Center" Margin="0,0,12,0">
+                                        <TextBlock x:Name="PlanBadgeText" Text="Free" FontSize="13" FontWeight="Bold" Foreground="{ThemeResource SpanAccentBrush}" />
+                                    </Border>
+                                    <TextBlock x:Name="PlanStatusText" Grid.Column="1" Text="기본 기능을 사용 중입니다"
+                                               Style="{StaticResource SettingsCardDesc}" VerticalAlignment="Center" />
                                 </Grid>
                             </Border>
 
@@ -1056,6 +1063,38 @@
                                         </Button>
                                     </Grid>
                                 </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <!-- ===== About Section ===== -->
+                    <ScrollViewer x:Name="AboutSection" Visibility="Collapsed">
+                        <StackPanel Padding="20" Spacing="0">
+                            <TextBlock x:Name="AboutTitle" Text="정보" Style="{StaticResource SettingsSectionTitle}" />
+
+                            <!-- App Info Hero -->
+                            <Border Style="{StaticResource SettingsCardBorder}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
+                                        <FontIcon Glyph="&#xE80F;" FontSize="40" Foreground="{ThemeResource SpanAccentBrush}" />
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="Span" FontSize="22" FontWeight="Bold" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
+                                            <TextBlock Text="v1.0.0 (Build 20260217)" FontSize="12" Foreground="{ThemeResource SpanTextSecondaryBrush}" />
+                                            <TextBlock x:Name="EvalCopyText" Text="Evaluation Copy (미등록)" FontSize="11" Foreground="#E8912D" FontWeight="SemiBold" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                    <Button x:Name="UpdateButton" Grid.Column="1" VerticalAlignment="Center"
+                                            Click="CheckForUpdates_Click" Padding="12,8" CornerRadius="6">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <FontIcon x:Name="UpdateIcon" Glyph="&#xE72C;" FontSize="14" />
+                                            <TextBlock x:Name="UpdateText" Text="업데이트 확인" />
+                                        </StackPanel>
+                                    </Button>
+                                </Grid>
                             </Border>
 
                             <!-- Links -->

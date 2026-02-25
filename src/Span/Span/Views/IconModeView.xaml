@@ -152,6 +152,20 @@
             RightTapped="OnItemRightTapped"
             Padding="16">
 
+            <GridView.GroupStyle>
+                <GroupStyle>
+                    <GroupStyle.HeaderTemplate>
+                        <DataTemplate>
+                            <Grid Padding="8,6,8,2">
+                                <TextBlock Text="{Binding Key}"
+                                           FontSize="12" FontWeight="SemiBold"
+                                           Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
+                            </Grid>
+                        </DataTemplate>
+                    </GroupStyle.HeaderTemplate>
+                </GroupStyle>
+            </GridView.GroupStyle>
+
             <GridView.ItemsPanel>
                 <ItemsPanelTemplate>
                     <ItemsWrapGrid Orientation="Horizontal"

@@ -30,6 +30,7 @@ namespace Span.Views
             DescColumnNav.Text = _loc.Get("Help_ColumnNav");
             DescOpenFolder.Text = _loc.Get("Help_OpenFolder");
             DescParentFolder.Text = _loc.Get("Help_ParentFolder");
+            DescHomeEnd.Text = _loc.Get("Help_HomeEnd");
             DescBackForward.Text = _loc.Get("Help_BackForward");
             DescAddressBar.Text = _loc.Get("Help_AddressBar");
             DescSearch.Text = _loc.Get("Help_Search");
@@ -39,6 +40,7 @@ namespace Span.Views
             DescCopy.Text = _loc.Get("Help_Copy");
             DescCut.Text = _loc.Get("Help_Cut");
             DescPaste.Text = _loc.Get("Help_Paste");
+            DescPasteShortcut.Text = _loc.Get("Help_PasteShortcut");
             DescDuplicate.Text = _loc.Get("Help_Duplicate");
             DescRename.Text = _loc.Get("Help_Rename");
             DescDelete.Text = _loc.Get("Help_DeleteTrash");
@@ -54,6 +56,7 @@ namespace Span.Views
             // View
             DescMillerCol.Text = _loc.Get("Help_MillerColumns");
             DescDetailList.Text = _loc.Get("Help_DetailList");
+            DescListView.Text = _loc.Get("Help_ListView");
             DescIcons.Text = _loc.Get("Help_Icons");
             DescSplitView.Text = _loc.Get("Help_SplitView");
             DescPreviewPanel.Text = _loc.Get("Help_PreviewPanel");
@@ -69,6 +72,7 @@ namespace Span.Views
             DescOpenTerminal.Text = _loc.Get("Help_OpenTerminal");
             DescSettings.Text = _loc.Get("Help_Settings");
             DescProperties.Text = _loc.Get("Help_Properties");
+            DescHelp.Text = _loc.Get("Help_Help");
 
             // Footer
             FooterHint.Text = _loc.Get("Help_CloseHint");

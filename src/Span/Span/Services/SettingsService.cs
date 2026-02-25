@@ -163,6 +163,12 @@ public class SettingsService : ISettingsService
         set => Set("MinimizeToTray", value);
     }
 
+    public bool RememberWindowPosition
+    {
+        get => Get("RememberWindowPosition", true);
+        set => Set("RememberWindowPosition", value);
+    }
+
     public bool ShowFavoritesTree
     {
         get => Get("ShowFavoritesTree", false);

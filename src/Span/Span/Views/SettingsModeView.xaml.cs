@@ -3,8 +3,6 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Span.Services;
 using System;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace Span.Views;
 
@@ -22,15 +20,6 @@ public sealed partial class SettingsModeView : UserControl
     /// </summary>
     public event EventHandler? BackRequested;
 
-    private readonly Dictionary<int, List<string>> _searchKeywords = new()
-    {
-        { 0, new() { "general", "language", "startup", "tray", "favorites", "일반", "언어", "시작", "시스템 트레이", "즐겨찾기" } },
-        { 1, new() { "appearance", "theme", "pro", "density", "font", "icon", "모양", "테마", "밀도", "폰트", "아이콘" } },
-        { 2, new() { "browsing", "view", "hidden", "extensions", "checkbox", "miller", "thumbnail", "quick look", "delete", "undo", "탐색", "보기", "숨김", "확장자", "체크박스", "밀러", "썸네일", "삭제", "실행 취소" } },
-        { 3, new() { "tools", "terminal", "smart run", "context", "developer", "git", "shell", "copilot", "도구", "터미널", "명령", "컨텍스트", "개발자", "셸", "코파일럿" } },
-        { 4, new() { "about", "license", "update", "pro", "upgrade", "coffee", "github", "link", "정보", "라이선스", "업데이트", "후원", "링크" } },
-    };
-
     public SettingsModeView()
     {
         this.InitializeComponent();
@@ -42,6 +31,7 @@ public sealed partial class SettingsModeView : UserControl
             AppearanceSection,
             BrowsingSection,
             ToolsSection,
+            ProSection,
             AboutSection
         };
 
@@ -93,6 +83,7 @@ public sealed partial class SettingsModeView : UserControl
 
             FavoritesTreeToggle.IsOn = _settings.ShowFavoritesTree;
             SystemTrayToggle.IsOn = _settings.MinimizeToTray;
+            WindowPositionToggle.IsOn = _settings.RememberWindowPosition;
 
             // Appearance
             var theme = _settings.Theme;
@@ -172,6 +163,7 @@ public sealed partial class SettingsModeView : UserControl
 
         FavoritesTreeToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowFavoritesTree = FavoritesTreeToggle.IsOn; };
         SystemTrayToggle.Toggled += (s, e) => { if (!_isLoading) _settings.MinimizeToTray = SystemTrayToggle.IsOn; };
+        WindowPositionToggle.Toggled += (s, e) => { if (!_isLoading) _settings.RememberWindowPosition = WindowPositionToggle.IsOn; };
 
         ThemeSystem.Checked += (s, e) => { if (!_isLoading) _settings.Theme = "system"; };
         ThemeLight.Checked += (s, e) => { if (!_isLoading) _settings.Theme = "light"; };
@@ -255,14 +247,13 @@ public sealed partial class SettingsModeView : UserControl
     private void SettingsNav_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         var width = e.NewSize.Width;
-        if (width < 500)
+        var mode = width < 500
+            ? NavigationViewPaneDisplayMode.Top
+            : NavigationViewPaneDisplayMode.Left;
+
+        if (SettingsNav.PaneDisplayMode != mode)
         {
-            SettingsNav.PaneDisplayMode = NavigationViewPaneDisplayMode.Top;
-            SettingsNav.IsPaneOpen = true;
-        }
-        else
-        {
-            SettingsNav.PaneDisplayMode = NavigationViewPaneDisplayMode.Left;
+            SettingsNav.PaneDisplayMode = mode;
             SettingsNav.IsPaneOpen = true;
         }
     }
@@ -288,6 +279,7 @@ public sealed partial class SettingsModeView : UserControl
             "Appearance" => AppearanceSection,
             "Browsing" => BrowsingSection,
             "Tools" => ToolsSection,
+            "SpanPro" => ProSection,
             "About" => AboutSection,
             _ => GeneralSection
         };
@@ -326,14 +318,13 @@ public sealed partial class SettingsModeView : UserControl
 
         // Header
         SettingsTitle.Text = _loc.Get("Settings");
-        SettingsSearchBox.PlaceholderText = _loc.Get("Settings_SearchPlaceholder");
-
         // Navigation
         NavGeneral.Content = _loc.Get("Settings_General");
         NavAppearance.Content = _loc.Get("Settings_Appearance");
         NavBrowsing.Content = _loc.Get("Settings_Browsing");
         NavTools.Content = _loc.Get("Settings_Tools");
-        NavAbout.Content = _loc.Get("Settings_About");
+        NavSpanPro.Content = "Span Pro";
+        NavAbout.Content = _loc.Get("Settings_AboutNav");
 
         // General
         GeneralTitle.Text = _loc.Get("Settings_General");
@@ -352,6 +343,8 @@ public sealed partial class SettingsModeView : UserControl
         FavTreeDesc.Text = _loc.Get("Settings_FavoritesTreeDesc");
         SysTrayLabel.Text = _loc.Get("Settings_SystemTray");
         SysTrayDesc.Text = _loc.Get("Settings_SystemTrayDesc");
+        WinPosLabel.Text = _loc.Get("Settings_WindowPosition");
+        WinPosDesc.Text = _loc.Get("Settings_WindowPositionDesc");
 
         // Appearance
         AppearanceTitle.Text = _loc.Get("Settings_Appearance");
@@ -399,9 +392,7 @@ public sealed partial class SettingsModeView : UserControl
         DevBadge.Text = _loc.Get("Settings_Developer");
         TerminalLabel.Text = _loc.Get("Settings_TerminalApp");
         TerminalDesc.Text = _loc.Get("Settings_TerminalAppDesc");
-        SmartRunLabel.Text = _loc.Get("Settings_SmartRun");
-        SmartRunDesc.Text = _loc.Get("Settings_SmartRunDesc");
-        AddShortcutText.Text = _loc.Get("Settings_AddShortcut");
+        // SmartRunLabel — hidden until implemented
         ShellExtLabel.Text = _loc.Get("Settings_ShellExtras");
         ShellExtDesc.Text = _loc.Get("Settings_ShellExtrasDesc");
         DevMenuLabel.Text = _loc.Get("Settings_DeveloperMenu");
@@ -411,10 +402,10 @@ public sealed partial class SettingsModeView : UserControl
         CtxMenuLabel.Text = _loc.Get("Settings_ContextMenu");
         CtxMenuDesc.Text = _loc.Get("Settings_ContextMenuDesc");
 
-        // About
-        AboutTitle.Text = _loc.Get("Settings_About");
-        EvalCopyText.Text = _loc.Get("Settings_EvalCopy");
-        UpdateText.Text = _loc.Get("Settings_CheckUpdate");
+        // Span Pro
+        ProTitle.Text = "Span Pro";
+        PlanBadgeText.Text = _loc.Get("Settings_PlanFree");
+        PlanStatusText.Text = _loc.Get("Settings_PlanFreeDesc");
         UpgradeProTitle.Text = _loc.Get("Settings_UpgradePro");
         UpgradeProDesc.Text = _loc.Get("Settings_UpgradeProDesc");
         UnlockThemesText.Text = _loc.Get("Settings_UnlockThemes");
@@ -422,6 +413,11 @@ public sealed partial class SettingsModeView : UserControl
         AllPremiumText.Text = _loc.Get("Settings_AllPremiumFeatures");
         CoffeeLabel.Text = _loc.Get("Settings_BuyMeCoffee");
         CoffeeDesc.Text = _loc.Get("Settings_BuyMeCoffeeDesc");
+
+        // About
+        AboutTitle.Text = _loc.Get("Settings_AboutNav");
+        EvalCopyText.Text = _loc.Get("Settings_EvalCopy");
+        UpdateText.Text = _loc.Get("Settings_CheckUpdate");
         LinksLabel.Text = _loc.Get("Settings_Links");
         GitHubText.Text = _loc.Get("Settings_GitHub");
         BugReportText.Text = _loc.Get("Settings_BugReport");
@@ -466,37 +462,4 @@ public sealed partial class SettingsModeView : UserControl
         }
     }
 
-    // ── Search filtering ──
-
-    private void SettingsSearchBox_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
-    {
-        var query = sender.Text?.Trim().ToLowerInvariant();
-
-        if (string.IsNullOrEmpty(query))
-        {
-            if (SettingsNav.SelectedItem is NavigationViewItem navItem && navItem.Tag is string tag)
-                ShowSection(tag);
-            else
-                ShowSection("General");
-            return;
-        }
-
-        bool anyMatch = false;
-
-        for (int i = 0; i < _sections.Length; i++)
-        {
-            bool sectionMatches = _searchKeywords[i]
-                .Any(keyword => keyword.Contains(query, StringComparison.OrdinalIgnoreCase));
-
-            _sections[i].Visibility = sectionMatches ? Visibility.Visible : Visibility.Collapsed;
-
-            if (sectionMatches) anyMatch = true;
-        }
-
-        if (!anyMatch)
-        {
-            foreach (var section in _sections)
-                section.Visibility = Visibility.Visible;
-        }
-    }
 }

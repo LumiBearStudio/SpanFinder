@@ -654,6 +654,11 @@ namespace Span.Views
             });
         }
 
+        /// <summary>
+        /// Public entry point for external group by trigger.
+        /// </summary>
+        public void SetGroupByPublic(string groupBy) => SetGroupBy(groupBy);
+
         private void SetGroupBy(string groupBy)
         {
             _currentGroupBy = groupBy;

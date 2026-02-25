@@ -295,6 +295,17 @@
                                     <FontIcon Glyph="&#xE74B;"/>
                                 </MenuFlyoutItem.Icon>
                             </MenuFlyoutItem>
+                            <MenuFlyoutSeparator/>
+                            <MenuFlyoutSubItem x:Name="GroupBySubMenu" Text="그룹화">
+                                <MenuFlyoutSubItem.Icon>
+                                    <FontIcon Glyph="&#xF168;"/>
+                                </MenuFlyoutSubItem.Icon>
+                                <MenuFlyoutItem x:Name="GroupByNoneItem" Text="없음" Click="OnGroupByNone"/>
+                                <MenuFlyoutItem x:Name="GroupByNameItem" Text="이름" Click="OnGroupByName"/>
+                                <MenuFlyoutItem x:Name="GroupByTypeItem" Text="종류" Click="OnGroupByType"/>
+                                <MenuFlyoutItem x:Name="GroupByDateItem" Text="날짜" Click="OnGroupByDate"/>
+                                <MenuFlyoutItem x:Name="GroupBySizeItem" Text="크기" Click="OnGroupBySize"/>
+                            </MenuFlyoutSubItem>
                         </MenuFlyout>
                     </Button.Flyout>
                     <StackPanel Orientation="Horizontal" Spacing="4">
@@ -421,14 +432,26 @@
                                    Margin="16,0,16,8"/>
 
                         <!-- Flat Favorites List (default, no tree expansion) -->
-                        <ItemsControl x:Name="FavoritesFlatList"
-                                      ItemsSource="{x:Bind ViewModel.Favorites, Mode=OneWay}">
-                            <ItemsControl.ItemTemplate>
+                        <ListView x:Name="FavoritesFlatList"
+                                  ItemsSource="{x:Bind ViewModel.Favorites, Mode=OneWay}"
+                                  SelectionMode="Single"
+                                  IsItemClickEnabled="True"
+                                  ItemClick="OnFavoritesFlatItemClick"
+                                  CanReorderItems="True"
+                                  AllowDrop="True"
+                                  DragItemsCompleted="OnFavoritesDragCompleted"
+                                  RightTapped="OnFavoritesFlatListRightTapped">
+                            <ListView.ItemContainerStyle>
+                                <Style TargetType="ListViewItem">
+                                    <Setter Property="Padding" Value="0"/>
+                                    <Setter Property="MinHeight" Value="0"/>
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                </Style>
+                            </ListView.ItemContainerStyle>
+                            <ListView.ItemTemplate>
                                 <DataTemplate x:DataType="models:FavoriteItem">
                                     <Grid Height="26" Padding="12,0,8,0"
                                           Background="Transparent"
-                                          Tapped="OnFavoritesFlatItemTapped"
-                                          RightTapped="OnFavoritesFlatItemRightTapped"
                                           PointerEntered="OnSidebarItemPointerEntered"
                                           PointerExited="OnSidebarItemPointerExited">
                                         <Grid.ColumnDefinitions>
@@ -448,8 +471,8 @@
                                                    VerticalAlignment="Center"/>
                                     </Grid>
                                 </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                            </ListView.ItemTemplate>
+                        </ListView>
 
                         <!-- Favorites Tree (expandable sidebar tree with lazy-loaded subfolders) -->
                         <TreeView x:Name="FavoritesTreeView"

@@ -85,6 +85,7 @@ namespace Span
 
             // Alt+Left/Right: Back/Forward navigation (highest priority)
             // Alt+Enter: Show Properties dialog
+            // Alt+D: Address bar focus (Explorer 호환)
             if (alt && !ctrl && !shift)
             {
                 switch (e.Key)
@@ -105,6 +106,13 @@ namespace Span
 
                     case Windows.System.VirtualKey.Enter:
                         HandleShowProperties();
+                        e.Handled = true;
+                        return;
+
+                    case Windows.System.VirtualKey.D:
+                        // Alt+D: Address bar focus (Explorer 호환 — Ctrl+L과 동일)
+                        if (ViewModel.CurrentViewMode != ViewMode.Home)
+                            ShowAddressBarEditMode();
                         e.Handled = true;
                         return;
                 }
@@ -197,7 +205,15 @@ namespace Span
                         break;
 
                     case Windows.System.VirtualKey.V:
-                        HandlePaste();
+                        if (shift)
+                        {
+                            // Ctrl+Shift+V: 바로가기로 붙여넣기
+                            HandlePasteAsShortcut();
+                        }
+                        else
+                        {
+                            HandlePaste();
+                        }
                         e.Handled = true;
                         break;
 
@@ -360,6 +376,13 @@ namespace Span
                         e.Handled = true;
                         break;
 
+                    case Windows.System.VirtualKey.F4:
+                        // F4: Address bar edit mode (Explorer 전통 단축키)
+                        if (ViewModel.CurrentViewMode != ViewMode.Home)
+                            ShowAddressBarEditMode();
+                        e.Handled = true;
+                        break;
+
                     case Windows.System.VirtualKey.Delete:
                         HandleDelete(); // Send to Recycle Bin
                         e.Handled = true;
@@ -452,6 +475,16 @@ namespace Span
                     e.Handled = true;
                     break;
 
+                case Windows.System.VirtualKey.Home:
+                    HandleHomeEnd(activeIndex, first: true);
+                    e.Handled = true;
+                    break;
+
+                case Windows.System.VirtualKey.End:
+                    HandleHomeEnd(activeIndex, first: false);
+                    e.Handled = true;
+                    break;
+
                 case Windows.System.VirtualKey.Space:
                     if (_settings.EnableQuickLook)
                     {
@@ -507,6 +540,21 @@ namespace Span
                 var shellService = App.Current.Services.GetRequiredService<Services.ShellService>();
                 shellService.OpenFile(fileVm.Path);
             }
+        }
+
+        private void HandleHomeEnd(int activeIndex, bool first)
+        {
+            var columns = ViewModel.ActiveExplorer.Columns;
+            if (activeIndex < 0 || activeIndex >= columns.Count) return;
+
+            var column = columns[activeIndex];
+            if (column.Children.Count == 0) return;
+
+            var target = first ? column.Children[0] : column.Children[column.Children.Count - 1];
+            column.SelectedChild = target;
+
+            var listView = GetListViewForColumn(activeIndex);
+            listView?.ScrollIntoView(target);
         }
 
         #endregion

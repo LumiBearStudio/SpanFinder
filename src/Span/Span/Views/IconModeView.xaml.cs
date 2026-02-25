@@ -249,6 +249,50 @@ namespace Span.Views
             }
         }
 
+        // ── Group By ──
+        private string _currentGroupBy = "None";
+
+        public void ApplyGroupBy(string groupBy)
+        {
+            _currentGroupBy = groupBy;
+            RebuildGroupedItems();
+        }
+
+        private void RebuildGroupedItems()
+        {
+            if (ViewModel?.CurrentFolder == null) return;
+
+            var items = ViewModel.CurrentItems;
+            if (items == null) return;
+
+            if (_currentGroupBy == "None" || string.IsNullOrEmpty(_currentGroupBy))
+            {
+                // 그룹 해제 — 원래 바인딩 복원
+                IconGridView.ItemsSource = null;
+                IconGridView.SetBinding(
+                    GridView.ItemsSourceProperty,
+                    new Microsoft.UI.Xaml.Data.Binding
+                    {
+                        Path = new PropertyPath("CurrentItems"),
+                        Mode = Microsoft.UI.Xaml.Data.BindingMode.OneWay
+                    });
+                return;
+            }
+
+            var groups = items
+                .GroupBy(item => Helpers.GroupByHelper.GetGroupKey(item, _currentGroupBy))
+                .OrderBy(g => g.Key)
+                .Select(g => new Helpers.ItemGroup(g.Key + " (" + g.Count() + ")", g))
+                .ToList();
+
+            var cvs = new Microsoft.UI.Xaml.Data.CollectionViewSource
+            {
+                Source = groups,
+                IsSourceGrouped = true
+            };
+            IconGridView.ItemsSource = cvs.View;
+        }
+
         /// <summary>
         /// Focus the Icon GridView (called from MainWindow on view switch)
         /// </summary>

@@ -465,6 +465,16 @@ namespace Span.Services
             sortSub.Items.Add(CreateItem(_loc.Get("Descending"), "\uE74B", () => host.ApplySortDirection(false)));
             menu.Items.Add(sortSub);
 
+            // Group By submenu
+            var currentGroup = host.CurrentGroupBy;
+            var groupSub = new MenuFlyoutSubItem { Text = _loc.Get("GroupBy"), Icon = new FontIcon { Glyph = "\uF168" } };
+            groupSub.Items.Add(new ToggleMenuFlyoutItem { Text = _loc.Get("None"), IsChecked = currentGroup == "None", Command = new Helpers.RelayCommand(() => host.ApplyGroupBy("None")) });
+            groupSub.Items.Add(new ToggleMenuFlyoutItem { Text = _loc.Get("Name"), IsChecked = currentGroup == "Name", Command = new Helpers.RelayCommand(() => host.ApplyGroupBy("Name")) });
+            groupSub.Items.Add(new ToggleMenuFlyoutItem { Text = _loc.Get("Type"), IsChecked = currentGroup == "Type", Command = new Helpers.RelayCommand(() => host.ApplyGroupBy("Type")) });
+            groupSub.Items.Add(new ToggleMenuFlyoutItem { Text = _loc.Get("Date"), IsChecked = currentGroup == "DateModified", Command = new Helpers.RelayCommand(() => host.ApplyGroupBy("DateModified")) });
+            groupSub.Items.Add(new ToggleMenuFlyoutItem { Text = _loc.Get("Size"), IsChecked = currentGroup == "Size", Command = new Helpers.RelayCommand(() => host.ApplyGroupBy("Size")) });
+            menu.Items.Add(groupSub);
+
             menu.Items.Add(new MenuFlyoutSeparator());
 
             // Selection submenu
