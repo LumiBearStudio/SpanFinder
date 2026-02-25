@@ -481,7 +481,7 @@ namespace Span.ViewModels
             // Git 레포 여부 캐시 (on-demand 주입용)
             try
             {
-                var settings = App.Current.Services.GetService(typeof(Services.ISettingsService)) as Services.ISettingsService;
+                var settings = App.Current.Services.GetService(typeof(Services.SettingsService)) as Services.SettingsService;
                 if (settings != null && settings.ShowGitIntegration)
                 {
                     _gitSvc = App.Current.Services.GetService(typeof(GitStatusService)) as GitStatusService;
@@ -518,8 +518,12 @@ namespace Span.ViewModels
         /// </summary>
         private async Task WarmGitCacheAsync(CancellationToken ct)
         {
+            // UI 스레드의 DispatcherQueue를 먼저 캡처
+            var dispatcher = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
+
             try
             {
+                // 백그라운드에서 git status 실행 → 캐시 채움
                 await Task.Run(async () =>
                 {
                     await _gitSvc!.GetFolderStatesAsync(Path, ct);
@@ -528,10 +532,16 @@ namespace Span.ViewModels
                 if (ct.IsCancellationRequested) return;
 
                 // UI 스레드에서 Children에 Git 상태 주입
-                foreach (var child in Children)
+                if (dispatcher != null)
                 {
-                    if (ct.IsCancellationRequested) break;
-                    InjectGitStateIfNeeded(child);
+                    dispatcher.TryEnqueue(() =>
+                    {
+                        foreach (var child in Children)
+                        {
+                            if (ct.IsCancellationRequested) break;
+                            InjectGitStateIfNeeded(child);
+                        }
+                    });
                 }
             }
             catch (OperationCanceledException) { }
