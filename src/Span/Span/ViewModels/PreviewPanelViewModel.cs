@@ -5,6 +5,8 @@ using Microsoft.UI.Xaml.Media.Imaging;
 using Span.Models;
 using Span.Services;
 using System;
+using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Windows.Media.Core;
@@ -14,6 +16,8 @@ namespace Span.ViewModels
     public partial class PreviewPanelViewModel : ObservableObject, IDisposable
     {
         private readonly PreviewService _previewService;
+        private readonly GitStatusService? _gitService;
+        private readonly ISettingsService _settings;
         private readonly Microsoft.UI.Dispatching.DispatcherQueue _dispatcherQueue;
         private CancellationTokenSource? _currentCts;
         private Timer? _debounceTimer;
@@ -64,6 +68,19 @@ namespace Span.ViewModels
         [ObservableProperty] private string _fontFamilySource = "";
         [ObservableProperty] private string _fontFormat = "";
 
+        // --- Git info (Tier 1: 파일 마지막 커밋) ---
+
+        [ObservableProperty] private string _gitLastCommitInfo = "";
+        [ObservableProperty] private bool _hasGitInfo;
+
+        // --- Git dashboard (Tier 2: 폴더 Git 레포 대시보드) ---
+
+        [ObservableProperty] private string _gitBranch = "";
+        [ObservableProperty] private string _gitStatusSummary = "";
+        [ObservableProperty] private string _gitRecentCommits = "";
+        [ObservableProperty] private string _gitChangedFiles = "";
+        [ObservableProperty] private bool _isGitRepo;
+
         // --- Computed visibility ---
 
         public bool IsImageVisible => CurrentPreviewType == PreviewType.Image;
@@ -79,6 +96,22 @@ namespace Span.ViewModels
         {
             _previewService = previewService;
             _dispatcherQueue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
+
+            // Git 서비스 (optional — ShowGitIntegration이 꺼져 있으면 null)
+            try
+            {
+                _settings = App.Current.Services.GetRequiredService<ISettingsService>();
+                if (_settings.ShowGitIntegration)
+                {
+                    _gitService = App.Current.Services.GetService<GitStatusService>();
+                    if (_gitService != null && !_gitService.IsAvailable)
+                        _gitService = null; // git.exe 미설치
+                }
+            }
+            catch
+            {
+                _settings = null!;
+            }
         }
 
         /// <summary>
@@ -130,58 +163,11 @@ namespace Span.ViewModels
 
                 ct.ThrowIfCancellationRequested();
 
-                switch (previewType)
-                {
-                    case PreviewType.Folder:
-                        LoadFolderInfo(item.Path);
-                        break;
+                // 3. Content loading + Git info (병렬)
+                var contentTask = LoadContentAsync(previewType, item, ct);
+                var gitTask = LoadGitInfoAsync(item, isFolder, ct);
 
-                    case PreviewType.Image:
-                        ImagePreview = await _previewService.LoadImagePreviewAsync(item.Path, 1024, ct);
-                        var imgMeta = await _previewService.GetImageMetadataAsync(item.Path, ct);
-                        if (imgMeta != null)
-                            Dimensions = $"{imgMeta.Width} x {imgMeta.Height}";
-                        break;
-
-                    case PreviewType.Text:
-                        TextPreview = await _previewService.LoadTextPreviewAsync(item.Path, ct);
-                        break;
-
-                    case PreviewType.Pdf:
-                        PdfPreview = await _previewService.LoadPdfPreviewAsync(item.Path, ct);
-                        break;
-
-                    case PreviewType.Media:
-                        MediaSource = await _previewService.LoadMediaSourceAsync(item.Path, ct);
-                        var mediaMeta = await _previewService.GetMediaMetadataAsync(item.Path, ct);
-                        if (mediaMeta != null)
-                        {
-                            Duration = mediaMeta.Duration.ToString(@"hh\:mm\:ss");
-                            if (mediaMeta.Width.HasValue && mediaMeta.Height.HasValue)
-                                Dimensions = $"{mediaMeta.Width} x {mediaMeta.Height}";
-                            if (!string.IsNullOrEmpty(mediaMeta.Artist))
-                                Artist = mediaMeta.Artist;
-                            if (!string.IsNullOrEmpty(mediaMeta.Album))
-                                Album = mediaMeta.Album;
-                        }
-                        break;
-
-                    case PreviewType.HexBinary:
-                        HexPreview = await _previewService.LoadHexPreviewAsync(item.Path, ct);
-                        break;
-
-                    case PreviewType.Font:
-                        var fontData = _previewService.GetFontPreviewData(item.Path);
-                        if (fontData != null)
-                        {
-                            FontFamilySource = fontData.FamilyName;
-                            FontFormat = fontData.Extension;
-                        }
-                        break;
-
-                    case PreviewType.Generic:
-                        break;
-                }
+                await Task.WhenAll(contentTask, gitTask);
             }
             catch (OperationCanceledException)
             {
@@ -196,6 +182,210 @@ namespace Span.ViewModels
             {
                 if (!ct.IsCancellationRequested)
                     IsLoading = false;
+            }
+        }
+
+        private async Task LoadContentAsync(PreviewType previewType, FileSystemViewModel item, CancellationToken ct)
+        {
+            switch (previewType)
+            {
+                case PreviewType.Folder:
+                    LoadFolderInfo(item.Path);
+                    break;
+
+                case PreviewType.Image:
+                    ImagePreview = await _previewService.LoadImagePreviewAsync(item.Path, 1024, ct);
+                    var imgMeta = await _previewService.GetImageMetadataAsync(item.Path, ct);
+                    if (imgMeta != null)
+                        Dimensions = $"{imgMeta.Width} x {imgMeta.Height}";
+                    break;
+
+                case PreviewType.Text:
+                    TextPreview = await _previewService.LoadTextPreviewAsync(item.Path, ct);
+                    break;
+
+                case PreviewType.Pdf:
+                    PdfPreview = await _previewService.LoadPdfPreviewAsync(item.Path, ct);
+                    break;
+
+                case PreviewType.Media:
+                    MediaSource = await _previewService.LoadMediaSourceAsync(item.Path, ct);
+                    var mediaMeta = await _previewService.GetMediaMetadataAsync(item.Path, ct);
+                    if (mediaMeta != null)
+                    {
+                        Duration = mediaMeta.Duration.ToString(@"hh\:mm\:ss");
+                        if (mediaMeta.Width.HasValue && mediaMeta.Height.HasValue)
+                            Dimensions = $"{mediaMeta.Width} x {mediaMeta.Height}";
+                        if (!string.IsNullOrEmpty(mediaMeta.Artist))
+                            Artist = mediaMeta.Artist;
+                        if (!string.IsNullOrEmpty(mediaMeta.Album))
+                            Album = mediaMeta.Album;
+                    }
+                    break;
+
+                case PreviewType.HexBinary:
+                    HexPreview = await _previewService.LoadHexPreviewAsync(item.Path, ct);
+                    break;
+
+                case PreviewType.Font:
+                    var fontData = _previewService.GetFontPreviewData(item.Path);
+                    if (fontData != null)
+                    {
+                        FontFamilySource = fontData.FamilyName;
+                        FontFormat = fontData.Extension;
+                    }
+                    break;
+
+                case PreviewType.Generic:
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Git 정보를 비동기로 로딩 (기존 미리보기와 병렬 실행).
+        /// Tier 1: 파일 → git log -1
+        /// Tier 2: 폴더 (Git 레포) → git status + git log 대시보드
+        /// </summary>
+        private async Task LoadGitInfoAsync(FileSystemViewModel item, bool isFolder, CancellationToken ct)
+        {
+            // Git 서비스 비활성 → 스킵
+            if (_gitService == null)
+            {
+                HasGitInfo = false;
+                IsGitRepo = false;
+                return;
+            }
+
+            // Settings에서 런타임 체크 (토글이 바뀌었을 수 있음)
+            if (_settings != null && !_settings.ShowGitIntegration)
+            {
+                HasGitInfo = false;
+                IsGitRepo = false;
+                return;
+            }
+
+            try
+            {
+                if (isFolder)
+                {
+                    // Tier 2: 폴더 Git 대시보드
+                    await LoadGitDashboardAsync(item.Path, ct);
+                }
+                else
+                {
+                    // Tier 1: 파일 마지막 커밋
+                    IsGitRepo = false;
+                    await LoadGitLastCommitAsync(item.Path, ct);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[PreviewPanel] Git error: {ex.Message}");
+                HasGitInfo = false;
+                IsGitRepo = false;
+            }
+        }
+
+        private async Task LoadGitLastCommitAsync(string filePath, CancellationToken ct)
+        {
+            var commit = await _gitService!.GetLastCommitAsync(filePath, ct);
+            if (ct.IsCancellationRequested) return;
+
+            if (commit != null)
+            {
+                GitLastCommitInfo = $"{commit.RelativeTime}\n{commit.Subject}\nby {commit.Author}";
+                HasGitInfo = true;
+            }
+            else
+            {
+                GitLastCommitInfo = "";
+                HasGitInfo = false;
+            }
+        }
+
+        private async Task LoadGitDashboardAsync(string folderPath, CancellationToken ct)
+        {
+            var repoInfo = await _gitService!.GetRepoInfoAsync(folderPath, ct);
+            if (ct.IsCancellationRequested) return;
+
+            if (repoInfo != null)
+            {
+                IsGitRepo = true;
+                GitBranch = repoInfo.Branch;
+
+                // 상태 요약
+                var parts = new StringBuilder();
+                if (repoInfo.ModifiedCount > 0)
+                    parts.Append($"{repoInfo.ModifiedCount}개 수정됨");
+                if (repoInfo.StagedCount > 0)
+                {
+                    if (parts.Length > 0) parts.Append(", ");
+                    parts.Append($"{repoInfo.StagedCount}개 스테이징됨");
+                }
+                if (repoInfo.UntrackedCount > 0)
+                {
+                    if (parts.Length > 0) parts.Append(", ");
+                    parts.Append($"{repoInfo.UntrackedCount}개 미추적");
+                }
+                if (repoInfo.DeletedCount > 0)
+                {
+                    if (parts.Length > 0) parts.Append(", ");
+                    parts.Append($"{repoInfo.DeletedCount}개 삭제됨");
+                }
+                GitStatusSummary = parts.Length > 0 ? parts.ToString() : "변경 사항 없음 (Clean)";
+
+                // 최근 커밋
+                if (repoInfo.RecentCommits.Count > 0)
+                {
+                    var sb = new StringBuilder();
+                    foreach (var c in repoInfo.RecentCommits)
+                    {
+                        sb.AppendLine($"{c.Hash} ({c.RelativeTime})");
+                        sb.AppendLine($"  {c.Subject}");
+                    }
+                    GitRecentCommits = sb.ToString().TrimEnd();
+                }
+                else
+                {
+                    GitRecentCommits = "";
+                }
+
+                // 변경 파일
+                if (repoInfo.ChangedFiles.Count > 0)
+                {
+                    var sb = new StringBuilder();
+                    foreach (var f in repoInfo.ChangedFiles.Take(20)) // 최대 20개
+                    {
+                        var marker = f.State switch
+                        {
+                            GitFileState.Modified => "M ",
+                            GitFileState.Added => "A ",
+                            GitFileState.Deleted => "D ",
+                            GitFileState.Renamed => "R ",
+                            GitFileState.Untracked => "? ",
+                            GitFileState.Conflicted => "! ",
+                            _ => "  ",
+                        };
+                        sb.AppendLine($"{marker} {f.Path}");
+                    }
+                    if (repoInfo.ChangedFiles.Count > 20)
+                        sb.AppendLine($"  ... 외 {repoInfo.ChangedFiles.Count - 20}개");
+                    GitChangedFiles = sb.ToString().TrimEnd();
+                }
+                else
+                {
+                    GitChangedFiles = "";
+                }
+
+                HasGitInfo = false; // 대시보드 모드에서는 Tier 1 섹션 숨김
+            }
+            else
+            {
+                IsGitRepo = false;
             }
         }
 
@@ -246,6 +436,15 @@ namespace Span.ViewModels
             FolderItemCount = "";
             Artist = "";
             Album = "";
+
+            // Git 정보 초기화
+            GitLastCommitInfo = "";
+            HasGitInfo = false;
+            GitBranch = "";
+            GitStatusSummary = "";
+            GitRecentCommits = "";
+            GitChangedFiles = "";
+            IsGitRepo = false;
         }
 
         public void ClearPreview()

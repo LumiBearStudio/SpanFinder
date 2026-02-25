@@ -37,15 +37,23 @@ namespace Span.Services
         bool ShowContextMenu { get; set; }
         bool MinimizeToTray { get; set; }
         bool ShowFavoritesTree { get; set; }
-        bool ShowDeveloperMenu { get; set; }
         bool ShowWindowsShellExtras { get; set; }
         bool ShowCopilotMenu { get; set; }
     }
 
     /// <summary>
+    /// Developer settings (독립 섹션).
+    /// </summary>
+    public interface IDeveloperSettings
+    {
+        bool ShowDeveloperMenu { get; set; }
+        bool ShowGitIntegration { get; set; }
+    }
+
+    /// <summary>
     /// Full settings service combining all domain interfaces.
     /// </summary>
-    public interface ISettingsService : IAppearanceSettings, IBrowsingSettings, IToolSettings
+    public interface ISettingsService : IAppearanceSettings, IBrowsingSettings, IToolSettings, IDeveloperSettings
     {
         event Action<string, object?>? SettingChanged;
 

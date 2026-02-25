@@ -181,6 +181,12 @@ public class SettingsService : ISettingsService
         set => Set("ShowDeveloperMenu", value);
     }
 
+    public bool ShowGitIntegration
+    {
+        get => Get("ShowGitIntegration", false);
+        set => Set("ShowGitIntegration", value);
+    }
+
     public bool ShowWindowsShellExtras
     {
         get => Get("ShowWindowsShellExtras", false);

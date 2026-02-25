@@ -144,8 +144,28 @@ public sealed partial class SettingsModeView : UserControl
             };
             ShellExtrasToggle.IsOn = _settings.ShowWindowsShellExtras;
             DeveloperMenuToggle.IsOn = _settings.ShowDeveloperMenu;
+            GitIntegrationToggle.IsOn = _settings.ShowGitIntegration;
             CopilotMenuToggle.IsOn = _settings.ShowCopilotMenu;
             ContextMenuToggle.IsOn = _settings.ShowContextMenu;
+
+            // Git 설치 상태 표시
+            try
+            {
+                var gitSvc = App.Current.Services.GetService<Services.GitStatusService>();
+                if (gitSvc != null && gitSvc.IsAvailable)
+                {
+                    GitVersionLabel.Text = $"Git {gitSvc.GitVersion} 감지됨";
+                }
+                else
+                {
+                    GitVersionLabel.Text = "Git이 설치되어 있지 않습니다";
+                    GitIntegrationToggle.IsEnabled = false;
+                }
+            }
+            catch
+            {
+                GitVersionLabel.Text = "";
+            }
         }
         finally
         {
@@ -238,6 +258,7 @@ public sealed partial class SettingsModeView : UserControl
         };
         ShellExtrasToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowWindowsShellExtras = ShellExtrasToggle.IsOn; };
         DeveloperMenuToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowDeveloperMenu = DeveloperMenuToggle.IsOn; };
+        GitIntegrationToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowGitIntegration = GitIntegrationToggle.IsOn; };
         CopilotMenuToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowCopilotMenu = CopilotMenuToggle.IsOn; };
         ContextMenuToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowContextMenu = ContextMenuToggle.IsOn; };
     }

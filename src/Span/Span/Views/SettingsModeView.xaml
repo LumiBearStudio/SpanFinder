@@ -923,6 +923,27 @@
                                 </Grid>
                             </Border>
 
+                            <!-- Git Integration Toggle -->
+                            <Border Style="{StaticResource SettingsCardBorder}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Style="{StaticResource CardIconContainer}">
+                                        <FontIcon Glyph="&#xE8AD;" Style="{StaticResource CardIconStyle}" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock x:Name="GitIntegrationLabel" Text="Git 상태 통합" Style="{StaticResource SettingsCardLabel}" />
+                                        <TextBlock x:Name="GitIntegrationDesc" Text="미리보기 패널에 Git 커밋 이력과 레포 상태를 표시합니다" Style="{StaticResource SettingsCardDesc}" />
+                                        <TextBlock x:Name="GitVersionLabel" Text="" FontSize="11"
+                                                   Foreground="{ThemeResource SpanTextTertiaryBrush}" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                    <ToggleSwitch x:Name="GitIntegrationToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="False" />
+                                </Grid>
+                            </Border>
+
                             <!-- Copilot Menu Toggle -->
                             <Border Style="{StaticResource SettingsCardBorder}">
                                 <Grid>

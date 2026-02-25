@@ -235,6 +235,63 @@
                     </Grid>
                 </StackPanel>
 
+                <!-- Git: Tier 1 — 파일 마지막 커밋 정보 -->
+                <StackPanel Visibility="{Binding HasGitInfo, Converter={StaticResource VisConv}}"
+                            Spacing="4">
+                    <Rectangle Height="1" Fill="{ThemeResource SpanBorderSubtleBrush}"/>
+                    <TextBlock Text="Git" FontSize="11" FontWeight="SemiBold"
+                               Foreground="{ThemeResource SpanTextTertiaryBrush}" Margin="0,2,0,0"/>
+                    <TextBlock Text="{Binding GitLastCommitInfo}"
+                               FontSize="12" TextWrapping="Wrap" LineHeight="18"
+                               IsTextSelectionEnabled="True"
+                               Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
+                </StackPanel>
+
+                <!-- Git: Tier 2 — 폴더 Git 레포 대시보드 -->
+                <StackPanel Visibility="{Binding IsGitRepo, Converter={StaticResource VisConv}}"
+                            Spacing="8">
+
+                    <!-- 브랜치 + 상태 요약 -->
+                    <StackPanel Background="{ThemeResource SpanBgLayer1Brush}"
+                                CornerRadius="4" Padding="12" Spacing="4">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="&#xE8AD;" FontFamily="Segoe Fluent Icons" FontSize="14"
+                                       Foreground="{ThemeResource SpanAccentBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding GitBranch}" FontSize="13" FontWeight="SemiBold"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <TextBlock Text="{Binding GitStatusSummary}" FontSize="12"
+                                   Foreground="{ThemeResource SpanTextSecondaryBrush}"
+                                   TextWrapping="Wrap"/>
+                    </StackPanel>
+
+                    <!-- 최근 커밋 -->
+                    <StackPanel Visibility="{Binding GitRecentCommits, Converter={StaticResource VisConv}}"
+                                Background="{ThemeResource SpanBgLayer1Brush}"
+                                CornerRadius="4" Padding="12" Spacing="2">
+                        <TextBlock Text="최근 커밋" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{ThemeResource SpanTextTertiaryBrush}" Margin="0,0,0,4"/>
+                        <TextBlock Text="{Binding GitRecentCommits}" FontFamily="Consolas"
+                                   FontSize="11" LineHeight="16" TextWrapping="Wrap"
+                                   IsTextSelectionEnabled="True"
+                                   Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
+                    </StackPanel>
+
+                    <!-- 변경 파일 -->
+                    <StackPanel Visibility="{Binding GitChangedFiles, Converter={StaticResource VisConv}}"
+                                Background="{ThemeResource SpanBgLayer1Brush}"
+                                CornerRadius="4" Padding="12" Spacing="2">
+                        <TextBlock Text="변경 파일" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{ThemeResource SpanTextTertiaryBrush}" Margin="0,0,0,4"/>
+                        <ScrollViewer HorizontalScrollBarVisibility="Auto" MaxHeight="200">
+                            <TextBlock Text="{Binding GitChangedFiles}" FontFamily="Consolas"
+                                       FontSize="11" LineHeight="16" TextWrapping="NoWrap"
+                                       IsTextSelectionEnabled="True"
+                                       Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
+                        </ScrollViewer>
+                    </StackPanel>
+                </StackPanel>
+
             </StackPanel>
         </ScrollViewer>
     </Grid>
