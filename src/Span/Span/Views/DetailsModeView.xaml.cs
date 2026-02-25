@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading.Tasks;
 using Windows.Storage;
 
 namespace Span.Views
@@ -59,11 +60,13 @@ namespace Span.Views
         private double _dateColumnWidth = 200;
         private double _typeColumnWidth = 150;
         private double _sizeColumnWidth = 100;
+        private double _gitColumnWidth = 50;
 
         // Callback tokens for ColumnDefinition.WidthProperty change tracking
         private long _dateCallbackToken;
         private long _typeCallbackToken;
         private long _sizeCallbackToken;
+        private long _gitCallbackToken;
 
         // Guard against double cleanup (Cleanup() from OnClosed + OnUnloaded from visual tree teardown)
         private bool _isCleanedUp = false;
@@ -79,9 +82,11 @@ namespace Span.Views
         private bool _dateColumnVisible = true;
         private bool _typeColumnVisible = true;
         private bool _sizeColumnVisible = true;
+        private bool _gitColumnVisible = true;
         private GridLength _savedDateWidth = new GridLength(200);
         private GridLength _savedTypeWidth = new GridLength(150);
         private GridLength _savedSizeWidth = new GridLength(100);
+        private GridLength _savedGitWidth = new GridLength(50);
 
         // ── Feature #31: Column Filters ──
         private string _nameFilter = string.Empty;
@@ -131,6 +136,12 @@ namespace Span.Views
                 // Restore column visibility
                 RestoreColumnVisibility();
 
+                // Git 컬럼: ShowGitIntegration 꺼져있으면 강제 숨김
+                if (_settings != null && !_settings.ShowGitIntegration)
+                {
+                    ToggleColumnVisibility("Git", false);
+                }
+
                 // Subscribe to ColumnDefinition.Width changes via RegisterPropertyChangedCallback.
                 // CRITICAL: HeaderGrid.SizeChanged does NOT fire when GridSplitter rearranges
                 // internal columns — the Grid's total size stays the same. We must watch
@@ -140,6 +151,8 @@ namespace Span.Views
                 _typeCallbackToken = TypeColumnDef.RegisterPropertyChangedCallback(
                     ColumnDefinition.WidthProperty, OnColumnWidthChanged);
                 _sizeCallbackToken = SizeColumnDef.RegisterPropertyChangedCallback(
+                    ColumnDefinition.WidthProperty, OnColumnWidthChanged);
+                _gitCallbackToken = GitColumnDef.RegisterPropertyChangedCallback(
                     ColumnDefinition.WidthProperty, OnColumnWidthChanged);
             };
 
@@ -184,6 +197,7 @@ namespace Span.Views
             _dateColumnWidth = DateColumnDef.ActualWidth;
             _typeColumnWidth = TypeColumnDef.ActualWidth;
             _sizeColumnWidth = SizeColumnDef.ActualWidth;
+            _gitColumnWidth = GitColumnDef.ActualWidth;
 
             UpdateAllVisibleContainerWidths();
         }
@@ -207,6 +221,13 @@ namespace Span.Views
             if (args.Item is ViewModels.FolderViewModel folderVm)
             {
                 folderVm.RequestFolderSizeCalculation();
+            }
+
+            // Git 상태 on-demand 주입 (캐시된 값만, I/O 없음)
+            if (_gitColumnVisible && args.Item is ViewModels.FileSystemViewModel fsVm)
+            {
+                var currentFolder = _viewModel?.CurrentFolder;
+                currentFolder?.InjectGitStateIfNeeded(fsVm);
             }
         }
 
@@ -236,6 +257,10 @@ namespace Span.Views
                         case 7: // Size
                             border.Width = _sizeColumnVisible ? _sizeColumnWidth : 0;
                             border.Visibility = _sizeColumnVisible ? Visibility.Visible : Visibility.Collapsed;
+                            break;
+                        case 9: // Git Status
+                            border.Width = _gitColumnVisible ? _gitColumnWidth : 0;
+                            border.Visibility = _gitColumnVisible ? Visibility.Visible : Visibility.Collapsed;
                             break;
                     }
                 }
@@ -330,6 +355,15 @@ namespace Span.Views
             if (key == "ShowCheckboxes" && value is bool show)
             {
                 DispatcherQueue.TryEnqueue(() => ApplyCheckboxMode(show));
+            }
+            else if (key == "ShowGitIntegration" && value is bool gitEnabled)
+            {
+                DispatcherQueue.TryEnqueue(() =>
+                {
+                    ToggleColumnVisibility("Git", gitEnabled);
+                    if (gitEnabled)
+                        TriggerGitStateLoad();
+                });
             }
         }
 
@@ -455,6 +489,11 @@ namespace Span.Views
                             ? column.Children.OrderBy(x => x is FileViewModel ? 1 : 0).ThenBy(x => x.SizeValue)
                             : column.Children.OrderBy(x => x is FileViewModel ? 1 : 0).ThenByDescending(x => x.SizeValue);
                         break;
+                    case "Git":
+                        sorted = ascending
+                            ? column.Children.OrderBy(x => x is FileViewModel ? 1 : 0).ThenBy(x => x.GitStatusText)
+                            : column.Children.OrderBy(x => x is FileViewModel ? 1 : 0).ThenByDescending(x => x.GitStatusText);
+                        break;
                     default:
                         return;
                 }
@@ -500,7 +539,8 @@ namespace Span.Views
                     ["GroupBy"] = _currentGroupBy,
                     ["DateColumnVisible"] = _dateColumnVisible,
                     ["TypeColumnVisible"] = _typeColumnVisible,
-                    ["SizeColumnVisible"] = _sizeColumnVisible
+                    ["SizeColumnVisible"] = _sizeColumnVisible,
+                    ["GitColumnVisible"] = _gitColumnVisible
                 };
                 _localSettings.Values["DetailsViewSort"] = composite;
                 Helpers.DebugLogger.Log("[DetailsModeView] Sort settings saved");
@@ -612,6 +652,13 @@ namespace Span.Views
             };
             sizeToggle.Click += (s, _) => ToggleColumnVisibility("Size", !_sizeColumnVisible);
 
+            var gitToggle = new ToggleMenuFlyoutItem
+            {
+                Text = "Git Status",
+                IsChecked = _gitColumnVisible
+            };
+            gitToggle.Click += (s, _) => ToggleColumnVisibility("Git", !_gitColumnVisible);
+
             flyout.Items.Add(new MenuFlyoutSubItem
             {
                 Text = "Show Columns",
@@ -620,7 +667,8 @@ namespace Span.Views
                     new ToggleMenuFlyoutItem { Text = "Name", IsChecked = true, IsEnabled = false },
                     dateToggle,
                     typeToggle,
-                    sizeToggle
+                    sizeToggle,
+                    gitToggle
                 }
             });
 
@@ -759,6 +807,15 @@ namespace Span.Views
                     Splitter3.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
                     SizeFilterButton.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
                     break;
+
+                case "Git":
+                    if (!visible) _savedGitWidth = GitColumnDef.Width;
+                    _gitColumnVisible = visible;
+                    GitColumnDef.Width = visible ? _savedGitWidth : new GridLength(0);
+                    GitColumnDef.MinWidth = visible ? 40 : 0;
+                    GitHeaderContainer.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+                    Splitter4.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+                    break;
             }
 
             // Update item cell widths to reflect visibility change
@@ -785,6 +842,10 @@ namespace Span.Views
                     if (composite.TryGetValue("SizeColumnVisible", out var sizeObj) && sizeObj is bool sizeVis)
                     {
                         if (!sizeVis) ToggleColumnVisibility("Size", false);
+                    }
+                    if (composite.TryGetValue("GitColumnVisible", out var gitObj) && gitObj is bool gitVis)
+                    {
+                        if (!gitVis) ToggleColumnVisibility("Git", false);
                     }
                 }
             }
@@ -1158,6 +1219,50 @@ namespace Span.Views
         private void ApplyCurrentView()
         {
             SortItems(_currentSortBy, _isAscending);
+            TriggerGitStateLoad();
+        }
+
+        private System.Threading.CancellationTokenSource? _gitCts;
+
+        /// <summary>
+        /// Details 뷰 진입/탭 전환 시 현재 폴더의 Git 상태를 비동기 로드.
+        /// 백그라운드에서 git status 실행 → UI 스레드에서 상태 주입.
+        /// </summary>
+        private async void TriggerGitStateLoad()
+        {
+            if (!_gitColumnVisible || _viewModel?.CurrentFolder == null) return;
+            if (_settings != null && !_settings.ShowGitIntegration) return;
+
+            _gitCts?.Cancel();
+            _gitCts = new System.Threading.CancellationTokenSource();
+            var ct = _gitCts.Token;
+            var folder = _viewModel.CurrentFolder;
+
+            try
+            {
+                // 백그라운드에서 git status 실행 (캐시 채움)
+                var gitSvc = App.Current.Services.GetService(typeof(GitStatusService)) as GitStatusService;
+                if (gitSvc == null || !gitSvc.IsAvailable) return;
+
+                await Task.Run(async () =>
+                {
+                    await gitSvc.GetFolderStatesAsync(folder.Path, ct);
+                }, ct);
+
+                if (ct.IsCancellationRequested) return;
+
+                // UI 스레드에서 Children에 주입 (이미 UI 스레드)
+                foreach (var child in folder.Children)
+                {
+                    if (ct.IsCancellationRequested) break;
+                    folder.InjectGitStateIfNeeded(child);
+                }
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[DetailsModeView] Git state load error: {ex.Message}");
+            }
         }
 
         #endregion
@@ -1206,6 +1311,10 @@ namespace Span.Views
             {
                 Helpers.DebugLogger.Log("[DetailsModeView] Starting cleanup...");
 
+                _gitCts?.Cancel();
+                _gitCts?.Dispose();
+                _gitCts = null;
+
                 _rubberBandHelper?.Detach();
                 _rubberBandHelper = null;
 
@@ -1215,6 +1324,7 @@ namespace Span.Views
                     DateColumnDef.UnregisterPropertyChangedCallback(ColumnDefinition.WidthProperty, _dateCallbackToken);
                     TypeColumnDef.UnregisterPropertyChangedCallback(ColumnDefinition.WidthProperty, _typeCallbackToken);
                     SizeColumnDef.UnregisterPropertyChangedCallback(ColumnDefinition.WidthProperty, _sizeCallbackToken);
+                    GitColumnDef.UnregisterPropertyChangedCallback(ColumnDefinition.WidthProperty, _gitCallbackToken);
                 }
 
                 if (_settings != null)

@@ -34,6 +34,8 @@
                 <ColumnDefinition x:Name="TypeColumnDef" Width="150" MinWidth="90"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition x:Name="SizeColumnDef" Width="100" MinWidth="80"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition x:Name="GitColumnDef" Width="50" MinWidth="40"/>
             </Grid.ColumnDefinitions>
 
             <!-- Name Header -->
@@ -214,6 +216,36 @@
                     <FontIcon Glyph="&#xE16E;" FontSize="9"/>
                 </Button>
             </Grid>
+
+            <!-- Splitter 4: between Size and Git -->
+            <controls:GridSplitter x:Name="Splitter4" Grid.Column="8"
+                                   Width="1"
+                                   Padding="0"
+                                   Margin="0"
+                                   ResizeDirection="Columns"
+                                   HorizontalAlignment="Center"
+                                   Background="Transparent"/>
+
+            <!-- Git Status Header -->
+            <Grid Grid.Column="9" x:Name="GitHeaderContainer">
+                <Button Content="Git"
+                        Click="OnHeaderClick"
+                        Tag="Git"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Left"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Padding="6,0"
+                        Height="20"
+                        FontSize="11"
+                        FontWeight="SemiBold"
+                        Foreground="{ThemeResource SpanTextSecondaryBrush}">
+                    <Button.Resources>
+                        <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Transparent"/>
+                        <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent"/>
+                    </Button.Resources>
+                </Button>
+            </Grid>
         </Grid>
 
         <!-- Items List -->
@@ -276,6 +308,8 @@
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="1"/>
                             <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="1"/>
+                            <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
                         <!-- Icon / Thumbnail -->
@@ -319,6 +353,17 @@
                             <TextBlock Text="{x:Bind Size, Mode=OneWay}"
                                        VerticalAlignment="Center"
                                        FontSize="12"
+                                       Padding="6,0"/>
+                        </Border>
+
+                        <!-- Git Status - Width set by ContainerContentChanging -->
+                        <Border Grid.Column="9" x:Name="GitCell" Width="50">
+                            <TextBlock Text="{x:Bind GitStatusText, Mode=OneWay}"
+                                       Foreground="{x:Bind GitStatusBrush, Mode=OneWay}"
+                                       VerticalAlignment="Center"
+                                       FontFamily="Consolas"
+                                       FontSize="12"
+                                       FontWeight="Bold"
                                        Padding="6,0"/>
                         </Border>
                     </Grid>

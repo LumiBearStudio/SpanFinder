@@ -74,6 +74,51 @@ namespace Span.ViewModels
             OnPropertyChanged(nameof(HasCloudBadge));
         }
 
+        // --- Git 상태 (Details 뷰 컬럼용) ---
+
+        [ObservableProperty]
+        private Models.GitFileState _gitState = Models.GitFileState.None;
+
+        partial void OnGitStateChanged(Models.GitFileState value)
+        {
+            OnPropertyChanged(nameof(GitStatusText));
+            OnPropertyChanged(nameof(GitStatusBrush));
+        }
+
+        /// <summary>
+        /// Git 상태 텍스트 (M/A/D/R/?/!).
+        /// </summary>
+        public string GitStatusText => GitState switch
+        {
+            Models.GitFileState.Modified => "M",
+            Models.GitFileState.Added => "A",
+            Models.GitFileState.Deleted => "D",
+            Models.GitFileState.Renamed => "R",
+            Models.GitFileState.Untracked => "?",
+            Models.GitFileState.Conflicted => "!",
+            _ => "",
+        };
+
+        /// <summary>
+        /// Git 상태별 텍스트 색상 (VS Code 스타일).
+        /// </summary>
+        public Microsoft.UI.Xaml.Media.Brush GitStatusBrush => GitState switch
+        {
+            Models.GitFileState.Modified => new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                Windows.UI.Color.FromArgb(255, 226, 165, 46)),     // #E2A52E 주황
+            Models.GitFileState.Added => new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                Windows.UI.Color.FromArgb(255, 115, 201, 145)),    // #73C991 초록
+            Models.GitFileState.Deleted => new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                Windows.UI.Color.FromArgb(255, 244, 71, 71)),      // #F44747 빨강
+            Models.GitFileState.Renamed => new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                Windows.UI.Color.FromArgb(255, 197, 134, 192)),    // #C586C0 보라
+            Models.GitFileState.Untracked => new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                Windows.UI.Color.FromArgb(255, 115, 201, 145)),    // #73C991 초록
+            Models.GitFileState.Conflicted => new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                Windows.UI.Color.FromArgb(255, 255, 0, 0)),        // #FF0000 빨강진
+            _ => new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent),
+        };
+
         public string Name => _model.Name;
         public string Path => _model.Path;
 

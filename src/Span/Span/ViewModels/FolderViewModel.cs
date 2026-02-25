@@ -24,6 +24,12 @@ namespace Span.ViewModels
         private bool _isCloudFolder;
         private CloudSyncService? _cloudSvc;
 
+        /// <summary>
+        /// Git 레포 여부 캐시 (on-demand git state 주입용).
+        /// </summary>
+        private bool _isGitFolder;
+        private GitStatusService? _gitSvc;
+
         [ObservableProperty]
         private ObservableCollection<FileSystemViewModel> _children = new();
 
@@ -472,6 +478,14 @@ namespace Span.ViewModels
             }
             catch { _isCloudFolder = false; }
 
+            // Git 레포 여부 캐시 (on-demand 주입용)
+            try
+            {
+                _gitSvc = App.Current.Services.GetService(typeof(GitStatusService)) as GitStatusService;
+                _isGitFolder = _gitSvc != null && _gitSvc.IsAvailable && _gitSvc.FindRepoRoot(Path) != null;
+            }
+            catch { _isGitFolder = false; }
+
             // 배치 교체: 1회 PropertyChanged("Children") → ListView 전체 리바인딩
             // (기존: 14,000회 CollectionChanged.Add 이벤트)
             Children = new ObservableCollection<FileSystemViewModel>(sortedItems);
@@ -494,6 +508,25 @@ namespace Span.ViewModels
             if (item.CloudState != CloudState.None) return;
             item.CloudState = _cloudSvc.GetCloudState(item.Path);
         }
+
+        /// <summary>
+        /// On-demand: 보이는 아이템에 Git 상태 주입.
+        /// ContainerContentChanging에서 호출 (Details 뷰 전용).
+        /// 캐시된 값만 사용 (I/O 없음).
+        /// </summary>
+        public void InjectGitStateIfNeeded(FileSystemViewModel item)
+        {
+            if (!_isGitFolder || _gitSvc == null) return;
+            if (item.GitState != Models.GitFileState.None) return;
+            var state = _gitSvc.GetCachedState(item.Path);
+            if (state.HasValue)
+                item.GitState = state.Value;
+        }
+
+        /// <summary>
+        /// Git 레포 여부를 반환 (Details 뷰에서 상태 로드 판단용).
+        /// </summary>
+        public bool IsGitFolder => _isGitFolder;
 
         public void CancelLoading()
         {
