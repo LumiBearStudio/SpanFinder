@@ -18,11 +18,15 @@ namespace Span.Views
         private LocalizationService? _loc;
 
         public ObservableCollection<DriveItem>? LocalDrives => _mainViewModel?.Drives;
-        public ObservableCollection<DriveItem>? NetworkDrivesList => _mainViewModel?.NetworkDrives;
+        public ObservableCollection<DriveItem>? CloudDrivesList => _mainViewModel?.CloudDrives;
+        public ObservableCollection<DriveItem>? NetworkDrivesList => _mainViewModel?.NetworkAndRemoteDrives;
         public ObservableCollection<FavoriteItem>? Favorites => _mainViewModel?.Favorites;
 
+        public Visibility HasCloudDrives =>
+            _mainViewModel?.CloudDrives?.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+
         public Visibility HasNetworkDrives =>
-            _mainViewModel?.NetworkDrives?.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+            _mainViewModel?.NetworkAndRemoteDrives?.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
 
         public MainViewModel? MainViewModel
         {
@@ -30,13 +34,17 @@ namespace Span.Views
             set
             {
                 if (_mainViewModel != null)
-                    _mainViewModel.NetworkDrives.CollectionChanged -= OnNetworkDrivesChanged;
+                {
+                    _mainViewModel.CloudDrives.CollectionChanged -= OnCloudDrivesChanged;
+                    _mainViewModel.NetworkAndRemoteDrives.CollectionChanged -= OnNetworkDrivesChanged;
+                }
 
                 _mainViewModel = value;
 
                 if (_mainViewModel != null)
                 {
-                    _mainViewModel.NetworkDrives.CollectionChanged += OnNetworkDrivesChanged;
+                    _mainViewModel.CloudDrives.CollectionChanged += OnCloudDrivesChanged;
+                    _mainViewModel.NetworkAndRemoteDrives.CollectionChanged += OnNetworkDrivesChanged;
                     Bindings.Update();
                 }
             }
@@ -62,11 +70,17 @@ namespace Span.Views
             {
                 if (_mainViewModel != null)
                 {
-                    _mainViewModel.NetworkDrives.CollectionChanged -= OnNetworkDrivesChanged;
+                    _mainViewModel.CloudDrives.CollectionChanged -= OnCloudDrivesChanged;
+                    _mainViewModel.NetworkAndRemoteDrives.CollectionChanged -= OnNetworkDrivesChanged;
                 }
                 if (_loc != null) _loc.LanguageChanged -= LocalizeUI;
                 _settings = null;
             };
+        }
+
+        private void OnCloudDrivesChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            Bindings.Update();
         }
 
         private void OnNetworkDrivesChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -78,6 +92,7 @@ namespace Span.Views
         {
             if (_loc == null) return;
             DevicesHeader.Text = _loc.Get("DevicesAndDrives");
+            CloudHeader.Text = _loc.Get("CloudStorage");
             NetworkHeader.Text = _loc.Get("NetworkLocations");
             FavoritesHeader.Text = _loc.Get("Favorites");
         }
@@ -142,11 +157,14 @@ namespace Span.Views
             {
                 if (_mainViewModel != null)
                 {
-                    _mainViewModel.NetworkDrives.CollectionChanged -= OnNetworkDrivesChanged;
+                    _mainViewModel.CloudDrives.CollectionChanged -= OnCloudDrivesChanged;
+                    _mainViewModel.NetworkAndRemoteDrives.CollectionChanged -= OnNetworkDrivesChanged;
                 }
 
                 if (DrivesGridView != null)
                     DrivesGridView.ItemsSource = null;
+                if (CloudDrivesGridView != null)
+                    CloudDrivesGridView.ItemsSource = null;
                 if (NetworkDrivesGridView != null)
                     NetworkDrivesGridView.ItemsSource = null;
                 if (FavoritesGridView != null)

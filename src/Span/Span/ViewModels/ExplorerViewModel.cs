@@ -870,7 +870,10 @@ namespace Span.ViewModels
         private void HandleFileSelection(FileViewModel fileVm, int nextIndex)
         {
             RemoveColumnsFrom(nextIndex);
-            CurrentPath = fileVm.Path;
+            // Finder behavior: tab shows parent folder name, not file name
+            var parentDir = System.IO.Path.GetDirectoryName(fileVm.Path);
+            if (!string.IsNullOrEmpty(parentDir))
+                CurrentPath = parentDir;
             SelectedFile = fileVm;
             UpdatePathHighlights();
         }

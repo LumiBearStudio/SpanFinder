@@ -41,7 +41,8 @@
     <Border Background="{ThemeResource SpanBgLayer1Brush}"
             BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="1"
             CornerRadius="12" Padding="28,24"
-            MaxHeight="620">
+            MaxHeight="620"
+            Opacity="0.90">
         <Border.Shadow>
             <ThemeShadow/>
         </Border.Shadow>

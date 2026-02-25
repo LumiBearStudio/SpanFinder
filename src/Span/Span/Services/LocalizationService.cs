@@ -139,6 +139,7 @@ namespace Span.Services
                 ["Home"] = "Home",
                 ["HomeSearch"] = "Search Home",
                 ["DevicesAndDrives"] = "Devices and drives",
+                ["CloudStorage"] = "Cloud storage",
                 ["NetworkLocations"] = "Network locations",
                 ["Favorites"] = "Favorites",
 
@@ -442,6 +443,7 @@ namespace Span.Services
                 ["Home"] = "홈",
                 ["HomeSearch"] = "홈 검색",
                 ["DevicesAndDrives"] = "장치 및 드라이브",
+                ["CloudStorage"] = "클라우드 저장소",
                 ["NetworkLocations"] = "네트워크 위치",
                 ["Favorites"] = "즐겨찾기",
 
@@ -739,6 +741,7 @@ namespace Span.Services
                 ["Home"] = "ホーム",
                 ["HomeSearch"] = "ホーム検索",
                 ["DevicesAndDrives"] = "デバイスとドライブ",
+                ["CloudStorage"] = "クラウドストレージ",
                 ["NetworkLocations"] = "ネットワークの場所",
                 ["Favorites"] = "お気に入り",
 

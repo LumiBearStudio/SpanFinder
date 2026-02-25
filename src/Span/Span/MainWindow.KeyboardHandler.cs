@@ -512,9 +512,27 @@ namespace Span
             var columns = ViewModel.ActiveExplorer.Columns;
             var currentColumn = columns[activeIndex];
 
-            if (currentColumn.SelectedChild is FolderViewModel && activeIndex + 1 < columns.Count)
+            if (currentColumn.SelectedChild is FolderViewModel selectedFolder)
             {
-                FocusColumnAsync(activeIndex + 1);
+                if (activeIndex + 1 < columns.Count)
+                {
+                    // Child column exists — just focus it
+                    FocusColumnAsync(activeIndex + 1);
+                }
+                else
+                {
+                    // Child column not yet created (auto-selected without navigation)
+                    // Force navigation by resetting SelectedChild
+                    currentColumn.SelectedChild = null;
+                    currentColumn.SelectedChild = selectedFolder;
+                    // Focus the new column after a brief delay for async load
+                    DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+                        () =>
+                        {
+                            if (activeIndex + 1 < ViewModel.ActiveExplorer.Columns.Count)
+                                FocusColumnAsync(activeIndex + 1);
+                        });
+                }
             }
         }
 
@@ -531,7 +549,7 @@ namespace Span
             var columns = ViewModel.ActiveExplorer.Columns;
             var currentColumn = columns[activeIndex];
 
-            if (currentColumn.SelectedChild is FolderViewModel)
+            if (currentColumn.SelectedChild is FolderViewModel selectedFolder)
             {
                 HandleRightArrow(activeIndex);
             }

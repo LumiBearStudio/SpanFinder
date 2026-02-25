@@ -20,6 +20,9 @@ namespace Span.Services
         /// <summary>HWND of the owner window (set by MainWindow)</summary>
         public IntPtr OwnerHwnd { get; set; }
 
+        /// <summary>Lazy XamlRoot provider (Content.XamlRoot is only available after Loaded)</summary>
+        public Func<Microsoft.UI.Xaml.XamlRoot?>? XamlRootProvider { get; set; }
+
         #region Shell Translation Tables (per-language)
 
         /// <summary>
@@ -252,39 +255,58 @@ namespace Span.Services
         public MenuFlyout BuildFileMenu(FileViewModel file, IContextMenuHost host)
         {
             var menu = new MenuFlyout();
+            bool isRemote = FileSystemRouter.IsRemotePath(file.Path);
 
-            // Custom localized items
-            menu.Items.Add(CreateItem(_loc.Get("Open"), "\uE8E5", () => host.PerformOpen(file)));
-            menu.Items.Add(CreateItem(_loc.Get("OpenWith"), "\uE7AC", () => _ = _shellService.OpenWithAsync(file.Path)));
-            menu.Items.Add(new MenuFlyoutSeparator());
-
-            menu.Items.Add(CreateItem(_loc.Get("Cut"), "\uE8C6", () => host.PerformCut(file.Path)));
-            menu.Items.Add(CreateItem(_loc.Get("Copy"), "\uE8C8", () => host.PerformCopy(file.Path)));
-            menu.Items.Add(new MenuFlyoutSeparator());
-
-            // Compress / Extract
-            string ext = System.IO.Path.GetExtension(file.Path).ToLowerInvariant();
-            if (ext == ".zip")
+            if (isRemote)
             {
-                menu.Items.Add(CreateItem(_loc.Get("ExtractHere"), "\uE8B7", () => host.PerformExtractHere(file.Path)));
-                menu.Items.Add(CreateItem(_loc.Get("ExtractTo"), "\uE8B7", () => host.PerformExtractTo(file.Path)));
+                // ── Remote file menu (FTP/SFTP) ──
+                menu.Items.Add(CreateItem(_loc.Get("Cut"), "\uE8C6", () => host.PerformCut(file.Path)));
+                menu.Items.Add(CreateItem(_loc.Get("Copy"), "\uE8C8", () => host.PerformCopy(file.Path)));
                 menu.Items.Add(new MenuFlyoutSeparator());
+
+                menu.Items.Add(CreateItem(_loc.Get("Delete"), "\uE74D", () => host.PerformDelete(file.Path, file.Name)));
+                menu.Items.Add(CreateItem(_loc.Get("Rename"), "\uE70F", () => host.PerformRename(file)));
+                menu.Items.Add(new MenuFlyoutSeparator());
+
+                menu.Items.Add(CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => _shellService.CopyPathToClipboard(file.Path)));
+                menu.Items.Add(new MenuFlyoutSeparator());
+                menu.Items.Add(CreateItem(_loc.Get("Properties"), "\uE946", () => ShowProperties(file)));
             }
-            menu.Items.Add(CreateItem(_loc.Get("CompressToZip"), "\uE8C5", () => host.PerformCompress(new[] { file.Path })));
-            menu.Items.Add(new MenuFlyoutSeparator());
+            else
+            {
+                // ── Local file menu ──
+                menu.Items.Add(CreateItem(_loc.Get("Open"), "\uE8E5", () => host.PerformOpen(file)));
+                menu.Items.Add(CreateItem(_loc.Get("OpenWith"), "\uE7AC", () => _ = _shellService.OpenWithAsync(file.Path)));
+                menu.Items.Add(new MenuFlyoutSeparator());
 
-            menu.Items.Add(CreateItem(_loc.Get("Delete"), "\uE74D", () => host.PerformDelete(file.Path, file.Name)));
-            menu.Items.Add(CreateItem(_loc.Get("Rename"), "\uE70F", () => host.PerformRename(file)));
-            menu.Items.Add(new MenuFlyoutSeparator());
+                menu.Items.Add(CreateItem(_loc.Get("Cut"), "\uE8C6", () => host.PerformCut(file.Path)));
+                menu.Items.Add(CreateItem(_loc.Get("Copy"), "\uE8C8", () => host.PerformCopy(file.Path)));
+                menu.Items.Add(new MenuFlyoutSeparator());
 
-            menu.Items.Add(CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => _shellService.CopyPathToClipboard(file.Path)));
-            menu.Items.Add(CreateItem(_loc.Get("OpenInExplorer"), "\uED25", () => _shellService.OpenInExplorer(file.Path)));
+                // Compress / Extract
+                string ext = System.IO.Path.GetExtension(file.Path).ToLowerInvariant();
+                if (ext == ".zip")
+                {
+                    menu.Items.Add(CreateItem(_loc.Get("ExtractHere"), "\uE8B7", () => host.PerformExtractHere(file.Path)));
+                    menu.Items.Add(CreateItem(_loc.Get("ExtractTo"), "\uE8B7", () => host.PerformExtractTo(file.Path)));
+                    menu.Items.Add(new MenuFlyoutSeparator());
+                }
+                menu.Items.Add(CreateItem(_loc.Get("CompressToZip"), "\uE8C5", () => host.PerformCompress(new[] { file.Path })));
+                menu.Items.Add(new MenuFlyoutSeparator());
 
-            // Shell extension items
-            AppendShellExtensionItems(menu, file.Path);
+                menu.Items.Add(CreateItem(_loc.Get("Delete"), "\uE74D", () => host.PerformDelete(file.Path, file.Name)));
+                menu.Items.Add(CreateItem(_loc.Get("Rename"), "\uE70F", () => host.PerformRename(file)));
+                menu.Items.Add(new MenuFlyoutSeparator());
 
-            menu.Items.Add(new MenuFlyoutSeparator());
-            menu.Items.Add(CreateItem(_loc.Get("Properties"), "\uE946", () => _shellService.ShowProperties(file.Path)));
+                menu.Items.Add(CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => _shellService.CopyPathToClipboard(file.Path)));
+                menu.Items.Add(CreateItem(_loc.Get("OpenInExplorer"), "\uED25", () => _shellService.OpenInExplorer(file.Path)));
+
+                // Shell extension items
+                AppendShellExtensionItems(menu, file.Path);
+
+                menu.Items.Add(new MenuFlyoutSeparator());
+                menu.Items.Add(CreateItem(_loc.Get("Properties"), "\uE946", () => ShowProperties(file)));
+            }
 
             // Cleanup session when menu closes
             menu.Closed += OnMenuClosed;
@@ -295,6 +317,7 @@ namespace Span.Services
         public MenuFlyout BuildFolderMenu(FolderViewModel folder, IContextMenuHost host)
         {
             var menu = new MenuFlyout();
+            bool isRemote = FileSystemRouter.IsRemotePath(folder.Path);
 
             menu.Items.Add(CreateItem(_loc.Get("Open"), "\uE8E5", () => host.PerformOpen(folder)));
             menu.Items.Add(new MenuFlyoutSeparator());
@@ -306,29 +329,38 @@ namespace Span.Services
             menu.Items.Add(folderPaste);
             menu.Items.Add(new MenuFlyoutSeparator());
 
-            // Compress
-            menu.Items.Add(CreateItem(_loc.Get("CompressToZip"), "\uE8C5", () => host.PerformCompress(new[] { folder.Path })));
-            menu.Items.Add(new MenuFlyoutSeparator());
+            if (!isRemote)
+            {
+                // Compress (local only)
+                menu.Items.Add(CreateItem(_loc.Get("CompressToZip"), "\uE8C5", () => host.PerformCompress(new[] { folder.Path })));
+                menu.Items.Add(new MenuFlyoutSeparator());
+            }
 
             menu.Items.Add(CreateItem(_loc.Get("Delete"), "\uE74D", () => host.PerformDelete(folder.Path, folder.Name)));
             menu.Items.Add(CreateItem(_loc.Get("Rename"), "\uE70F", () => host.PerformRename(folder)));
             menu.Items.Add(new MenuFlyoutSeparator());
 
-            bool isFav = host.IsFavorite(folder.Path);
-            if (isFav)
-                menu.Items.Add(CreateItem(_loc.Get("RemoveFromFavorites"), "\uE735", () => host.RemoveFromFavorites(folder.Path)));
-            else
-                menu.Items.Add(CreateItem(_loc.Get("AddToFavorites"), "\uE734", () => host.AddToFavorites(folder.Path)));
-            menu.Items.Add(new MenuFlyoutSeparator());
+            if (!isRemote)
+            {
+                bool isFav = host.IsFavorite(folder.Path);
+                if (isFav)
+                    menu.Items.Add(CreateItem(_loc.Get("RemoveFromFavorites"), "\uE735", () => host.RemoveFromFavorites(folder.Path)));
+                else
+                    menu.Items.Add(CreateItem(_loc.Get("AddToFavorites"), "\uE734", () => host.AddToFavorites(folder.Path)));
+                menu.Items.Add(new MenuFlyoutSeparator());
+            }
 
             menu.Items.Add(CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => _shellService.CopyPathToClipboard(folder.Path)));
-            menu.Items.Add(CreateItem(_loc.Get("OpenInExplorer"), "\uED25", () => _shellService.OpenInExplorer(folder.Path)));
 
-            // Shell extension items
-            AppendShellExtensionItems(menu, folder.Path);
+            if (!isRemote)
+            {
+                menu.Items.Add(CreateItem(_loc.Get("OpenInExplorer"), "\uED25", () => _shellService.OpenInExplorer(folder.Path)));
+                // Shell extension items
+                AppendShellExtensionItems(menu, folder.Path);
+            }
 
             menu.Items.Add(new MenuFlyoutSeparator());
-            menu.Items.Add(CreateItem(_loc.Get("Properties"), "\uE946", () => _shellService.ShowProperties(folder.Path)));
+            menu.Items.Add(CreateItem(_loc.Get("Properties"), "\uE946", () => ShowProperties(folder)));
 
             menu.Closed += OnMenuClosed;
 
@@ -799,6 +831,66 @@ namespace Span.Services
             menu.Items.Add(CreateItem(_loc.Get("NewRichTextDocument"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Rich Text Document.rtf")));
             menu.Items.Add(CreateItem(_loc.Get("NewZipArchive"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Compressed (zipped) Folder.zip")));
             return menu;
+        }
+
+        private void ShowProperties(FileSystemViewModel item)
+        {
+            if (FileSystemRouter.IsRemotePath(item.Path))
+            {
+                ShowRemotePropertiesDialog(item);
+            }
+            else
+            {
+                _shellService.ShowProperties(item.Path);
+            }
+        }
+
+        private async void ShowRemotePropertiesDialog(FileSystemViewModel item)
+        {
+            var xamlRoot = XamlRootProvider?.Invoke();
+            if (xamlRoot == null) return;
+
+            var infoPanel = new Microsoft.UI.Xaml.Controls.StackPanel { Spacing = 8 };
+
+            void AddRow(string label, string value)
+            {
+                if (string.IsNullOrEmpty(value)) return;
+                var row = new Microsoft.UI.Xaml.Controls.StackPanel
+                {
+                    Orientation = Microsoft.UI.Xaml.Controls.Orientation.Horizontal,
+                    Spacing = 8
+                };
+                row.Children.Add(new Microsoft.UI.Xaml.Controls.TextBlock
+                {
+                    Text = label,
+                    Width = 80,
+                    Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Gray)
+                });
+                row.Children.Add(new Microsoft.UI.Xaml.Controls.TextBlock
+                {
+                    Text = value,
+                    IsTextSelectionEnabled = true
+                });
+                infoPanel.Children.Add(row);
+            }
+
+            AddRow(_loc.Get("FileName") ?? "이름", item.Name);
+            AddRow(_loc.Get("FileType") ?? "종류", item.FileType);
+            if (item is FileViewModel)
+                AddRow(_loc.Get("FileSize") ?? "크기", item.Size);
+            AddRow(_loc.Get("DateModified") ?? "수정일", item.DateModified);
+            AddRow(_loc.Get("FilePath") ?? "경로", item.Path);
+
+            var dialog = new ContentDialog
+            {
+                Title = _loc.Get("Properties"),
+                Content = infoPanel,
+                CloseButtonText = _loc.Get("OK") ?? "확인",
+                XamlRoot = xamlRoot
+            };
+
+            try { await dialog.ShowAsync(); }
+            catch { /* ignore if another dialog is open */ }
         }
 
         private static MenuFlyoutItem CreateItem(string text, string? glyph, Action action)

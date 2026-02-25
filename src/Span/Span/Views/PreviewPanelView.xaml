@@ -71,11 +71,35 @@
                        HorizontalAlignment="Center"/>
 
                 <!-- Media Preview -->
-                <MediaPlayerElement x:Name="PreviewMediaPlayer"
-                                    Source="{Binding MediaSource}"
-                                    Visibility="{Binding IsMediaVisible, Converter={StaticResource VisConv}}"
-                                    AreTransportControlsEnabled="True"
-                                    AutoPlay="False" MaxHeight="300"/>
+                <Grid Visibility="{Binding IsMediaVisible, Converter={StaticResource VisConv}}"
+                      SizeChanged="OnMediaContainerSizeChanged">
+                    <MediaPlayerElement x:Name="PreviewMediaPlayer"
+                                        Source="{Binding MediaSource}"
+                                        AreTransportControlsEnabled="True"
+                                        Stretch="Uniform"
+                                        AutoPlay="False"
+                                        MinHeight="180" MaxHeight="360">
+                        <MediaPlayerElement.TransportControls>
+                            <MediaTransportControls IsCompact="True" Opacity="0.75"/>
+                        </MediaPlayerElement.TransportControls>
+                    </MediaPlayerElement>
+
+                    <!-- Compact play/pause overlay for narrow widths (<180px) -->
+                    <Button x:Name="CompactPlayButton"
+                            Visibility="Collapsed"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Click="OnCompactPlayClick"
+                            Width="48" Height="48"
+                            CornerRadius="24"
+                            Padding="0"
+                            Background="#60000000"
+                            BorderThickness="0">
+                        <FontIcon x:Name="CompactPlayIcon"
+                                  Glyph="&#xE768;" FontSize="20"
+                                  Foreground="White"/>
+                    </Button>
+                </Grid>
 
                 <!-- Hex Binary Preview -->
                 <Border Visibility="{Binding IsHexBinaryVisible, Converter={StaticResource VisConv}}"
