@@ -32,19 +32,40 @@ namespace Span.Services
                 _password,
                 connInfo.Port);
 
-            _client.Config.ConnectTimeout = 10000;
-            _client.Config.DataConnectionConnectTimeout = 10000;
-            _client.Config.ReadTimeout = 15000;
+            ConfigureClient(_client, connInfo);
+
+            await _client.Connect();
+            DebugLogger.Log($"[FtpProvider] 연결 성공: {connInfo.Host}:{connInfo.Port} ({connInfo.Protocol})");
+            LogServerCapabilities();
+        }
+
+        private void ConfigureClient(AsyncFtpClient client, Models.ConnectionInfo connInfo)
+        {
+            client.Config.ConnectTimeout = 10000;
+            client.Config.DataConnectionConnectTimeout = 10000;
+            client.Config.ReadTimeout = 15000;
+
+            // 날짜/시간 처리: 서버 시간 그대로 사용 (변환 없이)
+            client.Config.TimeConversion = FtpDate.ServerTime;
 
             // FTPS 설정
             if (connInfo.Protocol == RemoteProtocol.FTPS)
             {
-                _client.Config.EncryptionMode = FtpEncryptionMode.Explicit;
-                ConfigureCertificateValidation(_client, connInfo);
+                client.Config.EncryptionMode = FtpEncryptionMode.Explicit;
+                ConfigureCertificateValidation(client, connInfo);
             }
+        }
 
-            await _client.Connect();
-            DebugLogger.Log($"[FtpProvider] 연결 성공: {connInfo.Host}:{connInfo.Port} ({connInfo.Protocol})");
+        private void LogServerCapabilities()
+        {
+            if (_client == null) return;
+            try
+            {
+                var hasSize = _client.HasFeature(FtpCapability.SIZE);
+                var hasMdtm = _client.HasFeature(FtpCapability.MDTM);
+                DebugLogger.Log($"[FtpProvider] 서버 기능 - SIZE:{hasSize}, MDTM:{hasMdtm}, ServerType:{_client.ServerType}");
+            }
+            catch { /* connect 직후 기능 조회 실패 무시 */ }
         }
 
         /// <summary>
@@ -95,15 +116,7 @@ namespace Span.Services
                 _password ?? string.Empty,
                 _connectionInfo.Port);
 
-            _client.Config.ConnectTimeout = 10000;
-            _client.Config.DataConnectionConnectTimeout = 10000;
-            _client.Config.ReadTimeout = 15000;
-
-            if (_connectionInfo.Protocol == RemoteProtocol.FTPS)
-            {
-                _client.Config.EncryptionMode = FtpEncryptionMode.Explicit;
-                ConfigureCertificateValidation(_client, _connectionInfo);
-            }
+            ConfigureClient(_client, _connectionInfo);
 
             await _client.Connect();
             DebugLogger.Log($"[FtpProvider] 재연결 성공: {_connectionInfo.Host}:{_connectionInfo.Port}");
@@ -126,28 +139,66 @@ namespace Span.Services
             try
             {
                 await EnsureConnectedAsync();
-                var listing = await _client.GetListing(path, FtpListOption.Auto, ct);
+
+                // ForceList: MLSD 우회하여 LIST 커맨드 강제 사용
+                // (MLSD가 size=0을 반환하는 서버 대응)
+                var listing = await _client.GetListing(path, FtpListOption.ForceList, ct);
+
+                // 디버그: 첫 번째 파일 항목의 파싱 결과 출력
+                foreach (var sample in listing)
+                {
+                    if (sample.Type == FtpObjectType.File)
+                    {
+                        DebugLogger.Log($"[FtpProvider] LIST Sample: Name=\"{sample.Name}\", Size={sample.Size}, Modified={sample.Modified}, FullName=\"{sample.FullName}\", Input=\"{sample.Input}\"");
+                        break;
+                    }
+                }
+
+                // Binary 모드 전환 (SIZE 커맨드 선행 조건)
+                await _client.Execute("TYPE I", ct);
+
                 foreach (var entry in listing)
                 {
                     ct.ThrowIfCancellationRequested();
 
                     if (entry.Type == FtpObjectType.Directory)
                     {
+                        var folderDate = entry.Modified;
+                        if (folderDate.Year < 1980) folderDate = DateTime.MinValue;
+
+                        // 폴더 날짜 누락 시 MDTM 시도
+                        if (folderDate == DateTime.MinValue)
+                            folderDate = await TryGetModifiedTimeRaw(entry.FullName, ct);
+
                         items.Add(new FolderItem
                         {
                             Name = entry.Name,
                             Path = entry.FullName,
-                            DateModified = entry.Modified
+                            DateModified = folderDate
                         });
                     }
                     else if (entry.Type == FtpObjectType.File)
                     {
+                        // ── 파일 크기: LIST 파싱 → raw SIZE 커맨드 ──
+                        long fileSize = entry.Size;
+                        if (fileSize <= 0)
+                        {
+                            fileSize = await TryGetFileSizeRaw(entry.FullName, ct);
+                        }
+
+                        // ── 날짜: LIST 파싱 → raw MDTM 커맨드 ──
+                        var fileDate = entry.Modified;
+                        if (fileDate.Year < 1980)
+                        {
+                            fileDate = await TryGetModifiedTimeRaw(entry.FullName, ct);
+                        }
+
                         items.Add(new FileItem
                         {
                             Name = entry.Name,
                             Path = entry.FullName,
-                            Size = entry.Size,
-                            DateModified = entry.Modified,
+                            Size = Math.Max(0, fileSize),
+                            DateModified = fileDate,
                             FileType = System.IO.Path.GetExtension(entry.Name)
                         });
                     }
@@ -160,6 +211,57 @@ namespace Span.Services
             }
 
             return items;
+        }
+
+        /// <summary>
+        /// FluentFTP 우회: raw SIZE 커맨드로 파일 크기 직접 조회.
+        /// 서버 응답 "213 &lt;bytes&gt;" 파싱.
+        /// </summary>
+        private async Task<long> TryGetFileSizeRaw(string remotePath, CancellationToken ct)
+        {
+            try
+            {
+                var reply = await _client!.Execute($"SIZE {remotePath}", ct);
+                DebugLogger.Log($"[FtpProvider] SIZE \"{remotePath}\": Code={reply.Code}, Msg=\"{reply.Message}\"");
+                if (reply.Code == "213" && long.TryParse(reply.Message.Trim(), out var size))
+                    return size;
+
+                // FluentFTP GetFileSize도 시도 (내부에서 TYPE I + SIZE 처리)
+                var fluentSize = await _client.GetFileSize(remotePath, -1, ct);
+                DebugLogger.Log($"[FtpProvider] GetFileSize \"{remotePath}\": {fluentSize}");
+                return fluentSize;
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[FtpProvider] SIZE 실패 \"{remotePath}\": {ex.Message}");
+                return -1;
+            }
+        }
+
+        /// <summary>
+        /// FluentFTP 우회: raw MDTM 커맨드로 수정 시간 직접 조회.
+        /// 서버 응답 "213 YYYYMMDDHHmmss" 파싱.
+        /// </summary>
+        private async Task<DateTime> TryGetModifiedTimeRaw(string remotePath, CancellationToken ct)
+        {
+            try
+            {
+                var reply = await _client!.Execute($"MDTM {remotePath}", ct);
+                if (reply.Code == "213")
+                {
+                    var raw = reply.Message.Trim();
+                    // "YYYYMMDDHHmmss" 또는 "YYYYMMDDHHmmss.sss" 포맷
+                    var datePart = raw.Contains('.') ? raw[..raw.IndexOf('.')] : raw;
+                    if (DateTime.TryParseExact(datePart, "yyyyMMddHHmmss",
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        System.Globalization.DateTimeStyles.None, out var parsed))
+                    {
+                        return parsed;
+                    }
+                }
+            }
+            catch { /* MDTM 미지원 */ }
+            return DateTime.MinValue;
         }
 
         public async Task<bool> ExistsAsync(string path, CancellationToken ct = default)
@@ -251,6 +353,46 @@ namespace Span.Services
             await _client.UploadStream(content, path, token: ct);
         }
 
+        /// <summary>
+        /// FTP SIZE 커맨드로 원격 파일 크기를 조회.
+        /// </summary>
+        public async Task<long> GetFileSizeAsync(string path, CancellationToken ct = default)
+        {
+            if (_client == null) return -1;
+            await EnsureConnectedAsync();
+            return await _client.GetFileSize(path, -1, ct);
+        }
+
+        /// <summary>
+        /// 진행률 콜백을 지원하는 FTP 다운로드.
+        /// </summary>
+        public async Task DownloadWithProgressAsync(string remotePath, Stream destStream, IProgress<long>? progress, CancellationToken ct)
+        {
+            if (_client == null) return;
+            await EnsureConnectedAsync();
+
+            IProgress<FtpProgress>? ftpProgress = progress != null
+                ? new Progress<FtpProgress>(p => progress.Report(p.TransferredBytes))
+                : null;
+
+            await _client.DownloadStream(destStream, remotePath, 0, ftpProgress, ct);
+        }
+
+        /// <summary>
+        /// 진행률 콜백을 지원하는 FTP 업로드.
+        /// </summary>
+        public async Task UploadWithProgressAsync(string remotePath, Stream sourceStream, IProgress<long>? progress, CancellationToken ct)
+        {
+            if (_client == null) return;
+            await EnsureConnectedAsync();
+
+            IProgress<FtpProgress>? ftpProgress = progress != null
+                ? new Progress<FtpProgress>(p => progress.Report(p.TransferredBytes))
+                : null;
+
+            await _client.UploadStream(sourceStream, remotePath, FtpRemoteExists.Overwrite, false, ftpProgress, ct);
+        }
+
         private void ConfigureCertificateValidation(AsyncFtpClient client, Models.ConnectionInfo connInfo)
         {
             client.ValidateCertificate += (control, e) =>
@@ -282,7 +424,11 @@ namespace Span.Services
                 try
                 {
                     if (_client.IsConnected)
-                        _client.Disconnect().GetAwaiter().GetResult();
+                    {
+                        // UI 스레드 데드락 방지: 스레드풀에서 Disconnect 실행
+                        var task = Task.Run(async () => await _client.Disconnect());
+                        task.Wait(TimeSpan.FromSeconds(3));
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -301,7 +447,7 @@ namespace Span.Services
                 try
                 {
                     if (_client.IsConnected)
-                        await _client.Disconnect();
+                        await _client.Disconnect().ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {

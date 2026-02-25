@@ -296,6 +296,66 @@ namespace Span.Services
             }, ct);
         }
 
+        /// <summary>
+        /// SFTP GetAttributes로 원격 파일 크기 조회.
+        /// </summary>
+        public Task<long> GetFileSizeAsync(string path, CancellationToken ct = default)
+        {
+            return Task.Run(() =>
+            {
+                if (_client == null) return -1L;
+                EnsureConnected();
+                try
+                {
+                    var attrs = _client.GetAttributes(path);
+                    return attrs.IsDirectory ? -1L : attrs.Size;
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"[SftpProvider] GetFileSizeAsync 오류 ({path}): {ex.Message}");
+                    return -1L;
+                }
+            }, ct);
+        }
+
+        /// <summary>
+        /// 진행률 콜백을 지원하는 SFTP 다운로드.
+        /// SSH.NET의 Action&lt;ulong&gt; 콜백으로 전송 바이트 추적.
+        /// </summary>
+        public Task DownloadWithProgressAsync(string remotePath, Stream destStream, IProgress<long>? progress, CancellationToken ct)
+        {
+            return Task.Run(() =>
+            {
+                if (_client == null) return;
+                EnsureConnected();
+
+                Action<ulong>? callback = progress != null
+                    ? (ulong bytes) => progress.Report((long)bytes)
+                    : null;
+
+                _client.DownloadFile(remotePath, destStream, callback);
+            }, ct);
+        }
+
+        /// <summary>
+        /// 진행률 콜백을 지원하는 SFTP 업로드.
+        /// SSH.NET의 Action&lt;ulong&gt; 콜백으로 전송 바이트 추적.
+        /// </summary>
+        public Task UploadWithProgressAsync(string remotePath, Stream sourceStream, IProgress<long>? progress, CancellationToken ct)
+        {
+            return Task.Run(() =>
+            {
+                if (_client == null) return;
+                EnsureConnected();
+
+                Action<ulong>? callback = progress != null
+                    ? (ulong bytes) => progress.Report((long)bytes)
+                    : null;
+
+                _client.UploadFile(sourceStream, remotePath, callback);
+            }, ct);
+        }
+
         private void DeleteDirectoryRecursive(string path, CancellationToken ct)
         {
             if (_client == null) return;

@@ -85,6 +85,7 @@ namespace Span.Services
 
         /// <summary>
         /// IAsyncDisposable과 IDisposable 모두 처리하여 FTP/SFTP 연결 정리.
+        /// Task.Run으로 스레드풀에서 실행하여 UI 스레드 데드락 방지.
         /// </summary>
         private static void DisposeProvider(IFileSystemProvider provider)
         {
@@ -92,8 +93,18 @@ namespace Span.Services
             {
                 if (provider is IAsyncDisposable ad)
                 {
-                    // 동기 컨텍스트에서 비동기 dispose 실행
-                    ad.DisposeAsync().AsTask().GetAwaiter().GetResult();
+                    // UI SynchronizationContext 우회: 스레드풀에서 비동기 dispose 실행
+                    // 타임아웃 5초 — FTP 서버 무응답 시 무한 대기 방지
+                    var task = Task.Run(async () => await ad.DisposeAsync());
+                    if (!task.Wait(TimeSpan.FromSeconds(5)))
+                    {
+                        Helpers.DebugLogger.Log("[FileSystemRouter] Provider dispose timed out (5s), forcing cleanup");
+                        // 타임아웃 시 동기 Dispose로 강제 정리 시도
+                        if (provider is IDisposable d)
+                        {
+                            try { d.Dispose(); } catch { }
+                        }
+                    }
                 }
                 else if (provider is IDisposable d)
                 {
@@ -114,7 +125,12 @@ namespace Span.Services
         public static string ExtractRemotePath(string fullUri)
         {
             if (Uri.TryCreate(fullUri, UriKind.Absolute, out var uri))
-                return string.IsNullOrEmpty(uri.AbsolutePath) ? "/" : uri.AbsolutePath;
+            {
+                var path = string.IsNullOrEmpty(uri.AbsolutePath) ? "/" : uri.AbsolutePath;
+                // Uri.AbsolutePath는 URL 인코딩된 형태 (%20, %26 등)를 반환하지만
+                // FTP/SFTP 커맨드는 raw 경로가 필요하므로 디코딩
+                return Uri.UnescapeDataString(path);
+            }
             return "/";
         }
 

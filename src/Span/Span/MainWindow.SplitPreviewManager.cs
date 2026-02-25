@@ -840,10 +840,19 @@ namespace Span
             InlinePreviewFileType.Text = fileVm.FileType;
             InlinePreviewDateModified.Text = fileVm.DateModified;
 
-            // Get metadata from PreviewService
-            var metadata = _inlinePreviewService!.GetBasicMetadata(fileVm.Path);
-            InlinePreviewFileSize.Text = metadata.SizeFormatted;
-            InlinePreviewDateCreated.Text = metadata.Created.ToString("yyyy-MM-dd HH:mm");
+            // Get metadata from PreviewService (원격 파일은 모델 데이터 사용)
+            if (Services.FileSystemRouter.IsRemotePath(fileVm.Path))
+            {
+                InlinePreviewFileSize.Text = fileVm.Size;
+                InlinePreviewDateCreatedRow.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                var metadata = _inlinePreviewService!.GetBasicMetadata(fileVm.Path);
+                InlinePreviewFileSize.Text = metadata.SizeFormatted;
+                InlinePreviewDateCreated.Text = metadata.Created.ToString("yyyy-MM-dd HH:mm");
+                InlinePreviewDateCreatedRow.Visibility = Visibility.Visible;
+            }
 
             // Reset type-specific previews
             InlinePreviewImage.Visibility = Visibility.Collapsed;

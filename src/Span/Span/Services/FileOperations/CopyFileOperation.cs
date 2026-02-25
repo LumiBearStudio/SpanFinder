@@ -162,8 +162,9 @@ public class CopyFileOperation : IFileOperation, IPausableOperation
                                 cancellationToken);
                         }
 
-                        // For remote sources, size may be 0 (indeterminate); just count items
-                        processedBytes += totalBytes > 0 ? 0 : 0; // progress already reported via stream bytes
+                        // Update cumulative progress for multi-file operations
+                        var itemSize = await GetFileOrDirectorySizeAsync(sourcePath, cancellationToken);
+                        processedBytes += itemSize;
                     }
                     else
                     {
@@ -361,12 +362,48 @@ public class CopyFileOperation : IFileOperation, IPausableOperation
         CancellationToken ct)
     {
         Stream sourceStream;
+        bool sourceUsedProgress = false; // 다운로드에서 이미 진행률을 보고했는지 추적
+
         if (srcIsRemote)
         {
             var provider = GetRemoteProvider(sourcePath)
                 ?? throw new InvalidOperationException($"원격 소스에 대한 연결을 찾을 수 없습니다: {sourcePath}");
             var remotePath = FileSystemRouter.ExtractRemotePath(sourcePath);
-            sourceStream = await provider.OpenReadAsync(remotePath, ct);
+
+            if (destIsRemote)
+            {
+                // Remote→Remote: 진행률은 업로드 단계에서만 보고
+                sourceStream = new MemoryStream();
+                if (provider is FtpProvider ftpDl)
+                    await ftpDl.DownloadWithProgressAsync(remotePath, sourceStream, null, ct);
+                else if (provider is SftpProvider sftpDl)
+                    await sftpDl.DownloadWithProgressAsync(remotePath, sourceStream, null, ct);
+                else
+                    sourceStream = await provider.OpenReadAsync(remotePath, ct);
+                if (sourceStream is MemoryStream ms) ms.Position = 0;
+            }
+            else
+            {
+                // Remote→Local: 다운로드에서 진행률 보고
+                sourceStream = new MemoryStream();
+                if (provider is FtpProvider ftpDl)
+                {
+                    await ftpDl.DownloadWithProgressAsync(remotePath, sourceStream,
+                        new Progress<long>(bytes => progress?.Report(bytes)), ct);
+                    sourceUsedProgress = true;
+                }
+                else if (provider is SftpProvider sftpDl)
+                {
+                    await sftpDl.DownloadWithProgressAsync(remotePath, sourceStream,
+                        new Progress<long>(bytes => progress?.Report(bytes)), ct);
+                    sourceUsedProgress = true;
+                }
+                else
+                {
+                    sourceStream = await provider.OpenReadAsync(remotePath, ct);
+                }
+                if (sourceStream is MemoryStream ms2) ms2.Position = 0;
+            }
         }
         else
         {
@@ -381,31 +418,42 @@ public class CopyFileOperation : IFileOperation, IPausableOperation
                     ?? throw new InvalidOperationException($"원격 대상에 대한 연결을 찾을 수 없습니다: {destPath}");
                 var remotePath = FileSystemRouter.ExtractRemotePath(destPath);
 
-                // For remote destination, buffer the whole stream and upload
-                // (FTP/SFTP providers expect seekable stream)
+                // Non-seekable source: buffer into memory first
+                Stream uploadStream = sourceStream;
                 if (!sourceStream.CanSeek)
                 {
                     var memStream = new MemoryStream();
                     var buffer = new byte[BufferSize];
-                    long copiedBytes = 0;
                     int bytesRead;
                     while ((bytesRead = await sourceStream.ReadAsync(buffer, ct)) > 0)
                     {
                         WaitIfPaused(ct);
                         await memStream.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
-                        copiedBytes += bytesRead;
-                        progress?.Report(copiedBytes);
                     }
                     memStream.Position = 0;
-                    await provider.WriteAsync(remotePath, memStream, ct);
-                    memStream.Dispose();
+                    uploadStream = memStream;
+                }
+
+                // 업로드 (진행률은 한 번만 보고)
+                if (provider is FtpProvider ftpUp)
+                {
+                    await ftpUp.UploadWithProgressAsync(remotePath, uploadStream,
+                        new Progress<long>(bytes => progress?.Report(bytes)), ct);
+                }
+                else if (provider is SftpProvider sftpUp)
+                {
+                    await sftpUp.UploadWithProgressAsync(remotePath, uploadStream,
+                        new Progress<long>(bytes => progress?.Report(bytes)), ct);
                 }
                 else
                 {
-                    // Source is already a MemoryStream (from provider.OpenReadAsync)
-                    progress?.Report(sourceStream.Length);
-                    await provider.WriteAsync(remotePath, sourceStream, ct);
+                    await provider.WriteAsync(remotePath, uploadStream, ct);
+                    if (uploadStream.CanSeek)
+                        progress?.Report(uploadStream.Length);
                 }
+
+                if (uploadStream != sourceStream)
+                    uploadStream.Dispose();
             }
             else
             {
@@ -423,8 +471,13 @@ public class CopyFileOperation : IFileOperation, IPausableOperation
                     WaitIfPaused(ct);
                     await destStream.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
                     copiedBytes += bytesRead;
-                    progress?.Report(copiedBytes);
+                    // 다운로드에서 이미 진행률을 보고했으면 여기서 중복 보고 안 함
+                    if (!sourceUsedProgress)
+                        progress?.Report(copiedBytes);
                 }
+                // 다운로드 진행률 사용한 경우, 최종 크기 보고
+                if (sourceUsedProgress && sourceStream.CanSeek)
+                    progress?.Report(sourceStream.Length);
             }
         }
         finally
@@ -636,7 +689,35 @@ public class CopyFileOperation : IFileOperation, IPausableOperation
     {
         if (FileSystemRouter.IsRemotePath(path))
         {
-            // Remote: size unknown, return 0 (indeterminate progress)
+            // Remote: try to get file size via provider (FTP/SFTP 모두 지원)
+            try
+            {
+                var provider = GetRemoteProvider(path);
+                var remotePath = FileSystemRouter.ExtractRemotePath(path);
+
+                if (provider is FtpProvider ftpProvider)
+                {
+                    bool isDir = await ftpProvider.IsDirectoryAsync(remotePath, ct);
+                    if (!isDir)
+                    {
+                        var size = await ftpProvider.GetFileSizeAsync(remotePath, ct);
+                        return size > 0 ? size : 0;
+                    }
+                }
+                else if (provider is SftpProvider sftpProvider)
+                {
+                    bool isDir = await sftpProvider.IsDirectoryAsync(remotePath, ct);
+                    if (!isDir)
+                    {
+                        var size = await sftpProvider.GetFileSizeAsync(remotePath, ct);
+                        return size > 0 ? size : 0;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Span.Helpers.DebugLogger.Log($"[CopyFileOperation] 원격 파일 크기 조회 실패 ({path}): {ex.Message}");
+            }
             return 0;
         }
 

@@ -252,11 +252,17 @@ namespace Span.ViewModels
         {
             get
             {
+                DateTime dt = DateTime.MinValue;
                 if (_model is FileItem fileItem)
-                    return fileItem.DateModified.ToString("yyyy-MM-dd HH:mm");
-                if (_model is FolderItem folderItem)
-                    return folderItem.DateModified.ToString("yyyy-MM-dd HH:mm");
-                return string.Empty;
+                    dt = fileItem.DateModified;
+                else if (_model is FolderItem folderItem)
+                    dt = folderItem.DateModified;
+
+                // MinValue 또는 비정상 날짜는 빈 문자열로 표시
+                if (dt == DateTime.MinValue || dt.Year < 1980)
+                    return string.Empty;
+
+                return dt.ToString("yyyy-MM-dd HH:mm");
             }
         }
 

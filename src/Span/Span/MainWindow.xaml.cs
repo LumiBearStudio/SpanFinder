@@ -157,6 +157,14 @@ namespace Span
         public MainWindow()
         {
             this.InitializeComponent();
+
+            // 좌/우 탐색기 패널 포커스: handledEventsToo=true로 등록해야
+            // ListView/ScrollViewer가 이벤트를 처리한 후에도 Pane 포커스 전환 가능
+            LeftPaneContainer.AddHandler(UIElement.PointerPressedEvent,
+                new Microsoft.UI.Xaml.Input.PointerEventHandler(OnLeftPanePointerPressed), true);
+            RightPaneContainer.AddHandler(UIElement.PointerPressedEvent,
+                new Microsoft.UI.Xaml.Input.PointerEventHandler(OnRightPanePointerPressed), true);
+
             ViewModel = App.Current.Services.GetRequiredService<MainViewModel>();
             _contextMenuService = App.Current.Services.GetRequiredService<Services.ContextMenuService>();
             _loc = App.Current.Services.GetRequiredService<Services.LocalizationService>();
@@ -236,6 +244,7 @@ namespace Span
 
             // Pass context menu service and HWND to child views
             _contextMenuService.OwnerHwnd = _hwnd;
+            _contextMenuService.XamlRootProvider = () => Content.XamlRoot;
             DetailsView.ContextMenuService = _contextMenuService;
             DetailsView.ContextMenuHost = this;
             DetailsView.OwnerHwnd = _hwnd;
@@ -2580,6 +2589,22 @@ namespace Span
                         if (!ReferenceEquals(folderVm.SelectedChild, newSelection))
                         {
                             folderVm.SelectedChild = newSelection;
+                        }
+                        else if (newSelection is ViewModels.FolderViewModel clickedFolder)
+                        {
+                            // Already selected folder clicked again — force navigation
+                            // if child column doesn't exist yet (e.g. auto-selected without navigation)
+                            var explorer = ViewModel.ActiveExplorer;
+                            if (explorer != null)
+                            {
+                                int colIdx = explorer.Columns.IndexOf(folderVm);
+                                if (colIdx >= 0 && colIdx + 1 >= explorer.Columns.Count)
+                                {
+                                    // Reset and re-set to trigger PropertyChanged
+                                    folderVm.SelectedChild = null;
+                                    folderVm.SelectedChild = clickedFolder;
+                                }
+                            }
                         }
                         // Keep SelectedItems in sync for single selection too
                         folderVm.SyncSelectedItems(listView.SelectedItems);

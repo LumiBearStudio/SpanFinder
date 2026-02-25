@@ -160,6 +160,14 @@ namespace Span.ViewModels
                 var previewType = _previewService.GetPreviewType(item.Path, isFolder);
                 if (previewType == PreviewType.HexBinary && _settings != null && !_settings.ShowHexPreview)
                     previewType = PreviewType.Generic;
+
+                // Cloud-only files: avoid triggering download for media/text/pdf/hex
+                if (!isFolder && previewType != PreviewType.Image && previewType != PreviewType.Generic
+                    && previewType != PreviewType.Folder
+                    && Services.CloudSyncService.IsCloudOnlyFile(item.Path))
+                {
+                    previewType = PreviewType.Generic;
+                }
                 ClearPreviewContent();
                 CurrentPreviewType = previewType;
 
@@ -406,10 +414,20 @@ namespace Span.ViewModels
             }
             else
             {
-                var metadata = _previewService.GetBasicMetadata(item.Path);
-                FileSizeFormatted = metadata.SizeFormatted;
-                DateCreated = metadata.Created.ToString("yyyy-MM-dd HH:mm");
-                DateModified = metadata.Modified.ToString("yyyy-MM-dd HH:mm");
+                // 원격 파일(FTP/SFTP): FileInfo로 로컬 읽기 불가 → 모델 데이터 사용
+                if (Services.FileSystemRouter.IsRemotePath(item.Path))
+                {
+                    FileSizeFormatted = item.Size; // FileSystemViewModel.Size (이미 포맷됨)
+                    DateCreated = "";              // FTP는 생성일자 미지원
+                    DateModified = item.DateModified;
+                }
+                else
+                {
+                    var metadata = _previewService.GetBasicMetadata(item.Path);
+                    FileSizeFormatted = metadata.SizeFormatted;
+                    DateCreated = metadata.Created.ToString("yyyy-MM-dd HH:mm");
+                    DateModified = metadata.Modified.ToString("yyyy-MM-dd HH:mm");
+                }
             }
         }
 
