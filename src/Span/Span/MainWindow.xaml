@@ -959,6 +959,15 @@
                                                                                             <FontIcon Glyph="{x:Bind CloudStateGlyph, Mode=OneWay}" FontSize="8"
                                                                                                       Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                                                         </Border>
+                                                                                        <!-- Git 뱃지 (동일 위치, Git 우선 — 위에 렌더링) -->
+                                                                                        <Border Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfTrue(HasGitBadge), Mode=OneWay}"
+                                                                                                HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-4,-4"
+                                                                                                Width="12" Height="12" CornerRadius="6"
+                                                                                                Background="{x:Bind GitStatusBrush, Mode=OneWay}">
+                                                                                            <TextBlock Text="{x:Bind GitStatusText, Mode=OneWay}" FontSize="7" FontWeight="Bold"
+                                                                                                       Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                                                       Margin="0,-1,0,0"/>
+                                                                                        </Border>
                                                                                     </Grid>
                                                                                     <TextBlock Grid.Column="2" Text="{x:Bind TruncatedDisplayName, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                                                                                Visibility="{x:Bind viewmodels:FileSystemViewModel.NotRenaming(IsRenaming), Mode=OneWay}"/>
@@ -1451,6 +1460,15 @@
                                                                                                 Background="{x:Bind CloudBadgeBrush, Mode=OneWay}">
                                                                                             <FontIcon Glyph="{x:Bind CloudStateGlyph, Mode=OneWay}" FontSize="8"
                                                                                                       Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                                        </Border>
+                                                                                        <!-- Git 뱃지 (동일 위치, Git 우선 — 위에 렌더링) -->
+                                                                                        <Border Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfTrue(HasGitBadge), Mode=OneWay}"
+                                                                                                HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-4,-4"
+                                                                                                Width="12" Height="12" CornerRadius="6"
+                                                                                                Background="{x:Bind GitStatusBrush, Mode=OneWay}">
+                                                                                            <TextBlock Text="{x:Bind GitStatusText, Mode=OneWay}" FontSize="7" FontWeight="Bold"
+                                                                                                       Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                                                       Margin="0,-1,0,0"/>
                                                                                         </Border>
                                                                                     </Grid>
                                                                                     <TextBlock Grid.Column="2" Text="{x:Bind TruncatedDisplayName, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"

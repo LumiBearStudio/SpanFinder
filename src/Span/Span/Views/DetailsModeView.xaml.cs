@@ -136,11 +136,8 @@ namespace Span.Views
                 // Restore column visibility
                 RestoreColumnVisibility();
 
-                // Git 컬럼: ShowGitIntegration 꺼져있으면 강제 숨김
-                if (_settings != null && !_settings.ShowGitIntegration)
-                {
-                    ToggleColumnVisibility("Git", false);
-                }
+                // Git 컬럼: 초기 숨김 (TriggerGitStateLoad에서 Git 레포 감지 시 자동 표시)
+                ToggleColumnVisibility("Git", false);
 
                 // Subscribe to ColumnDefinition.Width changes via RegisterPropertyChangedCallback.
                 // CRITICAL: HeaderGrid.SizeChanged does NOT fire when GridSplitter rearranges
@@ -1230,13 +1227,27 @@ namespace Span.Views
         /// </summary>
         private async void TriggerGitStateLoad()
         {
-            if (!_gitColumnVisible || _viewModel?.CurrentFolder == null) return;
+            if (_viewModel?.CurrentFolder == null) return;
             if (_settings != null && !_settings.ShowGitIntegration) return;
+
+            var folder = _viewModel.CurrentFolder;
+
+            // Git 레포 폴더 → 자동으로 Git 컬럼 표시, 아닌 폴더 → 자동 숨김
+            if (folder.IsGitFolder)
+            {
+                if (!_gitColumnVisible)
+                    ToggleColumnVisibility("Git", true);
+            }
+            else
+            {
+                if (_gitColumnVisible)
+                    ToggleColumnVisibility("Git", false);
+                return;
+            }
 
             _gitCts?.Cancel();
             _gitCts = new System.Threading.CancellationTokenSource();
             var ct = _gitCts.Token;
-            var folder = _viewModel.CurrentFolder;
 
             try
             {

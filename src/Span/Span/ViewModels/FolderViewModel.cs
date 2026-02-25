@@ -481,8 +481,16 @@ namespace Span.ViewModels
             // Git 레포 여부 캐시 (on-demand 주입용)
             try
             {
-                _gitSvc = App.Current.Services.GetService(typeof(GitStatusService)) as GitStatusService;
-                _isGitFolder = _gitSvc != null && _gitSvc.IsAvailable && _gitSvc.FindRepoRoot(Path) != null;
+                var settings = App.Current.Services.GetService(typeof(Services.ISettingsService)) as Services.ISettingsService;
+                if (settings != null && settings.ShowGitIntegration)
+                {
+                    _gitSvc = App.Current.Services.GetService(typeof(GitStatusService)) as GitStatusService;
+                    _isGitFolder = _gitSvc != null && _gitSvc.IsAvailable && _gitSvc.FindRepoRoot(Path) != null;
+                }
+                else
+                {
+                    _isGitFolder = false;
+                }
             }
             catch { _isGitFolder = false; }
 
@@ -496,6 +504,41 @@ namespace Span.ViewModels
 
             // 썸네일은 ContainerContentChanging에서 on-demand 로드
             // (기존: 전체 순차 로드 제거)
+
+            // Git 레포: 백그라운드에서 git status 실행 → 캐시 워밍 → UI 갱신
+            if (_isGitFolder && _gitSvc != null)
+            {
+                _ = WarmGitCacheAsync(token);
+            }
+        }
+
+        /// <summary>
+        /// 백그라운드에서 git status 실행 → 캐시 채움 → UI 스레드에서 Children에 상태 주입.
+        /// PopulateChildren에서 fire-and-forget으로 호출.
+        /// </summary>
+        private async Task WarmGitCacheAsync(CancellationToken ct)
+        {
+            try
+            {
+                await Task.Run(async () =>
+                {
+                    await _gitSvc!.GetFolderStatesAsync(Path, ct);
+                }, ct);
+
+                if (ct.IsCancellationRequested) return;
+
+                // UI 스레드에서 Children에 Git 상태 주입
+                foreach (var child in Children)
+                {
+                    if (ct.IsCancellationRequested) break;
+                    InjectGitStateIfNeeded(child);
+                }
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[FolderViewModel] Git cache warm error: {ex.Message}");
+            }
         }
 
         /// <summary>

@@ -74,7 +74,7 @@ namespace Span.ViewModels
             OnPropertyChanged(nameof(HasCloudBadge));
         }
 
-        // --- Git 상태 (Details 뷰 컬럼용) ---
+        // --- Git 상태 ---
 
         [ObservableProperty]
         private Models.GitFileState _gitState = Models.GitFileState.None;
@@ -83,7 +83,15 @@ namespace Span.ViewModels
         {
             OnPropertyChanged(nameof(GitStatusText));
             OnPropertyChanged(nameof(GitStatusBrush));
+            OnPropertyChanged(nameof(HasGitBadge));
         }
+
+        /// <summary>
+        /// Git 뱃지 표시 여부 (Modified/Added/Deleted/Renamed/Untracked/Conflicted).
+        /// None과 Clean은 뱃지를 표시하지 않음.
+        /// </summary>
+        public bool HasGitBadge => GitState != Models.GitFileState.None
+                                && GitState != Models.GitFileState.Clean;
 
         /// <summary>
         /// Git 상태 텍스트 (M/A/D/R/?/!).

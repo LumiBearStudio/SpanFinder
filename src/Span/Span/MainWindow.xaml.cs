@@ -2373,11 +2373,12 @@ namespace Span
                 _ = fileVm.LoadThumbnailAsync();
             }
 
-            // On-demand 클라우드 상태 주입: 보이는 아이템만
+            // On-demand 클라우드 + Git 상태 주입: 보이는 아이템만
             if (args.Item is ViewModels.FileSystemViewModel fsVm
                 && sender.DataContext is ViewModels.FolderViewModel folderVm)
             {
                 folderVm.InjectCloudStateIfNeeded(fsVm);
+                folderVm.InjectGitStateIfNeeded(fsVm);
             }
         }
 
