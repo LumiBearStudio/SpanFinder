@@ -96,7 +96,16 @@
       "WebFetch(domain:cdn.jsdelivr.net)",
       "WebFetch(domain:wpfplayground.wordpress.com)",
       "WebFetch(domain:www.oliversturm.com)",
-      "Bash(cd:*)"
+      "Bash(cd:*)",
+      "Bash(echo No test project yet:*)",
+      "Bash(tail:*)",
+      "Bash(cat:*)",
+      "Bash(wc:*)",
+      "Skill(pdca)",
+      "WebFetch(domain:nicksnettravels.builttoroam.com)",
+      "WebFetch(domain:www.simonmourier.com)",
+      "Bash(xargs -I {} basename {})",
+      "WebFetch(domain:github.blog)"
     ]
   },
   "enableAllProjectMcpServers": true,
