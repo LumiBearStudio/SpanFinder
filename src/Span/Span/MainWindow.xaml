@@ -109,8 +109,9 @@
             </ScrollViewer>
         </Grid>
 
-        <!-- 2. Unified Bar -->
-        <Grid Grid.Row="1" Height="{StaticResource CommandBarHeight}" Background="{ThemeResource SpanBgLayer1Brush}" BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="0,0,0,1" Padding="8,0">
+        <!-- 2. Unified Bar (hidden in Settings mode) -->
+        <Grid Grid.Row="1" Height="{StaticResource CommandBarHeight}" Background="{ThemeResource SpanBgLayer1Brush}" BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="0,0,0,1" Padding="8,0"
+              Visibility="{x:Bind IsNotSettingsMode(ViewModel.CurrentViewMode), Mode=OneWay}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/> <!-- Nav Buttons -->
                 <ColumnDefinition Width="*"/>    <!-- Address Bar -->
