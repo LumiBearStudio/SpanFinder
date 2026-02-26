@@ -862,13 +862,7 @@ namespace Span
             if (e.Action == NotifyCollectionChangedAction.Add &&
                 ViewModel.LeftExplorer.Columns.Count > 1)
             {
-                var control = GetActiveMillerColumnsControl();
-                DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
-                {
-                    var container = control.ContainerFromIndex(control.Items.Count - 1);
-                    if (container is UIElement el)
-                        AnimateColumnEntrance(el);
-                });
+                PrepareAndAnimateNewColumn(GetActiveMillerColumnsControl());
             }
 
             UpdateFileSystemWatcherPaths();
@@ -891,47 +885,80 @@ namespace Span
             if (e.Action == NotifyCollectionChangedAction.Add &&
                 ViewModel.RightExplorer.Columns.Count > 1)
             {
-                DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
-                {
-                    var container = MillerColumnsControlRight.ContainerFromIndex(
-                        MillerColumnsControlRight.Items.Count - 1);
-                    if (container is UIElement el)
-                        AnimateColumnEntrance(el);
-                });
+                PrepareAndAnimateNewColumn(MillerColumnsControlRight);
             }
         }
 
+        /// <summary>
+        /// Force layout so the new column container exists, hide it immediately
+        /// (preventing the 1-frame flash), then start animation on next frame.
+        /// </summary>
+        private void PrepareAndAnimateNewColumn(ItemsControl control)
+        {
+            var lastIndex = control.Items.Count - 1;
+
+            // Force layout pass so the container is created synchronously
+            control.UpdateLayout();
+
+            var container = control.ContainerFromIndex(lastIndex);
+            if (container is not UIElement element) return;
+
+            // Hide immediately — before ANY render frame
+            var visual = ElementCompositionPreview.GetElementVisual(element);
+            visual.Opacity = 0f;
+
+            // Start smooth animation after scroll settles
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+            {
+                if (_isClosed) return;
+                AnimateColumnEntrance(element);
+            });
+        }
+
+        /// <summary>
+        /// Smooth slide-in animation for new Miller columns.
+        /// Translation + Opacity with deceleration easing (macOS Finder style).
+        /// </summary>
         private static void AnimateColumnEntrance(UIElement element)
         {
             var visual = ElementCompositionPreview.GetElementVisual(element);
             var compositor = visual.Compositor;
 
-            // Smooth ease-out curve (macOS Finder style)
+            // Clear any leftover clip from previous animation style
+            visual.Clip = null;
+
+            // Enable Translation property (layout-independent visual offset)
+            ElementCompositionPreview.SetIsTranslationEnabled(element, true);
+            visual.Properties.InsertVector3("Translation", new Vector3(50f, 0f, 0f));
+            visual.Opacity = 0f;
+
+            // Deceleration curve: fast departure, smooth arrival
             var easing = compositor.CreateCubicBezierEasingFunction(
                 new Vector2(0.0f, 0.0f), new Vector2(0.2f, 1.0f));
 
-            // Clip-based reveal: column width expands from 0 to full width
-            // This creates a smooth "unfold from left" effect without X translation jitter
-            var columnWidth = (element as FrameworkElement)?.ActualWidth ?? 220;
+            // Slide: 50px from right → final position
+            var slide = compositor.CreateVector3KeyFrameAnimation();
+            slide.InsertKeyFrame(1f, Vector3.Zero, easing);
+            slide.Duration = TimeSpan.FromMilliseconds(260);
 
-            var clip = compositor.CreateInsetClip();
-            clip.RightInset = (float)columnWidth;  // start fully clipped from right
-            visual.Clip = clip;
+            // Fade: resolves at ~55% of duration so content is readable quickly
+            var fade = compositor.CreateScalarKeyFrameAnimation();
+            fade.InsertKeyFrame(0.55f, 1f, easing);
+            fade.Duration = TimeSpan.FromMilliseconds(260);
 
-            var reveal = compositor.CreateScalarKeyFrameAnimation();
-            reveal.InsertKeyFrame(0f, (float)columnWidth);
-            reveal.InsertKeyFrame(1f, 0f, easing);
-            reveal.Duration = TimeSpan.FromMilliseconds(200);
+            // Scoped batch to ensure clean final state
+            var batch = compositor.CreateScopedBatch(
+                Microsoft.UI.Composition.CompositionBatchTypes.Animation);
 
-            clip.StartAnimation("RightInset", reveal);
+            visual.StartAnimation("Translation", slide);
+            visual.StartAnimation("Opacity", fade);
 
-            // Subtle fade-in for polish
-            var fadeIn = compositor.CreateScalarKeyFrameAnimation();
-            fadeIn.InsertKeyFrame(0f, 0.5f);
-            fadeIn.InsertKeyFrame(1f, 1f, easing);
-            fadeIn.Duration = TimeSpan.FromMilliseconds(150);
-
-            visual.StartAnimation("Opacity", fadeIn);
+            batch.End();
+            batch.Completed += (_, _) =>
+            {
+                visual.Properties.InsertVector3("Translation", Vector3.Zero);
+                visual.Opacity = 1f;
+            };
         }
 
         // =================================================================
