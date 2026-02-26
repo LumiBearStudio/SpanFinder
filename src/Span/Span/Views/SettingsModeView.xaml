@@ -184,12 +184,18 @@
                                             <TextBlock x:Name="LangLabel" Text="언어 (Language)" Style="{StaticResource SettingsCardLabel}" />
                                             <TextBlock x:Name="LangDesc" Text="앱 인터페이스 표시 언어" Style="{StaticResource SettingsCardDesc}" />
                                         </StackPanel>
-                                        <ComboBox x:Name="LanguageCombo" Grid.Column="2" SelectedIndex="0" MinWidth="140"
+                                        <ComboBox x:Name="LanguageCombo" Grid.Column="2" SelectedIndex="0" MinWidth="180"
                                                  VerticalAlignment="Center" SelectionChanged="LanguageCombo_SelectionChanged">
                                             <ComboBoxItem x:Name="LangSystem" Content="System Default (권장)" />
                                             <ComboBoxItem Content="English" />
                                             <ComboBoxItem Content="한국어" />
                                             <ComboBoxItem Content="日本語" />
+                                            <ComboBoxItem Content="简体中文" />
+                                            <ComboBoxItem Content="繁體中文" />
+                                            <ComboBoxItem Content="Deutsch" />
+                                            <ComboBoxItem Content="Español" />
+                                            <ComboBoxItem Content="Français" />
+                                            <ComboBoxItem Content="Português (BR)" />
                                         </ComboBox>
                                     </Grid>
                                     <!-- Restart Notice -->
@@ -251,7 +257,7 @@
                                         <TextBlock x:Name="FavTreeLabel" Text="즐겨찾기 트리뷰" Style="{StaticResource SettingsCardLabel}" />
                                         <TextBlock x:Name="FavTreeDesc" Text="즐겨찾기를 트리뷰로 표시 (하위 폴더 탐색 가능)" Style="{StaticResource SettingsCardDesc}" />
                                     </StackPanel>
-                                    <ToggleSwitch x:Name="FavoritesTreeToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="False" />
+                                    <ToggleSwitch x:Name="FavoritesTreeToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="False" OnContent="" OffContent="" />
                                 </Grid>
                             </Border>
 
@@ -270,7 +276,7 @@
                                         <TextBlock x:Name="SysTrayLabel" Text="시스템 트레이" Style="{StaticResource SettingsCardLabel}" />
                                         <TextBlock x:Name="SysTrayDesc" Text="닫기 버튼을 누르면 트레이로 최소화" Style="{StaticResource SettingsCardDesc}" />
                                     </StackPanel>
-                                    <ToggleSwitch x:Name="SystemTrayToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="False" />
+                                    <ToggleSwitch x:Name="SystemTrayToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="False" OnContent="" OffContent="" />
                                 </Grid>
                             </Border>
 
@@ -289,7 +295,7 @@
                                         <TextBlock x:Name="WinPosLabel" Text="창 위치 기억" Style="{StaticResource SettingsCardLabel}" />
                                         <TextBlock x:Name="WinPosDesc" Text="앱 종료 시 창 위치와 크기를 저장하여 다음 실행 시 복원" Style="{StaticResource SettingsCardDesc}" />
                                     </StackPanel>
-                                    <ToggleSwitch x:Name="WindowPositionToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="True" />
+                                    <ToggleSwitch x:Name="WindowPositionToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="True" OnContent="" OffContent="" />
                                 </Grid>
                             </Border>
                         </StackPanel>
@@ -376,7 +382,7 @@
                                                     <Border Width="12" Height="12" CornerRadius="6" Background="#ff79c6" />
                                                 </StackPanel>
                                                 <TextBlock Text="Dracula" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
-                                                <TextBlock Text="퍼플 다크 클래식" FontSize="10" HorizontalAlignment="Center" Foreground="{ThemeResource SpanTextSecondaryBrush}" />
+                                                <TextBlock x:Name="DraculaDescText" Text="퍼플 다크 클래식" FontSize="10" HorizontalAlignment="Center" Foreground="{ThemeResource SpanTextSecondaryBrush}" />
                                             </StackPanel>
                                         </RadioButton>
                                         <!-- Tokyo Night -->
@@ -391,7 +397,7 @@
                                                     <Border Width="12" Height="12" CornerRadius="6" Background="#7dcfff" />
                                                 </StackPanel>
                                                 <TextBlock Text="Tokyo Night" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
-                                                <TextBlock Text="네이비 + 시안 포인트" FontSize="10" HorizontalAlignment="Center" Foreground="{ThemeResource SpanTextSecondaryBrush}" />
+                                                <TextBlock x:Name="TokyoNightDescText" Text="네이비 + 시안 포인트" FontSize="10" HorizontalAlignment="Center" Foreground="{ThemeResource SpanTextSecondaryBrush}" />
                                             </StackPanel>
                                         </RadioButton>
                                         <!-- Catppuccin Mocha -->
@@ -406,7 +412,7 @@
                                                     <Border Width="12" Height="12" CornerRadius="6" Background="#f5c2e7" />
                                                 </StackPanel>
                                                 <TextBlock Text="Catppuccin" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
-                                                <TextBlock Text="따뜻한 파스텔 다크" FontSize="10" HorizontalAlignment="Center" Foreground="{ThemeResource SpanTextSecondaryBrush}" />
+                                                <TextBlock x:Name="CatppuccinDescText" Text="따뜻한 파스텔 다크" FontSize="10" HorizontalAlignment="Center" Foreground="{ThemeResource SpanTextSecondaryBrush}" />
                                             </StackPanel>
                                         </RadioButton>
                                         <!-- Gruvbox -->
@@ -421,7 +427,7 @@
                                                     <Border Width="12" Height="12" CornerRadius="6" Background="#fabd2f" />
                                                 </StackPanel>
                                                 <TextBlock Text="Gruvbox" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
-                                                <TextBlock Text="레트로 웜 어스톤" FontSize="10" HorizontalAlignment="Center" Foreground="{ThemeResource SpanTextSecondaryBrush}" />
+                                                <TextBlock x:Name="GruvboxDescText" Text="레트로 웜 어스톤" FontSize="10" HorizontalAlignment="Center" Foreground="{ThemeResource SpanTextSecondaryBrush}" />
                                             </StackPanel>
                                         </RadioButton>
                                     </Grid>
@@ -575,7 +581,7 @@
                                                 <TextBlock Text="Ctrl+H" FontSize="11" FontFamily="Consolas" Foreground="{ThemeResource SpanTextSecondaryBrush}" />
                                             </Border>
                                         </StackPanel>
-                                        <ToggleSwitch x:Name="ShowHiddenToggle" Grid.Column="1" IsOn="False" />
+                                        <ToggleSwitch x:Name="ShowHiddenToggle" Grid.Column="1" IsOn="False" OnContent="" OffContent="" />
                                     </Grid>
                                     <Rectangle Height="1" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="48,0,0,0" />
                                     <Grid Margin="48,0,0,0">
@@ -584,7 +590,7 @@
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
                                         <TextBlock x:Name="ShowExtLabel" Grid.Column="0" Text="파일 확장자 표시" Style="{StaticResource ToggleRowLabel}" />
-                                        <ToggleSwitch x:Name="ShowExtensionsToggle" Grid.Column="1" IsOn="True" />
+                                        <ToggleSwitch x:Name="ShowExtensionsToggle" Grid.Column="1" IsOn="True" OnContent="" OffContent="" />
                                     </Grid>
                                     <Rectangle Height="1" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="48,0,0,0" />
                                     <Grid Margin="48,0,0,0">
@@ -593,7 +599,7 @@
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
                                         <TextBlock x:Name="CheckboxLabel" Grid.Column="0" Text="체크박스 사용하여 항목 선택" Style="{StaticResource ToggleRowLabel}" />
-                                        <ToggleSwitch x:Name="CheckboxToggle" Grid.Column="1" IsOn="False" />
+                                        <ToggleSwitch x:Name="CheckboxToggle" Grid.Column="1" IsOn="False" OnContent="" OffContent="" />
                                     </Grid>
                                 </StackPanel>
                             </Border>
@@ -635,7 +641,7 @@
                                         <TextBlock x:Name="ThumbnailLabel" Text="이미지 미리보기 (썸네일)" Style="{StaticResource SettingsCardLabel}" />
                                         <TextBlock x:Name="ThumbnailDesc" Text="성능을 위해 네트워크 드라이브에서는 썸네일을 끕니다" Style="{StaticResource SettingsCardDesc}" />
                                     </StackPanel>
-                                    <ToggleSwitch x:Name="ThumbnailToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="True" />
+                                    <ToggleSwitch x:Name="ThumbnailToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="True" OnContent="" OffContent="" />
                                 </Grid>
                             </Border>
 
@@ -654,7 +660,7 @@
                                         <TextBlock x:Name="QuickLookLabel" Text="Quick Look (빠른 미리보기)" Style="{StaticResource SettingsCardLabel}" />
                                         <TextBlock x:Name="QuickLookDesc" Text="Space 키로 파일을 빠르게 미리봅니다" Style="{StaticResource SettingsCardDesc}" />
                                     </StackPanel>
-                                    <ToggleSwitch x:Name="QuickLookToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="True" />
+                                    <ToggleSwitch x:Name="QuickLookToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="True" OnContent="" OffContent="" />
                                 </Grid>
                             </Border>
 
@@ -673,7 +679,7 @@
                                         <TextBlock x:Name="DeleteConfirmLabel" Text="삭제 확인 대화상자" Style="{StaticResource SettingsCardLabel}" />
                                         <TextBlock x:Name="DeleteConfirmDesc" Text="파일 삭제 전 확인을 요청합니다" Style="{StaticResource SettingsCardDesc}" />
                                     </StackPanel>
-                                    <ToggleSwitch x:Name="ConfirmDeleteToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="True" />
+                                    <ToggleSwitch x:Name="ConfirmDeleteToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="True" OnContent="" OffContent="" />
                                 </Grid>
                             </Border>
 
@@ -723,7 +729,7 @@
                                         <TextBlock x:Name="ShellExtLabel" Text="Windows 셸 확장 메뉴" Style="{StaticResource SettingsCardLabel}" />
                                         <TextBlock x:Name="ShellExtDesc" Text="우클릭 메뉴에 공유, 보내기, 라이브러리 포함, 시작 화면 고정 등 표시" Style="{StaticResource SettingsCardDesc}" />
                                     </StackPanel>
-                                    <ToggleSwitch x:Name="ShellExtrasToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="False" />
+                                    <ToggleSwitch x:Name="ShellExtrasToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="False" OnContent="" OffContent="" />
                                 </Grid>
                             </Border>
 
@@ -742,7 +748,7 @@
                                         <TextBlock x:Name="CopilotLabel" Text="Copilot 메뉴" Style="{StaticResource SettingsCardLabel}" />
                                         <TextBlock x:Name="CopilotDesc" Text="우클릭 메뉴에 Microsoft Copilot 관련 항목 표시" Style="{StaticResource SettingsCardDesc}" />
                                     </StackPanel>
-                                    <ToggleSwitch x:Name="CopilotMenuToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="False" />
+                                    <ToggleSwitch x:Name="CopilotMenuToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="False" OnContent="" OffContent="" />
                                 </Grid>
                             </Border>
 
@@ -761,7 +767,7 @@
                                         <TextBlock x:Name="CtxMenuLabel" Text="컨텍스트 메뉴" Style="{StaticResource SettingsCardLabel}" />
                                         <TextBlock x:Name="CtxMenuDesc" Text="윈도우 우클릭 메뉴에 'Open in Span' 추가" Style="{StaticResource SettingsCardDesc}" />
                                     </StackPanel>
-                                    <ToggleSwitch x:Name="ContextMenuToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="True" />
+                                    <ToggleSwitch x:Name="ContextMenuToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="True" OnContent="" OffContent="" />
                                 </Grid>
                             </Border>
                         </StackPanel>
@@ -810,7 +816,7 @@
                                         <TextBlock x:Name="DevMenuLabel" Text="개발자 컨텍스트 메뉴" Style="{StaticResource SettingsCardLabel}" />
                                         <TextBlock x:Name="DevMenuDesc" Text="우클릭 메뉴에 Git, Visual Studio, VS Code 등 개발 도구 항목 표시" Style="{StaticResource SettingsCardDesc}" />
                                     </StackPanel>
-                                    <ToggleSwitch x:Name="DeveloperMenuToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="False" />
+                                    <ToggleSwitch x:Name="DeveloperMenuToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="False" OnContent="" OffContent="" />
                                 </Grid>
                             </Border>
 
@@ -831,7 +837,7 @@
                                         <TextBlock x:Name="GitVersionLabel" Text="" FontSize="11"
                                                    Foreground="{ThemeResource SpanTextTertiaryBrush}" Margin="0,2,0,0"/>
                                     </StackPanel>
-                                    <ToggleSwitch x:Name="GitIntegrationToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="False" />
+                                    <ToggleSwitch x:Name="GitIntegrationToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="False" OnContent="" OffContent="" />
                                 </Grid>
                             </Border>
 
@@ -850,7 +856,7 @@
                                         <TextBlock x:Name="HexPreviewLabel" Text="Hex 뷰어 미리보기" Style="{StaticResource SettingsCardLabel}" />
                                         <TextBlock x:Name="HexPreviewDesc" Text="바이너리 파일(.dll, .exe 등) 선택 시 미리보기 패널에 Hex 덤프를 표시합니다" Style="{StaticResource SettingsCardDesc}" />
                                     </StackPanel>
-                                    <ToggleSwitch x:Name="HexPreviewToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="False" />
+                                    <ToggleSwitch x:Name="HexPreviewToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="False" OnContent="" OffContent="" />
                                 </Grid>
                             </Border>
                         </StackPanel>
@@ -988,7 +994,7 @@
                                         <Border Style="{StaticResource CardIconContainer}">
                                             <FontIcon Glyph="&#xE74C;" Style="{StaticResource CardIconStyle}" />
                                         </Border>
-                                        <TextBlock Text="라이브러리" Style="{StaticResource SettingsCardLabel}" VerticalAlignment="Center" />
+                                        <TextBlock x:Name="LibraryLabel" Text="라이브러리" Style="{StaticResource SettingsCardLabel}" VerticalAlignment="Center" />
                                     </StackPanel>
 
                                     <Border Background="{ThemeResource SpanBgLayer2Brush}" CornerRadius="6" Padding="12,8" Margin="48,0,0,0">
@@ -1028,7 +1034,7 @@
                                         <Border Style="{StaticResource CardIconContainer}">
                                             <FontIcon Glyph="&#xE185;" Style="{StaticResource CardIconStyle}" />
                                         </Border>
-                                        <TextBlock Text="아이콘 폰트" Style="{StaticResource SettingsCardLabel}" VerticalAlignment="Center" />
+                                        <TextBlock x:Name="IconFontLabel" Text="아이콘 폰트" Style="{StaticResource SettingsCardLabel}" VerticalAlignment="Center" />
                                     </StackPanel>
 
                                     <Border Background="{ThemeResource SpanBgLayer2Brush}" CornerRadius="6" Padding="12,8" Margin="48,0,0,0">
@@ -1041,7 +1047,7 @@
                                                 <TextBlock Text="Remix Icon" FontSize="13" FontWeight="SemiBold" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
                                                 <TextBlock Text="Remix Design — Apache 2.0 License" FontSize="11" Foreground="{ThemeResource SpanTextTertiaryBrush}" />
                                             </StackPanel>
-                                            <TextBlock Grid.Column="1" Text="기본 아이콘 팩" FontSize="11" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center" />
+                                            <TextBlock x:Name="DefaultIconPackText" Grid.Column="1" Text="기본 아이콘 팩" FontSize="11" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center" />
                                         </Grid>
                                     </Border>
 
@@ -1055,7 +1061,7 @@
                                                 <TextBlock Text="Phosphor Icons" FontSize="13" FontWeight="SemiBold" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
                                                 <TextBlock Text="Phosphor Icons — MIT License" FontSize="11" Foreground="{ThemeResource SpanTextTertiaryBrush}" />
                                             </StackPanel>
-                                            <TextBlock Grid.Column="1" Text="선택 가능" FontSize="11" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center" />
+                                            <TextBlock x:Name="AvailableText1" Grid.Column="1" Text="선택 가능" FontSize="11" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center" />
                                         </Grid>
                                     </Border>
 
@@ -1069,7 +1075,7 @@
                                                 <TextBlock Text="Tabler Icons" FontSize="13" FontWeight="SemiBold" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
                                                 <TextBlock Text="Tabler — MIT License" FontSize="11" Foreground="{ThemeResource SpanTextTertiaryBrush}" />
                                             </StackPanel>
-                                            <TextBlock Grid.Column="1" Text="선택 가능" FontSize="11" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center" />
+                                            <TextBlock x:Name="AvailableText2" Grid.Column="1" Text="선택 가능" FontSize="11" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center" />
                                         </Grid>
                                     </Border>
                                 </StackPanel>

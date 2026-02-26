@@ -177,11 +177,11 @@ namespace Span
             if (selectedItems.Count == 1)
             {
                 var name = System.IO.Path.GetFileName(selectedItems[0].Path);
-                ViewModel.ShowToast($"\"{name}\" 복사됨");
+                ViewModel.ShowToast(string.Format(_loc.Get("Toast_Copied"), name));
             }
             else
             {
-                ViewModel.ShowToast($"{selectedItems.Count}개 항목 복사됨");
+                ViewModel.ShowToast(string.Format(_loc.Get("Toast_CopiedMultiple"), selectedItems.Count));
             }
 
             Helpers.DebugLogger.Log($"[Clipboard] Copied {_clipboardPaths.Count} item(s)");
@@ -230,11 +230,11 @@ namespace Span
             if (selectedItems.Count == 1)
             {
                 var name = System.IO.Path.GetFileName(selectedItems[0].Path);
-                ViewModel.ShowToast($"\"{name}\" 잘라내기 완료");
+                ViewModel.ShowToast(string.Format(_loc.Get("Toast_Cut"), name));
             }
             else
             {
-                ViewModel.ShowToast($"{selectedItems.Count}개 항목 잘라내기 완료");
+                ViewModel.ShowToast(string.Format(_loc.Get("Toast_CutMultiple"), selectedItems.Count));
             }
 
             Helpers.DebugLogger.Log($"[Clipboard] Cut {_clipboardPaths.Count} item(s)");
@@ -366,7 +366,7 @@ namespace Span
 
             if (created > 0)
             {
-                ViewModel.ShowToast($"{created} shortcut(s) created");
+                ViewModel.ShowToast(string.Format(_loc.Get("Toast_ShortcutsCreated"), created));
                 HandleRefresh();
             }
         }
@@ -1257,8 +1257,8 @@ namespace Span
             }
 
             ViewModel.ShowToast(paths.Count == 1
-                ? $"\"{System.IO.Path.GetFileName(paths[0])}\" {_loc.Get("Duplicated") ?? "duplicated"}"
-                : $"{paths.Count} items duplicated");
+                ? string.Format(_loc.Get("Toast_Duplicated"), System.IO.Path.GetFileName(paths[0]))
+                : string.Format(_loc.Get("Toast_DuplicatedMultiple"), paths.Count));
         }
 
         private static void CopyDirectoryRecursive(string sourceDir, string destDir)

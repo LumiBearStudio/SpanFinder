@@ -74,6 +74,12 @@ public sealed partial class SettingsModeView : UserControl
                 "en" => 1,
                 "ko" => 2,
                 "ja" => 3,
+                "zh-Hans" => 4,
+                "zh-Hant" => 5,
+                "de" => 6,
+                "es" => 7,
+                "fr" => 8,
+                "pt-BR" => 9,
                 _ => 0
             };
 
@@ -156,11 +162,11 @@ public sealed partial class SettingsModeView : UserControl
                 var gitSvc = App.Current.Services.GetService<Services.GitStatusService>();
                 if (gitSvc != null && gitSvc.IsAvailable)
                 {
-                    GitVersionLabel.Text = $"Git {gitSvc.GitVersion} 감지됨";
+                    GitVersionLabel.Text = string.Format(_loc?.Get("Settings_GitDetected") ?? "Git {0} detected", gitSvc.GitVersion);
                 }
                 else
                 {
-                    GitVersionLabel.Text = "Git이 설치되어 있지 않습니다";
+                    GitVersionLabel.Text = _loc?.Get("Settings_GitNotInstalled") ?? "Git is not installed";
                     GitIntegrationToggle.IsEnabled = false;
                 }
             }
@@ -323,6 +329,12 @@ public sealed partial class SettingsModeView : UserControl
             1 => "en",
             2 => "ko",
             3 => "ja",
+            4 => "zh-Hans",
+            5 => "zh-Hant",
+            6 => "de",
+            7 => "es",
+            8 => "fr",
+            9 => "pt-BR",
             _ => "system"
         };
         _settings.Language = lang;
@@ -386,6 +398,13 @@ public sealed partial class SettingsModeView : UserControl
         IconPackRestartText.Text = _loc.Get("Settings_IconPackRestart");
         FontLabel.Text = _loc.Get("Settings_Font");
         FontDesc.Text = _loc.Get("Settings_FontDesc");
+        // Custom themes
+        CustomThemesLabel.Text = _loc.Get("Settings_CustomThemes");
+        CustomThemesDesc.Text = _loc.Get("Settings_CustomThemesDesc");
+        DraculaDescText.Text = _loc.Get("Theme_DraculaDesc");
+        TokyoNightDescText.Text = _loc.Get("Theme_TokyoNightDesc");
+        CatppuccinDescText.Text = _loc.Get("Theme_CatppuccinDesc");
+        GruvboxDescText.Text = _loc.Get("Theme_GruvboxDesc");
 
         // Browsing
         BrowsingTitle.Text = _loc.Get("Settings_Browsing");
@@ -406,6 +425,11 @@ public sealed partial class SettingsModeView : UserControl
         DeleteConfirmDesc.Text = _loc.Get("Settings_DeleteConfirmDesc");
         UndoLabel.Text = _loc.Get("Settings_UndoHistory");
         UndoDesc.Text = _loc.Get("Settings_UndoHistoryDesc");
+        // Undo history items
+        Undo10.Content = string.Format(_loc.Get("Settings_UndoCount"), 10);
+        Undo20.Content = string.Format(_loc.Get("Settings_UndoCount"), 20);
+        Undo50.Content = string.Format(_loc.Get("Settings_UndoCount"), 50);
+        Undo100.Content = string.Format(_loc.Get("Settings_UndoCount"), 100);
 
         // Tools
         ToolsTitle.Text = _loc.Get("Settings_Tools");
@@ -438,6 +462,11 @@ public sealed partial class SettingsModeView : UserControl
         OpenSourceTitle.Text = _loc.Get("Settings_OpenSourceNav");
         OpenSourceDesc.Text = _loc.Get("Settings_OpenSourceDesc");
         FullLicenseLink.Text = _loc.Get("Settings_FullLicenseLink");
+        LibraryLabel.Text = _loc.Get("OpenSource_Libraries");
+        IconFontLabel.Text = _loc.Get("OpenSource_IconFonts");
+        DefaultIconPackText.Text = _loc.Get("OpenSource_DefaultPack");
+        AvailableText1.Text = _loc.Get("OpenSource_Available");
+        AvailableText2.Text = _loc.Get("OpenSource_Available");
     }
 
     // ── Update check animation ──

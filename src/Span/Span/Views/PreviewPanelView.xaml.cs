@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Span.Services;
 using Span.ViewModels;
 using Windows.Media.Playback;
 
@@ -8,11 +9,23 @@ namespace Span.Views
     public sealed partial class PreviewPanelView : UserControl
     {
         private bool _isCompactMode;
+        private LocalizationService? _loc;
         public PreviewPanelViewModel? ViewModel { get; private set; }
 
         public PreviewPanelView()
         {
             this.InitializeComponent();
+
+            this.Loaded += (s, e) =>
+            {
+                _loc = App.Current.Services.GetService(typeof(LocalizationService)) as LocalizationService;
+                LocalizeUI();
+                if (_loc != null) _loc.LanguageChanged += LocalizeUI;
+            };
+            this.Unloaded += (s, e) =>
+            {
+                if (_loc != null) _loc.LanguageChanged -= LocalizeUI;
+            };
         }
 
         public void Initialize(PreviewPanelViewModel viewModel)
@@ -86,6 +99,23 @@ namespace Span.Views
                 }
             }
             catch { /* ignore */ }
+        }
+
+        private void LocalizeUI()
+        {
+            if (_loc == null) return;
+            EmptyStateText.Text = _loc.Get("Preview_SelectFile");
+            LabelType.Text = _loc.Get("Preview_Type");
+            LabelSize.Text = _loc.Get("Preview_Size");
+            LabelCreated.Text = _loc.Get("Preview_Created");
+            LabelModified.Text = _loc.Get("Preview_Modified");
+            LabelResolution.Text = _loc.Get("Preview_Resolution");
+            LabelDuration.Text = _loc.Get("Preview_Duration");
+            LabelArtist.Text = _loc.Get("Preview_Artist");
+            LabelAlbum.Text = _loc.Get("Preview_Album");
+            LabelGit.Text = _loc.Get("Preview_Git");
+            LabelRecentCommits.Text = _loc.Get("Preview_RecentCommits");
+            LabelChangedFiles.Text = _loc.Get("Preview_ChangedFiles");
         }
 
         public void Cleanup()

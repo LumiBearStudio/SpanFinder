@@ -65,6 +65,7 @@ namespace Span.Views
         private bool _showDate = false;
         private double _columnWidth = 250;
         private SettingsService? _settings;
+        private LocalizationService? _loc;
 
         // F2 rename cycling state
         private int _renameSelectionCycle = 0;
@@ -111,6 +112,14 @@ namespace Span.Views
                 }
                 catch { }
 
+                try
+                {
+                    _loc = App.Current.Services.GetService(typeof(LocalizationService)) as LocalizationService;
+                    LocalizeUI();
+                    if (_loc != null) _loc.LanguageChanged += LocalizeUI;
+                }
+                catch { }
+
                 // Build initial items with ".." prepended
                 RebuildListItems();
             };
@@ -120,6 +129,7 @@ namespace Span.Views
 
         private void OnUnloaded(object sender, RoutedEventArgs e)
         {
+            if (_loc != null) _loc.LanguageChanged -= LocalizeUI;
             if (_isCleanedUp) return;
             PerformCleanup();
         }
@@ -137,6 +147,17 @@ namespace Span.Views
                 DispatcherQueue.TryEnqueue(() => RebuildListItems());
             }
         }
+
+        #region Localization
+
+        private void LocalizeUI()
+        {
+            if (_loc == null) return;
+            SizeToggle.Content = _loc.Get("Size");
+            DateToggle.Content = _loc.Get("Date");
+        }
+
+        #endregion
 
         #region Settings Save/Restore
 
@@ -391,7 +412,7 @@ namespace Span.Views
                 e.Cancel = true;
         }
 
-        private void OnItemRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
+        private async void OnItemRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
         {
             if (_settings != null && !_settings.ShowContextMenu) return;
             if (sender is Grid grid && ContextMenuService != null && ContextMenuHost != null)
@@ -412,12 +433,14 @@ namespace Span.Views
                     return;
                 }
 
+                e.Handled = true; // Prevent bubbling to empty area handler during await
+
                 MenuFlyout? flyout = null;
 
                 if (grid.DataContext is FolderViewModel realFolder)
-                    flyout = ContextMenuService.BuildFolderMenu(realFolder, ContextMenuHost);
+                    flyout = await ContextMenuService.BuildFolderMenuAsync(realFolder, ContextMenuHost);
                 else if (grid.DataContext is FileViewModel file)
-                    flyout = ContextMenuService.BuildFileMenu(file, ContextMenuHost);
+                    flyout = await ContextMenuService.BuildFileMenuAsync(file, ContextMenuHost);
 
                 if (flyout != null)
                 {
@@ -425,7 +448,6 @@ namespace Span.Views
                     {
                         Position = e.GetPosition(grid)
                     });
-                    e.Handled = true;
                 }
             }
         }

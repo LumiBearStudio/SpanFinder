@@ -12,12 +12,25 @@ namespace Span.Views
     {
         private readonly ActionLogService _logService;
         private readonly ObservableCollection<LogEntryDisplay> _entries = new();
+        private LocalizationService? _loc;
 
         public LogFlyoutContent(ActionLogService logService)
         {
             _logService = logService;
             this.InitializeComponent();
             LogListView.ItemsSource = _entries;
+
+            this.Loaded += (s, e) =>
+            {
+                _loc = App.Current.Services.GetService(typeof(LocalizationService)) as LocalizationService;
+                LocalizeUI();
+                if (_loc != null) _loc.LanguageChanged += LocalizeUI;
+            };
+            this.Unloaded += (s, e) =>
+            {
+                if (_loc != null) _loc.LanguageChanged -= LocalizeUI;
+            };
+
             Refresh();
         }
 
@@ -32,6 +45,14 @@ namespace Span.Views
 
             EmptyState.Visibility = _entries.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
             LogScrollViewer.Visibility = _entries.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private void LocalizeUI()
+        {
+            if (_loc == null) return;
+            TitleText.Text = _loc.Get("Log_Title");
+            ClearButton.Content = _loc.Get("Log_Clear");
+            EmptyStateText.Text = _loc.Get("Log_Empty");
         }
 
         private void OnClearClick(object sender, RoutedEventArgs e)

@@ -10,6 +10,12 @@ namespace Span.ViewModels
 {
     public partial class MainViewModel
     {
+        /// <summary>
+        /// Localized "Home" label resolved via DI (fallback to "Home" if unavailable).
+        /// </summary>
+        private string HomeLabel =>
+            App.Current.Services.GetService<LocalizationService>()?.Get("Home") ?? "Home";
+
         #region Tab Management
 
         /// <summary>
@@ -23,7 +29,7 @@ namespace Span.ViewModels
 
             var tab = new TabItem
             {
-                Header = "Home",
+                Header = HomeLabel,
                 Path = "",
                 ViewMode = ViewMode.Home,
                 IconSize = ViewMode.IconMedium,
@@ -242,9 +248,9 @@ namespace Span.ViewModels
 
             // Header도 동기화 (Home 모드 전환 후 저장 시 Header 불일치 방지)
             if (CurrentViewMode == ViewMode.Home)
-                tab.Header = "Home";
+                tab.Header = HomeLabel;
             else
-                tab.Header = tab.Explorer?.CurrentFolderName ?? "Home";
+                tab.Header = tab.Explorer?.CurrentFolderName ?? HomeLabel;
         }
 
         /// <summary>
@@ -335,12 +341,12 @@ namespace Span.ViewModels
 
             if (CurrentViewMode == ViewMode.Home)
             {
-                tab.Header = "Home";
+                tab.Header = HomeLabel;
                 tab.ViewMode = ViewMode.Home;
             }
             else
             {
-                tab.Header = tab.Explorer?.CurrentFolderName ?? "Home";
+                tab.Header = tab.Explorer?.CurrentFolderName ?? HomeLabel;
                 tab.ViewMode = CurrentViewMode;
             }
         }
@@ -415,7 +421,7 @@ namespace Span.ViewModels
                     var tab = new TabItem
                     {
                         Id = dto.Id,
-                        Header = tabViewMode == ViewMode.Home ? "Home" : dto.Header,
+                        Header = tabViewMode == ViewMode.Home ? HomeLabel : dto.Header,
                         Path = dto.Path,
                         ViewMode = tabViewMode,
                         IconSize = tabIconSize,

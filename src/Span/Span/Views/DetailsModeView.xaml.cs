@@ -97,6 +97,8 @@ namespace Span.Views
         // Unfiltered items cache (for re-applying filters)
         private List<FileSystemViewModel>? _unfilteredItems;
 
+        private LocalizationService? _loc;
+
         public DetailsModeView()
         {
             this.InitializeComponent();
@@ -125,6 +127,14 @@ namespace Span.Views
                         ApplyCheckboxMode(_settings.ShowCheckboxes);
                         _settings.SettingChanged += OnSettingChanged;
                     }
+                }
+                catch { }
+
+                try
+                {
+                    _loc = App.Current.Services.GetService(typeof(LocalizationService)) as LocalizationService;
+                    LocalizeUI();
+                    if (_loc != null) _loc.LanguageChanged += LocalizeUI;
                 }
                 catch { }
 
@@ -160,6 +170,8 @@ namespace Span.Views
         {
             try
             {
+                if (_loc != null) _loc.LanguageChanged -= LocalizeUI;
+
                 // Save sort settings (always, even if already cleaned up)
                 SaveSortSettings();
 
@@ -173,6 +185,24 @@ namespace Span.Views
                 Helpers.DebugLogger.Log($"[DetailsModeView.OnUnloaded] Error: {ex.Message}");
             }
         }
+
+        #region Localization
+
+        private void LocalizeUI()
+        {
+            if (_loc == null) return;
+            NameHeaderButton.Content = _loc.Get("Name");
+            DateHeaderButton.Content = _loc.Get("DateModified");
+            TypeHeaderButton.Content = _loc.Get("Type");
+            SizeHeaderButton.Content = _loc.Get("Size");
+            GitHeaderButton.Content = _loc.Get("ColumnGit");
+            ToolTipService.SetToolTip(NameFilterButton, _loc.Get("FilterName"));
+            ToolTipService.SetToolTip(DateFilterButton, _loc.Get("FilterDate"));
+            ToolTipService.SetToolTip(TypeFilterButton, _loc.Get("FilterType"));
+            ToolTipService.SetToolTip(SizeFilterButton, _loc.Get("FilterSize"));
+        }
+
+        #endregion
 
         #region Column Width Synchronization
 
@@ -377,17 +407,19 @@ namespace Span.Views
                 e.Cancel = true;
         }
 
-        private void OnItemRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
+        private async void OnItemRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
         {
             if (_settings != null && !_settings.ShowContextMenu) return;
             if (sender is Grid grid && ContextMenuService != null && ContextMenuHost != null)
             {
+                e.Handled = true; // Prevent bubbling to empty area handler during await
+
                 Microsoft.UI.Xaml.Controls.MenuFlyout? flyout = null;
 
                 if (grid.DataContext is FolderViewModel folder)
-                    flyout = ContextMenuService.BuildFolderMenu(folder, ContextMenuHost);
+                    flyout = await ContextMenuService.BuildFolderMenuAsync(folder, ContextMenuHost);
                 else if (grid.DataContext is FileViewModel file)
-                    flyout = ContextMenuService.BuildFileMenu(file, ContextMenuHost);
+                    flyout = await ContextMenuService.BuildFileMenuAsync(file, ContextMenuHost);
 
                 if (flyout != null)
                 {
@@ -395,7 +427,6 @@ namespace Span.Views
                     {
                         Position = e.GetPosition(grid)
                     });
-                    e.Handled = true;
                 }
             }
         }

@@ -194,12 +194,126 @@ namespace Span
             small.Text = _loc.Get("SmallIcons");
         }
 
+        /// <summary>
+        /// Applies all localized strings to UI elements that have hardcoded XAML text.
+        /// Called once at startup and again whenever <see cref="Services.LocalizationService.LanguageChanged"/> fires.
+        /// </summary>
         private void LocalizeViewModeTooltips()
         {
-            var tip = _loc.Get("ViewModeSwitch");
-            ToolTipService.SetToolTip(ViewModeButton, tip);
-            ToolTipService.SetToolTip(LeftViewModeButton, tip);
-            ToolTipService.SetToolTip(RightViewModeButton, tip);
+            // --- Toolbar tooltips (single-pane mode) ---
+            ToolTipService.SetToolTip(NewTabButton, _loc.Get("Tooltip_NewTab"));
+            ToolTipService.SetToolTip(BackButton, _loc.Get("Tooltip_Back"));
+            ToolTipService.SetToolTip(ForwardButton, _loc.Get("Tooltip_Forward"));
+            ToolTipService.SetToolTip(UpButton, _loc.Get("Tooltip_Up"));
+            ToolTipService.SetToolTip(CopyPathButton, _loc.Get("Tooltip_CopyPath"));
+            ToolTipService.SetToolTip(NewFolderButton, _loc.Get("Tooltip_NewFolder"));
+            ToolTipService.SetToolTip(NewItemDropdown, _loc.Get("Tooltip_NewFile"));
+            ToolTipService.SetToolTip(ToolbarCutButton, _loc.Get("Tooltip_Cut"));
+            ToolTipService.SetToolTip(ToolbarCopyButton, _loc.Get("Tooltip_Copy"));
+            ToolTipService.SetToolTip(ToolbarPasteButton, _loc.Get("Tooltip_Paste"));
+            ToolTipService.SetToolTip(ToolbarRenameButton, _loc.Get("Tooltip_Rename"));
+            ToolTipService.SetToolTip(ToolbarDeleteButton, _loc.Get("Tooltip_Delete"));
+            ToolTipService.SetToolTip(SortButton, _loc.Get("Tooltip_Sort"));
+            ToolTipService.SetToolTip(SplitViewButton, _loc.Get("Tooltip_SplitView"));
+            ToolTipService.SetToolTip(PreviewToggleButton, _loc.Get("Tooltip_Preview"));
+
+            // View mode button tooltip (all three: main, left, right)
+            var vmTip = _loc.Get("ViewModeSwitch");
+            ToolTipService.SetToolTip(ViewModeButton, vmTip);
+            ToolTipService.SetToolTip(LeftViewModeButton, vmTip);
+            ToolTipService.SetToolTip(RightViewModeButton, vmTip);
+
+            // Sidebar bottom bar tooltips
+            ToolTipService.SetToolTip(HelpButton, _loc.Get("Tooltip_Help"));
+            ToolTipService.SetToolTip(LogButton, _loc.Get("Tooltip_Log"));
+            ToolTipService.SetToolTip(SettingsButton, _loc.Get("Tooltip_Settings"));
+
+            // --- Search & Address bar placeholders ---
+            SearchBox.PlaceholderText = _loc.Get("SearchPlaceholder");
+            AddressBarAutoSuggest.PlaceholderText = _loc.Get("AddressBarPlaceholder");
+
+            // --- Sidebar section labels ---
+            SidebarHomeText.Text = _loc.Get("Home");
+            SidebarFavoritesText.Text = _loc.Get("Favorites");
+            SidebarLocalDrivesText.Text = _loc.Get("LocalDrives");
+            SidebarCloudText.Text = _loc.Get("Cloud");
+            SidebarNetworkText.Text = _loc.Get("Network");
+
+            // --- Main sort menu items ---
+            SortByNameItem.Text = _loc.Get("Name");
+            SortByDateItem.Text = _loc.Get("Date");
+            SortBySizeItem.Text = _loc.Get("Size");
+            SortByTypeItem.Text = _loc.Get("Type");
+            SortAscendingItem.Text = _loc.Get("Ascending");
+            SortDescendingItem.Text = _loc.Get("Descending");
+            GroupBySubMenu.Text = _loc.Get("GroupBy");
+            GroupByNoneItem.Text = _loc.Get("None");
+            GroupByNameItem.Text = _loc.Get("Name");
+            GroupByTypeItem.Text = _loc.Get("Type");
+            GroupByDateItem.Text = _loc.Get("Date");
+            GroupBySizeItem.Text = _loc.Get("Size");
+
+            // --- Main view mode menu items ---
+            MainVm_Miller.Text = _loc.Get("MillerColumns");
+            MainVm_Details.Text = _loc.Get("Details");
+            MainVm_List.Text = _loc.Get("ViewMode_List");
+            MainVm_Icons.Text = _loc.Get("Icons");
+            MainVm_ExtraLarge.Text = _loc.Get("ExtraLargeIcons");
+            MainVm_Large.Text = _loc.Get("LargeIcons");
+            MainVm_Medium.Text = _loc.Get("MediumIcons");
+            MainVm_Small.Text = _loc.Get("SmallIcons");
+
+            // --- Left pane tooltips ---
+            ToolTipService.SetToolTip(LeftBackButton, _loc.Get("Tooltip_Back"));
+            ToolTipService.SetToolTip(LeftForwardButton, _loc.Get("Tooltip_Forward"));
+            ToolTipService.SetToolTip(LeftUpButton, _loc.Get("Tooltip_Up"));
+            ToolTipService.SetToolTip(LeftCopyPathButton, _loc.Get("Tooltip_CopyPath"));
+            ToolTipService.SetToolTip(LeftSortButton, _loc.Get("Tooltip_Sort"));
+            ToolTipService.SetToolTip(LeftPreviewButton, _loc.Get("Tooltip_Preview"));
+
+            // Left pane sort menu items
+            LeftSortByNameItem.Text = _loc.Get("Name");
+            LeftSortByDateItem.Text = _loc.Get("Date");
+            LeftSortBySizeItem.Text = _loc.Get("Size");
+            LeftSortByTypeItem.Text = _loc.Get("Type");
+            LeftSortAscendingItem.Text = _loc.Get("Ascending");
+            LeftSortDescendingItem.Text = _loc.Get("Descending");
+
+            // Left pane view mode menu items
+            LeftVm_Miller.Text = _loc.Get("MillerColumns");
+            LeftVm_Details.Text = _loc.Get("Details");
+            LeftVm_List.Text = _loc.Get("ViewMode_List");
+            LeftVm_Icons.Text = _loc.Get("Icons");
+            LeftVm_ExtraLarge.Text = _loc.Get("ExtraLargeIcons");
+            LeftVm_Large.Text = _loc.Get("LargeIcons");
+            LeftVm_Medium.Text = _loc.Get("MediumIcons");
+            LeftVm_Small.Text = _loc.Get("SmallIcons");
+
+            // --- Right pane tooltips ---
+            ToolTipService.SetToolTip(RightBackButton, _loc.Get("Tooltip_Back"));
+            ToolTipService.SetToolTip(RightForwardButton, _loc.Get("Tooltip_Forward"));
+            ToolTipService.SetToolTip(RightUpButton, _loc.Get("Tooltip_Up"));
+            ToolTipService.SetToolTip(RightCopyPathButton, _loc.Get("Tooltip_CopyPath"));
+            ToolTipService.SetToolTip(RightSortButton, _loc.Get("Tooltip_Sort"));
+            ToolTipService.SetToolTip(RightPreviewButton, _loc.Get("Tooltip_Preview"));
+
+            // Right pane sort menu items
+            RightSortByNameItem.Text = _loc.Get("Name");
+            RightSortByDateItem.Text = _loc.Get("Date");
+            RightSortBySizeItem.Text = _loc.Get("Size");
+            RightSortByTypeItem.Text = _loc.Get("Type");
+            RightSortAscendingItem.Text = _loc.Get("Ascending");
+            RightSortDescendingItem.Text = _loc.Get("Descending");
+
+            // Right pane view mode menu items
+            RightVm_Miller.Text = _loc.Get("MillerColumns");
+            RightVm_Details.Text = _loc.Get("Details");
+            RightVm_List.Text = _loc.Get("ViewMode_List");
+            RightVm_Icons.Text = _loc.Get("Icons");
+            RightVm_ExtraLarge.Text = _loc.Get("ExtraLargeIcons");
+            RightVm_Large.Text = _loc.Get("LargeIcons");
+            RightVm_Medium.Text = _loc.Get("MediumIcons");
+            RightVm_Small.Text = _loc.Get("SmallIcons");
         }
 
         #endregion

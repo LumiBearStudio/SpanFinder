@@ -345,11 +345,8 @@ namespace Span
             _settings.SettingChanged += OnSettingChanged;
 
             // Connect Language setting to LocalizationService
-            var savedLang = _settings.Language;
-            if (savedLang != "system")
-            {
-                _loc.Language = savedLang;
-            }
+            // "system" resolves to OS locale via ResolveSystemLanguage()
+            _loc.Language = _settings.Language;
             LocalizeViewModeTooltips();
             _loc.LanguageChanged += LocalizeViewModeTooltips;
 
@@ -1775,7 +1772,7 @@ namespace Span
             if (saveChecked)
                 _ = connService.SaveConnectionsAsync();
 
-            ViewModel.ShowToast($"{connInfo.DisplayName}에 연결되었습니다.");
+            ViewModel.ShowToast(string.Format(_loc.Get("Toast_Connected"), connInfo.DisplayName));
 
             if (ViewModel.CurrentViewMode == ViewMode.Home)
                 ViewModel.SwitchViewMode(ViewMode.MillerColumns);
@@ -1845,7 +1842,7 @@ namespace Span
             if (connInfo == null)
             {
                 Helpers.DebugLogger.Log($"[Sidebar] 연결 정보를 찾을 수 없음: {connectionId}");
-                ViewModel.ShowToast("연결 정보를 찾을 수 없습니다. 연결이 삭제되었을 수 있습니다.");
+                ViewModel.ShowToast(_loc.Get("Toast_ConnectionNotFound"));
                 return;
             }
 
@@ -1885,13 +1882,13 @@ namespace Span
             if (string.IsNullOrEmpty(savedPassword))
             {
                 // 비밀번호 입력 대화상자
-                var passwordInput = new PasswordBox { PlaceholderText = "비밀번호" };
+                var passwordInput = new PasswordBox { PlaceholderText = _loc.Get("Password") };
                 var dialog = new ContentDialog
                 {
-                    Title = $"{connInfo.DisplayName} 연결",
+                    Title = string.Format(_loc.Get("ConnectionTitle"), connInfo.DisplayName),
                     Content = passwordInput,
-                    PrimaryButtonText = "연결",
-                    CloseButtonText = "취소",
+                    PrimaryButtonText = _loc.Get("Connect"),
+                    CloseButtonText = _loc.Get("Cancel"),
                     DefaultButton = ContentDialogButton.Primary,
                     XamlRoot = this.Content.XamlRoot
                 };
@@ -1924,22 +1921,22 @@ namespace Span
             }
             catch (Renci.SshNet.Common.SshAuthenticationException ex)
             {
-                await ShowRemoteConnectionError(connInfo, $"인증 실패: 사용자명 또는 비밀번호를 확인하세요.\n\n{ex.Message}");
+                await ShowRemoteConnectionError(connInfo, string.Format(_loc.Get("Toast_AuthFailed"), ex.Message));
                 return;
             }
             catch (System.Net.Sockets.SocketException ex)
             {
-                await ShowRemoteConnectionError(connInfo, $"서버에 연결할 수 없습니다.\n호스트({connInfo.Host}:{connInfo.Port})에 도달할 수 없거나 연결이 거부되었습니다.\n\n{ex.Message}");
+                await ShowRemoteConnectionError(connInfo, string.Format(_loc.Get("Toast_SocketError"), connInfo.Host, connInfo.Port, ex.Message));
                 return;
             }
             catch (TimeoutException ex)
             {
-                await ShowRemoteConnectionError(connInfo, $"연결 시간 초과: 서버가 응답하지 않습니다.\n\n{ex.Message}");
+                await ShowRemoteConnectionError(connInfo, string.Format(_loc.Get("Toast_TimeoutError"), ex.Message));
                 return;
             }
             catch (Exception ex)
             {
-                await ShowRemoteConnectionError(connInfo, $"서버에 연결할 수 없습니다.\n\n오류: {ex.Message}");
+                await ShowRemoteConnectionError(connInfo, string.Format(_loc.Get("Toast_ConnectionError"), ex.Message));
                 return;
             }
 
@@ -1948,7 +1945,7 @@ namespace Span
             connInfo.LastConnected = DateTime.Now;
             _ = connService.SaveConnectionsAsync();
 
-            ViewModel.ShowToast($"{connInfo.DisplayName}에 연결되었습니다.");
+            ViewModel.ShowToast(string.Format(_loc.Get("Toast_Connected"), connInfo.DisplayName));
 
             // Home 모드면 Miller로 전환 후 네비게이션
             if (ViewModel.CurrentViewMode == ViewMode.Home)
@@ -2411,31 +2408,31 @@ namespace Span
             }
         }
 
-        private void OnFolderRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
+        private async void OnFolderRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
         {
             if (!_settings.ShowContextMenu) return;
             if (sender is Grid grid && grid.DataContext is FolderViewModel folder)
             {
-                var flyout = _contextMenuService.BuildFolderMenu(folder, this);
+                e.Handled = true; // Prevent bubbling to empty area handler during await
+                var flyout = await _contextMenuService.BuildFolderMenuAsync(folder, this);
                 flyout.ShowAt(grid, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
                 {
                     Position = e.GetPosition(grid)
                 });
-                e.Handled = true;
             }
         }
 
-        private void OnFileRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
+        private async void OnFileRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
         {
             if (!_settings.ShowContextMenu) return;
             if (sender is Grid grid && grid.DataContext is FileViewModel file)
             {
-                var flyout = _contextMenuService.BuildFileMenu(file, this);
+                e.Handled = true; // Prevent bubbling to empty area handler during await
+                var flyout = await _contextMenuService.BuildFileMenuAsync(file, this);
                 flyout.ShowAt(grid, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
                 {
                     Position = e.GetPosition(grid)
                 });
-                e.Handled = true;
             }
         }
 

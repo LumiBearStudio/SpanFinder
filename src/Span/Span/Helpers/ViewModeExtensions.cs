@@ -1,9 +1,23 @@
+using Microsoft.Extensions.DependencyInjection;
 using Span.Models;
+using Span.Services;
 
 namespace Span.Helpers
 {
     public static class ViewModeExtensions
     {
+        /// <summary>
+        /// Resolve LocalizationService via DI for static helper access.
+        /// </summary>
+        private static string Loc(string key, string fallback)
+        {
+            try
+            {
+                return App.Current.Services.GetService<LocalizationService>()?.Get(key) ?? fallback;
+            }
+            catch { return fallback; }
+        }
+
         /// <summary>
         /// ViewMode가 Icon 계열인지 확인
         /// </summary>
@@ -34,15 +48,15 @@ namespace Span.Helpers
         {
             return mode switch
             {
-                ViewMode.MillerColumns => "Miller Columns",
-                ViewMode.Details => "Details",
-                ViewMode.IconSmall => "Small Icons",
-                ViewMode.IconMedium => "Medium Icons",
-                ViewMode.IconLarge => "Large Icons",
-                ViewMode.IconExtraLarge => "Extra Large Icons",
-                ViewMode.Home => "Home",
-                ViewMode.Settings => "Settings",
-                ViewMode.List => "List",
+                ViewMode.MillerColumns => Loc("MillerColumns", "Miller Columns"),
+                ViewMode.Details => Loc("Details", "Details"),
+                ViewMode.IconSmall => Loc("SmallIcons", "Small Icons"),
+                ViewMode.IconMedium => Loc("MediumIcons", "Medium Icons"),
+                ViewMode.IconLarge => Loc("LargeIcons", "Large Icons"),
+                ViewMode.IconExtraLarge => Loc("ExtraLargeIcons", "Extra Large Icons"),
+                ViewMode.Home => Loc("Home", "Home"),
+                ViewMode.Settings => Loc("Settings", "Settings"),
+                ViewMode.List => Loc("ViewMode_List", "List"),
                 _ => mode.ToString()
             };
         }

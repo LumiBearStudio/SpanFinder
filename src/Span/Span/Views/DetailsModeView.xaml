@@ -44,7 +44,7 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <Button Grid.Column="0"
+                <Button x:Name="NameHeaderButton" Grid.Column="0"
                         Content="Name"
                         Click="OnHeaderClick"
                         Tag="Name"
@@ -91,7 +91,7 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <Button Grid.Column="0"
+                <Button x:Name="DateHeaderButton" Grid.Column="0"
                         Content="Date Modified"
                         Click="OnHeaderClick"
                         Tag="DateModified"
@@ -138,7 +138,7 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <Button Grid.Column="0"
+                <Button x:Name="TypeHeaderButton" Grid.Column="0"
                         Content="Type"
                         Click="OnHeaderClick"
                         Tag="Type"
@@ -185,7 +185,7 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <Button Grid.Column="0"
+                <Button x:Name="SizeHeaderButton" Grid.Column="0"
                         Content="Size"
                         Click="OnHeaderClick"
                         Tag="Size"
@@ -228,7 +228,7 @@
 
             <!-- Git Status Header -->
             <Grid Grid.Column="9" x:Name="GitHeaderContainer">
-                <Button Content="Git"
+                <Button x:Name="GitHeaderButton" Content="Git"
                         Click="OnHeaderClick"
                         Tag="Git"
                         HorizontalAlignment="Stretch"

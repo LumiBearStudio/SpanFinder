@@ -288,7 +288,8 @@ namespace Span
                 case "Language":
                     DispatcherQueue.TryEnqueue(() =>
                     {
-                        _loc.Language = value as string ?? "en";
+                        var lang = value as string ?? "system";
+                        _loc.Language = lang;
                     });
                     break;
 

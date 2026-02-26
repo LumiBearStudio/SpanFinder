@@ -1,3 +1,4 @@
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Span.Services;
 
@@ -12,6 +13,15 @@ namespace Span.Views
             _loc = App.Current.Services.GetService(typeof(LocalizationService)) as LocalizationService;
             this.InitializeComponent();
             LocalizeUI();
+
+            this.Loaded += (s, e) =>
+            {
+                if (_loc != null) _loc.LanguageChanged += LocalizeUI;
+            };
+            this.Unloaded += (s, e) =>
+            {
+                if (_loc != null) _loc.LanguageChanged -= LocalizeUI;
+            };
         }
 
         private void LocalizeUI()

@@ -130,7 +130,7 @@
                         RightTapped="OnForwardButtonRightTapped">
                     <FontIcon Glyph="&#xE72A;" FontSize="14"/>
                 </Button>
-                <Button Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="위로" Click="OnNavigateUpClick">
+                <Button x:Name="UpButton" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="위로" Click="OnNavigateUpClick">
                     <FontIcon Glyph="&#xE74A;" FontSize="14"/>
                 </Button>
             </StackPanel>
@@ -237,7 +237,7 @@
                 <!-- New Folder (split button: click=new folder, dropdown=new item menu) -->
                 <StackPanel Orientation="Horizontal" Spacing="0"
                             Background="Transparent" CornerRadius="4">
-                    <Button Style="{StaticResource UnifiedButtonStyle}"
+                    <Button x:Name="NewFolderButton" Style="{StaticResource UnifiedButtonStyle}"
                             ToolTipService.ToolTip="새 폴더 (Ctrl+Shift+N)"
                             Click="OnNewFolderClick"
                             Padding="8,4,4,4">
@@ -417,7 +417,7 @@
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
                             <FontIcon Grid.Column="0" Glyph="&#xE80F;" FontSize="16" Foreground="{ThemeResource SpanAccentBrush}" Margin="0,0,12,0"/>
-                            <TextBlock Grid.Column="1" Text="홈" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="SidebarHomeText" Grid.Column="1" Text="홈" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
                         </Grid>
 
                         <!-- Separator -->
@@ -427,7 +427,7 @@
                         <StackPanel AllowDrop="True"
                                     DragOver="OnFavoritesDragOver"
                                     Drop="OnFavoritesDrop">
-                        <TextBlock Text="즐겨찾기"
+                        <TextBlock x:Name="SidebarFavoritesText" Text="즐겨찾기"
                                    Style="{StaticResource CaptionTextBlockStyle}"
                                    Foreground="{ThemeResource SpanTextTertiaryBrush}"
                                    FontWeight="SemiBold"
@@ -524,7 +524,7 @@
                                     <RotateTransform Angle="{x:Bind helpers:ConverterHelpers.ChevronAngle(ViewModel.IsLocalDrivesExpanded), Mode=OneWay}"/>
                                 </FontIcon.RenderTransform>
                             </FontIcon>
-                            <TextBlock Grid.Column="1" Text="로컬 디스크"
+                            <TextBlock x:Name="SidebarLocalDrivesText" Grid.Column="1" Text="로컬 디스크"
                                        Style="{StaticResource CaptionTextBlockStyle}"
                                        Foreground="{ThemeResource SpanTextTertiaryBrush}" FontWeight="SemiBold"
                                        VerticalAlignment="Center"/>
@@ -567,7 +567,7 @@
                                         <RotateTransform Angle="{x:Bind helpers:ConverterHelpers.ChevronAngle(ViewModel.IsCloudDrivesExpanded), Mode=OneWay}"/>
                                     </FontIcon.RenderTransform>
                                 </FontIcon>
-                                <TextBlock Grid.Column="1" Text="클라우드"
+                                <TextBlock x:Name="SidebarCloudText" Grid.Column="1" Text="클라우드"
                                            Style="{StaticResource CaptionTextBlockStyle}"
                                            Foreground="{ThemeResource SpanTextTertiaryBrush}" FontWeight="SemiBold"
                                            VerticalAlignment="Center"/>
@@ -611,7 +611,7 @@
                                         <RotateTransform Angle="{x:Bind helpers:ConverterHelpers.ChevronAngle(ViewModel.IsNetworkDrivesExpanded), Mode=OneWay}"/>
                                     </FontIcon.RenderTransform>
                                 </FontIcon>
-                                <TextBlock Grid.Column="1" Text="네트워크"
+                                <TextBlock x:Name="SidebarNetworkText" Grid.Column="1" Text="네트워크"
                                            Style="{StaticResource CaptionTextBlockStyle}"
                                            Foreground="{ThemeResource SpanTextTertiaryBrush}" FontWeight="SemiBold"
                                            VerticalAlignment="Center"/>
@@ -705,21 +705,21 @@
                                    Fill="{x:Bind LeftPaneAccentBrush(ViewModel.ActivePane), Mode=OneWay}"/>
                         <!-- Nav buttons -->
                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="0" VerticalAlignment="Center" Margin="2,0,0,0">
-                            <Button Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="뒤로 (Alt+Left)"
+                            <Button x:Name="LeftBackButton" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="뒤로 (Alt+Left)"
                                     Tag="Left" Click="OnPaneGoBackClick"
                                     RightTapped="OnPaneBackButtonRightTapped"
                                     IsEnabled="{x:Bind ViewModel.CanGoBack, Mode=OneWay}"
                                     Padding="4" MinWidth="0" MinHeight="0" Width="26" Height="26">
                                 <FontIcon Glyph="&#xE72B;" FontSize="11"/>
                             </Button>
-                            <Button Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="앞으로 (Alt+Right)"
+                            <Button x:Name="LeftForwardButton" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="앞으로 (Alt+Right)"
                                     Tag="Left" Click="OnPaneGoForwardClick"
                                     RightTapped="OnPaneForwardButtonRightTapped"
                                     IsEnabled="{x:Bind ViewModel.CanGoForward, Mode=OneWay}"
                                     Padding="4" MinWidth="0" MinHeight="0" Width="26" Height="26">
                                 <FontIcon Glyph="&#xE72A;" FontSize="11"/>
                             </Button>
-                            <Button Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="위로"
+                            <Button x:Name="LeftUpButton" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="위로"
                                     Tag="Left" Click="OnPaneNavigateUpClick"
                                     Padding="4" MinWidth="0" MinHeight="0" Width="26" Height="26">
                                 <FontIcon Glyph="&#xE74A;" FontSize="11"/>
@@ -776,34 +776,34 @@
                         <!-- Pane actions: CopyPath | Sort, ViewMode, Preview -->
                         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="0" VerticalAlignment="Center" Margin="0,0,2,0">
                             <!-- CopyPath -->
-                            <Button Style="{StaticResource UnifiedButtonStyle}"
+                            <Button x:Name="LeftCopyPathButton" Style="{StaticResource UnifiedButtonStyle}"
                                     ToolTipService.ToolTip="경로 복사" Tag="Left" Click="OnPaneCopyPathClick"
                                     Padding="4" MinWidth="0" MinHeight="0" Width="26" Height="26">
                                 <FontIcon Glyph="&#xE8C8;" FontSize="11"/>
                             </Button>
                             <Rectangle Width="1" Height="16" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="2,0" VerticalAlignment="Center"/>
                             <!-- Sort -->
-                            <Button Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="정렬"
+                            <Button x:Name="LeftSortButton" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="정렬"
                                     Padding="4" MinWidth="0" MinHeight="0" Width="26" Height="26">
                                 <Button.Flyout>
                                     <MenuFlyout Placement="Bottom" Opening="OnLeftPaneSortMenuOpening">
-                                        <MenuFlyoutItem Text="이름" Click="OnSortByName">
+                                        <MenuFlyoutItem x:Name="LeftSortByNameItem" Text="이름" Click="OnSortByName">
                                             <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE8C1;"/></MenuFlyoutItem.Icon>
                                         </MenuFlyoutItem>
-                                        <MenuFlyoutItem Text="날짜" Click="OnSortByDate">
+                                        <MenuFlyoutItem x:Name="LeftSortByDateItem" Text="날짜" Click="OnSortByDate">
                                             <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE787;"/></MenuFlyoutItem.Icon>
                                         </MenuFlyoutItem>
-                                        <MenuFlyoutItem Text="크기" Click="OnSortBySize">
+                                        <MenuFlyoutItem x:Name="LeftSortBySizeItem" Text="크기" Click="OnSortBySize">
                                             <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE91B;"/></MenuFlyoutItem.Icon>
                                         </MenuFlyoutItem>
-                                        <MenuFlyoutItem Text="종류" Click="OnSortByType">
+                                        <MenuFlyoutItem x:Name="LeftSortByTypeItem" Text="종류" Click="OnSortByType">
                                             <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE8FD;"/></MenuFlyoutItem.Icon>
                                         </MenuFlyoutItem>
                                         <MenuFlyoutSeparator/>
-                                        <MenuFlyoutItem Text="오름차순" Click="OnSortAscending">
+                                        <MenuFlyoutItem x:Name="LeftSortAscendingItem" Text="오름차순" Click="OnSortAscending">
                                             <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE74A;"/></MenuFlyoutItem.Icon>
                                         </MenuFlyoutItem>
-                                        <MenuFlyoutItem Text="내림차순" Click="OnSortDescending">
+                                        <MenuFlyoutItem x:Name="LeftSortDescendingItem" Text="내림차순" Click="OnSortDescending">
                                             <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE74B;"/></MenuFlyoutItem.Icon>
                                         </MenuFlyoutItem>
                                     </MenuFlyout>
@@ -837,7 +837,7 @@
                                 <FontIcon Glyph="&#xE8FD;" FontSize="11"/>
                             </Button>
                             <!-- Preview -->
-                            <Button Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="미리보기 패널"
+                            <Button x:Name="LeftPreviewButton" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="미리보기 패널"
                                     Tag="Left" Click="OnPanePreviewToggle"
                                     Padding="4" MinWidth="0" MinHeight="0" Width="26" Height="26">
                                 <FontIcon Glyph="&#xE8A0;" FontSize="11"/>
@@ -1214,19 +1214,19 @@
                                    Fill="{x:Bind RightPaneAccentBrush(ViewModel.ActivePane), Mode=OneWay}"/>
                         <!-- Nav buttons -->
                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="0" VerticalAlignment="Center" Margin="2,0,0,0">
-                            <Button Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="뒤로 (Alt+Left)"
+                            <Button x:Name="RightBackButton" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="뒤로 (Alt+Left)"
                                     Tag="Right" Click="OnPaneGoBackClick"
                                     RightTapped="OnPaneBackButtonRightTapped"
                                     Padding="4" MinWidth="0" MinHeight="0" Width="26" Height="26">
                                 <FontIcon Glyph="&#xE72B;" FontSize="11"/>
                             </Button>
-                            <Button Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="앞으로 (Alt+Right)"
+                            <Button x:Name="RightForwardButton" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="앞으로 (Alt+Right)"
                                     Tag="Right" Click="OnPaneGoForwardClick"
                                     RightTapped="OnPaneForwardButtonRightTapped"
                                     Padding="4" MinWidth="0" MinHeight="0" Width="26" Height="26">
                                 <FontIcon Glyph="&#xE72A;" FontSize="11"/>
                             </Button>
-                            <Button Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="위로"
+                            <Button x:Name="RightUpButton" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="위로"
                                     Tag="Right" Click="OnPaneNavigateUpClick"
                                     Padding="4" MinWidth="0" MinHeight="0" Width="26" Height="26">
                                 <FontIcon Glyph="&#xE74A;" FontSize="11"/>
@@ -1283,34 +1283,34 @@
                         <!-- Pane actions: CopyPath | Sort, ViewMode, Preview -->
                         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="0" VerticalAlignment="Center" Margin="0,0,2,0">
                             <!-- CopyPath -->
-                            <Button Style="{StaticResource UnifiedButtonStyle}"
+                            <Button x:Name="RightCopyPathButton" Style="{StaticResource UnifiedButtonStyle}"
                                     ToolTipService.ToolTip="경로 복사" Tag="Right" Click="OnPaneCopyPathClick"
                                     Padding="4" MinWidth="0" MinHeight="0" Width="26" Height="26">
                                 <FontIcon Glyph="&#xE8C8;" FontSize="11"/>
                             </Button>
                             <Rectangle Width="1" Height="16" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="2,0" VerticalAlignment="Center"/>
                             <!-- Sort -->
-                            <Button Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="정렬"
+                            <Button x:Name="RightSortButton" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="정렬"
                                     Padding="4" MinWidth="0" MinHeight="0" Width="26" Height="26">
                                 <Button.Flyout>
                                     <MenuFlyout Placement="Bottom" Opening="OnRightPaneSortMenuOpening">
-                                        <MenuFlyoutItem Text="이름" Click="OnSortByName">
+                                        <MenuFlyoutItem x:Name="RightSortByNameItem" Text="이름" Click="OnSortByName">
                                             <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE8C1;"/></MenuFlyoutItem.Icon>
                                         </MenuFlyoutItem>
-                                        <MenuFlyoutItem Text="날짜" Click="OnSortByDate">
+                                        <MenuFlyoutItem x:Name="RightSortByDateItem" Text="날짜" Click="OnSortByDate">
                                             <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE787;"/></MenuFlyoutItem.Icon>
                                         </MenuFlyoutItem>
-                                        <MenuFlyoutItem Text="크기" Click="OnSortBySize">
+                                        <MenuFlyoutItem x:Name="RightSortBySizeItem" Text="크기" Click="OnSortBySize">
                                             <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE91B;"/></MenuFlyoutItem.Icon>
                                         </MenuFlyoutItem>
-                                        <MenuFlyoutItem Text="종류" Click="OnSortByType">
+                                        <MenuFlyoutItem x:Name="RightSortByTypeItem" Text="종류" Click="OnSortByType">
                                             <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE8FD;"/></MenuFlyoutItem.Icon>
                                         </MenuFlyoutItem>
                                         <MenuFlyoutSeparator/>
-                                        <MenuFlyoutItem Text="오름차순" Click="OnSortAscending">
+                                        <MenuFlyoutItem x:Name="RightSortAscendingItem" Text="오름차순" Click="OnSortAscending">
                                             <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE74A;"/></MenuFlyoutItem.Icon>
                                         </MenuFlyoutItem>
-                                        <MenuFlyoutItem Text="내림차순" Click="OnSortDescending">
+                                        <MenuFlyoutItem x:Name="RightSortDescendingItem" Text="내림차순" Click="OnSortDescending">
                                             <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE74B;"/></MenuFlyoutItem.Icon>
                                         </MenuFlyoutItem>
                                     </MenuFlyout>
@@ -1344,7 +1344,7 @@
                                 <FontIcon Glyph="&#xE8FD;" FontSize="11"/>
                             </Button>
                             <!-- Preview -->
-                            <Button Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="미리보기 패널"
+                            <Button x:Name="RightPreviewButton" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="미리보기 패널"
                                     Tag="Right" Click="OnPanePreviewToggle"
                                     Padding="4" MinWidth="0" MinHeight="0" Width="26" Height="26">
                                 <FontIcon Glyph="&#xE8A0;" FontSize="11"/>

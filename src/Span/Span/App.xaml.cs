@@ -172,10 +172,8 @@ namespace Span
                 var settings = Services.GetRequiredService<Services.SettingsService>();
                 var loc = Services.GetRequiredService<Services.LocalizationService>();
                 var savedLang = settings.Language;
-                if (savedLang != "system")
-                {
-                    loc.Language = savedLang;
-                }
+                // Always apply — "system" resolves to OS locale, others force specific language
+                loc.Language = savedLang;
 
                 var iconService = Services.GetRequiredService<Services.IconService>();
                 await iconService.LoadAsync();

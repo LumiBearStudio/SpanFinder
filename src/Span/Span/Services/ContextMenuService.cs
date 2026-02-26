@@ -252,7 +252,7 @@ namespace Span.Services
             _settings = settingsService;
         }
 
-        public MenuFlyout BuildFileMenu(FileViewModel file, IContextMenuHost host)
+        public async Task<MenuFlyout> BuildFileMenuAsync(FileViewModel file, IContextMenuHost host)
         {
             var menu = new MenuFlyout();
             bool isRemote = FileSystemRouter.IsRemotePath(file.Path);
@@ -301,8 +301,8 @@ namespace Span.Services
                 menu.Items.Add(CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => _shellService.CopyPathToClipboard(file.Path)));
                 menu.Items.Add(CreateItem(_loc.Get("OpenInExplorer"), "\uED25", () => _shellService.OpenInExplorer(file.Path)));
 
-                // Shell extension items
-                AppendShellExtensionItems(menu, file.Path);
+                // Shell extension items (loaded before menu is shown)
+                await AppendShellExtensionItemsAsync(menu, file.Path);
 
                 menu.Items.Add(new MenuFlyoutSeparator());
                 menu.Items.Add(CreateItem(_loc.Get("Properties"), "\uE946", () => ShowProperties(file)));
@@ -314,7 +314,7 @@ namespace Span.Services
             return menu;
         }
 
-        public MenuFlyout BuildFolderMenu(FolderViewModel folder, IContextMenuHost host)
+        public async Task<MenuFlyout> BuildFolderMenuAsync(FolderViewModel folder, IContextMenuHost host)
         {
             var menu = new MenuFlyout();
             bool isRemote = FileSystemRouter.IsRemotePath(folder.Path);
@@ -355,8 +355,8 @@ namespace Span.Services
             if (!isRemote)
             {
                 menu.Items.Add(CreateItem(_loc.Get("OpenInExplorer"), "\uED25", () => _shellService.OpenInExplorer(folder.Path)));
-                // Shell extension items
-                AppendShellExtensionItems(menu, folder.Path);
+                // Shell extension items (loaded before menu is shown)
+                await AppendShellExtensionItemsAsync(menu, folder.Path);
             }
 
             menu.Items.Add(new MenuFlyoutSeparator());
@@ -458,7 +458,8 @@ namespace Span.Services
             var menu = new MenuFlyout();
 
             // New submenu: folder + common file types
-            var newSub = new MenuFlyoutSubItem { Text = _loc.Get("New"), Icon = new FontIcon { Glyph = "\uE710" } };
+            var newSub = new MenuFlyoutSubItem { Text = _loc.Get("New"), Icon = new FontIcon { Glyph = "\uE710", FontSize = 14 } };
+            ApplyCompact(newSub);
             newSub.Items.Add(CreateItem(_loc.Get("NewFolder"), "\uE8B7", () => host.PerformNewFolder(folderPath)));
             newSub.Items.Add(new MenuFlyoutSeparator());
             newSub.Items.Add(CreateItem(_loc.Get("NewTextDocument"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Text Document.txt")));
@@ -477,7 +478,8 @@ namespace Span.Services
             menu.Items.Add(new MenuFlyoutSeparator());
 
             // View submenu
-            var viewSub = new MenuFlyoutSubItem { Text = _loc.Get("View"), Icon = new FontIcon { Glyph = "\uE8FD" } };
+            var viewSub = new MenuFlyoutSubItem { Text = _loc.Get("View"), Icon = new FontIcon { Glyph = "\uE8FD", FontSize = 14 } };
+            ApplyCompact(viewSub);
             viewSub.Items.Add(CreateItem(_loc.Get("MillerColumns"), "\uF0E2", () => host.SwitchViewMode(ViewMode.MillerColumns)));
             viewSub.Items.Add(CreateItem(_loc.Get("Details"), "\uE8EF", () => host.SwitchViewMode(ViewMode.Details)));
             viewSub.Items.Add(new MenuFlyoutSeparator());
@@ -488,7 +490,8 @@ namespace Span.Services
             menu.Items.Add(viewSub);
 
             // Sort submenu
-            var sortSub = new MenuFlyoutSubItem { Text = _loc.Get("Sort"), Icon = new FontIcon { Glyph = "\uE8CB" } };
+            var sortSub = new MenuFlyoutSubItem { Text = _loc.Get("Sort"), Icon = new FontIcon { Glyph = "\uE8CB", FontSize = 14 } };
+            ApplyCompact(sortSub);
             sortSub.Items.Add(CreateItem(_loc.Get("Name"), "\uE8C1", () => host.ApplySort("Name")));
             sortSub.Items.Add(CreateItem(_loc.Get("Date"), "\uE787", () => host.ApplySort("Date")));
             sortSub.Items.Add(CreateItem(_loc.Get("Size"), "\uE91B", () => host.ApplySort("Size")));
@@ -500,18 +503,20 @@ namespace Span.Services
 
             // Group By submenu
             var currentGroup = host.CurrentGroupBy;
-            var groupSub = new MenuFlyoutSubItem { Text = _loc.Get("GroupBy"), Icon = new FontIcon { Glyph = "\uF168" } };
-            groupSub.Items.Add(new ToggleMenuFlyoutItem { Text = _loc.Get("None"), IsChecked = currentGroup == "None", Command = new Helpers.RelayCommand(() => host.ApplyGroupBy("None")) });
-            groupSub.Items.Add(new ToggleMenuFlyoutItem { Text = _loc.Get("Name"), IsChecked = currentGroup == "Name", Command = new Helpers.RelayCommand(() => host.ApplyGroupBy("Name")) });
-            groupSub.Items.Add(new ToggleMenuFlyoutItem { Text = _loc.Get("Type"), IsChecked = currentGroup == "Type", Command = new Helpers.RelayCommand(() => host.ApplyGroupBy("Type")) });
-            groupSub.Items.Add(new ToggleMenuFlyoutItem { Text = _loc.Get("Date"), IsChecked = currentGroup == "DateModified", Command = new Helpers.RelayCommand(() => host.ApplyGroupBy("DateModified")) });
-            groupSub.Items.Add(new ToggleMenuFlyoutItem { Text = _loc.Get("Size"), IsChecked = currentGroup == "Size", Command = new Helpers.RelayCommand(() => host.ApplyGroupBy("Size")) });
+            var groupSub = new MenuFlyoutSubItem { Text = _loc.Get("GroupBy"), Icon = new FontIcon { Glyph = "\uF168", FontSize = 14 } };
+            ApplyCompact(groupSub);
+            groupSub.Items.Add(CreateToggle(_loc.Get("None"), currentGroup == "None", () => host.ApplyGroupBy("None")));
+            groupSub.Items.Add(CreateToggle(_loc.Get("Name"), currentGroup == "Name", () => host.ApplyGroupBy("Name")));
+            groupSub.Items.Add(CreateToggle(_loc.Get("Type"), currentGroup == "Type", () => host.ApplyGroupBy("Type")));
+            groupSub.Items.Add(CreateToggle(_loc.Get("Date"), currentGroup == "DateModified", () => host.ApplyGroupBy("DateModified")));
+            groupSub.Items.Add(CreateToggle(_loc.Get("Size"), currentGroup == "Size", () => host.ApplyGroupBy("Size")));
             menu.Items.Add(groupSub);
 
             menu.Items.Add(new MenuFlyoutSeparator());
 
             // Selection submenu
-            var selectSub = new MenuFlyoutSubItem { Text = _loc.Get("Select"), Icon = new FontIcon { Glyph = "\uE762" } };
+            var selectSub = new MenuFlyoutSubItem { Text = _loc.Get("Select"), Icon = new FontIcon { Glyph = "\uE762", FontSize = 14 } };
+            ApplyCompact(selectSub);
             selectSub.Items.Add(CreateItem(_loc.Get("SelectAll") + "  Ctrl+A", "\uE8B3", () => host.PerformSelectAll()));
             selectSub.Items.Add(CreateItem(_loc.Get("SelectNone") + "  Ctrl+Shift+A", null, () => host.PerformSelectNone()));
             selectSub.Items.Add(CreateItem(_loc.Get("InvertSelection") + "  Ctrl+I", null, () => host.PerformInvertSelection()));
@@ -521,20 +526,16 @@ namespace Span.Services
         }
 
         /// <summary>
-        /// Enumerate shell extension items for the given path and append them to the menu.
-        /// Standard items (open, copy, delete, etc.) are filtered out — only third-party
-        /// extensions (Bandizip, 7-Zip, VS Code, etc.) are added.
-        /// </summary>
-        /// <summary>
-        /// Schedule async loading of shell extension items.
-        /// Menu is shown immediately; shell items are inserted when ready.
+        /// Asynchronously load shell extension items and append them to the menu.
+        /// This is awaited before the menu is shown, preventing visible flicker
+        /// from items being added after display.
         /// Uses dedicated STA thread with timeout to prevent UI blocking from
         /// unresponsive shell extensions.
         /// </summary>
-        private void AppendShellExtensionItems(MenuFlyout menu, string path)
+        private Task AppendShellExtensionItemsAsync(MenuFlyout menu, string path)
         {
-            if (OwnerHwnd == IntPtr.Zero) return;
-            _ = AppendShellExtensionItemsCoreAsync(menu, path);
+            if (OwnerHwnd == IntPtr.Zero) return Task.CompletedTask;
+            return AppendShellExtensionItemsCoreAsync(menu, path);
         }
 
         private async Task AppendShellExtensionItemsCoreAsync(MenuFlyout menu, string path)
@@ -590,8 +591,9 @@ namespace Span.Services
                     var editSub = new MenuFlyoutSubItem
                     {
                         Text = _loc.Get("EditWith"),
-                        Icon = new FontIcon { Glyph = "\uE70F" }
+                        Icon = new FontIcon { Glyph = "\uE70F", FontSize = 14 }
                     };
+                    ApplyCompact(editSub);
                     foreach (var ei in editEntries)
                         editSub.Items.Add(ei);
 
@@ -638,8 +640,12 @@ namespace Span.Services
                 if (filtered.Count > 0)
                 {
                     int insertAt = Math.Max(0, menu.Items.Count - 2);
-                    menu.Items.Insert(insertAt, new MenuFlyoutSeparator());
-                    insertAt++;
+                    // Only add separator if previous item isn't already one
+                    if (insertAt == 0 || !(menu.Items[insertAt - 1] is MenuFlyoutSeparator))
+                    {
+                        menu.Items.Insert(insertAt, new MenuFlyoutSeparator());
+                        insertAt++;
+                    }
                     foreach (var item in filtered)
                     {
                         menu.Items.Insert(insertAt, item);
@@ -664,6 +670,7 @@ namespace Span.Services
             if (shellItem.HasSubmenu)
             {
                 var subItem = new MenuFlyoutSubItem { Text = translatedText };
+                ApplyCompact(subItem);
                 foreach (var child in shellItem.Children!)
                 {
                     var childItem = ConvertShellItem(child);
@@ -676,8 +683,14 @@ namespace Span.Services
             if (string.IsNullOrWhiteSpace(translatedText))
                 return null;
 
-            var item = new MenuFlyoutItem { Text = translatedText };
-            item.IsEnabled = !shellItem.IsDisabled;
+            var item = new MenuFlyoutItem
+            {
+                Text = translatedText,
+                FontSize = 12,
+                Padding = CompactPadding,
+                MinHeight = 24,
+                IsEnabled = !shellItem.IsDisabled
+            };
 
             // Capture commandId and session reference for the click handler
             int cmdId = shellItem.CommandId;
@@ -893,13 +906,42 @@ namespace Span.Services
             catch { /* ignore if another dialog is open */ }
         }
 
+        private static readonly Microsoft.UI.Xaml.Thickness CompactPadding = new(10, 2, 10, 2);
+
         private static MenuFlyoutItem CreateItem(string text, string? glyph, Action action)
         {
-            var item = new MenuFlyoutItem { Text = text };
+            var item = new MenuFlyoutItem
+            {
+                Text = text,
+                FontSize = 12,
+                Padding = CompactPadding,
+                MinHeight = 24
+            };
             if (glyph != null)
             {
-                item.Icon = new FontIcon { Glyph = glyph };
+                item.Icon = new FontIcon { Glyph = glyph, FontSize = 14 };
             }
+            item.Click += (s, e) => action();
+            return item;
+        }
+
+        private static void ApplyCompact(MenuFlyoutSubItem sub)
+        {
+            sub.FontSize = 12;
+            sub.Padding = CompactPadding;
+            sub.MinHeight = 24;
+        }
+
+        private static ToggleMenuFlyoutItem CreateToggle(string text, bool isChecked, Action action)
+        {
+            var item = new ToggleMenuFlyoutItem
+            {
+                Text = text,
+                FontSize = 12,
+                Padding = CompactPadding,
+                MinHeight = 24,
+                IsChecked = isChecked
+            };
             item.Click += (s, e) => action();
             return item;
         }

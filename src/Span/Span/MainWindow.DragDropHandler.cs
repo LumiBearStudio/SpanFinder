@@ -101,7 +101,7 @@ namespace Span
                 e.DataView.Contains(StandardDataFormats.StorageItems))
             {
                 e.AcceptedOperation = DataPackageOperation.Link;
-                e.DragUIOverride.Caption = "즐겨찾기에 추가";
+                e.DragUIOverride.Caption = _loc.Get("DragAddToFavorites");
             }
         }
 

@@ -21,7 +21,7 @@
             <FontIcon Glyph="&#xE8A5;" FontSize="32"
                       Foreground="{ThemeResource SpanTextTertiaryBrush}"
                       HorizontalAlignment="Center" Margin="0,0,0,12"/>
-            <TextBlock Text="파일을 선택하면&#x000a;미리보기가 표시됩니다"
+            <TextBlock x:Name="EmptyStateText" Text="파일을 선택하면&#x000a;미리보기가 표시됩니다"
                        TextAlignment="Center" FontSize="13"
                        Foreground="{ThemeResource SpanTextTertiaryBrush}"/>
         </StackPanel>
@@ -184,7 +184,7 @@
                             <ColumnDefinition Width="72"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="종류" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="LabelType" Text="종류" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center"/>
                         <TextBlock Grid.Column="1" Text="{Binding FileType}" FontSize="12" IsTextSelectionEnabled="True" VerticalAlignment="Center"/>
                     </Grid>
 
@@ -194,7 +194,7 @@
                             <ColumnDefinition Width="72"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="크기" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="LabelSize" Text="크기" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center"/>
                         <TextBlock Grid.Column="1" Text="{Binding FileSizeFormatted}" FontSize="12" IsTextSelectionEnabled="True" VerticalAlignment="Center"/>
                     </Grid>
 
@@ -204,7 +204,7 @@
                             <ColumnDefinition Width="72"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="생성일" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="LabelCreated" Text="생성일" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center"/>
                         <TextBlock Grid.Column="1" Text="{Binding DateCreated}" FontSize="12" IsTextSelectionEnabled="True" VerticalAlignment="Center"/>
                     </Grid>
 
@@ -214,7 +214,7 @@
                             <ColumnDefinition Width="72"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="수정일" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="LabelModified" Text="수정일" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center"/>
                         <TextBlock Grid.Column="1" Text="{Binding DateModified}" FontSize="12" IsTextSelectionEnabled="True" VerticalAlignment="Center"/>
                     </Grid>
 
@@ -224,7 +224,7 @@
                             <ColumnDefinition Width="72"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="해상도" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="LabelResolution" Text="해상도" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center"/>
                         <TextBlock Grid.Column="1" Text="{Binding Dimensions}" FontSize="12" IsTextSelectionEnabled="True" VerticalAlignment="Center"/>
                     </Grid>
 
@@ -234,7 +234,7 @@
                             <ColumnDefinition Width="72"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="재생시간" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="LabelDuration" Text="재생시간" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center"/>
                         <TextBlock Grid.Column="1" Text="{Binding Duration}" FontSize="12" IsTextSelectionEnabled="True" VerticalAlignment="Center"/>
                     </Grid>
 
@@ -244,7 +244,7 @@
                             <ColumnDefinition Width="72"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="아티스트" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="LabelArtist" Text="아티스트" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center"/>
                         <TextBlock Grid.Column="1" Text="{Binding Artist}" FontSize="12" IsTextSelectionEnabled="True" VerticalAlignment="Center"/>
                     </Grid>
 
@@ -254,7 +254,7 @@
                             <ColumnDefinition Width="72"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="앨범" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="LabelAlbum" Text="앨범" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center"/>
                         <TextBlock Grid.Column="1" Text="{Binding Album}" FontSize="12" IsTextSelectionEnabled="True" VerticalAlignment="Center"/>
                     </Grid>
                 </StackPanel>
@@ -263,7 +263,7 @@
                 <StackPanel Visibility="{Binding HasGitInfo, Converter={StaticResource VisConv}}"
                             Spacing="4">
                     <Rectangle Height="1" Fill="{ThemeResource SpanBorderSubtleBrush}"/>
-                    <TextBlock Text="Git" FontSize="11" FontWeight="SemiBold"
+                    <TextBlock x:Name="LabelGit" Text="Git" FontSize="11" FontWeight="SemiBold"
                                Foreground="{ThemeResource SpanTextTertiaryBrush}" Margin="0,2,0,0"/>
                     <TextBlock Text="{Binding GitLastCommitInfo}"
                                FontSize="12" TextWrapping="Wrap" LineHeight="18"
@@ -293,7 +293,7 @@
                     <StackPanel Visibility="{Binding GitRecentCommits, Converter={StaticResource VisConv}}"
                                 Background="{ThemeResource SpanBgLayer1Brush}"
                                 CornerRadius="4" Padding="12" Spacing="2">
-                        <TextBlock Text="최근 커밋" FontSize="11" FontWeight="SemiBold"
+                        <TextBlock x:Name="LabelRecentCommits" Text="최근 커밋" FontSize="11" FontWeight="SemiBold"
                                    Foreground="{ThemeResource SpanTextTertiaryBrush}" Margin="0,0,0,4"/>
                         <TextBlock Text="{Binding GitRecentCommits}" FontFamily="Consolas"
                                    FontSize="11" LineHeight="16" TextWrapping="Wrap"
@@ -305,7 +305,7 @@
                     <StackPanel Visibility="{Binding GitChangedFiles, Converter={StaticResource VisConv}}"
                                 Background="{ThemeResource SpanBgLayer1Brush}"
                                 CornerRadius="4" Padding="12" Spacing="2">
-                        <TextBlock Text="변경 파일" FontSize="11" FontWeight="SemiBold"
+                        <TextBlock x:Name="LabelChangedFiles" Text="변경 파일" FontSize="11" FontWeight="SemiBold"
                                    Foreground="{ThemeResource SpanTextTertiaryBrush}" Margin="0,0,0,4"/>
                         <ScrollViewer HorizontalScrollBarVisibility="Auto" MaxHeight="200">
                             <TextBlock Text="{Binding GitChangedFiles}" FontFamily="Consolas"

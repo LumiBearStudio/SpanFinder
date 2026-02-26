@@ -21,11 +21,11 @@
             <FontIcon Grid.Column="0" Glyph="&#xE81C;" FontSize="14"
                       Foreground="{ThemeResource SpanTextSecondaryBrush}"
                       VerticalAlignment="Center" Margin="0,0,8,0"/>
-            <TextBlock Grid.Column="1" Text="작업 로그"
+            <TextBlock x:Name="TitleText" Grid.Column="1" Text="작업 로그"
                        FontSize="14" FontWeight="SemiBold"
                        Foreground="{ThemeResource SpanTextPrimaryBrush}"
                        VerticalAlignment="Center"/>
-            <Button Grid.Column="2" Content="지우기"
+            <Button x:Name="ClearButton" Grid.Column="2" Content="지우기"
                     FontSize="12" Padding="8,4"
                     Click="OnClearClick"
                     Background="Transparent"
@@ -40,7 +40,7 @@
             <FontIcon Glyph="&#xE81C;" FontSize="32"
                       Foreground="{ThemeResource SpanTextTertiaryBrush}"
                       HorizontalAlignment="Center"/>
-            <TextBlock Text="작업 기록이 없습니다"
+            <TextBlock x:Name="EmptyStateText" Text="작업 기록이 없습니다"
                        FontSize="13" TextAlignment="Center"
                        Foreground="{ThemeResource SpanTextTertiaryBrush}"/>
         </StackPanel>

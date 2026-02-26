@@ -14,7 +14,7 @@
         <!-- Mode Selection -->
         <Pivot x:Name="ModePivot" AutomationProperties.AutomationId="Pivot_RenameMode" SelectionChanged="OnPivotSelectionChanged">
             <!-- 찾기/바꾸기 -->
-            <PivotItem Header="찾기/바꾸기">
+            <PivotItem x:Name="PivotFindReplace" Header="찾기/바꾸기">
                 <StackPanel Spacing="8" Margin="0,8,0,0">
                     <TextBox x:Name="FindTextBox" AutomationProperties.AutomationId="TextBox_Find" Header="찾기" PlaceholderText="찾을 텍스트" TextChanged="OnInputChanged"/>
                     <TextBox x:Name="ReplaceTextBox" AutomationProperties.AutomationId="TextBox_Replace" Header="바꾸기" PlaceholderText="바꿀 텍스트" TextChanged="OnInputChanged"/>
@@ -26,7 +26,7 @@
             </PivotItem>
 
             <!-- 접두사/접미사 -->
-            <PivotItem Header="접두사/접미사">
+            <PivotItem x:Name="PivotPrefixSuffix" Header="접두사/접미사">
                 <StackPanel Spacing="8" Margin="0,8,0,0">
                     <TextBox x:Name="PrefixTextBox" AutomationProperties.AutomationId="TextBox_Prefix" Header="접두사" PlaceholderText="파일명 앞에 추가" TextChanged="OnInputChanged"/>
                     <TextBox x:Name="SuffixTextBox" AutomationProperties.AutomationId="TextBox_Suffix" Header="접미사" PlaceholderText="파일명 뒤에 추가 (확장자 전)" TextChanged="OnInputChanged"/>
@@ -34,10 +34,10 @@
             </PivotItem>
 
             <!-- 번호 매기기 -->
-            <PivotItem Header="번호 매기기">
+            <PivotItem x:Name="PivotNumbering" Header="번호 매기기">
                 <StackPanel Spacing="8" Margin="0,8,0,0">
                     <TextBox x:Name="PatternTextBox" AutomationProperties.AutomationId="TextBox_Pattern" Header="패턴" TextChanged="OnInputChanged"/>
-                    <TextBlock FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    <TextBlock x:Name="PatternHintText" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                Opacity="0.7">
                         <Run Text="{}{name}=원래 이름, {n}=번호, {ext}=확장자"/>
                     </TextBlock>
@@ -54,7 +54,7 @@
         </Pivot>
 
         <!-- Preview -->
-        <TextBlock Text="미리보기" FontWeight="SemiBold" Margin="0,4,0,0"/>
+        <TextBlock x:Name="PreviewHeader" Text="미리보기" FontWeight="SemiBold" Margin="0,4,0,0"/>
         <ListView x:Name="PreviewListView" AutomationProperties.AutomationId="List_RenamePreview"
                   MaxHeight="300"
                   SelectionMode="None"

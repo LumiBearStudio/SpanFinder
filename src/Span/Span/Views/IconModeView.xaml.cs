@@ -150,17 +150,22 @@ namespace Span.Views
                 e.Cancel = true;
         }
 
-        private void OnItemRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
+        private async void OnItemRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
         {
             if (_settings != null && !_settings.ShowContextMenu) return;
             if (e.OriginalSource is FrameworkElement fe && ContextMenuService != null && ContextMenuHost != null)
             {
+                // Check if this is actually a file/folder item (not empty area)
+                bool isItem = fe.DataContext is FolderViewModel || fe.DataContext is FileViewModel;
+                if (isItem)
+                    e.Handled = true; // Prevent bubbling during await
+
                 Microsoft.UI.Xaml.Controls.MenuFlyout? flyout = null;
 
                 if (fe.DataContext is FolderViewModel folder)
-                    flyout = ContextMenuService.BuildFolderMenu(folder, ContextMenuHost);
+                    flyout = await ContextMenuService.BuildFolderMenuAsync(folder, ContextMenuHost);
                 else if (fe.DataContext is FileViewModel file)
-                    flyout = ContextMenuService.BuildFileMenu(file, ContextMenuHost);
+                    flyout = await ContextMenuService.BuildFileMenuAsync(file, ContextMenuHost);
 
                 if (flyout != null)
                 {
@@ -168,7 +173,6 @@ namespace Span.Views
                     {
                         Position = e.GetPosition(fe)
                     });
-                    e.Handled = true;
                 }
                 else
                 {
