@@ -76,6 +76,7 @@ namespace Span
         // Miller Columns checkbox mode tracking
         private ListViewSelectionMode _millerSelectionMode = ListViewSelectionMode.Extended;
         private Thickness _densityPadding = new(12, 2, 12, 2); // comfortable default
+        private double _densityMinHeight = 24.0; // comfortable default — synced with Details/List views
         private static readonly Thickness _zeroPadding = new(0);
 
         // FileSystemWatcher 서비스 참조
@@ -221,6 +222,7 @@ namespace Span
 
             // Focus management on ViewMode change
             ViewModel.PropertyChanged += OnViewModelPropertyChanged;
+            ViewModel.LastTabClosed += (_, __) => this.Close();
 
             // Set ViewModel for Details, List and Icon views (left pane)
             DetailsView.ViewModel = ViewModel.Explorer;
@@ -229,9 +231,8 @@ namespace Span
             HomeView.MainViewModel = ViewModel;
             SettingsView.BackRequested += (s, e) => CloseCurrentSettingsTab();
 
-            // Breadcrumb ItemsSource — x:Bind 제거 후 code-behind에서 직접 설정
-            AddressBreadcrumbBar.ItemsSource = ViewModel.Explorer.PathSegments;
-            LeftPaneBreadcrumbRepeater.ItemsSource = ViewModel.Explorer.PathSegments;
+            // AddressBarControl에 PathSegments/CurrentPath 바인딩
+            SyncAddressBarControls(ViewModel.Explorer);
 
             // Set ViewModel for Details and Icon views (right pane)
             DetailsViewRight.IsRightPane = true;
@@ -389,8 +390,7 @@ namespace Span
 
                         DetailsView.ViewModel = ViewModel.Explorer;
                         IconView.ViewModel = ViewModel.Explorer;
-                        AddressBreadcrumbBar.ItemsSource = ViewModel.Explorer.PathSegments;
-                        LeftPaneBreadcrumbRepeater.ItemsSource = ViewModel.Explorer.PathSegments;
+                        SyncAddressBarControls(ViewModel.Explorer);
 
                         // Resubscribe column changes
                         if (_subscribedLeftExplorer != null)
@@ -461,6 +461,13 @@ namespace Span
 
                     // ── Per-Tab Miller Panels: 세션 복원 후 모든 탭에 대해 패널 생성 ──
                     InitializeTabMillerPanels();
+
+                    // ── 세션 복원 후 Explorer가 교체될 수 있으므로 전체 동기화 ──
+                    SyncAddressBarControls(ViewModel.Explorer);
+                    DetailsView.ViewModel = ViewModel.Explorer;
+                    ListView.ViewModel = ViewModel.Explorer;
+                    IconView.ViewModel = ViewModel.Explorer;
+                    ResubscribeLeftExplorer();
 
                     // ── Populate Favorites Tree and observe changes ──
                     ApplyFavoritesTreeMode(_settings.ShowFavoritesTree);
@@ -899,25 +906,32 @@ namespace Span
             var visual = ElementCompositionPreview.GetElementVisual(element);
             var compositor = visual.Compositor;
 
-            // Apple-style deceleration curve
+            // Smooth ease-out curve (macOS Finder style)
             var easing = compositor.CreateCubicBezierEasingFunction(
-                new Vector2(0.1f, 0.9f), new Vector2(0.2f, 1.0f));
+                new Vector2(0.0f, 0.0f), new Vector2(0.2f, 1.0f));
 
-            // Opacity: 0 → 1
+            // Clip-based reveal: column width expands from 0 to full width
+            // This creates a smooth "unfold from left" effect without X translation jitter
+            var columnWidth = (element as FrameworkElement)?.ActualWidth ?? 220;
+
+            var clip = compositor.CreateInsetClip();
+            clip.RightInset = (float)columnWidth;  // start fully clipped from right
+            visual.Clip = clip;
+
+            var reveal = compositor.CreateScalarKeyFrameAnimation();
+            reveal.InsertKeyFrame(0f, (float)columnWidth);
+            reveal.InsertKeyFrame(1f, 0f, easing);
+            reveal.Duration = TimeSpan.FromMilliseconds(200);
+
+            clip.StartAnimation("RightInset", reveal);
+
+            // Subtle fade-in for polish
             var fadeIn = compositor.CreateScalarKeyFrameAnimation();
-            fadeIn.InsertKeyFrame(0f, 0f);
+            fadeIn.InsertKeyFrame(0f, 0.5f);
             fadeIn.InsertKeyFrame(1f, 1f, easing);
-            fadeIn.Duration = TimeSpan.FromMilliseconds(250);
-
-            // Translation.X: 20 → 0
-            ElementCompositionPreview.SetIsTranslationEnabled(element, true);
-            var slideIn = compositor.CreateScalarKeyFrameAnimation();
-            slideIn.InsertKeyFrame(0f, 20f);
-            slideIn.InsertKeyFrame(1f, 0f, easing);
-            slideIn.Duration = TimeSpan.FromMilliseconds(250);
+            fadeIn.Duration = TimeSpan.FromMilliseconds(150);
 
             visual.StartAnimation("Opacity", fadeIn);
-            visual.StartAnimation("Translation.X", slideIn);
         }
 
         // =================================================================
@@ -1080,6 +1094,7 @@ namespace Span
             {
                 _subscribedLeftExplorer.Columns.CollectionChanged -= OnColumnsChanged;
                 _subscribedLeftExplorer.Columns.CollectionChanged -= OnLeftColumnsChangedForPreview;
+                _subscribedLeftExplorer.PropertyChanged -= OnLeftExplorerCurrentPathChanged;
             }
 
             // 새 Explorer 구독
@@ -1088,12 +1103,10 @@ namespace Span
             {
                 newExplorer.Columns.CollectionChanged += OnColumnsChanged;
                 newExplorer.Columns.CollectionChanged += OnLeftColumnsChangedForPreview;
+                newExplorer.PropertyChanged += OnLeftExplorerCurrentPathChanged;
 
-                // Breadcrumb ItemsSource — 보이는 컨트롤만 갱신 (Collapsed 컨테이너 재생성 방지)
-                if (!ViewModel.IsSplitViewEnabled && ViewModel.CurrentViewMode != ViewMode.Home)
-                    AddressBreadcrumbBar.ItemsSource = newExplorer.PathSegments;
-                if (ViewModel.IsSplitViewEnabled)
-                    LeftPaneBreadcrumbRepeater.ItemsSource = newExplorer.PathSegments;
+                // AddressBarControl 동기화
+                SyncAddressBarControls(newExplorer);
 
                 // Per-tab 인스턴스가 자체 ViewModel을 보유하므로 DetailsView/IconView 교체 불필요
                 // Miller Columns는 Per-Tab Panel이, Home은 MainViewModel 바인딩이 처리
@@ -1115,6 +1128,45 @@ namespace Span
 
             // FileSystemWatcher 감시 경로 갱신
             UpdateFileSystemWatcherPaths();
+        }
+
+        /// <summary>
+        /// AddressBarControl들에 PathSegments/CurrentPath를 동기화한다.
+        /// Left Explorer 교체, 탭 전환, 세션 복원 시 호출.
+        /// </summary>
+        private void SyncAddressBarControls(ExplorerViewModel? explorer)
+        {
+            if (explorer == null) return;
+
+            // Main (single-pane) 주소창
+            MainAddressBar.PathSegments = explorer.PathSegments;
+            MainAddressBar.CurrentPath = explorer.CurrentPath ?? string.Empty;
+
+            // Left pane 주소창 (split mode)
+            LeftAddressBar.PathSegments = explorer.PathSegments;
+            LeftAddressBar.CurrentPath = explorer.CurrentPath ?? string.Empty;
+
+            // Right pane 주소창 (split mode) — RightExplorer가 있으면 동기화
+            if (ViewModel.RightExplorer != null)
+            {
+                RightAddressBar.PathSegments = ViewModel.RightExplorer.PathSegments;
+                RightAddressBar.CurrentPath = ViewModel.RightExplorer.CurrentPath ?? string.Empty;
+            }
+        }
+
+        /// <summary>
+        /// LeftExplorer의 CurrentPath 변경 시 MainAddressBar/LeftAddressBar 동기화.
+        /// </summary>
+        private void OnLeftExplorerCurrentPathChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName != nameof(ExplorerViewModel.CurrentPath)) return;
+            if (sender is not ExplorerViewModel explorer) return;
+
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                MainAddressBar.CurrentPath = explorer.CurrentPath ?? string.Empty;
+                LeftAddressBar.CurrentPath = explorer.CurrentPath ?? string.Empty;
+            });
         }
 
         /// <summary>
@@ -1240,14 +1292,14 @@ namespace Span
                     {
                         new Models.PathSegment(_loc.Get("Home"), "::home::", isLast: false)
                     };
-                    AddressBreadcrumbBar.ItemsSource = homeSegments;
+                    MainAddressBar.PathSegments = homeSegments;
                     SearchBox.PlaceholderText = _loc.Get("HomeSearch");
                 }
                 else
                 {
                     HomeAddressIcon.Visibility = Visibility.Collapsed;
-                    if (AddressBreadcrumbBar.ItemsSource != explorer?.PathSegments)
-                        AddressBreadcrumbBar.ItemsSource = explorer?.PathSegments;
+                    MainAddressBar.PathSegments = explorer?.PathSegments;
+                    MainAddressBar.CurrentPath = explorer?.CurrentPath ?? string.Empty;
                     SearchBox.PlaceholderText = "Search (kind: size: ext: date:)";
                 }
             }
@@ -2413,13 +2465,17 @@ namespace Span
                 if (rootGrid != null && rootGrid.Padding != _zeroPadding)
                     rootGrid.Padding = _zeroPadding;
 
-                // Apply density padding to the DATA TEMPLATE Grid (inside ContentPresenter),
+                // Apply density padding + min height to the DATA TEMPLATE Grid (inside ContentPresenter),
                 // NOT the template root Grid (ContentBorder).
                 var cp = FindChild<ContentPresenter>(item);
                 if (cp != null)
                 {
                     var grid = FindChild<Grid>(cp);
-                    if (grid != null) grid.Padding = _densityPadding;
+                    if (grid != null)
+                    {
+                        grid.Padding = _densityPadding;
+                        grid.MinHeight = _densityMinHeight;
+                    }
                 }
             }
 

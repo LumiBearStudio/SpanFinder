@@ -61,7 +61,9 @@
         </Grid>
 
         <!-- Items GridView with vertical wrapping -->
-        <GridView x:Name="ListGridView" AutomationProperties.AutomationId="List_GridView" Grid.Row="1"
+        <Grid x:Name="ListViewWrapper" Grid.Row="1"
+              Loaded="OnListViewWrapperLoaded" Unloaded="OnListViewWrapperUnloaded">
+        <GridView x:Name="ListGridView" AutomationProperties.AutomationId="List_GridView"
                   SelectionMode="Extended"
                   CanDragItems="True"
                   DragItemsStarting="OnDragItemsStarting"
@@ -96,14 +98,7 @@
                 </ItemsPanelTemplate>
             </GridView.ItemsPanel>
             <GridView.ItemContainerStyle>
-                <Style TargetType="GridViewItem">
-                    <Setter Property="Padding" Value="0"/>
-                    <Setter Property="Margin" Value="0"/>
-                    <Setter Property="MinHeight" Value="24"/>
-                    <Setter Property="MinWidth" Value="0"/>
-                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                    <Setter Property="VerticalContentAlignment" Value="Center"/>
-                </Style>
+                <StaticResource ResourceKey="ListViewItemStyle"/>
             </GridView.ItemContainerStyle>
             <GridView.ItemTemplate>
                 <DataTemplate x:DataType="vm:FileSystemViewModel">
@@ -135,7 +130,7 @@
                                    Text="{x:Bind TruncatedDisplayName, Mode=OneWay}"
                                    VerticalAlignment="Center"
                                    TextTrimming="CharacterEllipsis"
-                                   FontSize="12"
+                                   FontSize="13"
                                    Padding="4,0"
                                    Visibility="{x:Bind vm:FileSystemViewModel.NotRenaming(IsRenaming), Mode=OneWay}"/>
 
@@ -144,7 +139,7 @@
                                  Text="{x:Bind EditableName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                  Visibility="{x:Bind IsRenaming, Mode=OneWay}"
                                  VerticalAlignment="Center"
-                                 Padding="2" MinHeight="0" FontSize="12"
+                                 Padding="2" MinHeight="0" FontSize="13"
                                  LostFocus="OnRenameTextBoxLostFocus"
                                  KeyDown="OnRenameTextBoxKeyDown"/>
 
@@ -171,5 +166,6 @@
                 </DataTemplate>
             </GridView.ItemTemplate>
         </GridView>
+        </Grid>
     </Grid>
 </UserControl>

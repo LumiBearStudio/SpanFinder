@@ -213,29 +213,6 @@ namespace Span
         }
 
         /// <summary>
-        /// 주소 표시줄 빈 공간 클릭 → 편집 모드 전환.
-        /// </summary>
-        /// <summary>
-        /// 주소 표시줄 빈 공간 클릭 → 편집 모드 전환.
-        /// </summary>
-        private void OnAddressBarContainerClicked(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
-        {
-            // 홈 모드에서는 편집 모드 불필요
-            if (ViewModel.CurrentViewMode == ViewMode.Home) return;
-
-            // BreadcrumbBar 항목 클릭은 ItemClicked에서 처리하므로
-            // 빈 공간 클릭만 편집 모드로 전환
-            var element = e.OriginalSource as DependencyObject;
-            while (element != null && element != AddressBarContainer)
-            {
-                if (element is Button || element is ItemsRepeater) return;
-                element = VisualTreeHelper.GetParent(element);
-            }
-
-            ShowAddressBarEditMode();
-        }
-
-        /// <summary>
         /// Navigate to parent folder (Up button clicked).
         /// </summary>
         private void OnNavigateUpClick(object sender, RoutedEventArgs e)
@@ -460,175 +437,57 @@ namespace Span
 
         #endregion
 
-        #region Address Bar Edit Mode
+        #region Address Bar Control Events
 
         /// <summary>
-        /// 편집 모드 표시: 브레드크럼 숨기고 AutoSuggestBox 표시.
+        /// 주소 표시줄 편집 모드 표시 (Ctrl+L, Alt+D에서 호출).
         /// </summary>
         private void ShowAddressBarEditMode()
         {
-            AddressBreadcrumbScroller.Visibility = Visibility.Collapsed;
-            AddressBarAutoSuggest.Visibility = Visibility.Visible;
-            AddressBarAutoSuggest.Text = ViewModel.ActiveExplorer.CurrentPath;
-            AddressBarAutoSuggest.Focus(FocusState.Keyboard);
-
-            // Select all text after focus (dispatch to ensure focus is applied first)
-            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
-            {
-                if (_isClosed) return;
-                // AutoSuggestBox doesn't have SelectAll, but we can access the inner TextBox
-                var textBox = FindChild<TextBox>(AddressBarAutoSuggest);
-                textBox?.SelectAll();
-            });
+            GetActiveAddressBar().EnterEditMode();
         }
 
         /// <summary>
-        /// 브레드크럼 모드로 복귀: AutoSuggestBox 숨기고 브레드크럼 표시.
+        /// AddressBarControl breadcrumb 세그먼트 클릭 → 해당 경로로 네비게이션.
         /// </summary>
-        private void ShowAddressBarBreadcrumbMode()
+        private void OnAddressBarBreadcrumbClicked(object sender, Controls.BreadcrumbClickEventArgs e)
         {
-            AddressBarAutoSuggest.Visibility = Visibility.Collapsed;
-            AddressBarAutoSuggest.ItemsSource = null;
-            AddressBreadcrumbScroller.Visibility = Visibility.Visible;
-        }
-
-        /// <summary>
-        /// AutoSuggestBox 텍스트 변경 시 폴더 자동완성 제안.
-        /// </summary>
-        private void OnAddressBarTextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
-        {
-            if (args.Reason != AutoSuggestionBoxTextChangeReason.UserInput) return;
-
-            var text = sender.Text?.Trim();
-            if (string.IsNullOrEmpty(text))
+            if (e.FullPath == "::home::")
             {
-                sender.ItemsSource = null;
+                ViewModel.SwitchViewMode(ViewMode.Home);
                 return;
             }
 
-            // Expand environment variables (%APPDATA%, %USERPROFILE%, etc.)
-            var expanded = Environment.ExpandEnvironmentVariables(text);
-
-            try
-            {
-                string? parentDir;
-                string prefix;
-
-                // If text ends with '\', list all children of that directory
-                if (expanded.EndsWith('\\') || expanded.EndsWith('/'))
-                {
-                    parentDir = expanded;
-                    prefix = string.Empty;
-                }
-                else
-                {
-                    parentDir = System.IO.Path.GetDirectoryName(expanded);
-                    prefix = System.IO.Path.GetFileName(expanded);
-                }
-
-                if (string.IsNullOrEmpty(parentDir) || !System.IO.Directory.Exists(parentDir))
-                {
-                    // Try matching drive letters (C, D, etc.)
-                    if (text.Length <= 2)
-                    {
-                        var drives = System.IO.DriveInfo.GetDrives()
-                            .Where(d => d.IsReady && d.Name.StartsWith(text, StringComparison.OrdinalIgnoreCase))
-                            .Select(d => d.Name)
-                            .Take(10)
-                            .ToList();
-                        sender.ItemsSource = drives.Count > 0 ? drives : null;
-                    }
-                    else
-                    {
-                        sender.ItemsSource = null;
-                    }
-                    return;
-                }
-
-                var suggestions = new System.IO.DirectoryInfo(parentDir)
-                    .GetDirectories()
-                    .Where(d => (d.Attributes & System.IO.FileAttributes.Hidden) == 0)
-                    .Where(d => string.IsNullOrEmpty(prefix) || d.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-                    .OrderBy(d => d.Name)
-                    .Take(10)
-                    .Select(d => d.FullName)
-                    .ToList();
-
-                sender.ItemsSource = suggestions.Count > 0 ? suggestions : null;
-            }
-            catch
-            {
-                // Access denied or invalid path — no suggestions
-                sender.ItemsSource = null;
-            }
+            // Determine which explorer to navigate
+            var explorer = ResolveExplorerForAddressBar(sender);
+            _ = explorer.NavigateToPath(e.FullPath);
         }
 
         /// <summary>
-        /// 자동완성 항목 선택 시 해당 경로로 텍스트 설정.
+        /// AddressBarControl chevron 클릭 → 서브폴더 드롭다운 표시.
         /// </summary>
-        private void OnAddressBarSuggestionChosen(AutoSuggestBox sender, AutoSuggestBoxSuggestionChosenEventArgs args)
+        private void OnAddressBarChevronClicked(object sender, Controls.BreadcrumbClickEventArgs e)
         {
-            if (args.SelectedItem is string path)
-            {
-                sender.Text = path;
-            }
+            var explorer = ResolveExplorerForAddressBar(sender);
+            ShowBreadcrumbChevronFlyout(e.FullPath, e.SourceButton as Button, explorer);
         }
 
         /// <summary>
-        /// Enter 키 또는 제안 항목 클릭 시 네비게이션.
+        /// AddressBarControl 경로 입력 완료 → 네비게이션.
         /// </summary>
-        private void OnAddressBarQuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
+        private void OnAddressBarPathNavigated(object sender, string path)
         {
-            var path = args.QueryText?.Trim();
-            if (string.IsNullOrEmpty(path)) return;
-
-            // Expand environment variables
-            path = Environment.ExpandEnvironmentVariables(path);
+            var explorer = ResolveExplorerForAddressBar(sender);
 
             if (System.IO.Directory.Exists(path))
             {
-                _ = ViewModel.ActiveExplorer.NavigateToPath(path);
+                _ = explorer.NavigateToPath(path);
             }
             else if (System.IO.File.Exists(path))
             {
-                // Navigate to parent and select the file
                 var parent = System.IO.Path.GetDirectoryName(path);
                 if (!string.IsNullOrEmpty(parent))
-                {
-                    _ = ViewModel.ActiveExplorer.NavigateToPath(parent);
-                }
-            }
-
-            ShowAddressBarBreadcrumbMode();
-        }
-
-        /// <summary>
-        /// 주소 표시줄 포커스 잃으면 브레드크럼 모드로 복귀.
-        /// </summary>
-        private void OnAddressBarLostFocus(object sender, RoutedEventArgs e)
-        {
-            // Delay slightly to allow suggestion clicks to process
-            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
-            {
-                if (_isClosed) return;
-                // Only hide if the AutoSuggestBox no longer has focus
-                if (!AddressBarAutoSuggest.FocusState.HasFlag(FocusState.Keyboard) &&
-                    !AddressBarAutoSuggest.FocusState.HasFlag(FocusState.Pointer))
-                {
-                    ShowAddressBarBreadcrumbMode();
-                }
-            });
-        }
-
-        /// <summary>
-        /// AutoSuggestBox에서 Escape 키 처리 → 브레드크럼 모드로 복귀.
-        /// </summary>
-        private void OnAddressBarAutoSuggestKeyDown(object sender, KeyRoutedEventArgs e)
-        {
-            if (e.Key == Windows.System.VirtualKey.Escape)
-            {
-                ShowAddressBarBreadcrumbMode();
-                e.Handled = true;
+                    _ = explorer.NavigateToPath(parent);
             }
         }
 
@@ -643,6 +502,87 @@ namespace Span
                 var dataPackage = new DataPackage();
                 dataPackage.SetText(path);
                 Clipboard.SetContent(dataPackage);
+                ViewModel.ShowToast(_loc.Get("Toast_PathCopied"), 2000);
+            }
+        }
+
+        /// <summary>
+        /// 현재 활성 AddressBarControl 반환 (단일/좌/우).
+        /// </summary>
+        private Controls.AddressBarControl GetActiveAddressBar()
+        {
+            if (!ViewModel.IsSplitViewEnabled) return MainAddressBar;
+            return ViewModel.ActivePane == ActivePane.Left ? LeftAddressBar : RightAddressBar;
+        }
+
+        /// <summary>
+        /// AddressBarControl sender에서 해당하는 ExplorerViewModel 결정.
+        /// </summary>
+        private ExplorerViewModel ResolveExplorerForAddressBar(object sender)
+        {
+            if (ReferenceEquals(sender, RightAddressBar))
+            {
+                ViewModel.ActivePane = ActivePane.Right;
+                return ViewModel.RightExplorer;
+            }
+            if (ReferenceEquals(sender, LeftAddressBar))
+            {
+                ViewModel.ActivePane = ActivePane.Left;
+                return ViewModel.LeftExplorer;
+            }
+            // MainAddressBar → use ActiveExplorer
+            return ViewModel.ActiveExplorer;
+        }
+
+        /// <summary>
+        /// Chevron flyout 표시 공통 로직.
+        /// </summary>
+        private void ShowBreadcrumbChevronFlyout(string fullPath, Button? btn, ExplorerViewModel explorer)
+        {
+            if (btn == null) return;
+
+            try
+            {
+                if (!System.IO.Directory.Exists(fullPath)) return;
+
+                string[] dirs;
+                try { dirs = System.IO.Directory.GetDirectories(fullPath); }
+                catch (UnauthorizedAccessException) { return; }
+
+                if (dirs.Length == 0) return;
+                Array.Sort(dirs, StringComparer.OrdinalIgnoreCase);
+
+                string? currentChildPath = null;
+                if (!string.IsNullOrEmpty(explorer.CurrentPath) &&
+                    explorer.CurrentPath.StartsWith(fullPath, StringComparison.OrdinalIgnoreCase) &&
+                    explorer.CurrentPath.Length > fullPath.TrimEnd('\\').Length + 1)
+                {
+                    string remainder = explorer.CurrentPath.Substring(fullPath.TrimEnd('\\').Length + 1);
+                    string childName = remainder.Split('\\')[0];
+                    currentChildPath = System.IO.Path.Combine(fullPath, childName);
+                }
+
+                var flyout = new MenuFlyout();
+                foreach (var dir in dirs)
+                {
+                    var item = new MenuFlyoutItem { Text = System.IO.Path.GetFileName(dir) };
+                    string dirPath = dir;
+
+                    if (currentChildPath != null &&
+                        dir.Equals(currentChildPath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        item.Icon = new FontIcon { Glyph = "\uE73E" };
+                    }
+
+                    item.Click += (s, args) => _ = explorer.NavigateToPath(dirPath);
+                    flyout.Items.Add(item);
+                }
+
+                flyout.ShowAt(btn);
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[Breadcrumb] Chevron error: {ex.Message}");
             }
         }
 

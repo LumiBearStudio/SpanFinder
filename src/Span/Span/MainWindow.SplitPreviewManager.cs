@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.Extensions.DependencyInjection;
 using Span.Models;
@@ -228,9 +229,8 @@ namespace Span
             ToolTipService.SetToolTip(LogButton, _loc.Get("Tooltip_Log"));
             ToolTipService.SetToolTip(SettingsButton, _loc.Get("Tooltip_Settings"));
 
-            // --- Search & Address bar placeholders ---
+            // --- Search placeholder ---
             SearchBox.PlaceholderText = _loc.Get("SearchPlaceholder");
-            AddressBarAutoSuggest.PlaceholderText = _loc.Get("AddressBarPlaceholder");
 
             // --- Sidebar section labels ---
             SidebarHomeText.Text = _loc.Get("Home");
@@ -331,175 +331,16 @@ namespace Span
 
         #endregion
 
-        #region Breadcrumb Scroll / Overflow
+        // Breadcrumb scroll/overflow and breadcrumb click/chevron logic
+        // are now handled internally by AddressBarControl.
+        // Events are dispatched via OnAddressBarBreadcrumbClicked / OnAddressBarChevronClicked
+        // in MainWindow.NavigationManager.cs.
 
-        /// <summary>
-        /// Auto-scroll breadcrumb to the right end so the last segment is fully visible.
-        /// Also defers overflow indicator update after scroll completes.
-        /// </summary>
-        private void OnBreadcrumbScrollerSizeChanged(object sender, SizeChangedEventArgs e)
-        {
-            if (sender is ScrollViewer sv)
-            {
-                sv.ChangeView(sv.ScrollableWidth, null, null, true);
-                DispatcherQueue.TryEnqueue(() => UpdateBreadcrumbOverflow(sv));
-            }
-        }
-
-        private void OnBreadcrumbContentSizeChanged(object sender, SizeChangedEventArgs e)
-        {
-            // When breadcrumb content changes, scroll to show the last segment
-            if (sender is FrameworkElement fe && fe.Parent is ScrollViewer sv)
-            {
-                sv.ChangeView(sv.ScrollableWidth, null, null, true);
-                DispatcherQueue.TryEnqueue(() => UpdateBreadcrumbOverflow(sv));
-            }
-        }
-
-        /// <summary>
-        /// Update overflow indicator visibility when breadcrumb is scrolled.
-        /// Shows "..." at the left edge when earlier path segments are hidden.
-        /// </summary>
-        private void OnBreadcrumbScrollerViewChanged(object? sender, ScrollViewerViewChangedEventArgs e)
-        {
-            if (sender is ScrollViewer sv)
-                UpdateBreadcrumbOverflow(sv);
-        }
-
-        /// <summary>
-        /// Show/hide the overflow "..." indicator based on scroll position.
-        /// When HorizontalOffset > 0, leftmost segments are hidden -> show indicator.
-        /// </summary>
-        private static void UpdateBreadcrumbOverflow(ScrollViewer sv)
-        {
-            if (sv.Parent is not Grid grid) return;
-            foreach (var child in grid.Children)
-            {
-                if (child is Border border && border.Tag as string == "overflow")
-                {
-                    border.Visibility = sv.HorizontalOffset > 0
-                        ? Visibility.Visible
-                        : Visibility.Collapsed;
-                    break;
-                }
-            }
-        }
-
-        #endregion
-
-        #region Pane Breadcrumb Navigation
-
-        /// <summary>
-        /// Breadcrumb click in per-pane path header.
-        /// Detects which pane the button belongs to and navigates accordingly.
-        /// </summary>
-        private void OnPaneBreadcrumbClick(object sender, RoutedEventArgs e)
-        {
-            if (sender is Button btn && btn.Tag is string fullPath)
-            {
-                // 홈 breadcrumb 클릭 → 홈으로 전환
-                if (fullPath == "::home::")
-                {
-                    ViewModel.SwitchViewMode(ViewMode.Home);
-                    return;
-                }
-
-                // Detect pane from visual tree
-                if (IsDescendant(RightPaneContainer, btn))
-                {
-                    ViewModel.ActivePane = ActivePane.Right;
-                    _ = ViewModel.RightExplorer.NavigateToPath(fullPath);
-                }
-                else
-                {
-                    ViewModel.ActivePane = ActivePane.Left;
-                    _ = ViewModel.LeftExplorer.NavigateToPath(fullPath);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Breadcrumb chevron click: show subfolders of this segment as a dropdown.
-        /// Clicking a subfolder navigates into it, replacing the path from this point onward.
-        /// </summary>
-        private void OnBreadcrumbChevronClick(object sender, RoutedEventArgs e)
-        {
-            if (sender is not Button btn || btn.Tag is not string fullPath) return;
-
-            try
-            {
-                // Show children (subfolders) of the clicked segment's path.
-                if (!System.IO.Directory.Exists(fullPath)) return;
-
-                string[] dirs;
-                try
-                {
-                    dirs = System.IO.Directory.GetDirectories(fullPath);
-                }
-                catch (UnauthorizedAccessException)
-                {
-                    return;
-                }
-
-                if (dirs.Length == 0) return;
-
-                Array.Sort(dirs, StringComparer.OrdinalIgnoreCase);
-
-                // Determine which pane this breadcrumb belongs to
-                bool isRight = IsDescendant(RightPaneContainer, btn);
-                var explorer = isRight ? ViewModel.RightExplorer : ViewModel.Explorer;
-
-                // Figure out which child is currently selected (the next segment in the path)
-                string? currentChildPath = null;
-                if (!string.IsNullOrEmpty(explorer.CurrentPath) &&
-                    explorer.CurrentPath.StartsWith(fullPath, StringComparison.OrdinalIgnoreCase) &&
-                    explorer.CurrentPath.Length > fullPath.TrimEnd('\\').Length + 1)
-                {
-                    // Extract the immediate child folder from the current path
-                    string remainder = explorer.CurrentPath.Substring(fullPath.TrimEnd('\\').Length + 1);
-                    string childName = remainder.Split('\\')[0];
-                    currentChildPath = System.IO.Path.Combine(fullPath, childName);
-                }
-
-                var flyout = new MenuFlyout();
-
-                foreach (var dir in dirs)
-                {
-                    var item = new MenuFlyoutItem { Text = System.IO.Path.GetFileName(dir) };
-                    string dirPath = dir;
-
-                    // Mark the currently active child with a checkmark
-                    if (currentChildPath != null &&
-                        dir.Equals(currentChildPath, StringComparison.OrdinalIgnoreCase))
-                    {
-                        item.Icon = new FontIcon { Glyph = "\uE73E" };
-                    }
-
-                    item.Click += (s, args) =>
-                    {
-                        if (isRight)
-                        {
-                            ViewModel.ActivePane = ActivePane.Right;
-                            _ = ViewModel.RightExplorer.NavigateToPath(dirPath);
-                        }
-                        else
-                        {
-                            ViewModel.ActivePane = ActivePane.Left;
-                            _ = ViewModel.Explorer.NavigateToPath(dirPath);
-                        }
-                    };
-                    flyout.Items.Add(item);
-                }
-
-                flyout.ShowAt(btn);
-            }
-            catch (Exception ex)
-            {
-                Helpers.DebugLogger.Log($"[Breadcrumb] Chevron error: {ex.Message}");
-            }
-        }
-
-        #endregion
+        // ──── Legacy handlers removed ────
+        // OnBreadcrumbScrollerSizeChanged, OnBreadcrumbContentSizeChanged,
+        // OnBreadcrumbScrollerViewChanged, UpdateBreadcrumbOverflow,
+        // OnPaneBreadcrumbClick, OnBreadcrumbChevronClick
+        // are all now internal to AddressBarControl.
 
         #region Split View Toggle
 
@@ -510,6 +351,11 @@ namespace Span
             ToggleSplitView();
         }
 
+        /// <summary>
+        /// RightExplorer PropertyChanged 구독 — RightAddressBar 동기화용
+        /// </summary>
+        private PropertyChangedEventHandler? _rightExplorerAddressBarHandler;
+
         private void ToggleSplitView()
         {
             ViewModel.IsSplitViewEnabled = !ViewModel.IsSplitViewEnabled;
@@ -519,12 +365,20 @@ namespace Span
                 SplitterCol.Width = new GridLength(2, GridUnitType.Pixel);
                 RightPaneCol.Width = new GridLength(1, GridUnitType.Star);
 
+                // Sync left pane breadcrumb — 비활성 상태에서 탭 전환 시 갱신 안 된 경우 보정
+                LeftAddressBar.PathSegments = ViewModel.Explorer.PathSegments;
+                LeftAddressBar.CurrentPath = ViewModel.Explorer.CurrentPath;
+
                 // Initialize right pane with a real filesystem path
                 if (ViewModel.RightExplorer.Columns.Count == 0 ||
                     ViewModel.RightExplorer.CurrentPath == "PC")
                 {
                     NavigateRightPaneToRealPath();
                 }
+
+                // RightExplorer 네비게이션 시 RightAddressBar 자동 동기화
+                SyncRightAddressBar();
+                SubscribeRightExplorerForAddressBar();
 
                 // Set active pane to right and focus it after UI has updated
                 ViewModel.ActivePane = ActivePane.Right;
@@ -537,11 +391,52 @@ namespace Span
                 SplitterCol.Width = new GridLength(0);
                 RightPaneCol.Width = new GridLength(0);
 
+                // Sync main address bar — Split 모드에서 갱신 안 된 경우 보정
+                MainAddressBar.PathSegments = ViewModel.Explorer.PathSegments;
+                MainAddressBar.CurrentPath = ViewModel.Explorer.CurrentPath;
+
+                // RightExplorer 구독 해제
+                UnsubscribeRightExplorerForAddressBar();
+
                 // Reset active pane to left and focus it
                 ViewModel.ActivePane = ActivePane.Left;
                 FocusActivePane();
 
                 Helpers.DebugLogger.Log("[MainWindow] Split View disabled");
+            }
+        }
+
+        private void SyncRightAddressBar()
+        {
+            if (ViewModel.RightExplorer != null)
+            {
+                RightAddressBar.PathSegments = ViewModel.RightExplorer.PathSegments;
+                RightAddressBar.CurrentPath = ViewModel.RightExplorer.CurrentPath ?? string.Empty;
+            }
+        }
+
+        private void SubscribeRightExplorerForAddressBar()
+        {
+            UnsubscribeRightExplorerForAddressBar();
+            if (ViewModel.RightExplorer == null) return;
+
+            _rightExplorerAddressBarHandler = (s, e) =>
+            {
+                if (e.PropertyName == nameof(ExplorerViewModel.CurrentPath) ||
+                    e.PropertyName == nameof(ExplorerViewModel.PathSegments))
+                {
+                    DispatcherQueue.TryEnqueue(() => SyncRightAddressBar());
+                }
+            };
+            ViewModel.RightExplorer.PropertyChanged += _rightExplorerAddressBarHandler;
+        }
+
+        private void UnsubscribeRightExplorerForAddressBar()
+        {
+            if (_rightExplorerAddressBarHandler != null && ViewModel.RightExplorer != null)
+            {
+                ViewModel.RightExplorer.PropertyChanged -= _rightExplorerAddressBarHandler;
+                _rightExplorerAddressBarHandler = null;
             }
         }
 
@@ -591,6 +486,7 @@ namespace Span
                     var dataPackage = new DataPackage();
                     dataPackage.SetText(path);
                     Clipboard.SetContent(dataPackage);
+                    ViewModel.ShowToast(_loc.Get("Toast_PathCopied"), 2000);
                 }
             }
         }

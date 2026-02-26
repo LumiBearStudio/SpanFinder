@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="Span.Controls.AddressBarControl"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:models="using:Span.Models"
+    Tapped="OnContainerTapped">
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Breadcrumb mode -->
+        <ScrollViewer x:Name="BreadcrumbScroller"
+                      HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled"
+                      HorizontalScrollMode="Auto" VerticalScrollMode="Disabled"
+                      Padding="2,6,2,0"
+                      SizeChanged="OnScrollerSizeChanged"
+                      ViewChanged="OnScrollerViewChanged">
+            <ItemsRepeater x:Name="BreadcrumbRepeater"
+                           SizeChanged="OnContentSizeChanged">
+                <ItemsRepeater.Layout>
+                    <StackLayout Orientation="Horizontal" Spacing="0"/>
+                </ItemsRepeater.Layout>
+                <ItemsRepeater.ItemTemplate>
+                    <DataTemplate x:DataType="models:PathSegment">
+                        <StackPanel Orientation="Horizontal">
+                            <Button Content="{x:Bind Name}" Tag="{x:Bind FullPath}"
+                                    Click="OnSegmentClick"
+                                    Background="Transparent" BorderThickness="0"
+                                    Padding="6,2" MinWidth="0" MinHeight="0" CornerRadius="3"
+                                    FontSize="11" VerticalAlignment="Center"
+                                    Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
+                            <Button Tag="{x:Bind FullPath}"
+                                    Click="OnChevronClick"
+                                    Background="Transparent" BorderThickness="0"
+                                    Padding="2,2" MinWidth="0" MinHeight="0" CornerRadius="2"
+                                    VerticalAlignment="Center"
+                                    Visibility="{x:Bind ChevronVisibility}">
+                                <FontIcon Glyph="&#xE76C;" FontSize="8"
+                                          Foreground="{ThemeResource SpanTextTertiaryBrush}"
+                                          Margin="0,1,0,0"/>
+                            </Button>
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsRepeater.ItemTemplate>
+            </ItemsRepeater>
+        </ScrollViewer>
+
+        <!-- Overflow indicator -->
+        <Border x:Name="OverflowIndicator" HorizontalAlignment="Left"
+                VerticalAlignment="Stretch" Visibility="Collapsed"
+                IsHitTestVisible="False" Padding="2,0,10,0" Margin="0,6,0,0">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
+                    <GradientStop Color="{ThemeResource SpanBgLayer2Color}" Offset="0"/>
+                    <GradientStop Color="{ThemeResource SpanBgLayer2Color}" Offset="0.5"/>
+                    <GradientStop Color="{ThemeResource SpanBgLayer2TransparentColor}" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
+            <TextBlock Text="&#x2026;" FontSize="11" VerticalAlignment="Center"
+                       Foreground="{ThemeResource SpanTextTertiaryBrush}"/>
+        </Border>
+
+        <!-- Edit mode AutoSuggestBox -->
+        <AutoSuggestBox x:Name="AutoSuggest" Visibility="Collapsed"
+                 VerticalAlignment="Center" Height="24" FontSize="11"
+                 BorderThickness="0"
+                 TextChanged="OnAutoSuggestTextChanged"
+                 SuggestionChosen="OnAutoSuggestSuggestionChosen"
+                 QuerySubmitted="OnAutoSuggestQuerySubmitted"
+                 KeyDown="OnAutoSuggestKeyDown"
+                 LostFocus="OnAutoSuggestLostFocus"
+                 PlaceholderText="경로 입력..."
+                 UpdateTextOnSelect="True"/>
+    </Grid>
+</UserControl>

@@ -760,7 +760,7 @@ namespace Span.ViewModels
         /// </summary>
         private void UpdatePathHighlights()
         {
-            var accentBrush = FileSystemViewModel.GetAccentDimBrush();
+            var accentBrush = FileSystemViewModel.GetPathHighlightBrush();
 
             for (int i = 0; i < Columns.Count; i++)
             {

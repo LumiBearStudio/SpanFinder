@@ -247,8 +247,10 @@ namespace Span.Views
 
             if (IconGridView != null)
             {
-                var style = new Style(typeof(GridViewItem));
+                var baseStyle = (Style)Application.Current.Resources["ListViewItemStyle"];
+                var style = new Style(typeof(GridViewItem)) { BasedOn = baseStyle };
                 style.Setters.Add(new Setter(GridViewItem.MarginProperty, margin));
+                style.Setters.Add(new Setter(GridViewItem.MinHeightProperty, 0.0));
                 IconGridView.ItemContainerStyle = style;
             }
         }

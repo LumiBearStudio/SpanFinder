@@ -49,19 +49,21 @@
                     <SolidColorBrush x:Key="SpanTextTertiaryBrush" Color="{StaticResource SpanTextTertiaryColor}" />
                     <SolidColorBrush x:Key="SpanTextDisabledBrush" Color="{StaticResource SpanTextDisabledColor}" />
 
-                    <!-- Translucent Brushes (white overlay for dark backgrounds) -->
-                    <SolidColorBrush x:Key="SpanBgHoverBrush" Color="#0FFFFFFF" />
-                    <SolidColorBrush x:Key="SpanBgActiveBrush" Color="#14FFFFFF" />
-                    <SolidColorBrush x:Key="SpanBgSelectedBrush" Color="#20FFFFFF" />
-                    <SolidColorBrush x:Key="SpanBgSelectedHoverBrush" Color="#30FFFFFF" />
+                    <!-- Translucent Brushes (accent-tinted, Windows Explorer style) -->
+                    <SolidColorBrush x:Key="SpanBgHoverBrush" Color="#0F60CDFF" />
+                    <SolidColorBrush x:Key="SpanBgActiveBrush" Color="#1A60CDFF" />
+                    <SolidColorBrush x:Key="SpanBgSelectedBrush" Color="#2560CDFF" />
+                    <SolidColorBrush x:Key="SpanBgSelectedHoverBrush" Color="#3060CDFF" />
+                    <!-- Path highlight: subtle accent for navigation breadcrumb items -->
+                    <SolidColorBrush x:Key="SpanPathHighlightBrush" Color="#2060CDFF" />
 
                     <!-- Override WinUI system ListView/GridView selection colors -->
-                    <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="#3898D8" />
-                    <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="#4BA8E8" />
-                    <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPressed" Color="#2E88C8" />
-                    <SolidColorBrush x:Key="GridViewItemBackgroundSelected" Color="#3898D8" />
-                    <SolidColorBrush x:Key="GridViewItemBackgroundSelectedPointerOver" Color="#4BA8E8" />
-                    <SolidColorBrush x:Key="GridViewItemBackgroundSelectedPressed" Color="#2E88C8" />
+                    <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="#2560CDFF" />
+                    <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="#3060CDFF" />
+                    <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPressed" Color="#1A60CDFF" />
+                    <SolidColorBrush x:Key="GridViewItemBackgroundSelected" Color="#2560CDFF" />
+                    <SolidColorBrush x:Key="GridViewItemBackgroundSelectedPointerOver" Color="#3060CDFF" />
+                    <SolidColorBrush x:Key="GridViewItemBackgroundSelectedPressed" Color="#1A60CDFF" />
 
                     <!-- Rubber-band selection -->
                     <SolidColorBrush x:Key="SpanSelectionRectFillBrush" Color="{StaticResource SpanAccentColor}" Opacity="0.15" />
@@ -116,19 +118,21 @@
                     <SolidColorBrush x:Key="SpanTextTertiaryBrush" Color="{StaticResource SpanTextTertiaryColor}" />
                     <SolidColorBrush x:Key="SpanTextDisabledBrush" Color="{StaticResource SpanTextDisabledColor}" />
 
-                    <!-- Translucent Brushes (black overlay for light backgrounds) -->
-                    <SolidColorBrush x:Key="SpanBgHoverBrush" Color="#0A000000" />
-                    <SolidColorBrush x:Key="SpanBgActiveBrush" Color="#12000000" />
-                    <SolidColorBrush x:Key="SpanBgSelectedBrush" Color="#14000000" />
-                    <SolidColorBrush x:Key="SpanBgSelectedHoverBrush" Color="#20000000" />
+                    <!-- Translucent Brushes (accent-tinted, Windows Explorer style) -->
+                    <SolidColorBrush x:Key="SpanBgHoverBrush" Color="#0F0078D4" />
+                    <SolidColorBrush x:Key="SpanBgActiveBrush" Color="#1A0078D4" />
+                    <SolidColorBrush x:Key="SpanBgSelectedBrush" Color="#250078D4" />
+                    <SolidColorBrush x:Key="SpanBgSelectedHoverBrush" Color="#300078D4" />
+                    <!-- Path highlight -->
+                    <SolidColorBrush x:Key="SpanPathHighlightBrush" Color="#200078D4" />
 
                     <!-- Override WinUI system ListView/GridView selection colors -->
-                    <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="#CCE4F7" />
-                    <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="#B3D7F2" />
-                    <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPressed" Color="#A0CBE8" />
-                    <SolidColorBrush x:Key="GridViewItemBackgroundSelected" Color="#CCE4F7" />
-                    <SolidColorBrush x:Key="GridViewItemBackgroundSelectedPointerOver" Color="#B3D7F2" />
-                    <SolidColorBrush x:Key="GridViewItemBackgroundSelectedPressed" Color="#A0CBE8" />
+                    <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="#250078D4" />
+                    <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="#300078D4" />
+                    <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPressed" Color="#1A0078D4" />
+                    <SolidColorBrush x:Key="GridViewItemBackgroundSelected" Color="#250078D4" />
+                    <SolidColorBrush x:Key="GridViewItemBackgroundSelectedPointerOver" Color="#300078D4" />
+                    <SolidColorBrush x:Key="GridViewItemBackgroundSelectedPressed" Color="#1A0078D4" />
 
                     <!-- Rubber-band selection -->
                     <SolidColorBrush x:Key="SpanSelectionRectFillBrush" Color="{StaticResource SpanAccentColor}" Opacity="0.15" />
@@ -362,6 +366,166 @@
                                                   Padding="{TemplateBinding Padding}"
                                                   HorizontalAlignment="Stretch"
                                                   VerticalAlignment="Stretch"
+                                                  HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                  VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                                                  Foreground="{TemplateBinding Foreground}"/>
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- Details View Item Style (same selection visuals as Miller) -->
+            <Style x:Key="DetailsItemStyle" TargetType="ListViewItem">
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="Margin" Value="0" />
+                <Setter Property="CornerRadius" Value="0" />
+                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                <Setter Property="VerticalContentAlignment" Value="Center" />
+                <Setter Property="MinHeight" Value="24" />
+                <Setter Property="HorizontalAlignment" Value="Stretch" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ListViewItem">
+                            <Grid x:Name="ContentBorder" Background="Transparent">
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroup x:Name="CommonStates">
+                                        <VisualState x:Name="Normal" />
+                                        <VisualState x:Name="PointerOver">
+                                            <Storyboard>
+                                                <ObjectAnimationUsingKeyFrames Storyboard.TargetName="StateOverlay" Storyboard.TargetProperty="Background">
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource SpanBgHoverBrush}" />
+                                                </ObjectAnimationUsingKeyFrames>
+                                                <DoubleAnimation Storyboard.TargetName="StateOverlay" Storyboard.TargetProperty="Opacity" To="1" Duration="0" />
+                                            </Storyboard>
+                                        </VisualState>
+                                        <VisualState x:Name="Pressed">
+                                            <Storyboard>
+                                                <ObjectAnimationUsingKeyFrames Storyboard.TargetName="StateOverlay" Storyboard.TargetProperty="Background">
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource SpanBgActiveBrush}" />
+                                                </ObjectAnimationUsingKeyFrames>
+                                                <DoubleAnimation Storyboard.TargetName="StateOverlay" Storyboard.TargetProperty="Opacity" To="1" Duration="0" />
+                                            </Storyboard>
+                                        </VisualState>
+                                        <VisualState x:Name="Selected">
+                                            <Storyboard>
+                                                <ObjectAnimationUsingKeyFrames Storyboard.TargetName="StateOverlay" Storyboard.TargetProperty="Background">
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource SpanBgSelectedBrush}" />
+                                                </ObjectAnimationUsingKeyFrames>
+                                                <DoubleAnimation Storyboard.TargetName="StateOverlay" Storyboard.TargetProperty="Opacity" To="1" Duration="0" />
+                                            </Storyboard>
+                                        </VisualState>
+                                        <VisualState x:Name="PointerOverSelected">
+                                            <Storyboard>
+                                                <ObjectAnimationUsingKeyFrames Storyboard.TargetName="StateOverlay" Storyboard.TargetProperty="Background">
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource SpanBgSelectedBrush}" />
+                                                </ObjectAnimationUsingKeyFrames>
+                                                <DoubleAnimation Storyboard.TargetName="StateOverlay" Storyboard.TargetProperty="Opacity" To="1" Duration="0" />
+                                            </Storyboard>
+                                        </VisualState>
+                                        <VisualState x:Name="PressedSelected">
+                                            <Storyboard>
+                                                <ObjectAnimationUsingKeyFrames Storyboard.TargetName="StateOverlay" Storyboard.TargetProperty="Background">
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource SpanBgSelectedHoverBrush}" />
+                                                </ObjectAnimationUsingKeyFrames>
+                                                <DoubleAnimation Storyboard.TargetName="StateOverlay" Storyboard.TargetProperty="Opacity" To="1" Duration="0" />
+                                            </Storyboard>
+                                        </VisualState>
+                                    </VisualStateGroup>
+                                    <VisualStateGroup x:Name="DisabledStates">
+                                        <VisualState x:Name="Enabled" /><VisualState x:Name="Disabled" />
+                                    </VisualStateGroup>
+                                    <VisualStateGroup x:Name="MultiSelectStates">
+                                        <VisualState x:Name="MultiSelectDisabled" /><VisualState x:Name="MultiSelectEnabled" />
+                                    </VisualStateGroup>
+                                </VisualStateManager.VisualStateGroups>
+                                <Border x:Name="StateOverlay" Background="Transparent" Opacity="0" />
+                                <ContentPresenter x:Name="ContentPresenter"
+                                                  Content="{TemplateBinding Content}"
+                                                  ContentTemplate="{TemplateBinding ContentTemplate}"
+                                                  Padding="{TemplateBinding Padding}"
+                                                  HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                                  HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                  VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                                                  Foreground="{TemplateBinding Foreground}"/>
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- List View Item Style (GridViewItem, same selection visuals as Miller) -->
+            <Style x:Key="ListViewItemStyle" TargetType="GridViewItem">
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="Margin" Value="0" />
+                <Setter Property="CornerRadius" Value="0" />
+                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                <Setter Property="VerticalContentAlignment" Value="Center" />
+                <Setter Property="MinHeight" Value="24" />
+                <Setter Property="MinWidth" Value="0" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="GridViewItem">
+                            <Grid x:Name="ContentBorder" Background="Transparent">
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroup x:Name="CommonStates">
+                                        <VisualState x:Name="Normal" />
+                                        <VisualState x:Name="PointerOver">
+                                            <Storyboard>
+                                                <ObjectAnimationUsingKeyFrames Storyboard.TargetName="StateOverlay" Storyboard.TargetProperty="Background">
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource SpanBgHoverBrush}" />
+                                                </ObjectAnimationUsingKeyFrames>
+                                                <DoubleAnimation Storyboard.TargetName="StateOverlay" Storyboard.TargetProperty="Opacity" To="1" Duration="0" />
+                                            </Storyboard>
+                                        </VisualState>
+                                        <VisualState x:Name="Pressed">
+                                            <Storyboard>
+                                                <ObjectAnimationUsingKeyFrames Storyboard.TargetName="StateOverlay" Storyboard.TargetProperty="Background">
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource SpanBgActiveBrush}" />
+                                                </ObjectAnimationUsingKeyFrames>
+                                                <DoubleAnimation Storyboard.TargetName="StateOverlay" Storyboard.TargetProperty="Opacity" To="1" Duration="0" />
+                                            </Storyboard>
+                                        </VisualState>
+                                        <VisualState x:Name="Selected">
+                                            <Storyboard>
+                                                <ObjectAnimationUsingKeyFrames Storyboard.TargetName="StateOverlay" Storyboard.TargetProperty="Background">
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource SpanBgSelectedBrush}" />
+                                                </ObjectAnimationUsingKeyFrames>
+                                                <DoubleAnimation Storyboard.TargetName="StateOverlay" Storyboard.TargetProperty="Opacity" To="1" Duration="0" />
+                                            </Storyboard>
+                                        </VisualState>
+                                        <VisualState x:Name="PointerOverSelected">
+                                            <Storyboard>
+                                                <ObjectAnimationUsingKeyFrames Storyboard.TargetName="StateOverlay" Storyboard.TargetProperty="Background">
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource SpanBgSelectedBrush}" />
+                                                </ObjectAnimationUsingKeyFrames>
+                                                <DoubleAnimation Storyboard.TargetName="StateOverlay" Storyboard.TargetProperty="Opacity" To="1" Duration="0" />
+                                            </Storyboard>
+                                        </VisualState>
+                                        <VisualState x:Name="PressedSelected">
+                                            <Storyboard>
+                                                <ObjectAnimationUsingKeyFrames Storyboard.TargetName="StateOverlay" Storyboard.TargetProperty="Background">
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource SpanBgSelectedHoverBrush}" />
+                                                </ObjectAnimationUsingKeyFrames>
+                                                <DoubleAnimation Storyboard.TargetName="StateOverlay" Storyboard.TargetProperty="Opacity" To="1" Duration="0" />
+                                            </Storyboard>
+                                        </VisualState>
+                                    </VisualStateGroup>
+                                    <VisualStateGroup x:Name="DisabledStates">
+                                        <VisualState x:Name="Enabled" /><VisualState x:Name="Disabled" />
+                                    </VisualStateGroup>
+                                    <VisualStateGroup x:Name="MultiSelectStates">
+                                        <VisualState x:Name="MultiSelectDisabled" /><VisualState x:Name="MultiSelectEnabled" />
+                                    </VisualStateGroup>
+                                </VisualStateManager.VisualStateGroups>
+                                <Border x:Name="StateOverlay" Background="Transparent" Opacity="0" />
+                                <ContentPresenter x:Name="ContentPresenter"
+                                                  Content="{TemplateBinding Content}"
+                                                  ContentTemplate="{TemplateBinding ContentTemplate}"
+                                                  Padding="{TemplateBinding Padding}"
+                                                  HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                                                   HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
                                                   VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
                                                   Foreground="{TemplateBinding Foreground}"/>

@@ -323,9 +323,13 @@ namespace Span.Views
             _densityRowHeight = density switch
             {
                 "compact" => 20.0,
-                "spacious" => 32.0,
+                "spacious" => 28.0,
                 _ => 24.0
             };
+
+            // Update header row height to match
+            if (HeaderGrid != null)
+                HeaderGrid.Height = _densityRowHeight;
 
             // Update MinHeight on ListViewItem style
             if (DetailsListView != null)
@@ -345,13 +349,11 @@ namespace Span.Views
             }
         }
 
-        private static Style CreateDetailsItemStyle(double minHeight)
+        private Style CreateDetailsItemStyle(double minHeight)
         {
-            var style = new Style(typeof(ListViewItem));
-            style.Setters.Add(new Setter(ListViewItem.PaddingProperty, new Thickness(0)));
-            style.Setters.Add(new Setter(ListViewItem.MarginProperty, new Thickness(0)));
+            var baseStyle = (Style)App.Current.Resources["DetailsItemStyle"];
+            var style = new Style(typeof(ListViewItem)) { BasedOn = baseStyle };
             style.Setters.Add(new Setter(ListViewItem.MinHeightProperty, minHeight));
-            style.Setters.Add(new Setter(ListViewItem.HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch));
             return style;
         }
 

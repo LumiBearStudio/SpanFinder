@@ -396,6 +396,7 @@ namespace Span.Services
             ("BatchRename_ConflictMessage", "The following names already exist:", "다음 이름이 이미 존재합니다:", "以下の名前が既に存在します：", "以下名称已存在:", "以下名稱已存在:", "Die folgenden Namen sind bereits vorhanden:", "Los siguientes nombres ya existen:", "Les noms suivants existent déjà :", "Os seguintes nomes já existem:"),
 
             // ── Toast messages ──────────────────────────────────────────────
+            ("Toast_PathCopied", "Path copied to clipboard", "경로가 클립보드에 복사됨", "パスをクリップボードにコピーしました", "路径已复制到剪贴板", "路徑已複製到剪貼簿", "Pfad in Zwischenablage kopiert", "Ruta copiada al portapapeles", "Chemin copié dans le presse-papiers", "Caminho copiado para a área de transferência"),
             ("Toast_Copied", "'{0}' copied", "'{0}' 복사됨", "'{0}'をコピーしました", "已复制\u201C{0}\u201D", "已複製「{0}」", "'{0}' kopiert", "'{0}' copiado", "« {0} » copié", "'{0}' copiado"),
             ("Toast_CopiedMultiple", "{0} items copied", "{0}개 항목 복사됨", "{0}個の項目をコピーしました", "已复制 {0} 个项目", "已複製 {0} 個項目", "{0} Elemente kopiert", "{0} elementos copiados", "{0} éléments copiés", "{0} itens copiados"),
             ("Toast_Cut", "'{0}' cut", "'{0}' 잘라내기", "'{0}'を切り取りました", "已剪切\u201C{0}\u201D", "已剪下「{0}」", "'{0}' ausgeschnitten", "'{0}' cortado", "« {0} » coupé", "'{0}' recortado"),

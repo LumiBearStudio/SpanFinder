@@ -112,7 +112,9 @@ namespace Span
                     case Windows.System.VirtualKey.D:
                         // Alt+D: Address bar focus (Explorer 호환 — Ctrl+L과 동일)
                         if (ViewModel.CurrentViewMode != ViewMode.Home)
+                        {
                             ShowAddressBarEditMode();
+                        }
                         e.Handled = true;
                         return;
                 }
@@ -185,7 +187,9 @@ namespace Span
 
                     case Windows.System.VirtualKey.L:
                         if (ViewModel.CurrentViewMode != ViewMode.Home)
+                        {
                             ShowAddressBarEditMode();
+                        }
                         e.Handled = true;
                         break;
 

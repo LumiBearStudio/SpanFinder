@@ -19,7 +19,7 @@
         </Grid.RowDefinitions>
 
         <!-- Header Row -->
-        <Grid Grid.Row="0" Height="20"
+        <Grid Grid.Row="0" Height="24"
               x:Name="HeaderGrid" AutomationProperties.AutomationId="Details_Header"
               Background="{ThemeResource SpanBgLayer2Brush}"
               BorderBrush="{ThemeResource SpanBorderSubtleBrush}"
@@ -288,16 +288,11 @@
                 </GroupStyle>
             </ListView.GroupStyle>
             <ListView.ItemContainerStyle>
-                <Style TargetType="ListViewItem">
-                    <Setter Property="Padding" Value="0"/>
-                    <Setter Property="Margin" Value="0"/>
-                    <Setter Property="MinHeight" Value="20"/>
-                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                </Style>
+                <StaticResource ResourceKey="DetailsItemStyle"/>
             </ListView.ItemContainerStyle>
             <ListView.ItemTemplate>
                 <DataTemplate x:DataType="vm:FileSystemViewModel">
-                    <Grid Height="20" RightTapped="OnItemRightTapped"
+                    <Grid Height="24" RightTapped="OnItemRightTapped"
                           ToolTipService.ToolTip="{x:Bind TooltipText}"
                           Opacity="{x:Bind ItemOpacity}">
                         <Grid.ColumnDefinitions>
@@ -314,14 +309,14 @@
                         </Grid.ColumnDefinitions>
 
                         <!-- Icon / Thumbnail -->
-                        <Grid Grid.Column="0" Width="18" Height="18"
+                        <Grid Grid.Column="0" Width="16" Height="16"
                               HorizontalAlignment="Center" VerticalAlignment="Center">
                             <Image Source="{x:Bind ThumbnailSource, Mode=OneWay}" Stretch="UniformToFill"
                                    Visibility="{x:Bind vm:FileSystemViewModel.ShowIfTrue(HasThumbnail), Mode=OneWay}"/>
                             <FontIcon FontFamily="{StaticResource RemixIcons}"
                                       Glyph="{x:Bind IconGlyph, Mode=OneWay}"
                                       Foreground="{x:Bind IconBrush, Mode=OneWay}"
-                                      FontSize="18"
+                                      FontSize="16"
                                       Visibility="{x:Bind vm:FileSystemViewModel.ShowIfFalse(HasThumbnail), Mode=OneWay}"/>
                         </Grid>
 
@@ -330,7 +325,7 @@
                                    Text="{x:Bind TruncatedDisplayName, Mode=OneWay}"
                                    VerticalAlignment="Center"
                                    TextTrimming="CharacterEllipsis"
-                                   FontSize="12"
+                                   FontSize="13"
                                    Padding="6,0"/>
 
                         <!-- Date Modified - Width set by ContainerContentChanging -->

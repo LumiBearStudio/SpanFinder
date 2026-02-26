@@ -183,8 +183,9 @@
             </GridView.ItemTemplate>
 
             <GridView.ItemContainerStyle>
-                <Style TargetType="GridViewItem">
+                <Style TargetType="GridViewItem" BasedOn="{StaticResource ListViewItemStyle}">
                     <Setter Property="Margin" Value="4"/>
+                    <Setter Property="MinHeight" Value="0"/>
                 </Style>
             </GridView.ItemContainerStyle>
         </GridView>

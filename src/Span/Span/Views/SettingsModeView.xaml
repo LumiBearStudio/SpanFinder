@@ -435,7 +435,8 @@
                                     </StackPanel>
 
                                     <!-- Theme grid: 4 columns × 2 rows, mini app preview per card -->
-                                    <Grid Margin="48,0,0,0" ColumnSpacing="10" RowSpacing="10">
+                                    <Grid Margin="48,0,0,0" ColumnSpacing="10" RowSpacing="10"
+                                          MaxWidth="560" HorizontalAlignment="Left">
                                         <Grid.Resources>
                                             <SolidColorBrush x:Key="RadioButtonBackgroundPointerOver" Color="{ThemeResource SpanBgLayer3Color}" />
                                             <SolidColorBrush x:Key="RadioButtonBorderBrushPointerOver" Color="{ThemeResource SpanAccentHoverColor}" />
@@ -588,7 +589,8 @@
                                             <TextBlock x:Name="DensityDesc" Text="목록 항목 간격 조절" Style="{StaticResource SettingsCardDesc}" />
                                         </StackPanel>
                                     </StackPanel>
-                                    <Grid Margin="48,0,0,0" ColumnSpacing="10">
+                                    <Grid Margin="48,0,0,0" ColumnSpacing="10"
+                                          MaxWidth="420" HorizontalAlignment="Left">
                                         <Grid.Resources>
                                             <SolidColorBrush x:Key="RadioButtonBackgroundPointerOver" Color="{ThemeResource SpanBgLayer3Color}" />
                                             <SolidColorBrush x:Key="RadioButtonBorderBrushPointerOver" Color="{ThemeResource SpanAccentHoverColor}" />

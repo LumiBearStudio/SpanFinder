@@ -421,23 +421,25 @@ namespace Span.ViewModels
         [ObservableProperty]
         private Microsoft.UI.Xaml.Media.Brush _pathBackground = TransparentBrush;
 
-        private static Microsoft.UI.Xaml.Media.Brush? _cachedAccentDimBrush;
+        private static Microsoft.UI.Xaml.Media.Brush? _cachedPathHighlightBrush;
         internal static readonly Microsoft.UI.Xaml.Media.SolidColorBrush TransparentBrush = new(Microsoft.UI.Colors.Transparent);
 
-        internal static Microsoft.UI.Xaml.Media.Brush GetAccentDimBrush()
+        internal static Microsoft.UI.Xaml.Media.Brush GetPathHighlightBrush()
         {
-            if (_cachedAccentDimBrush != null) return _cachedAccentDimBrush;
+            if (_cachedPathHighlightBrush != null) return _cachedPathHighlightBrush;
             try
             {
-                if (Microsoft.UI.Xaml.Application.Current.Resources.TryGetValue("SpanAccentDimBrush", out var brush))
+                if (Microsoft.UI.Xaml.Application.Current.Resources.TryGetValue("SpanPathHighlightBrush", out var brush))
                 {
-                    _cachedAccentDimBrush = (Microsoft.UI.Xaml.Media.Brush)brush;
-                    return _cachedAccentDimBrush;
+                    _cachedPathHighlightBrush = (Microsoft.UI.Xaml.Media.Brush)brush;
+                    return _cachedPathHighlightBrush;
                 }
             }
             catch { }
             return TransparentBrush;
         }
+
+        internal static void InvalidatePathHighlightCache() => _cachedPathHighlightBrush = null;
 
         /// <summary>
         /// XAML x:Bind: show thumbnail Image when HasThumbnail is true.

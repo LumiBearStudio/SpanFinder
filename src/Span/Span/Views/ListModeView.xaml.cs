@@ -846,6 +846,31 @@ namespace Span.Views
 
         #endregion
 
+        #region Rubber Band Selection
+
+        private Helpers.RubberBandSelectionHelper? _rubberBandHelper;
+        private bool _isSyncingSelection;
+
+        private void OnListViewWrapperLoaded(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Grid grid || _rubberBandHelper != null) return;
+
+            _rubberBandHelper = new Helpers.RubberBandSelectionHelper(
+                grid,
+                ListGridView,
+                () => _isSyncingSelection,
+                val => _isSyncingSelection = val,
+                items => _viewModel?.CurrentFolder?.SyncSelectedItems(items));
+        }
+
+        private void OnListViewWrapperUnloaded(object sender, RoutedEventArgs e)
+        {
+            _rubberBandHelper?.Detach();
+            _rubberBandHelper = null;
+        }
+
+        #endregion
+
         #region Cleanup
 
         public void Cleanup()
@@ -881,6 +906,9 @@ namespace Span.Views
                     ListGridView.SelectedItem = null;
                 }
 
+                _rubberBandHelper?.Detach();
+                _rubberBandHelper = null;
+
                 _parentDotDotVm = null;
                 _listItems.Clear();
                 _viewModel = null;
@@ -891,6 +919,47 @@ namespace Span.Views
             catch (Exception ex)
             {
                 Helpers.DebugLogger.Log($"[ListModeView] Cleanup error: {ex.Message}");
+            }
+        }
+
+        #endregion
+
+        #region Density
+
+        private double _densityRowHeight = 24.0; // comfortable default
+
+        public void ApplyDensity(string density)
+        {
+            _densityRowHeight = density switch
+            {
+                "compact" => 20.0,
+                "spacious" => 28.0,
+                _ => 24.0
+            };
+
+            if (ListGridView == null) return;
+
+            // Update ItemsWrapGrid ItemHeight
+            if (ListGridView.ItemsPanelRoot is ItemsWrapGrid wrapGrid)
+            {
+                wrapGrid.ItemHeight = _densityRowHeight;
+            }
+
+            // Update ItemContainerStyle MinHeight (based on ListViewItemStyle from App.xaml)
+            var baseStyle = (Style)Application.Current.Resources["ListViewItemStyle"];
+            var style = new Style(typeof(GridViewItem)) { BasedOn = baseStyle };
+            style.Setters.Add(new Setter(GridViewItem.MinHeightProperty, _densityRowHeight));
+            ListGridView.ItemContainerStyle = style;
+
+            // Update existing realized containers
+            if (ListGridView.ItemsPanelRoot == null) return;
+            for (int i = 0; i < ListGridView.Items.Count; i++)
+            {
+                if (ListGridView.ContainerFromIndex(i) is GridViewItem container &&
+                    container.ContentTemplateRoot is Grid grid)
+                {
+                    grid.Height = _densityRowHeight;
+                }
             }
         }
 

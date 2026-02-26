@@ -217,6 +217,7 @@ namespace Span
 
             DetailsTabsHost.Children.Add(detailsView);
             _tabDetailsPanels[tab.Id] = detailsView;
+            detailsView.ApplyDensity(_settings.Density);
 
             Helpers.DebugLogger.Log($"[DetailsPanel] Created panel for tab {tab.Id} ({tab.Header})");
             return detailsView;
@@ -290,6 +291,7 @@ namespace Span
 
             ListTabsHost.Children.Add(listView);
             _tabListPanels[tab.Id] = listView;
+            listView.ApplyDensity(_settings.Density);
 
             Helpers.DebugLogger.Log($"[ListPanel] Created panel for tab {tab.Id} ({tab.Header})");
             return listView;
@@ -358,6 +360,7 @@ namespace Span
 
             IconTabsHost.Children.Add(iconView);
             _tabIconPanels[tab.Id] = iconView;
+            iconView.ApplyDensity(_settings.Density);
 
             Helpers.DebugLogger.Log($"[IconPanel] Created panel for tab {tab.Id} ({tab.Header})");
             return iconView;

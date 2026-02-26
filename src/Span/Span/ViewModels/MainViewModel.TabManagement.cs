@@ -115,11 +115,19 @@ namespace Span.ViewModels
         }
 
         /// <summary>
-        /// Close a tab by index. Blocks if it's the last tab.
+        /// Close a tab by index. If it's the last tab, raises LastTabClosed event.
         /// </summary>
+        public event EventHandler? LastTabClosed;
+
         public void CloseTab(int index)
         {
-            if (Tabs.Count <= 1) return; // Don't close the last tab
+            if (Tabs.Count <= 1)
+            {
+                // Last tab — notify view to close window
+                Tabs[0].Explorer?.Cleanup();
+                LastTabClosed?.Invoke(this, EventArgs.Empty);
+                return;
+            }
             if (index < 0 || index >= Tabs.Count) return;
 
             bool wasActive = (index == ActiveTabIndex);

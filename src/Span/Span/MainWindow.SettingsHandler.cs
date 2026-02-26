@@ -51,6 +51,9 @@ namespace Span
                 }
             }
 
+            // PathHighlight 캐시 무효화 (테마 색상 변경 반영)
+            ViewModels.FileSystemViewModel.InvalidatePathHighlightCache();
+
             // 캡션 버튼 색상
             var titleBar = this.AppWindow.TitleBar;
 
@@ -132,18 +135,30 @@ namespace Span
             darkDict["SpanBgSelectedBrush"]    = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.bgSel);
             darkDict["SpanBorderSubtleBrush"]  = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.border);
 
-            // AccentDim = accent 색상에 70% 투명도
+            // AccentDim = accent 색상에 70% 투명도 (탭/밀러컬럼 테두리용)
             var accentDim = Windows.UI.Color.FromArgb(0xB3, p.accent.R, p.accent.G, p.accent.B);
             darkDict["SpanAccentDimColor"]  = accentDim;
             darkDict["SpanAccentDimBrush"]  = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentDim);
 
-            // ListView/GridView 선택 색상
-            darkDict["ListViewItemBackgroundSelected"]            = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.listSel);
-            darkDict["ListViewItemBackgroundSelectedPointerOver"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.listSelHover);
-            darkDict["ListViewItemBackgroundSelectedPressed"]     = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.listSelPressed);
-            darkDict["GridViewItemBackgroundSelected"]            = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.listSel);
-            darkDict["GridViewItemBackgroundSelectedPointerOver"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.listSelHover);
-            darkDict["GridViewItemBackgroundSelectedPressed"]     = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.listSelPressed);
+            // Accent-tinted selection (Windows Explorer 스타일 통일)
+            var accentHover    = Windows.UI.Color.FromArgb(0x0F, p.accent.R, p.accent.G, p.accent.B);
+            var accentActive   = Windows.UI.Color.FromArgb(0x1A, p.accent.R, p.accent.G, p.accent.B);
+            var accentSelected = Windows.UI.Color.FromArgb(0x25, p.accent.R, p.accent.G, p.accent.B);
+            var accentSelHover = Windows.UI.Color.FromArgb(0x30, p.accent.R, p.accent.G, p.accent.B);
+            var pathHighlight  = Windows.UI.Color.FromArgb(0x20, p.accent.R, p.accent.G, p.accent.B);
+            darkDict["SpanBgHoverBrush"]         = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentHover);
+            darkDict["SpanBgActiveBrush"]        = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentActive);
+            darkDict["SpanBgSelectedBrush"]      = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentSelected);
+            darkDict["SpanBgSelectedHoverBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentSelHover);
+            darkDict["SpanPathHighlightBrush"]   = new Microsoft.UI.Xaml.Media.SolidColorBrush(pathHighlight);
+
+            // ListView/GridView 선택 색상 (accent 기반 통일)
+            darkDict["ListViewItemBackgroundSelected"]            = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentSelected);
+            darkDict["ListViewItemBackgroundSelectedPointerOver"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentSelHover);
+            darkDict["ListViewItemBackgroundSelectedPressed"]     = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentActive);
+            darkDict["GridViewItemBackgroundSelected"]            = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentSelected);
+            darkDict["GridViewItemBackgroundSelectedPointerOver"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentSelHover);
+            darkDict["GridViewItemBackgroundSelectedPressed"]     = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentActive);
 
             root.Resources.ThemeDictionaries["Dark"] = darkDict;
         }
@@ -328,13 +343,22 @@ namespace Span
                 _ => new Thickness(12, 2, 12, 2) // comfortable
             };
 
+            _densityMinHeight = density switch
+            {
+                "compact" => 20.0,
+                "spacious" => 28.0,
+                _ => 24.0 // comfortable
+            };
+
             // Apply to all visible Miller Column ListViews
             foreach (var kvp in _tabMillerPanels)
                 ApplyDensityToItemsControl(kvp.Value.items);
             ApplyDensityToItemsControl(MillerColumnsControlRight);
 
-            // Apply to Details/Icon views via their public methods
+            // Apply to Details/List/Icon views via their public methods
             foreach (var kvp in _tabDetailsPanels)
+                kvp.Value.ApplyDensity(density);
+            foreach (var kvp in _tabListPanels)
                 kvp.Value.ApplyDensity(density);
             foreach (var kvp in _tabIconPanels)
                 kvp.Value.ApplyDensity(density);
@@ -355,7 +379,11 @@ namespace Span
                         if (cp != null)
                         {
                             var grid = FindChild<Grid>(cp);
-                            if (grid != null) grid.Padding = _densityPadding;
+                            if (grid != null)
+                            {
+                                grid.Padding = _densityPadding;
+                                grid.MinHeight = _densityMinHeight;
+                            }
                         }
                     }
                 }
