@@ -448,6 +448,7 @@
                                     <Setter Property="Padding" Value="0"/>
                                     <Setter Property="MinHeight" Value="0"/>
                                     <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                    <Setter Property="helpers:CursorHelper.IsHandCursor" Value="True"/>
                                 </Style>
                             </ListView.ItemContainerStyle>
                             <ListView.ItemTemplate>
@@ -490,6 +491,7 @@
                                     <Setter Property="Padding" Value="0"/>
                                     <Setter Property="MinHeight" Value="26"/>
                                     <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                    <Setter Property="helpers:CursorHelper.IsHandCursor" Value="True"/>
                                 </Style>
                             </TreeView.ItemContainerStyle>
                             <TreeView.ItemTemplate>
@@ -512,7 +514,8 @@
                         <!-- ═══════ Section 3: 로컬 디스크 ═══════ -->
                         <Rectangle Height="1" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="12,12"/>
                         <Grid Height="24" Padding="12,0" Background="Transparent"
-                              Tapped="OnSidebarSectionHeaderTapped" Tag="Local">
+                              Tapped="OnSidebarSectionHeaderTapped" Tag="Local"
+                              PointerEntered="OnSidebarItemPointerEntered" PointerExited="OnSidebarItemPointerExited">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
@@ -555,7 +558,8 @@
                         <StackPanel Visibility="{x:Bind ViewModel.HasCloudDrives, Mode=OneWay}">
                             <Rectangle Height="1" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="12,12"/>
                             <Grid Height="24" Padding="12,0" Background="Transparent"
-                                  Tapped="OnSidebarSectionHeaderTapped" Tag="Cloud">
+                                  Tapped="OnSidebarSectionHeaderTapped" Tag="Cloud"
+                                  PointerEntered="OnSidebarItemPointerEntered" PointerExited="OnSidebarItemPointerExited">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
@@ -599,7 +603,8 @@
                         <StackPanel Visibility="{x:Bind ViewModel.HasNetworkDrives, Mode=OneWay}">
                             <Rectangle Height="1" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="12,12"/>
                             <Grid Height="24" Padding="12,0" Background="Transparent"
-                                  Tapped="OnSidebarSectionHeaderTapped" Tag="Network">
+                                  Tapped="OnSidebarSectionHeaderTapped" Tag="Network"
+                                  PointerEntered="OnSidebarItemPointerEntered" PointerExited="OnSidebarItemPointerExited">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>

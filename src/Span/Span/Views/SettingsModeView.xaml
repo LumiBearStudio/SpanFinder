@@ -84,6 +84,121 @@
             <Setter Property="CornerRadius" Value="4" />
             <Setter Property="Padding" Value="8,4" />
         </Style>
+        <!-- Card-style RadioButton: padded root grid so radio circle doesn't hug the border -->
+        <Style x:Key="CardRadioButtonStyle" TargetType="RadioButton">
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Top" />
+            <Setter Property="Padding" Value="8,6,6,4" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="BorderBrush" Value="{ThemeResource SpanTextTertiaryBrush}" />
+            <Setter Property="BorderThickness" Value="1.5" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Grid x:Name="RootGrid"
+                              Background="{TemplateBinding Background}"
+                              BorderBrush="{TemplateBinding BorderBrush}"
+                              BorderThickness="{TemplateBinding BorderThickness}"
+                              CornerRadius="{TemplateBinding CornerRadius}"
+                              Padding="{TemplateBinding Padding}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="20" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid Grid.Column="0" VerticalAlignment="Top" Height="32">
+                                <Ellipse x:Name="OuterEllipse" Width="20" Height="20" UseLayoutRounding="False"
+                                         Stroke="{ThemeResource RadioButtonOuterEllipseStroke}"
+                                         StrokeThickness="{ThemeResource RadioButtonBorderThemeThickness}"
+                                         Fill="{ThemeResource RadioButtonOuterEllipseFill}" />
+                                <Ellipse x:Name="CheckOuterEllipse" Width="20" Height="20" UseLayoutRounding="False"
+                                         Stroke="{ThemeResource RadioButtonOuterEllipseCheckedStroke}"
+                                         Fill="{ThemeResource RadioButtonOuterEllipseCheckedFill}" Opacity="0" />
+                                <Ellipse x:Name="CheckGlyph" Width="8" Height="8" UseLayoutRounding="False"
+                                         Fill="{ThemeResource RadioButtonCheckGlyphFill}" Opacity="0" />
+                            </Grid>
+                            <ContentPresenter x:Name="ContentPresenter" Grid.Column="1"
+                                              Content="{TemplateBinding Content}"
+                                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                                              ContentTransitions="{TemplateBinding ContentTransitions}"
+                                              Margin="6,0,0,0"
+                                              HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                              TextWrapping="Wrap" AutomationProperties.AccessibilityView="Raw" />
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroup x:Name="CommonStates">
+                                    <VisualState x:Name="Normal" />
+                                    <VisualState x:Name="PointerOver">
+                                        <Storyboard>
+                                            <ObjectAnimationUsingKeyFrames Storyboard.TargetName="RootGrid" Storyboard.TargetProperty="Background">
+                                                <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource RadioButtonBackgroundPointerOver}" />
+                                            </ObjectAnimationUsingKeyFrames>
+                                            <ObjectAnimationUsingKeyFrames Storyboard.TargetName="RootGrid" Storyboard.TargetProperty="BorderBrush">
+                                                <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource RadioButtonBorderBrushPointerOver}" />
+                                            </ObjectAnimationUsingKeyFrames>
+                                            <ObjectAnimationUsingKeyFrames Storyboard.TargetName="OuterEllipse" Storyboard.TargetProperty="Stroke">
+                                                <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource RadioButtonOuterEllipseStrokePointerOver}" />
+                                            </ObjectAnimationUsingKeyFrames>
+                                            <ObjectAnimationUsingKeyFrames Storyboard.TargetName="OuterEllipse" Storyboard.TargetProperty="Fill">
+                                                <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource RadioButtonOuterEllipseFillPointerOver}" />
+                                            </ObjectAnimationUsingKeyFrames>
+                                            <ObjectAnimationUsingKeyFrames Storyboard.TargetName="CheckOuterEllipse" Storyboard.TargetProperty="Stroke">
+                                                <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource RadioButtonOuterEllipseCheckedStrokePointerOver}" />
+                                            </ObjectAnimationUsingKeyFrames>
+                                            <ObjectAnimationUsingKeyFrames Storyboard.TargetName="CheckOuterEllipse" Storyboard.TargetProperty="Fill">
+                                                <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource RadioButtonOuterEllipseCheckedFillPointerOver}" />
+                                            </ObjectAnimationUsingKeyFrames>
+                                            <ObjectAnimationUsingKeyFrames Storyboard.TargetName="CheckGlyph" Storyboard.TargetProperty="Fill">
+                                                <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource RadioButtonCheckGlyphFillPointerOver}" />
+                                            </ObjectAnimationUsingKeyFrames>
+                                        </Storyboard>
+                                    </VisualState>
+                                    <VisualState x:Name="Pressed">
+                                        <Storyboard>
+                                            <ObjectAnimationUsingKeyFrames Storyboard.TargetName="RootGrid" Storyboard.TargetProperty="Background">
+                                                <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource RadioButtonBackgroundPressed}" />
+                                            </ObjectAnimationUsingKeyFrames>
+                                            <ObjectAnimationUsingKeyFrames Storyboard.TargetName="RootGrid" Storyboard.TargetProperty="BorderBrush">
+                                                <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource RadioButtonBorderBrushPressed}" />
+                                            </ObjectAnimationUsingKeyFrames>
+                                            <ObjectAnimationUsingKeyFrames Storyboard.TargetName="OuterEllipse" Storyboard.TargetProperty="Stroke">
+                                                <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource RadioButtonOuterEllipseStrokePressed}" />
+                                            </ObjectAnimationUsingKeyFrames>
+                                            <ObjectAnimationUsingKeyFrames Storyboard.TargetName="OuterEllipse" Storyboard.TargetProperty="Fill">
+                                                <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource RadioButtonOuterEllipseFillPressed}" />
+                                            </ObjectAnimationUsingKeyFrames>
+                                            <ObjectAnimationUsingKeyFrames Storyboard.TargetName="CheckOuterEllipse" Storyboard.TargetProperty="Stroke">
+                                                <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource RadioButtonOuterEllipseCheckedStrokePressed}" />
+                                            </ObjectAnimationUsingKeyFrames>
+                                            <ObjectAnimationUsingKeyFrames Storyboard.TargetName="CheckOuterEllipse" Storyboard.TargetProperty="Fill">
+                                                <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource RadioButtonOuterEllipseCheckedFillPressed}" />
+                                            </ObjectAnimationUsingKeyFrames>
+                                            <ObjectAnimationUsingKeyFrames Storyboard.TargetName="CheckGlyph" Storyboard.TargetProperty="Fill">
+                                                <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource RadioButtonCheckGlyphFillPressed}" />
+                                            </ObjectAnimationUsingKeyFrames>
+                                        </Storyboard>
+                                    </VisualState>
+                                    <VisualState x:Name="Disabled" />
+                                </VisualStateGroup>
+                                <VisualStateGroup x:Name="CheckStates">
+                                    <VisualState x:Name="Checked">
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="CheckGlyph" Storyboard.TargetProperty="Opacity" To="1" Duration="0" />
+                                            <DoubleAnimation Storyboard.TargetName="OuterEllipse" Storyboard.TargetProperty="Opacity" To="0" Duration="0" />
+                                            <DoubleAnimation Storyboard.TargetName="CheckOuterEllipse" Storyboard.TargetProperty="Opacity" To="1" Duration="0" />
+                                        </Storyboard>
+                                    </VisualState>
+                                    <VisualState x:Name="Unchecked" />
+                                    <VisualState x:Name="Indeterminate" />
+                                </VisualStateGroup>
+                            </VisualStateManager.VisualStateGroups>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </UserControl.Resources>
 
     <Grid>
@@ -306,137 +421,164 @@
                         <StackPanel Padding="20" Spacing="0">
                             <TextBlock x:Name="AppearanceTitle" Text="모양" Style="{StaticResource SettingsSectionTitle}" />
 
-                            <!-- App Theme -->
+                            <!-- ═══ Theme (unified: base + custom) ═══ -->
                             <Border Style="{StaticResource SettingsCardBorder}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <Border Grid.Column="0" Style="{StaticResource CardIconContainer}">
-                                        <FontIcon Glyph="&#xE790;" Style="{StaticResource CardIconStyle}" />
-                                    </Border>
-                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                                        <TextBlock x:Name="ThemeLabel" Text="앱 테마" Style="{StaticResource SettingsCardLabel}" />
-                                        <TextBlock x:Name="ThemeDesc" Text="앱의 전체 색상 테마 설정" Style="{StaticResource SettingsCardDesc}" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4"
-                                                Background="{ThemeResource SpanBgLayer2Brush}"
-                                                CornerRadius="6" Padding="4">
-                                        <RadioButton x:Name="ThemeSystem" GroupName="Theme"
-                                                     Style="{StaticResource SegmentedButton}" IsChecked="True">
-                                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                                <FontIcon Glyph="&#xE770;" FontSize="14" />
-                                                <TextBlock x:Name="ThemeSystemText" Text="시스템" FontSize="12" />
-                                            </StackPanel>
-                                        </RadioButton>
-                                        <RadioButton x:Name="ThemeLight" GroupName="Theme"
-                                                     Style="{StaticResource SegmentedButton}">
-                                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                                <FontIcon Glyph="&#xE706;" FontSize="14" />
-                                                <TextBlock x:Name="ThemeLightText" Text="라이트" FontSize="12" />
-                                            </StackPanel>
-                                        </RadioButton>
-                                        <RadioButton x:Name="ThemeDark" GroupName="Theme"
-                                                     Style="{StaticResource SegmentedButton}">
-                                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                                <FontIcon Glyph="&#xE708;" FontSize="14" />
-                                                <TextBlock x:Name="ThemeDarkText" Text="다크" FontSize="12" />
-                                            </StackPanel>
-                                        </RadioButton>
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
-
-                            <!-- Custom Themes (Free) -->
-                            <Border Style="{StaticResource SettingsCardBorder}">
-                                <StackPanel Spacing="12">
+                                <StackPanel Spacing="14">
                                     <StackPanel Orientation="Horizontal">
                                         <Border Style="{StaticResource CardIconContainer}">
-                                            <FontIcon Glyph="&#xE735;" Style="{StaticResource CardIconStyle}" />
+                                            <FontIcon Glyph="&#xE790;" Style="{StaticResource CardIconStyle}" />
                                         </Border>
                                         <StackPanel Spacing="2" VerticalAlignment="Center">
-                                            <TextBlock x:Name="CustomThemesLabel" Text="커스텀 테마" Style="{StaticResource SettingsCardLabel}" />
-                                            <TextBlock x:Name="CustomThemesDesc" Text="인기 개발자 컬러 테마" Style="{StaticResource SettingsCardDesc}" />
+                                            <TextBlock x:Name="ThemeLabel" Text="테마" Style="{StaticResource SettingsCardLabel}" />
+                                            <TextBlock x:Name="ThemeDesc" Text="앱의 전체 색상 테마 설정" Style="{StaticResource SettingsCardDesc}" />
                                         </StackPanel>
                                     </StackPanel>
-                                    <Grid Margin="48,4,0,0" ColumnSpacing="8" RowSpacing="8">
+
+                                    <!-- Theme grid: 4 columns × 2 rows, mini app preview per card -->
+                                    <Grid Margin="48,0,0,0" ColumnSpacing="10" RowSpacing="10">
+                                        <Grid.Resources>
+                                            <SolidColorBrush x:Key="RadioButtonBackgroundPointerOver" Color="{ThemeResource SpanBgLayer3Color}" />
+                                            <SolidColorBrush x:Key="RadioButtonBorderBrushPointerOver" Color="{ThemeResource SpanAccentHoverColor}" />
+                                            <SolidColorBrush x:Key="RadioButtonBackgroundPressed" Color="{ThemeResource SpanBgLayer3Color}" />
+                                            <SolidColorBrush x:Key="RadioButtonBorderBrushPressed" Color="{ThemeResource SpanAccentColor}" />
+                                        </Grid.Resources>
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" /><ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" /><ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
                                         <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
                                         </Grid.RowDefinitions>
-                                        <!-- Dracula -->
-                                        <RadioButton x:Name="ThemeDracula" GroupName="Theme" Grid.Column="0" Grid.Row="0"
-                                                     HorizontalAlignment="Stretch" MinWidth="0" Padding="0" CornerRadius="8"
-                                                     Background="{ThemeResource SpanBgLayer2Brush}">
-                                            <StackPanel Spacing="6" Padding="12,10" HorizontalAlignment="Center">
-                                                <StackPanel Orientation="Horizontal" Spacing="3" HorizontalAlignment="Center">
-                                                    <Border Width="12" Height="12" CornerRadius="6" Background="#282a36" />
-                                                    <Border Width="12" Height="12" CornerRadius="6" Background="#bd93f9" />
-                                                    <Border Width="12" Height="12" CornerRadius="6" Background="#f8f8f2" />
-                                                    <Border Width="12" Height="12" CornerRadius="6" Background="#ff79c6" />
-                                                </StackPanel>
-                                                <TextBlock Text="Dracula" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
-                                                <TextBlock x:Name="DraculaDescText" Text="퍼플 다크 클래식" FontSize="10" HorizontalAlignment="Center" Foreground="{ThemeResource SpanTextSecondaryBrush}" />
+
+                                        <RadioButton x:Name="ThemeSystem" GroupName="ThemeAll" Grid.Column="0" Grid.Row="0"
+                                                     Style="{StaticResource CardRadioButtonStyle}" IsChecked="True">
+                                            <StackPanel Spacing="0">
+                                                <Border CornerRadius="4" Height="56" BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="1" HorizontalAlignment="Stretch">
+                                                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="16" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                        <Border Grid.Column="0" Background="#3a3a4a" CornerRadius="4,0,0,4" />
+                                                        <StackPanel Grid.Column="1" Spacing="4" Padding="6,8" Background="#1e1e2e" VerticalAlignment="Top">
+                                                            <Border Height="3" CornerRadius="1" Background="#7aa2f7" HorizontalAlignment="Stretch" />
+                                                            <Border Height="3" CornerRadius="1" Background="#666680" HorizontalAlignment="Stretch" Margin="0,0,20,0" />
+                                                            <Border Height="3" CornerRadius="1" Background="#666680" HorizontalAlignment="Stretch" Margin="0,0,10,0" />
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Border>
+                                                <TextBlock x:Name="ThemeSystemText" Text="시스템" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,6,0,0" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
                                             </StackPanel>
                                         </RadioButton>
-                                        <!-- Tokyo Night -->
-                                        <RadioButton x:Name="ThemeTokyoNight" GroupName="Theme" Grid.Column="1" Grid.Row="0"
-                                                     HorizontalAlignment="Stretch" MinWidth="0" Padding="0" CornerRadius="8"
-                                                     Background="{ThemeResource SpanBgLayer2Brush}">
-                                            <StackPanel Spacing="6" Padding="12,10" HorizontalAlignment="Center">
-                                                <StackPanel Orientation="Horizontal" Spacing="3" HorizontalAlignment="Center">
-                                                    <Border Width="12" Height="12" CornerRadius="6" Background="#1a1b26" />
-                                                    <Border Width="12" Height="12" CornerRadius="6" Background="#7aa2f7" />
-                                                    <Border Width="12" Height="12" CornerRadius="6" Background="#c0caf5" />
-                                                    <Border Width="12" Height="12" CornerRadius="6" Background="#7dcfff" />
-                                                </StackPanel>
-                                                <TextBlock Text="Tokyo Night" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
-                                                <TextBlock x:Name="TokyoNightDescText" Text="네이비 + 시안 포인트" FontSize="10" HorizontalAlignment="Center" Foreground="{ThemeResource SpanTextSecondaryBrush}" />
+
+                                        <RadioButton x:Name="ThemeLight" GroupName="ThemeAll" Grid.Column="1" Grid.Row="0"
+                                                     Style="{StaticResource CardRadioButtonStyle}">
+                                            <StackPanel Spacing="0">
+                                                <Border CornerRadius="4" Height="56" BorderBrush="#d0d0d0" BorderThickness="1" HorizontalAlignment="Stretch">
+                                                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="16" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                        <Border Grid.Column="0" Background="#e8e8ec" CornerRadius="4,0,0,4" />
+                                                        <StackPanel Grid.Column="1" Spacing="4" Padding="6,8" Background="#f5f5f7" VerticalAlignment="Top">
+                                                            <Border Height="3" CornerRadius="1" Background="#0078d4" HorizontalAlignment="Stretch" />
+                                                            <Border Height="3" CornerRadius="1" Background="#999999" HorizontalAlignment="Stretch" Margin="0,0,20,0" />
+                                                            <Border Height="3" CornerRadius="1" Background="#999999" HorizontalAlignment="Stretch" Margin="0,0,10,0" />
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Border>
+                                                <TextBlock x:Name="ThemeLightText" Text="라이트" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,6,0,0" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
                                             </StackPanel>
                                         </RadioButton>
-                                        <!-- Catppuccin Mocha -->
-                                        <RadioButton x:Name="ThemeCatppuccin" GroupName="Theme" Grid.Column="0" Grid.Row="1"
-                                                     HorizontalAlignment="Stretch" MinWidth="0" Padding="0" CornerRadius="8"
-                                                     Background="{ThemeResource SpanBgLayer2Brush}">
-                                            <StackPanel Spacing="6" Padding="12,10" HorizontalAlignment="Center">
-                                                <StackPanel Orientation="Horizontal" Spacing="3" HorizontalAlignment="Center">
-                                                    <Border Width="12" Height="12" CornerRadius="6" Background="#1e1e2e" />
-                                                    <Border Width="12" Height="12" CornerRadius="6" Background="#cba6f7" />
-                                                    <Border Width="12" Height="12" CornerRadius="6" Background="#cdd6f4" />
-                                                    <Border Width="12" Height="12" CornerRadius="6" Background="#f5c2e7" />
-                                                </StackPanel>
-                                                <TextBlock Text="Catppuccin" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
-                                                <TextBlock x:Name="CatppuccinDescText" Text="따뜻한 파스텔 다크" FontSize="10" HorizontalAlignment="Center" Foreground="{ThemeResource SpanTextSecondaryBrush}" />
+
+                                        <RadioButton x:Name="ThemeDark" GroupName="ThemeAll" Grid.Column="2" Grid.Row="0"
+                                                     Style="{StaticResource CardRadioButtonStyle}">
+                                            <StackPanel Spacing="0">
+                                                <Border CornerRadius="4" Height="56" BorderBrush="#444" BorderThickness="1" HorizontalAlignment="Stretch">
+                                                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="16" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                        <Border Grid.Column="0" Background="#2d2d30" CornerRadius="4,0,0,4" />
+                                                        <StackPanel Grid.Column="1" Spacing="4" Padding="6,8" Background="#1e1e1e" VerticalAlignment="Top">
+                                                            <Border Height="3" CornerRadius="1" Background="#569cd6" HorizontalAlignment="Stretch" />
+                                                            <Border Height="3" CornerRadius="1" Background="#666666" HorizontalAlignment="Stretch" Margin="0,0,20,0" />
+                                                            <Border Height="3" CornerRadius="1" Background="#666666" HorizontalAlignment="Stretch" Margin="0,0,10,0" />
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Border>
+                                                <TextBlock x:Name="ThemeDarkText" Text="다크" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,6,0,0" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
                                             </StackPanel>
                                         </RadioButton>
-                                        <!-- Gruvbox -->
-                                        <RadioButton x:Name="ThemeGruvbox" GroupName="Theme" Grid.Column="1" Grid.Row="1"
-                                                     HorizontalAlignment="Stretch" MinWidth="0" Padding="0" CornerRadius="8"
-                                                     Background="{ThemeResource SpanBgLayer2Brush}">
-                                            <StackPanel Spacing="6" Padding="12,10" HorizontalAlignment="Center">
-                                                <StackPanel Orientation="Horizontal" Spacing="3" HorizontalAlignment="Center">
-                                                    <Border Width="12" Height="12" CornerRadius="6" Background="#282828" />
-                                                    <Border Width="12" Height="12" CornerRadius="6" Background="#fe8019" />
-                                                    <Border Width="12" Height="12" CornerRadius="6" Background="#ebdbb2" />
-                                                    <Border Width="12" Height="12" CornerRadius="6" Background="#fabd2f" />
-                                                </StackPanel>
-                                                <TextBlock Text="Gruvbox" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
-                                                <TextBlock x:Name="GruvboxDescText" Text="레트로 웜 어스톤" FontSize="10" HorizontalAlignment="Center" Foreground="{ThemeResource SpanTextSecondaryBrush}" />
+
+                                        <RadioButton x:Name="ThemeDracula" GroupName="ThemeAll" Grid.Column="3" Grid.Row="0"
+                                                     Style="{StaticResource CardRadioButtonStyle}">
+                                            <StackPanel Spacing="0">
+                                                <Border CornerRadius="4" Height="56" BorderBrush="#44475a" BorderThickness="1" HorizontalAlignment="Stretch">
+                                                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="16" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                        <Border Grid.Column="0" Background="#343746" CornerRadius="4,0,0,4" />
+                                                        <StackPanel Grid.Column="1" Spacing="4" Padding="6,8" Background="#282a36" VerticalAlignment="Top">
+                                                            <Border Height="3" CornerRadius="1" Background="#bd93f9" HorizontalAlignment="Stretch" />
+                                                            <Border Height="3" CornerRadius="1" Background="#6272a4" HorizontalAlignment="Stretch" Margin="0,0,20,0" />
+                                                            <Border Height="3" CornerRadius="1" Background="#ff79c6" HorizontalAlignment="Stretch" Margin="0,0,10,0" />
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Border>
+                                                <TextBlock x:Name="DraculaDescText" Text="Dracula" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,6,0,0" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
+                                            </StackPanel>
+                                        </RadioButton>
+
+                                        <RadioButton x:Name="ThemeTokyoNight" GroupName="ThemeAll" Grid.Column="0" Grid.Row="1"
+                                                     Style="{StaticResource CardRadioButtonStyle}">
+                                            <StackPanel Spacing="0">
+                                                <Border CornerRadius="4" Height="56" BorderBrush="#292e42" BorderThickness="1" HorizontalAlignment="Stretch">
+                                                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="16" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                        <Border Grid.Column="0" Background="#1f2335" CornerRadius="4,0,0,4" />
+                                                        <StackPanel Grid.Column="1" Spacing="4" Padding="6,8" Background="#1a1b26" VerticalAlignment="Top">
+                                                            <Border Height="3" CornerRadius="1" Background="#7aa2f7" HorizontalAlignment="Stretch" />
+                                                            <Border Height="3" CornerRadius="1" Background="#565f89" HorizontalAlignment="Stretch" Margin="0,0,20,0" />
+                                                            <Border Height="3" CornerRadius="1" Background="#7dcfff" HorizontalAlignment="Stretch" Margin="0,0,10,0" />
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Border>
+                                                <TextBlock x:Name="TokyoNightDescText" Text="Tokyo Night" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,6,0,0" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
+                                            </StackPanel>
+                                        </RadioButton>
+
+                                        <RadioButton x:Name="ThemeCatppuccin" GroupName="ThemeAll" Grid.Column="1" Grid.Row="1"
+                                                     Style="{StaticResource CardRadioButtonStyle}">
+                                            <StackPanel Spacing="0">
+                                                <Border CornerRadius="4" Height="56" BorderBrush="#313244" BorderThickness="1" HorizontalAlignment="Stretch">
+                                                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="16" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                        <Border Grid.Column="0" Background="#181825" CornerRadius="4,0,0,4" />
+                                                        <StackPanel Grid.Column="1" Spacing="4" Padding="6,8" Background="#1e1e2e" VerticalAlignment="Top">
+                                                            <Border Height="3" CornerRadius="1" Background="#cba6f7" HorizontalAlignment="Stretch" />
+                                                            <Border Height="3" CornerRadius="1" Background="#585b70" HorizontalAlignment="Stretch" Margin="0,0,20,0" />
+                                                            <Border Height="3" CornerRadius="1" Background="#f5c2e7" HorizontalAlignment="Stretch" Margin="0,0,10,0" />
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Border>
+                                                <TextBlock x:Name="CatppuccinDescText" Text="Catppuccin" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,6,0,0" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
+                                            </StackPanel>
+                                        </RadioButton>
+
+                                        <RadioButton x:Name="ThemeGruvbox" GroupName="ThemeAll" Grid.Column="2" Grid.Row="1"
+                                                     Style="{StaticResource CardRadioButtonStyle}">
+                                            <StackPanel Spacing="0">
+                                                <Border CornerRadius="4" Height="56" BorderBrush="#3c3836" BorderThickness="1" HorizontalAlignment="Stretch">
+                                                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="16" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                        <Border Grid.Column="0" Background="#1d2021" CornerRadius="4,0,0,4" />
+                                                        <StackPanel Grid.Column="1" Spacing="4" Padding="6,8" Background="#282828" VerticalAlignment="Top">
+                                                            <Border Height="3" CornerRadius="1" Background="#fe8019" HorizontalAlignment="Stretch" />
+                                                            <Border Height="3" CornerRadius="1" Background="#665c54" HorizontalAlignment="Stretch" Margin="0,0,20,0" />
+                                                            <Border Height="3" CornerRadius="1" Background="#fabd2f" HorizontalAlignment="Stretch" Margin="0,0,10,0" />
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Border>
+                                                <TextBlock x:Name="GruvboxDescText" Text="Gruvbox" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,6,0,0" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
                                             </StackPanel>
                                         </RadioButton>
                                     </Grid>
                                 </StackPanel>
                             </Border>
 
-                            <!-- Layout Density -->
+                            <!-- hidden: keep x:Name references for localization -->
+                            <TextBlock x:Name="CustomThemesLabel" Visibility="Collapsed" />
+                            <TextBlock x:Name="CustomThemesDesc" Visibility="Collapsed" />
+
+                            <!-- ═══ Layout Density ═══ -->
                             <Border Style="{StaticResource SettingsCardBorder}">
-                                <StackPanel Spacing="12">
+                                <StackPanel Spacing="14">
                                     <StackPanel Orientation="Horizontal">
                                         <Border Style="{StaticResource CardIconContainer}">
                                             <FontIcon Glyph="&#xE744;" Style="{StaticResource CardIconStyle}" />
@@ -446,49 +588,95 @@
                                             <TextBlock x:Name="DensityDesc" Text="목록 항목 간격 조절" Style="{StaticResource SettingsCardDesc}" />
                                         </StackPanel>
                                     </StackPanel>
-                                    <Grid Margin="48,0,0,0" ColumnSpacing="8">
+                                    <Grid Margin="48,0,0,0" ColumnSpacing="10">
+                                        <Grid.Resources>
+                                            <SolidColorBrush x:Key="RadioButtonBackgroundPointerOver" Color="{ThemeResource SpanBgLayer3Color}" />
+                                            <SolidColorBrush x:Key="RadioButtonBorderBrushPointerOver" Color="{ThemeResource SpanAccentHoverColor}" />
+                                            <SolidColorBrush x:Key="RadioButtonBackgroundPressed" Color="{ThemeResource SpanBgLayer3Color}" />
+                                            <SolidColorBrush x:Key="RadioButtonBorderBrushPressed" Color="{ThemeResource SpanAccentColor}" />
+                                        </Grid.Resources>
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" /><ColumnDefinition Width="*" /><ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
+
                                         <RadioButton x:Name="DensityCompact" GroupName="Density" Grid.Column="0"
-                                                     HorizontalAlignment="Stretch" MinWidth="0" Padding="0" CornerRadius="8"
-                                                     Background="{ThemeResource SpanBgLayer2Brush}">
-                                            <StackPanel Spacing="6" Padding="12,10" HorizontalAlignment="Center">
-                                                <StackPanel Spacing="3" HorizontalAlignment="Center">
-                                                    <Border Width="50" Height="3" CornerRadius="2" Background="{ThemeResource SpanTextSecondaryBrush}" Opacity="0.5" />
-                                                    <Border Width="50" Height="3" CornerRadius="2" Background="{ThemeResource SpanTextSecondaryBrush}" Opacity="0.5" />
-                                                    <Border Width="50" Height="3" CornerRadius="2" Background="{ThemeResource SpanTextSecondaryBrush}" Opacity="0.5" />
-                                                    <Border Width="50" Height="3" CornerRadius="2" Background="{ThemeResource SpanTextSecondaryBrush}" Opacity="0.5" />
-                                                    <Border Width="50" Height="3" CornerRadius="2" Background="{ThemeResource SpanTextSecondaryBrush}" Opacity="0.5" />
-                                                </StackPanel>
-                                                <TextBlock Text="Compact" FontSize="11" HorizontalAlignment="Center" Foreground="{ThemeResource SpanTextSecondaryBrush}" />
+                                                     Style="{StaticResource CardRadioButtonStyle}">
+                                            <StackPanel Spacing="0">
+                                                <Border CornerRadius="4" Padding="8,6" Background="{ThemeResource SpanBgLayer2Brush}" BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="1">
+                                                    <StackPanel Spacing="3">
+                                                        <StackPanel Orientation="Horizontal" Spacing="5">
+                                                            <Border Width="8" Height="8" CornerRadius="2" Background="{ThemeResource SpanAccentBrush}" Opacity="0.7" />
+                                                            <Border Width="44" Height="3" CornerRadius="1" Background="{ThemeResource SpanTextSecondaryBrush}" Opacity="0.5" VerticalAlignment="Center" />
+                                                        </StackPanel>
+                                                        <StackPanel Orientation="Horizontal" Spacing="5">
+                                                            <Border Width="8" Height="8" CornerRadius="2" Background="{ThemeResource SpanTextTertiaryBrush}" Opacity="0.5" />
+                                                            <Border Width="36" Height="3" CornerRadius="1" Background="{ThemeResource SpanTextSecondaryBrush}" Opacity="0.5" VerticalAlignment="Center" />
+                                                        </StackPanel>
+                                                        <StackPanel Orientation="Horizontal" Spacing="5">
+                                                            <Border Width="8" Height="8" CornerRadius="2" Background="{ThemeResource SpanTextTertiaryBrush}" Opacity="0.5" />
+                                                            <Border Width="40" Height="3" CornerRadius="1" Background="{ThemeResource SpanTextSecondaryBrush}" Opacity="0.5" VerticalAlignment="Center" />
+                                                        </StackPanel>
+                                                        <StackPanel Orientation="Horizontal" Spacing="5">
+                                                            <Border Width="8" Height="8" CornerRadius="2" Background="{ThemeResource SpanAccentBrush}" Opacity="0.7" />
+                                                            <Border Width="44" Height="3" CornerRadius="1" Background="{ThemeResource SpanTextSecondaryBrush}" Opacity="0.5" VerticalAlignment="Center" />
+                                                        </StackPanel>
+                                                        <StackPanel Orientation="Horizontal" Spacing="5">
+                                                            <Border Width="8" Height="8" CornerRadius="2" Background="{ThemeResource SpanTextTertiaryBrush}" Opacity="0.5" />
+                                                            <Border Width="36" Height="3" CornerRadius="1" Background="{ThemeResource SpanTextSecondaryBrush}" Opacity="0.5" VerticalAlignment="Center" />
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                </Border>
+                                                <TextBlock Text="Compact" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,6,0,0" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
                                             </StackPanel>
                                         </RadioButton>
+
                                         <RadioButton x:Name="DensityComfortable" GroupName="Density" Grid.Column="1"
-                                                     HorizontalAlignment="Stretch" MinWidth="0" Padding="0" CornerRadius="8"
-                                                     IsChecked="True" Background="{ThemeResource SpanBgLayer2Brush}">
-                                            <StackPanel Spacing="6" Padding="12,10" HorizontalAlignment="Center">
-                                                <StackPanel Spacing="5" HorizontalAlignment="Center">
-                                                    <Border Width="50" Height="5" CornerRadius="2" Background="{ThemeResource SpanTextSecondaryBrush}" Opacity="0.5" />
-                                                    <Border Width="50" Height="5" CornerRadius="2" Background="{ThemeResource SpanTextSecondaryBrush}" Opacity="0.5" />
-                                                    <Border Width="50" Height="5" CornerRadius="2" Background="{ThemeResource SpanTextSecondaryBrush}" Opacity="0.5" />
-                                                    <Border Width="50" Height="5" CornerRadius="2" Background="{ThemeResource SpanTextSecondaryBrush}" Opacity="0.5" />
-                                                </StackPanel>
-                                                <TextBlock Text="Comfortable" FontSize="11" HorizontalAlignment="Center" Foreground="{ThemeResource SpanTextSecondaryBrush}" />
+                                                     Style="{StaticResource CardRadioButtonStyle}" IsChecked="True">
+                                            <StackPanel Spacing="0">
+                                                    <Border CornerRadius="4" Padding="8,6" Background="{ThemeResource SpanBgLayer2Brush}" BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="1">
+                                                        <StackPanel Spacing="6">
+                                                        <StackPanel Orientation="Horizontal" Spacing="5">
+                                                            <Border Width="10" Height="10" CornerRadius="2" Background="{ThemeResource SpanAccentBrush}" Opacity="0.7" />
+                                                            <Border Width="44" Height="3" CornerRadius="1" Background="{ThemeResource SpanTextSecondaryBrush}" Opacity="0.5" VerticalAlignment="Center" />
+                                                        </StackPanel>
+                                                        <StackPanel Orientation="Horizontal" Spacing="5">
+                                                            <Border Width="10" Height="10" CornerRadius="2" Background="{ThemeResource SpanTextTertiaryBrush}" Opacity="0.5" />
+                                                            <Border Width="36" Height="3" CornerRadius="1" Background="{ThemeResource SpanTextSecondaryBrush}" Opacity="0.5" VerticalAlignment="Center" />
+                                                        </StackPanel>
+                                                        <StackPanel Orientation="Horizontal" Spacing="5">
+                                                            <Border Width="10" Height="10" CornerRadius="2" Background="{ThemeResource SpanTextTertiaryBrush}" Opacity="0.5" />
+                                                            <Border Width="40" Height="3" CornerRadius="1" Background="{ThemeResource SpanTextSecondaryBrush}" Opacity="0.5" VerticalAlignment="Center" />
+                                                        </StackPanel>
+                                                        <StackPanel Orientation="Horizontal" Spacing="5">
+                                                            <Border Width="10" Height="10" CornerRadius="2" Background="{ThemeResource SpanAccentBrush}" Opacity="0.7" />
+                                                            <Border Width="44" Height="3" CornerRadius="1" Background="{ThemeResource SpanTextSecondaryBrush}" Opacity="0.5" VerticalAlignment="Center" />
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                </Border>
+                                                <TextBlock Text="Comfortable" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,6,0,0" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
                                             </StackPanel>
                                         </RadioButton>
+
                                         <RadioButton x:Name="DensitySpacious" GroupName="Density" Grid.Column="2"
-                                                     HorizontalAlignment="Stretch" MinWidth="0" Padding="0" CornerRadius="8"
-                                                     Background="{ThemeResource SpanBgLayer2Brush}">
-                                            <StackPanel Spacing="6" Padding="12,10" HorizontalAlignment="Center">
-                                                <StackPanel Spacing="7" HorizontalAlignment="Center">
-                                                    <Border Width="50" Height="7" CornerRadius="3" Background="{ThemeResource SpanTextSecondaryBrush}" Opacity="0.5" />
-                                                    <Border Width="50" Height="7" CornerRadius="3" Background="{ThemeResource SpanTextSecondaryBrush}" Opacity="0.5" />
-                                                    <Border Width="50" Height="7" CornerRadius="3" Background="{ThemeResource SpanTextSecondaryBrush}" Opacity="0.5" />
-                                                </StackPanel>
-                                                <TextBlock Text="Spacious" FontSize="11" HorizontalAlignment="Center" Foreground="{ThemeResource SpanTextSecondaryBrush}" />
+                                                     Style="{StaticResource CardRadioButtonStyle}">
+                                            <StackPanel Spacing="0">
+                                                <Border CornerRadius="4" Padding="8,6" Background="{ThemeResource SpanBgLayer2Brush}" BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="1">
+                                                    <StackPanel Spacing="10">
+                                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                                            <Border Width="12" Height="12" CornerRadius="3" Background="{ThemeResource SpanAccentBrush}" Opacity="0.7" />
+                                                            <Border Width="44" Height="3" CornerRadius="1" Background="{ThemeResource SpanTextSecondaryBrush}" Opacity="0.5" VerticalAlignment="Center" />
+                                                        </StackPanel>
+                                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                                            <Border Width="12" Height="12" CornerRadius="3" Background="{ThemeResource SpanTextTertiaryBrush}" Opacity="0.5" />
+                                                            <Border Width="36" Height="3" CornerRadius="1" Background="{ThemeResource SpanTextSecondaryBrush}" Opacity="0.5" VerticalAlignment="Center" />
+                                                        </StackPanel>
+                                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                                            <Border Width="12" Height="12" CornerRadius="3" Background="{ThemeResource SpanTextTertiaryBrush}" Opacity="0.5" />
+                                                            <Border Width="40" Height="3" CornerRadius="1" Background="{ThemeResource SpanTextSecondaryBrush}" Opacity="0.5" VerticalAlignment="Center" />
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                </Border>
+                                                <TextBlock Text="Spacious" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,6,0,0" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
                                             </StackPanel>
                                         </RadioButton>
                                     </Grid>
@@ -575,11 +763,9 @@
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
-                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12">
+                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                             <TextBlock x:Name="ShowHiddenLabel" Text="숨김 항목 표시" Style="{StaticResource ToggleRowLabel}" />
-                                            <Border Background="{ThemeResource SpanBgLayer2Brush}" CornerRadius="4" Padding="6,2">
-                                                <TextBlock Text="Ctrl+H" FontSize="11" FontFamily="Consolas" Foreground="{ThemeResource SpanTextSecondaryBrush}" />
-                                            </Border>
+                                            <TextBlock Text="(Ctrl+H)" FontSize="11" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center" />
                                         </StackPanel>
                                         <ToggleSwitch x:Name="ShowHiddenToggle" Grid.Column="1" IsOn="False" OnContent="" OffContent="" />
                                     </Grid>

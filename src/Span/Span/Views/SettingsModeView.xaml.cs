@@ -272,6 +272,24 @@ public sealed partial class SettingsModeView : UserControl
         CopilotMenuToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowCopilotMenu = CopilotMenuToggle.IsOn; };
         ContextMenuToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowContextMenu = ContextMenuToggle.IsOn; };
         CrashReportToggle.Toggled += (s, e) => { if (!_isLoading) _settings.EnableCrashReporting = CrashReportToggle.IsOn; };
+
+        // Hand cursor on all clickable card items
+        foreach (var rb in new[] {
+            ThemeSystem, ThemeLight, ThemeDark, ThemeDracula,
+            ThemeTokyoNight, ThemeCatppuccin, ThemeGruvbox,
+            DensityCompact, DensityComfortable, DensitySpacious,
+            StartupRestore, StartupHome, StartupFolder })
+            Helpers.CursorHelper.SetHandCursor(rb);
+
+        foreach (var toggle in new[] {
+            FavoritesTreeToggle, SystemTrayToggle, WindowPositionToggle,
+            ShellExtrasToggle, DeveloperMenuToggle, GitIntegrationToggle,
+            HexPreviewToggle, CopilotMenuToggle, ContextMenuToggle, CrashReportToggle })
+            Helpers.CursorHelper.SetHandCursor(toggle);
+
+        Helpers.CursorHelper.SetHandCursor(IconPackCombo);
+        Helpers.CursorHelper.SetHandCursor(LanguageCombo);
+        Helpers.CursorHelper.SetHandCursor(TerminalCombo);
     }
 
     // ── Responsive layout ──

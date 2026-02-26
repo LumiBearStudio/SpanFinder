@@ -510,6 +510,7 @@ namespace Span
             {
                 grid.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
                     Microsoft.UI.Colors.White) { Opacity = 0.05 };
+                Helpers.CursorHelper.SetHandCursor(grid);
             }
         }
 

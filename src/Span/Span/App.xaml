@@ -2,7 +2,8 @@
     x:Class="Span.App"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:Span">
+    xmlns:local="using:Span"
+    xmlns:helpers="using:Span.Helpers">
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -184,6 +185,7 @@
                 <Setter Property="VerticalAlignment" Value="Center" />
                 <Setter Property="CornerRadius" Value="{StaticResource RadiusSm}" />
                 <Setter Property="Foreground" Value="{ThemeResource SpanTextSecondaryBrush}" />
+                <Setter Property="helpers:CursorHelper.IsHandCursor" Value="True" />
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="Button">
