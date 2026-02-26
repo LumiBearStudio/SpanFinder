@@ -21,6 +21,10 @@ namespace Span
             this.InitializeComponent();
             Services = ConfigureServices();
 
+            // Initialize Sentry crash reporting (must be early, before any exception can occur)
+            var crashService = Services.GetRequiredService<Services.CrashReportingService>();
+            crashService.Initialize();
+
             // UI thread unhandled exceptions
             this.UnhandledException += OnUnhandledException;
 
@@ -98,17 +102,21 @@ namespace Span
         private void OnUnhandledException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs e)
         {
             Helpers.DebugLogger.LogCrash("UI.UnhandledException", e.Exception);
+            try { Services.GetRequiredService<Services.CrashReportingService>().CaptureException(e.Exception, "UI.UnhandledException"); } catch { }
             e.Handled = true;
         }
 
-        private static void OnDomainUnhandledException(object sender, System.UnhandledExceptionEventArgs e)
+        private void OnDomainUnhandledException(object sender, System.UnhandledExceptionEventArgs e)
         {
-            Helpers.DebugLogger.LogCrash("AppDomain.UnhandledException", e.ExceptionObject as Exception);
+            var ex = e.ExceptionObject as Exception;
+            Helpers.DebugLogger.LogCrash("AppDomain.UnhandledException", ex);
+            try { Services.GetRequiredService<Services.CrashReportingService>().CaptureException(ex!, "AppDomain.UnhandledException"); } catch { }
         }
 
-        private static void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
+        private void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
         {
             Helpers.DebugLogger.LogCrash("Task.UnobservedException", e.Exception);
+            try { Services.GetRequiredService<Services.CrashReportingService>().CaptureException(e.Exception, "Task.UnobservedException"); } catch { }
             e.SetObserved(); // Prevent process termination
         }
 
@@ -134,6 +142,7 @@ namespace Span
             services.AddSingleton<Services.NetworkBrowserService>();
             services.AddSingleton<Services.ConnectionManagerService>();
             services.AddSingleton<Services.GitStatusService>();
+            services.AddSingleton<Services.CrashReportingService>();
 
             // Interface registrations (for testability — resolve to same singleton)
             services.AddSingleton<Services.IFileSystemService>(sp => sp.GetRequiredService<Services.FileSystemService>());

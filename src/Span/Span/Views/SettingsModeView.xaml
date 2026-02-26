@@ -859,6 +859,25 @@
                                     <ToggleSwitch x:Name="HexPreviewToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="False" OnContent="" OffContent="" />
                                 </Grid>
                             </Border>
+
+                            <!-- Crash Reporting Toggle -->
+                            <Border Style="{StaticResource SettingsCardBorder}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Style="{StaticResource CardIconContainer}">
+                                        <FontIcon Glyph="&#xEBE8;" Style="{StaticResource CardIconStyle}" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock x:Name="CrashReportLabel" Text="크래시 리포팅" Style="{StaticResource SettingsCardLabel}" />
+                                        <TextBlock x:Name="CrashReportDesc" Text="앱 오류 발생 시 익명화된 크래시 정보를 개발팀에 전송하여 품질 개선에 활용합니다. 파일 경로 등 개인정보는 수집되지 않습니다." Style="{StaticResource SettingsCardDesc}" />
+                                    </StackPanel>
+                                    <ToggleSwitch x:Name="CrashReportToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="True" OnContent="" OffContent="" />
+                                </Grid>
+                            </Border>
                         </StackPanel>
                     </ScrollViewer>
 

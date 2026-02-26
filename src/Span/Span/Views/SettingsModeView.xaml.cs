@@ -155,6 +155,7 @@ public sealed partial class SettingsModeView : UserControl
             HexPreviewToggle.IsOn = _settings.ShowHexPreview;
             CopilotMenuToggle.IsOn = _settings.ShowCopilotMenu;
             ContextMenuToggle.IsOn = _settings.ShowContextMenu;
+            CrashReportToggle.IsOn = _settings.EnableCrashReporting;
 
             // Git 설치 상태 표시
             try
@@ -270,6 +271,7 @@ public sealed partial class SettingsModeView : UserControl
         HexPreviewToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowHexPreview = HexPreviewToggle.IsOn; };
         CopilotMenuToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowCopilotMenu = CopilotMenuToggle.IsOn; };
         ContextMenuToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowContextMenu = ContextMenuToggle.IsOn; };
+        CrashReportToggle.Toggled += (s, e) => { if (!_isLoading) _settings.EnableCrashReporting = CrashReportToggle.IsOn; };
     }
 
     // ── Responsive layout ──
@@ -446,6 +448,8 @@ public sealed partial class SettingsModeView : UserControl
         TerminalDesc.Text = _loc.Get("Settings_TerminalAppDesc");
         DevMenuLabel.Text = _loc.Get("Settings_DeveloperMenu");
         DevMenuDesc.Text = _loc.Get("Settings_DeveloperMenuDesc");
+        CrashReportLabel.Text = _loc.Get("Settings_CrashReport");
+        CrashReportDesc.Text = _loc.Get("Settings_CrashReportDesc");
 
         // About
         AboutTitle.Text = _loc.Get("Settings_AboutNav");

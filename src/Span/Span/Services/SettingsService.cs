@@ -193,6 +193,12 @@ public class SettingsService : ISettingsService
         set => Set("ShowHexPreview", value);
     }
 
+    public bool EnableCrashReporting
+    {
+        get => Get("EnableCrashReporting", true);   // 기본값 ON
+        set => Set("EnableCrashReporting", value);
+    }
+
     public bool ShowWindowsShellExtras
     {
         get => Get("ShowWindowsShellExtras", false);
