@@ -721,7 +721,9 @@ namespace Span
                         }
                     }
 
-                    if (targetWindow != null && newWindow != null && newWindow.ViewModel.Tabs.Count > 0)
+                    if (targetWindow != null && newWindow != null
+                        && targetWindow != newWindow  // 자기 자신에게 재도킹 방지
+                        && newWindow.ViewModel.Tabs.Count > 0)
                     {
                         // Re-dock: transfer tab from new window to target window
                         var tab = newWindow.ViewModel.ActiveTab;

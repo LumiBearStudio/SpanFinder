@@ -331,9 +331,17 @@ namespace Span
             _drivePollingTimer.Tick += OnDrivePollingTick;
             _drivePollingTimer.Start();
 
-            // ── Restore window position BEFORE Activate() to prevent flicker ──
+            // ── Restore window position ──
+            // Cloak the window so the user never sees the WinUI default size.
+            // Activate() resets the size, but the Loaded handler re-applies
+            // the saved placement and then uncloaks.
             if (_settings.RememberWindowPosition)
+            {
+                int cloakOn = 1;
+                Helpers.NativeMethods.DwmSetWindowAttribute(
+                    _hwnd, Helpers.NativeMethods.DWMWA_CLOAK, ref cloakOn, sizeof(int));
                 RestoreWindowPlacement();
+            }
 
             // Initialize preview panels
             InitializePreviewPanels();
@@ -404,12 +412,36 @@ namespace Span
                         PopulateFavoritesTree();
                         ViewModel.Favorites.CollectionChanged += OnFavoritesCollectionChanged;
 
+                        // Uncloak if cloaked during constructor (RememberWindowPosition)
+                        if (_settings.RememberWindowPosition)
+                        {
+                            int cloakOff = 0;
+                            Helpers.NativeMethods.DwmSetWindowAttribute(
+                                _hwnd, Helpers.NativeMethods.DWMWA_CLOAK, ref cloakOff, sizeof(int));
+                        }
+
                         DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
                             () => FocusActiveView());
                         return;
                     }
 
-                    // (Window placement is restored in constructor before Activate)
+                    // ── Re-apply window placement after Activate + layout, then uncloak ──
+                    if (!_isTearOffWindow && _settings.RememberWindowPosition)
+                    {
+                        RestoreWindowPlacement();
+                        DispatcherQueue.TryEnqueue(
+                            Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+                            () =>
+                            {
+                                if (!_isClosed && _settings.RememberWindowPosition)
+                                    RestoreWindowPlacement();
+
+                                // Uncloak — window is now at the correct size
+                                int cloakOff = 0;
+                                Helpers.NativeMethods.DwmSetWindowAttribute(
+                                    _hwnd, Helpers.NativeMethods.DWMWA_CLOAK, ref cloakOff, sizeof(int));
+                            });
+                    }
 
                     // ── Normal startup: restore session tabs ──
                     if (ViewModel.IsSplitViewEnabled)
@@ -504,7 +536,8 @@ namespace Span
                     ["Height"] = rect.Bottom - rect.Top
                 };
                 settings.Values["WindowPlacement"] = composite;
-                Helpers.DebugLogger.Log($"[Window] Saved placement: {rect.Left},{rect.Top} {rect.Right - rect.Left}x{rect.Bottom - rect.Top}");
+                var dpi = Helpers.NativeMethods.GetDpiForWindow(_hwnd);
+                Helpers.DebugLogger.Log($"[Window] Saved placement: {rect.Left},{rect.Top} {rect.Right - rect.Left}x{rect.Bottom - rect.Top} (DPI={dpi})");
             }
             catch (Exception ex)
             {
@@ -529,9 +562,17 @@ namespace Span
                     if (w < 400) w = 400;
                     if (h < 300) h = 300;
 
-                    this.AppWindow.MoveAndResize(
-                        new Windows.Graphics.RectInt32(x, y, w, h));
-                    Helpers.DebugLogger.Log($"[Window] Restored placement: {x},{y} {w}x{h}");
+                    // Win32 SetWindowPos 사용 (물리 픽셀 직접 지정)
+                    // AppWindow.MoveAndResize는 DPI 이중적용 버그 있음
+                    Helpers.NativeMethods.SetWindowPos(
+                        _hwnd, Helpers.NativeMethods.HWND_TOP,
+                        x, y, w, h,
+                        Helpers.NativeMethods.SWP_NOZORDER | Helpers.NativeMethods.SWP_NOACTIVATE);
+
+                    // 복원 후 실제 크기 확인
+                    GetWindowRect(_hwnd, out var verifyRect);
+                    var dpi = Helpers.NativeMethods.GetDpiForWindow(_hwnd);
+                    Helpers.DebugLogger.Log($"[Window] Restored target: {x},{y} {w}x{h} | actual: {verifyRect.Left},{verifyRect.Top} {verifyRect.Right - verifyRect.Left}x{verifyRect.Bottom - verifyRect.Top} (DPI={dpi})");
                 }
             }
             catch (Exception ex)
