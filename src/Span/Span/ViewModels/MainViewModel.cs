@@ -16,7 +16,7 @@ namespace Span.ViewModels
     public partial class MainViewModel : ObservableObject
     {
         [ObservableProperty]
-        private string _appTitle = "Span";
+        private string _appTitle = "SPAN Finder";
 
         public ObservableCollection<TabItem> Tabs { get; } = new();
         public ObservableCollection<DriveItem> Drives { get; } = new();

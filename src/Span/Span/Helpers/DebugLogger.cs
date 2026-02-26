@@ -11,10 +11,15 @@ namespace Span.Helpers
     /// </summary>
     public static class DebugLogger
     {
-        private static readonly string LogFilePath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
-            "Span_Debug.log"
-        );
+        private static readonly string LogFilePath;
+
+        private static string InitLogFilePath()
+        {
+            var exeDir = AppContext.BaseDirectory;
+            var logsDir = Path.Combine(exeDir, "Logs");
+            try { Directory.CreateDirectory(logsDir); } catch { }
+            return Path.Combine(logsDir, "Span_Debug.log");
+        }
 
         private static readonly Channel<string> _channel =
             Channel.CreateUnbounded<string>(new UnboundedChannelOptions
@@ -25,6 +30,7 @@ namespace Span.Helpers
 
         static DebugLogger()
         {
+            LogFilePath = InitLogFilePath();
             try
             {
                 if (File.Exists(LogFilePath))

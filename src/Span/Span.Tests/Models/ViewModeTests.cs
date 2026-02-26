@@ -24,7 +24,9 @@ public class ViewModeTests
         Assert.AreEqual(3, (int)Span.Models.PreviewType.Pdf);
         Assert.AreEqual(4, (int)Span.Models.PreviewType.Media);
         Assert.AreEqual(5, (int)Span.Models.PreviewType.Folder);
-        Assert.AreEqual(6, (int)Span.Models.PreviewType.Generic);
+        Assert.AreEqual(6, (int)Span.Models.PreviewType.HexBinary);
+        Assert.AreEqual(7, (int)Span.Models.PreviewType.Font);
+        Assert.AreEqual(8, (int)Span.Models.PreviewType.Generic);
     }
 
     [TestMethod]

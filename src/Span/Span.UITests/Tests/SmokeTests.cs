@@ -32,8 +32,8 @@ public class SmokeTests
     public void App_Launches_And_MainWindow_Exists()
     {
         Assert.IsNotNull(_window, "Main window should exist after launch");
-        Assert.IsTrue(_window.Title.Contains("Span") || !string.IsNullOrEmpty(_window.Title),
-            "Window title should not be empty");
+        Assert.IsTrue(_window.Title.Contains("SPAN Finder") || !string.IsNullOrEmpty(_window.Title),
+            "Window title should contain SPAN Finder");
     }
 
     [TestMethod]

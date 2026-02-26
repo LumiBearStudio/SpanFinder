@@ -7,13 +7,13 @@ using System.IO;
 namespace Span.UITests;
 
 /// <summary>
-/// Shared fixture that manages FlaUI automation handle to the Span application.
+/// Shared fixture that manages FlaUI automation handle to the SPAN Finder application.
 ///
 /// WinUI 3 apps require MSIX packaging and cannot be launched via Application.Launch().
-/// Tests attach to an already-running Span process.
+/// Tests attach to an already-running SPAN Finder process.
 ///
 /// Usage:
-///   1. Launch Span from Visual Studio (F5) or Start Menu
+///   1. Launch SPAN Finder from Visual Studio (F5) or Start Menu
 ///   2. Run tests: dotnet test src/Span/Span.UITests/Span.UITests.csproj -p:Platform=x64
 /// </summary>
 public static class SpanAppFixture
@@ -23,7 +23,7 @@ public static class SpanAppFixture
     private static Window? _cachedWindow;
 
     /// <summary>
-    /// Attach to the running Span process and return its main window.
+    /// Attach to the running SPAN Finder process and return its main window.
     /// Caches the window handle across calls within the same test session.
     /// </summary>
     public static Window GetMainWindow(int timeoutSeconds = 10)
@@ -50,8 +50,8 @@ public static class SpanAppFixture
             if (processes.Length == 0)
             {
                 throw new InvalidOperationException(
-                    "No running Span process found.\n" +
-                    "WinUI 3 apps require MSIX packaging — launch Span from Visual Studio (F5) or Start Menu first.");
+                    "No running SPAN Finder process found.\n" +
+                    "WinUI 3 apps require MSIX packaging — launch SPAN Finder from Visual Studio (F5) or Start Menu first.");
             }
 
             _app = Application.Attach(processes[0]);
@@ -59,7 +59,7 @@ public static class SpanAppFixture
 
         var mainWindow = _app.GetMainWindow(_automation, TimeSpan.FromSeconds(timeoutSeconds));
         if (mainWindow == null)
-            throw new TimeoutException($"Span main window did not appear within {timeoutSeconds}s");
+            throw new TimeoutException($"SPAN Finder main window did not appear within {timeoutSeconds}s");
 
         _cachedWindow = mainWindow;
         return mainWindow;

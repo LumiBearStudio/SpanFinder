@@ -43,7 +43,7 @@
             <!-- App Icon & Title -->
             <StackPanel Orientation="Horizontal" Grid.Column="0" VerticalAlignment="Center" Margin="16,0,16,0" Spacing="8">
                 <Image Source="/Assets/Square44x44Logo.png" Height="16" Width="16"/>
-                <TextBlock Text="Span" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
+                <TextBlock Text="SPAN Finder" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
             </StackPanel>
             
             <!-- Dynamic Tabs -->

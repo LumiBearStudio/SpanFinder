@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Span is a high-performance Miller Columns file explorer for Windows, inspired by macOS Finder. It provides intuitive hierarchical navigation with zero-lag performance using WinUI 3 and modern Windows design principles.
+SPAN Finder is a high-performance Miller Columns file explorer for Windows, inspired by macOS Finder. It provides intuitive hierarchical navigation with zero-lag performance using WinUI 3 and modern Windows design principles.
 
 ## Tech Stack
 

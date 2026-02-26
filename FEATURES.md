@@ -1,7 +1,7 @@
-# Span - Feature Reference
+# SPAN Finder - Feature Reference
 
 > Windows용 고성능 Miller Columns 파일 탐색기
-> 최종 업데이트: 2026-02-25
+> 최종 업데이트: 2026-02-26
 
 ---
 
@@ -35,7 +35,7 @@
 | `Ctrl+Shift+A` | 선택 해제 |
 | `Ctrl+I` | 선택 반전 |
 | `Ctrl+Shift+N` | 새 폴더 |
-| `F2` | 이름 변경 (다중 선택 시 배치 이름 변경 다이얼로그) |
+| `F2` | 이름 변경 — 연속 누르면 사이클: 파일명만 → 전체이름 → 확장자만 (다중 선택 시 배치 이름 변경 다이얼로그) |
 | `F5` | 새로고침 |
 | `Delete` | 휴지통으로 삭제 |
 | `Shift+Delete` | 영구 삭제 |
@@ -86,6 +86,8 @@
 | `Ctrl+Wheel` | 아이콘 뷰 크기 조절 |
 | 러버밴드 드래그 | 범위 선택 |
 | 컬럼 경계 드래그 | Miller 컬럼 폭 조절 |
+| 컬럼 경계 더블클릭 | 해당 컬럼 내용에 맞게 자동 너비 조절 |
+| `Ctrl`+컬럼 드래그 | 모든 컬럼에 동일 너비 일괄 적용 |
 
 ---
 
@@ -102,10 +104,10 @@
 ## 파일 조작
 
 - **복사/이동/삭제**: 진행률 표시, 일시정지/재개/취소 지원
-- **실행 취소/다시 실행**: 최대 50개 히스토리 (설정 가능)
+- **실행 취소/다시 실행**: 최대 50개 히스토리 (설정 가능, 10~100), 복사/이동/삭제/이름변경/압축/해제 모두 Undo 지원
 - **새 파일/폴더 생성**
-- **인라인 이름 변경**: F2로 편집, Enter 확정, Esc 취소
-- **배치 이름 변경**: 찾기/바꾸기 (정규식), 접두사/접미사, 번호 매기기
+- **인라인 이름 변경**: F2로 편집, Enter 확정, Esc 취소, F2 반복 시 선택 사이클 (파일명→전체→확장자)
+- **배치 이름 변경**: 찾기/바꾸기 (정규식, 대소문자 구분), 접두사/접미사, 번호 매기기 ({name}/{n}/{ext} 패턴), 실시간 미리보기 + 충돌 감지
 - **파일 복제**: `Ctrl+D`
 - **ZIP 압축/해제**: 컨텍스트 메뉴에서 실행
 - **충돌 해결**: 파일명 중복 시 자동 접미사 " (n)" 추가
@@ -138,8 +140,12 @@
 - 빠른 액세스 동기화
 
 ### 원격 연결
-- SMB, FTP, FTPS, SFTP 프로토콜 지원
-- 연결 정보 저장/관리 (ConnectionManager)
+- **FTP/FTPS**: FluentFTP 라이브러리 기반 (디렉토리 탐색, 업로드/다운로드)
+- **SFTP**: SSH 키 인증 + 비밀번호 인증 지원
+- **SMB**: WNetEnumResourceW P/Invoke 기반 네트워크 탐색, NetShareEnum으로 공유 폴더 열거
+- 연결 정보 저장/관리 (ConnectionManagerService)
+- 관리자 공유($-접미사) 자동 필터링
+- 작업당 5초 타임아웃
 
 ---
 
@@ -155,16 +161,19 @@
 
 ## 미리보기 패널
 
-- `Ctrl+P`로 토글, `Space`로 Quick Look
+- `Ctrl+P`로 토글, `Space`로 Quick Look (모달 다이얼로그)
 - **지원 포맷**:
   - 이미지: JPEG, PNG, GIF, BMP, WebP, TIFF 등
   - 비디오: MP4, MKV, AVI, MOV, WMV, WEBM 등 + 메타데이터
   - 오디오: MP3, AAC, M4A 등 (Artist, Album, Duration)
   - 텍스트: TXT, JSON, XML, CSV, MD 등 (30+ 확장자)
   - PDF: 첫 페이지 미리보기
-- 이미지/파일 메타데이터 (해상도, 크기, 날짜)
+  - 바이너리: Hex 덤프 뷰어 (첫 512바이트, 16진수 + ASCII 표시)
+  - 폰트: 폰트 파일 미리보기
+- 이미지/파일 메타데이터 (해상도, 크기, 날짜, 생성일, 타입)
 - 200ms 디바운싱 (빠른 선택 최적화)
 - 클라우드 전용 파일: 캐시된 썸네일만 사용 (다운로드 방지)
+- FTP/SFTP 원격 파일 미리보기 지원
 
 ---
 
@@ -185,7 +194,11 @@
 
 - **Windows Shell 네이티브 메뉴**: 셸 확장 프로그램 메뉴 100% 지원
 - 셸 Verb 다국어 번역 (한국어, 일본어)
-- 추가 항목: 터미널 열기, 경로 복사, 빠른 액세스에 고정, 압축/해제
+- **파일/폴더 메뉴**: 열기, 연결 프로그램, 잘라내기, 복사, 붙여넣기, 이름 변경, 삭제, 영구 삭제, 복제, 바로가기 생성, 속성
+- **빈 영역 메뉴**: 새 파일/폴더, 정렬(서브메뉴), 그룹화(서브메뉴), 탐색기에서 열기
+- **추가 항목**: 터미널 열기, 경로 복사, 빠른 액세스에 고정, ZIP 압축/해제
+- **즐겨찾기 메뉴**: 탐색, 고정 해제, 이름 편집
+- **정렬 서브메뉴**: 이름/날짜/크기/종류, 오름차순/내림차순, 그룹화 옵션
 
 ---
 
@@ -195,7 +208,10 @@
 - **외부 → Span**: Windows Explorer, Desktop에서 파일 드롭
 - **Span → 외부**: Windows Explorer, Desktop으로 파일 드래그
 - **즐겨찾기 드롭**: 사이드바에 파일 드롭으로 즐겨찾기 추가
+- **분할 뷰 간 드래그**: 좌↔우 패널 간 파일 이동/복사
+- **Spring-loaded 폴더**: 드래그 중 폴더 위 호버 시 자동 열림 (800ms 지연)
 - StorageItems 지연 로딩 지원
+- 수정키: `Shift`=이동 강제, `Ctrl`=복사 강제 (같은 드라이브=이동, 다른 드라이브=복사 기본)
 
 ---
 
@@ -223,45 +239,66 @@
 
 - 아이템 수 / 선택 수 표시
 - 디스크 여유 공간 / 전체 용량 표시
-- 토스트 알림 (작업 완료/에러)
+- 선택 파일 크기 합산 표시
+- 검색 결과 수 표시 ("Search: N results")
+- InfoBar 알림 (배치 이름 변경 충돌, 작업 결과 등)
 
 ---
 
 ## 검색
 
-- **Type-Ahead**: 밀러 컬럼 내 문자 입력 즉시 필터링
-- **검색 박스**: `Ctrl+F`로 포커스
-- **SearchQueryParser**: 구조화된 검색 쿼리 파싱
-- **SearchFilter**: 검색 조건 필터링
+- **Type-Ahead**: 밀러 컬럼 내 문자 입력 즉시 필터링 (800ms 버퍼)
+- **검색 박스**: `Ctrl+F`로 포커스, `Enter`로 검색 실행, `Esc`로 초기화
+- **고급 검색 쿼리 문법** (SearchQueryParser):
+  - `kind:folder`, `kind:file` — 항목 타입 필터
+  - `kind:image`, `kind:video`, `kind:audio`, `kind:document`, `kind:archive`, `kind:code`, `kind:exe`, `kind:font` — 파일 종류별 필터
+  - `size:>1MB`, `size:<100KB`, `size:>=500B` — 크기 비교 (B/KB/MB/GB/TB 단위)
+  - `date:>2024-01-01`, `date:<2024-12-31` — 수정일 비교
+  - `date:today`, `date:yesterday`, `date:thisweek`, `date:thismonth`, `date:thisyear` — 날짜 키워드
+  - `ext:.txt`, `ext:.pdf` — 확장자 필터
+  - 일반 텍스트 = 이름 부분일치 (대소문자 무시)
+  - 복합 쿼리: 여러 조건 AND 결합 가능 (예: `kind:image size:>1MB`)
 
 ---
 
 ## 폴더 크기 계산
 
-- Details 뷰에서 백그라운드 계산 (FolderSizeService)
-- 계산 완료 시 UI 자동 업데이트
-- 결과 캐싱
+- Details 뷰에서 백그라운드 비동기 계산 (FolderSizeService)
+- 계산 완료 시 UI 자동 업데이트 (SizeCalculated 이벤트)
+- 결과 캐싱 (폴더 경로 기준)
+- 최대 탐색 깊이: 8단계
+- 심볼릭 링크(reparse point) 자동 제외
 - 사람이 읽기 쉬운 형식 (B/KB/MB/GB/TB)
 
 ---
 
 ## 파일 시스템 모니터링
 
-- FileSystemWatcher 기반 실시간 변경 감지
+- FileSystemWatcher 기반 실시간 변경 감지 (Created, Deleted, Renamed 이벤트)
+- 300ms 디바운싱으로 빠른 변경 배치 처리
+- 버퍼 오버플로우 시 1000ms 대기 후 워처 재생성
 - 외부 프로그램 변경 자동 반영
+- 네트워크/원격 경로 자동 제외
 - USB 장치 연결/분리 감지 (WM_DEVICECHANGE)
 
 ---
 
 ## 설정
 
+### 외관
+
 | 항목 | 옵션 |
 |------|------|
-| 테마 | Light / Dark / System |
+| 테마 | Light / Dark / System / Dracula / Tokyo Night / Catppuccin / Gruvbox |
 | 레이아웃 밀도 | Compact / Comfortable / Spacious |
-| 폰트 | Segoe UI Variable (기본) + 시스템 폰트 |
+| 폰트 | Segoe UI Variable (기본) + 시스템 폰트 선택 가능 |
 | 아이콘 팩 | Remix / Phosphor / Tabler |
 | 언어 | System / English / 한국어 / 日本語 |
+
+### 탐색 동작
+
+| 항목 | 옵션 |
+|------|------|
 | 시작 동작 | Home 화면 / 마지막 세션 복원 |
 | 숨김 파일 표시 | On / Off |
 | 파일 확장자 표시 | On / Off |
@@ -271,7 +308,23 @@
 | Quick Look (Space) | On / Off |
 | 삭제 확인 대화 | On / Off |
 | 실행 취소 히스토리 | 1~100 (기본 50) |
+
+### 도구 & 통합
+
+| 항목 | 옵션 |
+|------|------|
 | 기본 터미널 | wt / cmd / powershell / custom |
+| 컨텍스트 메뉴 표시 | On / Off |
+| Git 통합 표시 | On / Off |
+| Hex 미리보기 표시 | On / Off |
+| Windows Shell 확장 | On / Off |
+| Copilot 메뉴 표시 | On / Off (Windows 셸 Copilot 항목 필터) |
+| 개발자 메뉴 표시 | On / Off |
+
+### 창 & 세션
+
+| 항목 | 옵션 |
+|------|------|
 | 창 위치 기억 | On / Off (기본 On) |
 | 시스템 트레이 최소화 | On / Off |
 | 즐겨찾기 트리 | On / Off |
@@ -284,6 +337,20 @@
 - 한국어, 일본어, 영어 UI
 - Shell 컨텍스트 메뉴 Verb/Text 번역
 - 한국어 키보드 스캔코드 폴백 (Ctrl+`, Ctrl+')
+
+---
+
+## Git 통합
+
+- **레포지토리 자동 감지**: 현재 폴더가 Git 저장소인지 자동 판별
+- **파일 상태 배지**: Modified (M), Added (A), Deleted (D), Untracked (?) 아이콘 표시
+- **브랜치 정보**: 현재 브랜치명 표시
+- **3단 캐시**:
+  - Tier 1: 파일별 마지막 커밋 (git log -1)
+  - Tier 2: 레포 대시보드 (브랜치, 최근 커밋, 변경 파일)
+  - Tier 3: 폴더 전체 파일 상태 (30초 캐시)
+- **타임아웃 보호**: Git 명령 8초 제한 (느린 네트워크 대응)
+- 설정에서 On/Off 가능
 
 ---
 

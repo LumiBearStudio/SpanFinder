@@ -871,8 +871,8 @@
                                     <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
                                         <FontIcon Glyph="&#xE80F;" FontSize="40" Foreground="{ThemeResource SpanAccentBrush}" />
                                         <StackPanel Spacing="2">
-                                            <TextBlock Text="Span" FontSize="22" FontWeight="Bold" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
-                                            <TextBlock Text="v1.0.0 (Build 20260217)" FontSize="12" Foreground="{ThemeResource SpanTextSecondaryBrush}" />
+                                            <TextBlock Text="SPAN Finder" FontSize="22" FontWeight="Bold" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
+                                            <TextBlock Text="v1.0.1 (Build 20260226)" FontSize="12" Foreground="{ThemeResource SpanTextSecondaryBrush}" />
                                         </StackPanel>
                                     </StackPanel>
                                     <Button x:Name="UpdateButton" Grid.Column="1" VerticalAlignment="Center"

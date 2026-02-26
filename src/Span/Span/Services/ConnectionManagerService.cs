@@ -33,7 +33,7 @@ namespace Span.Services
                 // Fallback to AppData\Local
                 _storagePath = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    "Span");
+                    "SPAN Finder");
                 Directory.CreateDirectory(_storagePath);
             }
         }

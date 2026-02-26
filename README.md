@@ -1,8 +1,8 @@
-# Span — High-Performance Lateral Explorer
+# SPAN Finder — High-Performance Lateral Explorer
 
 "Expand your view, Span your files."
 
-Span은 윈도우 환경에서 가장 빠르고 가벼운 밀러 컬럼(Miller Columns) 기반 파일 탐색기입니다. 맥의 Finder와 같은 직관적인 계층 구조 탐색 경험을 윈도우 파워 유저와 개발자에게 제공하는 것을 목표로 합니다.
+SPAN Finder는 윈도우 환경에서 가장 빠르고 가벼운 밀러 컬럼(Miller Columns) 기반 파일 탐색기입니다. 맥의 Finder와 같은 직관적인 계층 구조 탐색 경험을 윈도우 파워 유저와 개발자에게 제공하는 것을 목표로 합니다.
 
 ## 🚀 Key Features
 - **Miller Columns**: 좌우 스크롤을 통한 직관적인 계층 이동

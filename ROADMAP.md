@@ -1,6 +1,6 @@
-# Span Roadmap - Power User Features
+# SPAN Finder Roadmap - Power User Features
 
-Span 파일 탐색기의 파워유저 기능 로드맵입니다.
+SPAN Finder 파일 탐색기의 파워유저 기능 로드맵입니다.
 현재 구현된 기능 수: 116+ (5대 필수 기능 포함)
 
 ---
