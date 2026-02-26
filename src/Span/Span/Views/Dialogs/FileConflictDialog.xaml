@@ -5,9 +5,9 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="File Already Exists"
-    PrimaryButtonText="OK"
-    CloseButtonText="Cancel"
+    Title="파일이 이미 존재합니다"
+    PrimaryButtonText="확인"
+    CloseButtonText="취소"
     DefaultButton="Primary">
 
     <Grid RowSpacing="16" Padding="0,8,0,0">
@@ -18,30 +18,30 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Conflict Message -->
+        <!-- 충돌 메시지 -->
         <TextBlock Grid.Row="0"
                    TextWrapping="Wrap">
-            <Run x:Name="ConflictMessageRun" Text="A file with the same name already exists in this location:"/>
+            <Run x:Name="ConflictMessageRun" Text="같은 이름의 파일이 이 위치에 이미 존재합니다:"/>
             <LineBreak/>
             <Run Text="{x:Bind ViewModel.DestinationPath, Mode=OneWay}"
                  FontWeight="SemiBold"/>
         </TextBlock>
 
-        <!-- File Comparison -->
+        <!-- 파일 비교 -->
         <Grid Grid.Row="1" ColumnSpacing="16">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Source File Info -->
+            <!-- 원본 파일 정보 -->
             <Border Grid.Column="0"
                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                     BorderThickness="1"
                     CornerRadius="4"
                     Padding="12">
                 <StackPanel Spacing="8">
-                    <TextBlock x:Name="SourceFileHeader" Text="Source File"
+                    <TextBlock x:Name="SourceFileHeader" Text="원본 파일"
                                FontWeight="SemiBold"
                                Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
                     <TextBlock Text="{x:Bind ViewModel.SourcePath, Mode=OneWay}"
@@ -59,7 +59,7 @@
                         </Grid.ColumnDefinitions>
 
                         <TextBlock x:Name="SourceSizeLabel" Grid.Row="0" Grid.Column="0"
-                                   Text="Size:"
+                                   Text="크기:"
                                    FontSize="12"/>
                         <TextBlock Grid.Row="0" Grid.Column="1"
                                    Text="{x:Bind FormatFileSize(ViewModel.SourceSize), Mode=OneWay}"
@@ -67,7 +67,7 @@
                                    Margin="4,0,0,0"/>
 
                         <TextBlock x:Name="SourceModifiedLabel" Grid.Row="1" Grid.Column="0"
-                                   Text="Modified:"
+                                   Text="수정일:"
                                    FontSize="12"/>
                         <TextBlock Grid.Row="1" Grid.Column="1"
                                    Text="{x:Bind FormatDateTime(ViewModel.SourceModified), Mode=OneWay}"
@@ -77,14 +77,14 @@
                 </StackPanel>
             </Border>
 
-            <!-- Destination File Info -->
+            <!-- 대상 파일 정보 -->
             <Border Grid.Column="1"
                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                     BorderThickness="1"
                     CornerRadius="4"
                     Padding="12">
                 <StackPanel Spacing="8">
-                    <TextBlock x:Name="ExistingFileHeader" Text="Existing File"
+                    <TextBlock x:Name="ExistingFileHeader" Text="기존 파일"
                                FontWeight="SemiBold"
                                Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
                     <TextBlock Text="{x:Bind ViewModel.DestinationPath, Mode=OneWay}"
@@ -102,7 +102,7 @@
                         </Grid.ColumnDefinitions>
 
                         <TextBlock x:Name="DestSizeLabel" Grid.Row="0" Grid.Column="0"
-                                   Text="Size:"
+                                   Text="크기:"
                                    FontSize="12"/>
                         <TextBlock Grid.Row="0" Grid.Column="1"
                                    Text="{x:Bind FormatFileSize(ViewModel.DestinationSize), Mode=OneWay}"
@@ -110,7 +110,7 @@
                                    Margin="4,0,0,0"/>
 
                         <TextBlock x:Name="DestModifiedLabel" Grid.Row="1" Grid.Column="0"
-                                   Text="Modified:"
+                                   Text="수정일:"
                                    FontSize="12"/>
                         <TextBlock Grid.Row="1" Grid.Column="1"
                                    Text="{x:Bind FormatDateTime(ViewModel.DestinationModified), Mode=OneWay}"
@@ -121,18 +121,18 @@
             </Border>
         </Grid>
 
-        <!-- Resolution Options -->
+        <!-- 해결 옵션 -->
         <StackPanel Grid.Row="2" Spacing="8">
-            <TextBlock x:Name="ChooseActionText" Text="Choose what to do:"
+            <TextBlock x:Name="ChooseActionText" Text="수행할 작업을 선택하세요:"
                        FontWeight="SemiBold"/>
 
             <RadioButton x:Name="ReplaceRadio" AutomationProperties.AutomationId="Radio_Replace"
                          GroupName="ConflictResolution"
                          IsChecked="{x:Bind IsReplace, Mode=TwoWay}">
                 <StackPanel>
-                    <TextBlock x:Name="ReplaceText" Text="Replace the file in the destination"
+                    <TextBlock x:Name="ReplaceText" Text="대상 파일 바꾸기"
                                FontWeight="SemiBold"/>
-                    <TextBlock x:Name="ReplaceDesc" Text="The existing file will be overwritten"
+                    <TextBlock x:Name="ReplaceDesc" Text="기존 파일을 덮어씁니다"
                                FontSize="12"
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                 </StackPanel>
@@ -142,9 +142,9 @@
                          GroupName="ConflictResolution"
                          IsChecked="{x:Bind IsKeepBoth, Mode=TwoWay}">
                 <StackPanel>
-                    <TextBlock x:Name="KeepBothText" Text="Keep both files"
+                    <TextBlock x:Name="KeepBothText" Text="두 파일 모두 유지"
                                FontWeight="SemiBold"/>
-                    <TextBlock x:Name="KeepBothDesc" Text="The new file will be renamed automatically"
+                    <TextBlock x:Name="KeepBothDesc" Text="새 파일의 이름이 자동으로 변경됩니다"
                                FontSize="12"
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                 </StackPanel>
@@ -154,18 +154,18 @@
                          GroupName="ConflictResolution"
                          IsChecked="{x:Bind IsSkip, Mode=TwoWay}">
                 <StackPanel>
-                    <TextBlock x:Name="SkipText" Text="Skip this file"
+                    <TextBlock x:Name="SkipText" Text="이 파일 건너뛰기"
                                FontWeight="SemiBold"/>
-                    <TextBlock x:Name="SkipDesc" Text="No changes will be made"
+                    <TextBlock x:Name="SkipDesc" Text="변경 사항 없음"
                                FontSize="12"
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                 </StackPanel>
             </RadioButton>
         </StackPanel>
 
-        <!-- Apply to All Checkbox -->
+        <!-- 모든 충돌에 적용 체크박스 -->
         <CheckBox x:Name="ApplyToAllCheckbox" AutomationProperties.AutomationId="CheckBox_ApplyToAll" Grid.Row="3"
-                  Content="Apply this action to all conflicts"
+                  Content="모든 충돌에 이 작업 적용"
                   IsChecked="{x:Bind ViewModel.ApplyToAll, Mode=TwoWay}"/>
     </Grid>
 </ContentDialog>

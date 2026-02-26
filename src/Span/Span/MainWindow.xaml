@@ -17,7 +17,7 @@
         <Grid.Resources>
             <!-- FileIconConverter removed: icons are now in ViewModels -->
             <helpers:BoolToBrushConverter x:Key="BoolToBrushConverter"
-                                          TrueBrush="{ThemeResource SpanAccentBrush}"
+                                          TrueBrush="{ThemeResource SpanAccentDimBrush}"
                                           FalseBrush="Transparent"/>
             <helpers:BoolToThicknessConverter x:Key="BoolToThicknessConverter"
                                               TrueThickness="0,2,1,0"
@@ -32,14 +32,17 @@
         </Grid.RowDefinitions>
 
         <!-- 1. Title Bar -->
-        <Grid x:Name="AppTitleBar" Height="{StaticResource TitleBarHeight}" Background="Transparent"
-              BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="0,0,0,1">
+        <Grid x:Name="AppTitleBar" Height="{StaticResource TitleBarHeight}" Background="{ThemeResource SpanBgLayer1Brush}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition x:Name="RightPaddingColumn" Width="0"/> <!-- 캡션 버튼 여백 (코드에서 설정) -->
             </Grid.ColumnDefinitions>
-            
+
+            <!-- Bottom border line: spans full width, active tab background covers it -->
+            <Rectangle Grid.ColumnSpan="3" Height="1" VerticalAlignment="Bottom"
+                       Fill="{ThemeResource SpanAccentDimBrush}"/>
+
             <!-- App Icon & Title -->
             <StackPanel Orientation="Horizontal" Grid.Column="0" VerticalAlignment="Center" Margin="16,0,16,0" Spacing="8">
                 <Image Source="/Assets/Square44x44Logo.png" Height="16" Width="16"/>
@@ -52,12 +55,12 @@
                 <StackPanel x:Name="TabBarContent" Orientation="Horizontal" Spacing="1">
                     <ItemsRepeater x:Name="TabRepeater" AutomationProperties.AutomationId="TabRepeater" ItemsSource="{x:Bind ViewModel.Tabs, Mode=OneWay}">
                         <ItemsRepeater.Layout>
-                            <StackLayout Orientation="Horizontal" Spacing="1"/>
+                            <StackLayout Orientation="Horizontal" Spacing="0"/>
                         </ItemsRepeater.Layout>
                         <ItemsRepeater.ItemTemplate>
                             <DataTemplate x:DataType="models:TabItem">
                                 <Grid Width="200" Height="34" VerticalAlignment="Bottom"
-                                      Background="{x:Bind helpers:ConverterHelpers.TabBackground(IsActive), Mode=OneWay}" CornerRadius="6,6,0,0"
+                                      Background="Transparent" CornerRadius="6,6,0,0"
                                       PointerPressed="OnTabItemPointerPressed"
                                       PointerMoved="OnTabItemPointerMoved"
                                       PointerReleased="OnTabItemPointerReleased"
@@ -67,6 +70,10 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
+                                    <!-- Active tab background: fills tab and covers title bar bottom line -->
+                                    <Border Grid.ColumnSpan="2" Background="{ThemeResource SpanBgLayer1Brush}"
+                                            CornerRadius="6,6,0,0"
+                                            Visibility="{x:Bind IsActiveVisible, Mode=OneWay}"/>
                                     <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Padding="12,0,0,0">
                                         <!-- Home icon (Segoe Fluent Icons) -->
                                         <FontIcon Glyph="&#xE80F;" FontSize="14"
@@ -92,10 +99,14 @@
                                             Click="OnTabCloseClick" Tag="{x:Bind}">
                                         <FontIcon Glyph="&#xE711;" FontSize="9"/>
                                     </Button>
-                                    <!-- Active indicator -->
-                                    <Rectangle Grid.ColumnSpan="2" Height="2" VerticalAlignment="Bottom" Margin="12,0"
-                                               Fill="{ThemeResource SpanAccentBrush}"
-                                               Visibility="{x:Bind IsActiveVisible, Mode=OneWay}"/>
+                                    <!-- Inactive tab: full box border -->
+                                    <Border Grid.ColumnSpan="2" BorderBrush="{ThemeResource SpanAccentDimBrush}"
+                                            BorderThickness="1" CornerRadius="6,6,0,0" IsHitTestVisible="False"
+                                            Visibility="{x:Bind IsInactiveVisible, Mode=OneWay}"/>
+                                    <!-- Active tab: no bottom border → connects seamlessly to toolbar -->
+                                    <Border Grid.ColumnSpan="2" BorderBrush="{ThemeResource SpanAccentDimBrush}"
+                                            BorderThickness="1,1,1,0" CornerRadius="6,6,0,0" IsHitTestVisible="False"
+                                            Visibility="{x:Bind IsActiveVisible, Mode=OneWay}"/>
                                 </Grid>
                             </DataTemplate>
                         </ItemsRepeater.ItemTemplate>
@@ -365,13 +376,7 @@
                     </StackPanel>
                 </Button>
 
-                <!-- Split View Toggle -->
-                <Button x:Name="SplitViewButton" AutomationProperties.AutomationId="Button_SplitView" Style="{StaticResource UnifiedButtonStyle}"
-                        ToolTipService.ToolTip="Split View (Ctrl+Shift+E)"
-                        Click="OnSplitViewToggleClick"
-                        Visibility="{x:Bind IsNotSettingsMode(ViewModel.CurrentViewMode), Mode=OneWay}">
-                    <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_SplitView}" FontSize="16"/>
-                </Button>
+              
 
                 <!-- Preview Panel Toggle -->
                 <Button x:Name="PreviewToggleButton" AutomationProperties.AutomationId="Button_PreviewToggle" Style="{StaticResource UnifiedButtonStyle}"
@@ -380,6 +385,15 @@
                         Visibility="{x:Bind IsNotSplitVisible(ViewModel.IsSplitViewEnabled), Mode=OneWay}">
                     <FontIcon Glyph="&#xE8A0;" FontSize="14"/>
                 </Button>
+                <Rectangle Width="1" Height="20" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="4,0"/>
+                <!-- Split View Toggle -->
+                <Button x:Name="SplitViewButton" AutomationProperties.AutomationId="Button_SplitView" Style="{StaticResource UnifiedButtonStyle}"
+          ToolTipService.ToolTip="Split View (Ctrl+Shift+E)"
+          Click="OnSplitViewToggleClick"
+          Visibility="{x:Bind IsNotSettingsMode(ViewModel.CurrentViewMode), Mode=OneWay}">
+                    <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_SplitView}" FontSize="16"/>
+                </Button>
+
 
                 <Rectangle Width="1" Height="20" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="4,0"/>
                 <TextBox x:Name="SearchBox" AutomationProperties.AutomationId="TextBox_Search" Width="220" Height="28" FontSize="12"
@@ -707,7 +721,7 @@
                             <ColumnDefinition Width="Auto"/>  <!-- Copy path -->
                         </Grid.ColumnDefinitions>
                         <!-- Active pane accent bar -->
-                        <Rectangle Height="2" VerticalAlignment="Top" Grid.ColumnSpan="3"
+                        <Rectangle Height="1" VerticalAlignment="Top" Grid.ColumnSpan="3"
                                    Fill="{x:Bind LeftPaneAccentBrush(ViewModel.ActivePane), Mode=OneWay}"/>
                         <!-- Nav buttons -->
                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="0" VerticalAlignment="Center" Margin="2,0,0,0">
@@ -883,17 +897,11 @@
                                                     <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
                                                 <Border Grid.Column="0"
-                                                        BorderBrush="{ThemeResource SpanBorderSubtleBrush}"
-                                                        BorderThickness="0,0,0,0"
+                                                        BorderBrush="{Binding IsActive, Converter={StaticResource BoolToBrushConverter}}"
+                                                        BorderThickness="1"
                                                         Background="{ThemeResource SpanBgMicaBrush}">
-                                                    <Grid>
-                                                        <Grid.RowDefinitions>
-                                                            <RowDefinition Height="Auto"/>
-                                                            <RowDefinition Height="*"/>
-                                                        </Grid.RowDefinitions>
-                                                        <Rectangle Grid.Row="0" Height="2"
-                                                                   Fill="{Binding IsActive, Converter={StaticResource BoolToBrushConverter}}"/>
-                                                        <Grid Grid.Row="1" Loaded="OnMillerColumnContentGridLoaded" Unloaded="OnMillerColumnContentGridUnloaded">
+                                                    <Grid Loaded="OnMillerColumnContentGridLoaded" Unloaded="OnMillerColumnContentGridUnloaded"
+                                                          PointerPressed="OnMillerColumnPointerPressed">
                                                             <ListView ItemsSource="{x:Bind Children, Mode=OneWay}" SelectedItem="{x:Bind SelectedChild, Mode=OneWay}"
                                                                       SelectionMode="Extended" IsItemClickEnabled="False"
                                                                       CanDragItems="True" AllowDrop="True"
@@ -926,7 +934,7 @@
                                                                                         <ColumnDefinition Width="Auto"/>
                                                                                     </Grid.ColumnDefinitions>
                                                                                     <!-- Path indicator bar (accent left edge for items on navigation path) -->
-                                                                                    <Border Grid.Column="0" Width="3" CornerRadius="1.5" Margin="-8,2,0,2"
+                                                                                    <Border Grid.Column="0" Width="1" CornerRadius="0.5" Margin="-8,2,0,2"
                                                                                             Background="{ThemeResource SpanAccentBrush}"
                                                                                             Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfTrue(IsOnPath), Mode=OneWay}"/>
                                                                                     <FontIcon Grid.Column="1" FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Folder}" FontSize="16" Foreground="{x:Bind IconBrush}" Margin="0,0,12,0"/>
@@ -956,7 +964,7 @@
                                                                                         <ColumnDefinition Width="*"/>
                                                                                     </Grid.ColumnDefinitions>
                                                                                     <!-- Col0: path indicator placeholder (matches FolderTemplate column structure) -->
-                                                                                    <Border Grid.Column="0" Width="3" CornerRadius="1.5" Margin="-8,2,0,2" Visibility="Collapsed"/>
+                                                                                    <Border Grid.Column="0" Width="1" CornerRadius="0.5" Margin="-8,2,0,2" Visibility="Collapsed"/>
                                                                                     <Grid Grid.Column="1" Width="16" Height="16" Margin="0,0,12,0" VerticalAlignment="Center">
                                                                                         <Image Source="{x:Bind ThumbnailSource, Mode=OneWay}" Stretch="UniformToFill"
                                                                                                Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfTrue(HasThumbnail), Mode=OneWay}"/>
@@ -967,7 +975,7 @@
                                                                                                 Width="12" Height="12" CornerRadius="6"
                                                                                                 Background="{x:Bind CloudBadgeBrush, Mode=OneWay}">
                                                                                             <FontIcon Glyph="{x:Bind CloudStateGlyph, Mode=OneWay}" FontSize="8"
-                                                                                                      Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                                                      Foreground="{ThemeResource SpanTextSecondaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                                                         </Border>
                                                                                         <!-- Git 뱃지 (동일 위치, Git 우선 — 위에 렌더링) -->
                                                                                         <Border Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfTrue(HasGitBadge), Mode=OneWay}"
@@ -975,7 +983,7 @@
                                                                                                 Width="12" Height="12" CornerRadius="6"
                                                                                                 Background="{x:Bind GitStatusBrush, Mode=OneWay}">
                                                                                             <TextBlock Text="{x:Bind GitStatusText, Mode=OneWay}" FontSize="7" FontWeight="Bold"
-                                                                                                       Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                                                       Foreground="{ThemeResource SpanTextSecondaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"
                                                                                                        Margin="0,-1,0,0"/>
                                                                                         </Border>
                                                                                     </Grid>
@@ -1021,7 +1029,6 @@
                                                                                  HorizontalAlignment="Center"
                                                                                  Click="OnRetryFolderLoad" Tag="{x:Bind}" />
                                                             </StackPanel>
-                                                        </Grid>
                                                     </Grid>
                                                 </Border>
                                                 <!-- Column edge shadow (depth) -->
@@ -1216,7 +1223,7 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <!-- Active pane accent bar -->
-                        <Rectangle Height="2" VerticalAlignment="Top" Grid.ColumnSpan="3"
+                        <Rectangle Height="1" VerticalAlignment="Top" Grid.ColumnSpan="3"
                                    Fill="{x:Bind RightPaneAccentBrush(ViewModel.ActivePane), Mode=OneWay}"/>
                         <!-- Nav buttons -->
                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="0" VerticalAlignment="Center" Margin="2,0,0,0">
@@ -1387,17 +1394,11 @@
                                                     <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
                                                 <Border Grid.Column="0"
-                                                        BorderBrush="{ThemeResource SpanBorderSubtleBrush}"
-                                                        BorderThickness="0,0,0,0"
+                                                        BorderBrush="{Binding IsActive, Converter={StaticResource BoolToBrushConverter}}"
+                                                        BorderThickness="1"
                                                         Background="{ThemeResource SpanBgMicaBrush}">
-                                                    <Grid>
-                                                        <Grid.RowDefinitions>
-                                                            <RowDefinition Height="Auto"/>
-                                                            <RowDefinition Height="*"/>
-                                                        </Grid.RowDefinitions>
-                                                        <Rectangle Grid.Row="0" Height="2"
-                                                                   Fill="{Binding IsActive, Converter={StaticResource BoolToBrushConverter}}"/>
-                                                        <Grid Grid.Row="1" Loaded="OnMillerColumnContentGridLoaded" Unloaded="OnMillerColumnContentGridUnloaded">
+                                                    <Grid Loaded="OnMillerColumnContentGridLoaded" Unloaded="OnMillerColumnContentGridUnloaded"
+                                                          PointerPressed="OnMillerColumnPointerPressed">
                                                             <ListView ItemsSource="{x:Bind Children, Mode=OneWay}" SelectedItem="{x:Bind SelectedChild, Mode=OneWay}"
                                                                       SelectionMode="Extended" IsItemClickEnabled="False"
                                                                       CanDragItems="True" AllowDrop="True"
@@ -1430,7 +1431,7 @@
                                                                                         <ColumnDefinition Width="Auto"/>
                                                                                     </Grid.ColumnDefinitions>
                                                                                     <!-- Path indicator bar (accent left edge for items on navigation path) -->
-                                                                                    <Border Grid.Column="0" Width="3" CornerRadius="1.5" Margin="-8,2,0,2"
+                                                                                    <Border Grid.Column="0" Width="1" CornerRadius="0.5" Margin="-8,2,0,2"
                                                                                             Background="{ThemeResource SpanAccentBrush}"
                                                                                             Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfTrue(IsOnPath), Mode=OneWay}"/>
                                                                                     <FontIcon Grid.Column="1" FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Folder}" FontSize="16" Foreground="{x:Bind IconBrush}" Margin="0,0,12,0"/>
@@ -1460,7 +1461,7 @@
                                                                                         <ColumnDefinition Width="*"/>
                                                                                     </Grid.ColumnDefinitions>
                                                                                     <!-- Col0: path indicator placeholder (matches FolderTemplate column structure) -->
-                                                                                    <Border Grid.Column="0" Width="3" CornerRadius="1.5" Margin="-8,2,0,2" Visibility="Collapsed"/>
+                                                                                    <Border Grid.Column="0" Width="1" CornerRadius="0.5" Margin="-8,2,0,2" Visibility="Collapsed"/>
                                                                                     <Grid Grid.Column="1" Width="16" Height="16" Margin="0,0,12,0" VerticalAlignment="Center">
                                                                                         <Image Source="{x:Bind ThumbnailSource, Mode=OneWay}" Stretch="UniformToFill"
                                                                                                Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfTrue(HasThumbnail), Mode=OneWay}"/>
@@ -1471,7 +1472,7 @@
                                                                                                 Width="12" Height="12" CornerRadius="6"
                                                                                                 Background="{x:Bind CloudBadgeBrush, Mode=OneWay}">
                                                                                             <FontIcon Glyph="{x:Bind CloudStateGlyph, Mode=OneWay}" FontSize="8"
-                                                                                                      Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                                                      Foreground="{ThemeResource SpanTextSecondaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                                                         </Border>
                                                                                         <!-- Git 뱃지 (동일 위치, Git 우선 — 위에 렌더링) -->
                                                                                         <Border Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfTrue(HasGitBadge), Mode=OneWay}"
@@ -1479,7 +1480,7 @@
                                                                                                 Width="12" Height="12" CornerRadius="6"
                                                                                                 Background="{x:Bind GitStatusBrush, Mode=OneWay}">
                                                                                             <TextBlock Text="{x:Bind GitStatusText, Mode=OneWay}" FontSize="7" FontWeight="Bold"
-                                                                                                       Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                                                       Foreground="{ThemeResource SpanTextSecondaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"
                                                                                                        Margin="0,-1,0,0"/>
                                                                                         </Border>
                                                                                     </Grid>
@@ -1525,7 +1526,6 @@
                                                                                  HorizontalAlignment="Center"
                                                                                  Click="OnRetryFolderLoad" Tag="{x:Bind}" />
                                                             </StackPanel>
-                                                        </Grid>
                                                     </Grid>
                                                 </Border>
                                                 <!-- Column edge shadow (depth) -->

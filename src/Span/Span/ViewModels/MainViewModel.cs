@@ -9,6 +9,7 @@ using Span.Services.FileOperations;
 using System.Linq;
 using System.Threading.Tasks;
 using System;
+using System.Collections.Specialized;
 using System.Text.Json;
 
 namespace Span.ViewModels
@@ -137,6 +138,11 @@ namespace Span.ViewModels
         private bool _isCleaningUp = false;
         private const int MaxRecentFolders = 20;
 
+        // Stored delegates for event unsubscription (memory leak prevention)
+        private Action<string, object?>? _settingChangedHandler;
+        private System.ComponentModel.PropertyChangedEventHandler? _rightExplorerPropertyChangedHandler;
+        private NotifyCollectionChangedEventHandler? _savedConnectionsCollectionChangedHandler;
+
         [ObservableProperty]
         private bool _canUndo = false;
 
@@ -213,11 +219,12 @@ namespace Span.ViewModels
             // Apply UndoHistorySize setting
             var settings = App.Current.Services.GetRequiredService<Services.SettingsService>();
             _operationHistory.MaxHistorySize = settings.UndoHistorySize;
-            settings.SettingChanged += (key, value) =>
+            _settingChangedHandler = (key, value) =>
             {
                 if (key == "UndoHistorySize" && value is int size)
                     _operationHistory.MaxHistorySize = size;
             };
+            settings.SettingChanged += _settingChangedHandler;
 
             _operationHistory.HistoryChanged += OnHistoryChanged;
 
@@ -397,14 +404,15 @@ namespace Span.ViewModels
 
             // LeftExplorer PropertyChanged는 setter에서 자동 구독됨
             // RightExplorer는 탭과 무관하므로 별도 구독
-            RightExplorer.PropertyChanged += (s, e) =>
+            _rightExplorerPropertyChangedHandler = (s, e) =>
             {
                 if (_isCleaningUp) return;
-                if (e.PropertyName == nameof(ExplorerViewModel.CurrentPath) && !string.IsNullOrEmpty(RightExplorer.CurrentPath))
+                if (e.PropertyName == nameof(ExplorerViewModel.CurrentPath) && !string.IsNullOrEmpty(RightExplorer?.CurrentPath))
                 {
                     AddRecentFolder(RightExplorer.CurrentPath);
                 }
             };
+            RightExplorer.PropertyChanged += _rightExplorerPropertyChangedHandler;
         }
 
         private void EnsureDefaultTab()
@@ -593,6 +601,35 @@ namespace Span.ViewModels
                 SaveRecentFolders();
                 SaveSplitViewState();
                 SavePreviewState();
+
+                // Unsubscribe stored event handlers to prevent memory leaks
+                if (_settingChangedHandler != null)
+                {
+                    try
+                    {
+                        var settings = App.Current.Services.GetRequiredService<Services.SettingsService>();
+                        settings.SettingChanged -= _settingChangedHandler;
+                    }
+                    catch { }
+                    _settingChangedHandler = null;
+                }
+
+                if (RightExplorer != null && _rightExplorerPropertyChangedHandler != null)
+                {
+                    RightExplorer.PropertyChanged -= _rightExplorerPropertyChangedHandler;
+                    _rightExplorerPropertyChangedHandler = null;
+                }
+
+                if (_savedConnectionsCollectionChangedHandler != null)
+                {
+                    try
+                    {
+                        var connectionService = App.Current.Services.GetRequiredService<Services.ConnectionManagerService>();
+                        connectionService.SavedConnections.CollectionChanged -= _savedConnectionsCollectionChangedHandler;
+                    }
+                    catch { }
+                    _savedConnectionsCollectionChangedHandler = null;
+                }
 
                 // MUST set before clearing collections to prevent
                 // ObservableCollection change notifications reaching disposed UI
@@ -906,13 +943,14 @@ namespace Span.ViewModels
                 RebuildAllDrives();
 
                 // Sync changes from service
-                connectionService.SavedConnections.CollectionChanged += (s, e) =>
+                _savedConnectionsCollectionChangedHandler = (s, e) =>
                 {
                     SavedConnections.Clear();
                     foreach (var c in connectionService.SavedConnections)
                         SavedConnections.Add(c);
                     RebuildAllDrives();
                 };
+                connectionService.SavedConnections.CollectionChanged += _savedConnectionsCollectionChangedHandler;
 
                 Helpers.DebugLogger.Log($"[MainViewModel] {SavedConnections.Count}개의 저장된 연결 로드");
             }

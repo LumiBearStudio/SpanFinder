@@ -377,12 +377,53 @@ namespace Span.ViewModels
 
         /// <summary>
         /// Load tab states from settings. Replaces current tabs.
+        /// StartupBehavior: 0 = Restore last session, 1 = Open Home
         /// </summary>
         public void LoadTabsFromSettings()
         {
             try
             {
                 var settings = App.Current.Services.GetRequiredService<SettingsService>();
+                var startupBehavior = settings.StartupBehavior;
+
+                // StartupBehavior == 1: Always start with a single Home tab
+                if (startupBehavior == 1)
+                {
+                    Tabs.Clear();
+                    var root = new FolderItem { Name = "PC", Path = "PC" };
+                    var explorer = new ExplorerViewModel(root, _fileService);
+                    explorer.EnableAutoNavigation = ShouldAutoNavigate(ViewMode.Home);
+
+                    var tab = new TabItem
+                    {
+                        Header = HomeLabel,
+                        Path = "",
+                        ViewMode = ViewMode.Home,
+                        IconSize = ViewMode.IconMedium,
+                        IsActive = true,
+                        Explorer = explorer
+                    };
+                    Tabs.Add(tab);
+
+                    // Set LeftExplorer directly
+                    var old = _leftExplorer;
+                    if (old != null) old.PropertyChanged -= OnLeftExplorerPropertyChanged;
+                    _leftExplorer = explorer;
+                    _leftExplorer.PropertyChanged += OnLeftExplorerPropertyChanged;
+
+                    _activeTabIndex = 0;
+                    _currentViewMode = ViewMode.Home;
+                    _leftViewMode = ViewMode.Home;
+                    OnPropertyChanged(nameof(ActiveTab));
+                    OnPropertyChanged(nameof(Explorer));
+                    OnPropertyChanged(nameof(ActiveExplorer));
+                    OnPropertyChanged(nameof(CurrentViewMode));
+
+                    Helpers.DebugLogger.Log("[MainViewModel] StartupBehavior=Home: created single Home tab");
+                    return;
+                }
+
+                // StartupBehavior == 0 (default): Restore last session
                 var json = settings.TabsJson;
 
                 if (string.IsNullOrEmpty(json))

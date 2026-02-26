@@ -30,6 +30,7 @@ namespace Span.Models
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(IsActiveVisible))]
+        [NotifyPropertyChangedFor(nameof(IsInactiveVisible))]
         private bool _isActive = false;
 
         public string Id { get; set; } = System.Guid.NewGuid().ToString("N")[..8];
@@ -46,6 +47,9 @@ namespace Span.Models
 
         public Microsoft.UI.Xaml.Visibility IsActiveVisible
             => IsActive ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+
+        public Microsoft.UI.Xaml.Visibility IsInactiveVisible
+            => IsActive ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible;
     }
 
     /// <summary>

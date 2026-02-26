@@ -28,7 +28,7 @@
                     <!-- Accent -->
                     <Color x:Key="SpanAccentColor">#60cdff</Color>
                     <Color x:Key="SpanAccentHoverColor">#7ed8ff</Color>
-                    <Color x:Key="SpanAccentDimColor">#5960CDFF</Color>
+                    <Color x:Key="SpanAccentDimColor">#B360CDFF</Color>
 
                     <!-- Text -->
                     <Color x:Key="SpanTextPrimaryColor">#ffffff</Color>
@@ -95,7 +95,7 @@
                     <!-- Accent -->
                     <Color x:Key="SpanAccentColor">#0078D4</Color>
                     <Color x:Key="SpanAccentHoverColor">#106EBE</Color>
-                    <Color x:Key="SpanAccentDimColor">#590078D4</Color>
+                    <Color x:Key="SpanAccentDimColor">#B30078D4</Color>
 
                     <!-- Text -->
                     <Color x:Key="SpanTextPrimaryColor">#1A1A1A</Color>

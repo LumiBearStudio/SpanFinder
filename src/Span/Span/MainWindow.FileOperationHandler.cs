@@ -4,10 +4,12 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.Extensions.DependencyInjection;
 using Span.Models;
 using Span.ViewModels;
+using Span.Views.Dialogs;
 using Span.Services;
 using Span.Services.FileOperations;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Windows.ApplicationModel.DataTransfer;
 
@@ -288,9 +290,103 @@ namespace Span
             }
 
             var router = App.Current.Services.GetRequiredService<FileSystemRouter>();
-            Span.Services.FileOperations.IFileOperation op = isCut
-                ? new Span.Services.FileOperations.MoveFileOperation(sourcePaths, destDir, router)
-                : new Span.Services.FileOperations.CopyFileOperation(sourcePaths, destDir, router);
+
+            // Pre-check for conflicts (local destinations only)
+            bool destIsRemote = FileSystemRouter.IsRemotePath(destDir);
+            ConflictResolution resolution = ConflictResolution.KeepBoth;
+            bool applyToAll = true;
+            bool hasConflicts = false;
+
+            if (!destIsRemote)
+            {
+                string? firstConflictSrc = null;
+                string? firstConflictDest = null;
+
+                foreach (var srcPath in sourcePaths)
+                {
+                    var fileName = System.IO.Path.GetFileName(srcPath);
+                    var destPath = System.IO.Path.Combine(destDir, fileName);
+                    if (File.Exists(destPath) || Directory.Exists(destPath))
+                    {
+                        // Skip self-copy (same path)
+                        if (string.Equals(srcPath, destPath, StringComparison.OrdinalIgnoreCase))
+                            continue;
+
+                        hasConflicts = true;
+                        firstConflictSrc ??= srcPath;
+                        firstConflictDest ??= destPath;
+                    }
+                }
+
+                if (hasConflicts && firstConflictSrc != null && firstConflictDest != null)
+                {
+                    var vm = new FileConflictDialogViewModel
+                    {
+                        SourcePath = firstConflictSrc,
+                        DestinationPath = firstConflictDest,
+                    };
+
+                    // Populate file info
+                    try
+                    {
+                        if (File.Exists(firstConflictSrc))
+                        {
+                            var srcInfo = new FileInfo(firstConflictSrc);
+                            vm.SourceSize = srcInfo.Length;
+                            vm.SourceModified = srcInfo.LastWriteTime;
+                        }
+                        else if (Directory.Exists(firstConflictSrc))
+                        {
+                            vm.SourceModified = new DirectoryInfo(firstConflictSrc).LastWriteTime;
+                        }
+
+                        if (File.Exists(firstConflictDest))
+                        {
+                            var dstInfo = new FileInfo(firstConflictDest);
+                            vm.DestinationSize = dstInfo.Length;
+                            vm.DestinationModified = dstInfo.LastWriteTime;
+                        }
+                        else if (Directory.Exists(firstConflictDest))
+                        {
+                            vm.DestinationModified = new DirectoryInfo(firstConflictDest).LastWriteTime;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Helpers.DebugLogger.Log($"[Clipboard] Conflict info error: {ex.Message}");
+                    }
+
+                    var dialog = new FileConflictDialog(vm);
+                    dialog.XamlRoot = this.Content.XamlRoot;
+
+                    var dialogResult = await dialog.ShowAsync();
+                    if (dialogResult != ContentDialogResult.Primary)
+                    {
+                        Helpers.DebugLogger.Log("[Clipboard] Paste cancelled by user (conflict dialog)");
+                        return;
+                    }
+
+                    resolution = vm.SelectedResolution;
+                    applyToAll = true; // Apply chosen resolution to all conflicts
+                    Helpers.DebugLogger.Log($"[Clipboard] Conflict resolution: {resolution}, ApplyToAll: {applyToAll}");
+                }
+            }
+
+            Span.Services.FileOperations.IFileOperation op;
+            if (isCut)
+            {
+                var moveOp = new Span.Services.FileOperations.MoveFileOperation(sourcePaths, destDir, router);
+                if (hasConflicts)
+                    moveOp.SetConflictResolution(resolution, applyToAll);
+                op = moveOp;
+            }
+            else
+            {
+                var copyOp = new Span.Services.FileOperations.CopyFileOperation(sourcePaths, destDir, router);
+                if (hasConflicts)
+                    copyOp.SetConflictResolution(resolution, applyToAll);
+                op = copyOp;
+            }
 
             await ViewModel.ExecuteFileOperationAsync(op, activeIndex);
 

@@ -17,6 +17,8 @@ public class MoveFileOperation : IFileOperation, IPausableOperation
     private readonly FileSystemRouter? _router;
     private readonly Dictionary<string, string> _moveMap = new(); // source -> destination
     private bool _hasRemotePaths;
+    private ConflictResolution _conflictResolution = ConflictResolution.Prompt;
+    private bool _applyToAll = false;
     private ManualResetEventSlim? _pauseEvent;
 
     public MoveFileOperation(List<string> sourcePaths, string destinationDirectory)
@@ -110,7 +112,19 @@ public class MoveFileOperation : IFileOperation, IPausableOperation
                         // Conflict check: only for local destinations
                         if (!destIsRemote && (File.Exists(destPath) || Directory.Exists(destPath)))
                         {
-                            destPath = GetUniqueFileName(destPath);
+                            switch (_conflictResolution)
+                            {
+                                case ConflictResolution.Skip:
+                                    continue;
+                                case ConflictResolution.Replace:
+                                    if (File.Exists(destPath)) File.Delete(destPath);
+                                    else if (Directory.Exists(destPath)) Directory.Delete(destPath, recursive: true);
+                                    break;
+                                case ConflictResolution.KeepBoth:
+                                default:
+                                    destPath = GetUniqueFileName(destPath);
+                                    break;
+                            }
                         }
 
                         // Check if source is a directory
@@ -172,12 +186,24 @@ public class MoveFileOperation : IFileOperation, IPausableOperation
                     }
                     else
                     {
-                        // ── Local move (unchanged) ──
+                        // ── Local move ──
 
                         // Handle conflict
                         if (File.Exists(destPath) || Directory.Exists(destPath))
                         {
-                            destPath = GetUniqueFileName(destPath);
+                            switch (_conflictResolution)
+                            {
+                                case ConflictResolution.Skip:
+                                    continue;
+                                case ConflictResolution.Replace:
+                                    if (File.Exists(destPath)) File.Delete(destPath);
+                                    else if (Directory.Exists(destPath)) Directory.Delete(destPath, recursive: true);
+                                    break;
+                                case ConflictResolution.KeepBoth:
+                                default:
+                                    destPath = GetUniqueFileName(destPath);
+                                    break;
+                            }
                         }
 
                         bool isCrossVolume = IsCrossVolumeMove(sourcePath, destPath);
@@ -342,6 +368,12 @@ public class MoveFileOperation : IFileOperation, IPausableOperation
         }
 
         return result;
+    }
+
+    public void SetConflictResolution(ConflictResolution resolution, bool applyToAll)
+    {
+        _conflictResolution = resolution;
+        _applyToAll = applyToAll;
     }
 
     // ── Remote stream-based copy (reused from CopyFileOperation pattern) ──

@@ -346,7 +346,7 @@
                                             </StackPanel>
                                         </RadioButton>
                                         <RadioButton x:Name="StartupHome" Content="내 PC (홈) 열기" />
-                                        <RadioButton x:Name="StartupFolder">
+                                        <RadioButton x:Name="StartupFolder" Visibility="Collapsed">
                                             <StackPanel Spacing="1">
                                                 <TextBlock x:Name="OpenFolderLabel" Text="특정 폴더 열기..." FontSize="13" />
                                                 <TextBlock x:Name="CustomPathDesc" Text="사용자 지정 경로" FontSize="11"
@@ -1087,7 +1087,8 @@
                                         </StackPanel>
                                     </StackPanel>
                                     <Button x:Name="UpdateButton" Grid.Column="1" VerticalAlignment="Center"
-                                            Click="CheckForUpdates_Click" Padding="12,8" CornerRadius="6">
+                                            Click="CheckForUpdates_Click" Padding="12,8" CornerRadius="6"
+                                            Visibility="Collapsed">
                                         <StackPanel Orientation="Horizontal" Spacing="8">
                                             <FontIcon x:Name="UpdateIcon" Glyph="&#xE72C;" FontSize="14" />
                                             <TextBlock x:Name="UpdateText" Text="업데이트 확인" />
@@ -1129,8 +1130,8 @@
                                 </StackPanel>
                             </Border>
 
-                            <!-- Buy me a coffee -->
-                            <Border Style="{StaticResource SettingsCardBorder}">
+                            <!-- Buy me a coffee (hidden until donation feature is ready) -->
+                            <Border Style="{StaticResource SettingsCardBorder}" Visibility="Collapsed">
                                 <StackPanel Spacing="12">
                                     <StackPanel Orientation="Horizontal">
                                         <Border Style="{StaticResource CardIconContainer}">

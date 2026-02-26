@@ -2598,6 +2598,28 @@ namespace Span
             }
         }
 
+        private void OnMillerColumnPointerPressed(object sender, PointerRoutedEventArgs e)
+        {
+            if (sender is not Grid grid) return;
+            // Walk up to find the FolderViewModel DataContext (on the ItemTemplate root Grid)
+            var parent = grid;
+            while (parent != null && parent.DataContext is not FolderViewModel)
+                parent = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(parent) as Grid;
+            if (parent?.DataContext is FolderViewModel folderVm)
+            {
+                if (ViewModel.IsSplitViewEnabled && IsDescendant(RightPaneContainer, grid))
+                {
+                    ViewModel.ActivePane = ActivePane.Right;
+                    ViewModel.RightExplorer.SetActiveColumn(folderVm);
+                }
+                else
+                {
+                    ViewModel.ActivePane = ActivePane.Left;
+                    ViewModel.LeftExplorer.SetActiveColumn(folderVm);
+                }
+            }
+        }
+
         /// <summary>
         /// ListView 선택 변경 시 ViewModel과 명시적으로 동기화.
         /// x:Bind Mode=TwoWay가 복잡한 객체에서 제대로 동작하지 않을 수 있으므로.

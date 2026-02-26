@@ -87,6 +87,9 @@ public sealed partial class FileConflictDialog : ContentDialog
 
     private void LocalizeUI()
     {
+        Title = _loc.Get("FileAlreadyExists");
+        PrimaryButtonText = _loc.Get("OK");
+        CloseButtonText = _loc.Get("Cancel");
         ConflictMessageRun.Text = _loc.Get("FileConflictMessage");
         SourceFileHeader.Text = _loc.Get("SourceFile");
         ExistingFileHeader.Text = _loc.Get("ExistingFile");

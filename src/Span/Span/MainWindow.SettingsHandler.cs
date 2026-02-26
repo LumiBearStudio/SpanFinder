@@ -92,42 +92,19 @@ namespace Span
             titleBar.ButtonInactiveBackgroundColor = Windows.UI.Color.FromArgb(0, 0, 0, 0);
         }
 
-        // 원본 Dark ThemeDictionary 백업 (최초 한 번만)
-        private ResourceDictionary? _originalDarkThemeDict;
-
         private void ApplyCustomThemeOverrides(FrameworkElement root, string theme)
         {
-            // 원본 백업 (최초 1회)
-            if (_originalDarkThemeDict == null && root.Resources.ThemeDictionaries.ContainsKey("Dark"))
-            {
-                var orig = (ResourceDictionary)root.Resources.ThemeDictionaries["Dark"];
-                _originalDarkThemeDict = new ResourceDictionary();
-                foreach (var kvp in orig)
-                    _originalDarkThemeDict[kvp.Key] = kvp.Value;
-            }
-
             if (!_customThemes.Contains(theme))
             {
-                // 원본 Dark ThemeDictionary 복원
-                if (_originalDarkThemeDict != null)
-                {
-                    var restored = new ResourceDictionary();
-                    foreach (var kvp in _originalDarkThemeDict)
-                        restored[kvp.Key] = kvp.Value;
-                    root.Resources.ThemeDictionaries["Dark"] = restored;
-                }
+                // root 레벨 Dark 오버라이드 제거 → App.xaml 원본 Dark dict가 자동 적용
+                root.Resources.ThemeDictionaries.Remove("Dark");
                 return;
             }
 
             var p = GetThemePalette(theme);
 
-            // 원본 Dark dict를 기반으로 커스텀 값 덮어쓰기
+            // 커스텀 오버라이드만 설정 (미설정 키는 App.xaml Dark dict에서 fallback)
             var darkDict = new ResourceDictionary();
-            if (_originalDarkThemeDict != null)
-            {
-                foreach (var kvp in _originalDarkThemeDict)
-                    darkDict[kvp.Key] = kvp.Value;
-            }
 
             // Color 리소스
             darkDict["SpanBgMica"]        = p.bgMica;
@@ -154,6 +131,11 @@ namespace Span
             darkDict["SpanTextTertiaryBrush"]  = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.textTer);
             darkDict["SpanBgSelectedBrush"]    = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.bgSel);
             darkDict["SpanBorderSubtleBrush"]  = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.border);
+
+            // AccentDim = accent 색상에 70% 투명도
+            var accentDim = Windows.UI.Color.FromArgb(0xB3, p.accent.R, p.accent.G, p.accent.B);
+            darkDict["SpanAccentDimColor"]  = accentDim;
+            darkDict["SpanAccentDimBrush"]  = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentDim);
 
             // ListView/GridView 선택 색상
             darkDict["ListViewItemBackgroundSelected"]            = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.listSel);
