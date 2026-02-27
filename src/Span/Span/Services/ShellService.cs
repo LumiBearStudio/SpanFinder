@@ -6,6 +6,10 @@ using Windows.ApplicationModel.DataTransfer;
 
 namespace Span.Services
 {
+    /// <summary>
+    /// Windows Shell 서비스 구현. ShellExecuteEx, Process.Start, WinRT Launcher를 사용하여
+    /// 파일 열기, 속성 보기, 터미널 실행, 드라이브 꺼내기, 네트워크 드라이브 해제를 처리.
+    /// </summary>
     public class ShellService : IShellService
     {
         /// <summary>

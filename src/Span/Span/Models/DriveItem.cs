@@ -2,6 +2,11 @@ using System;
 
 namespace Span.Models
 {
+    /// <summary>
+    /// 사이드바에 표시되는 드라이브 항목 (로컬 HDD/SSD, USB, 네트워크, 클라우드, 원격 연결).
+    /// <see cref="Services.FileSystemService"/>가 시스템 드라이브를 열거하고,
+    /// <see cref="ConnectionInfo.FromConnection"/>으로 원격 연결도 DriveItem으로 변환된다.
+    /// </summary>
     public class DriveItem
     {
         public string Name { get; set; } = string.Empty;

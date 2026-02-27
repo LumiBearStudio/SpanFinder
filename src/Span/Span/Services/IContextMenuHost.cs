@@ -3,6 +3,11 @@ using Span.ViewModels;
 
 namespace Span.Services
 {
+    /// <summary>
+    /// 컨텍스트 메뉴 호스트 인터페이스. MainWindow가 구현하며,
+    /// ContextMenuService가 메뉴 항목 실행 시 이 인터페이스를 통해 
+    /// 파일 조작, 뷰 전환, 정렬 등의 액션을 MainWindow에 위임한다.
+    /// </summary>
     public interface IContextMenuHost
     {
         bool HasClipboardContent { get; }

@@ -8,6 +8,10 @@ using Span.Models;
 
 namespace Span.Services
 {
+    /// <summary>
+    /// 로컬 파일 시스템 서비스 구현. 드라이브 목록을 병렬/타임아웃으로 안전하게 로드하고,
+    /// 지정 경로의 디렉토리/파일 목록을 반환한다. 숨김 파일 표시 설정을 반영.
+    /// </summary>
     public class FileSystemService : IFileSystemService
     {
         private const int DriveLoadTimeoutMs = 500; // 500ms timeout per drive

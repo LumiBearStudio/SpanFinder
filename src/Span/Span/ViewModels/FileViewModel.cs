@@ -10,6 +10,11 @@ using Windows.Storage.FileProperties;
 
 namespace Span.ViewModels
 {
+    /// <summary>
+    /// 파일 뷰모델. FileSystemViewModel을 상속하며 확장자 기반 아이콘 해상도,
+    /// 비동기 썸네일 로딩(이미지/동영상), Shell API 폴백(클라우드 전용 파일) 기능을 제공.
+    /// 동시 썸네일 로딩은 SemaphoreSlim(6)으로 제한.
+    /// </summary>
     public class FileViewModel : FileSystemViewModel
     {
         private static readonly HashSet<string> _imageExtensions = new(StringComparer.OrdinalIgnoreCase)

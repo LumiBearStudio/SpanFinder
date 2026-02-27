@@ -11,10 +11,20 @@ using Windows.ApplicationModel.DataTransfer;
 
 namespace Span
 {
+    /// <summary>
+    /// MainWindow의 탐색 관리 부분 클래스.
+    /// Miller Column 스크롤, 컬럼 포커스 관리, 주소 표시줄(브레드크럼) 이벤트,
+    /// 뒤로/앞으로 탐색(히스토리 드롭다운 포함), 좌측/우측 패널 포커스 전환,
+    /// TitleBar 영역 업데이트 등 탐색 관련 기능을 담당한다.
+    /// </summary>
     public sealed partial class MainWindow
     {
         #region Column Scrolling
 
+        /// <summary>
+        /// 마지막 컬럼이 보이도록 Miller Column ScrollViewer를 스크롤한다.
+        /// DispatcherQueue Low 우선순위로 지연 실행하여 레이아웃 계산 완료 후 스크롤한다.
+        /// </summary>
         private void ScrollToLastColumn(ExplorerViewModel explorer, ScrollViewer scrollViewer)
         {
             var columns = explorer.Columns;
@@ -68,6 +78,9 @@ namespace Span
 
         #region Column Focus & Visibility
 
+        /// <summary>
+        /// 활성 컬럼의 인덱스를 반환한다. 포커스 기반으로 활성 컬럼을 결정한다.
+        /// </summary>
         private int GetActiveColumnIndex()
         {
             var focused = FocusManager.GetFocusedElement(this.Content.XamlRoot) as DependencyObject;
@@ -106,6 +119,10 @@ namespace Span
             return columns.Count - 1;
         }
 
+        /// <summary>
+        /// Miller Column에서 지정된 인덱스의 컬럼에 포커스를 이동한다.
+        /// ListView 컨테이너 생성을 대기하며 최대 5회 재시도한다.
+        /// </summary>
         private async void FocusColumnAsync(int columnIndex)
         {
             if (_isClosed) return;
@@ -158,6 +175,9 @@ namespace Span
             EnsureColumnVisible(columnIndex);
         }
 
+        /// <summary>
+        /// 지정된 컬럼이 ScrollViewer에서 보이도록 스크롤을 조정한다.
+        /// </summary>
         private void EnsureColumnVisible(int columnIndex)
         {
             var scrollViewer = GetActiveMillerScrollViewer();

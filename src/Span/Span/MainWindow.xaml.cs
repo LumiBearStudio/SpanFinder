@@ -21,6 +21,21 @@ using Windows.ApplicationModel.DataTransfer;
 
 namespace Span
 {
+    /// <summary>
+    /// 애플리케이션의 기본 메인 윈도우.
+    /// Miller Columns, Details, List, Icon 등 다양한 뷰 모드를 호스팅하며,
+    /// 사이드바 탐색, 탭 관리, 분할 뷰, 미리보기 패널, 드래그 앤 드롭,
+    /// 키보드 단축키, 파일 작업, 설정 적용 등 전체 UI 로직을 관리한다.
+    /// partial class로 분할되어 각 기능 영역별 핸들러 파일에서 확장된다.
+    /// </summary>
+    /// <remarks>
+    /// <para>P/Invoke를 통해 WM_DEVICECHANGE(USB 핫플러그) 감지, 윈도우 서브클래싱,
+    /// DPI 인식 윈도우 배치 복원 등 Win32 네이티브 기능을 활용한다.</para>
+    /// <para>탭별 독립 뷰 패널(Show/Hide 패턴)을 유지하여 즉시 탭 전환을 구현하며,
+    /// 탭 떼어내기(tear-off)를 통한 멀티 윈도우를 지원한다.</para>
+    /// <para><see cref="Services.IContextMenuHost"/>를 구현하여
+    /// 컨텍스트 메뉴 서비스에서 파일 작업 명령을 실행할 수 있는 호스트 역할을 한다.</para>
+    /// </remarks>
     public sealed partial class MainWindow : Window, Services.IContextMenuHost
     {
         // --- WM_DEVICECHANGE P/Invoke for USB hotplug detection ---
@@ -155,6 +170,11 @@ namespace Span
         private Grid? _springLoadGrid;
         private const int SPRING_LOAD_DELAY_MS = 700;
 
+        /// <summary>
+        /// MainWindow의 기본 생성자.
+        /// XAML 컴포넌트 초기화, 서비스 주입, 이벤트 구독, P/Invoke 서브클래싱,
+        /// 윈도우 배치 복원, 탭·뷰 패널 초기화, 설정 적용 등 전체 시작 로직을 수행한다.
+        /// </summary>
         public MainWindow()
         {
             this.InitializeComponent();
@@ -534,6 +554,10 @@ namespace Span
 
         #region Window Placement Persistence
 
+        /// <summary>
+        /// 현재 윈도우 위치와 크기를 <see cref="Windows.Storage.ApplicationData.Current.LocalSettings"/>에 저장한다.
+        /// 최소화/최대화 상태에서는 저장하지 않는다.
+        /// </summary>
         private void SaveWindowPlacement()
         {
             try
@@ -559,6 +583,11 @@ namespace Span
             }
         }
 
+        /// <summary>
+        /// 저장된 윈도우 배치 정보를 복원한다.
+        /// 모니터 영역 검증을 통해 창이 화면 밖에 위치하지 않도록 보정하며,
+        /// 최소 크기(400×300)를 보장한다.
+        /// </summary>
         private void RestoreWindowPlacement()
         {
             try
@@ -579,7 +608,10 @@ namespace Span
                     // ── 모니터 영역 검증: 저장된 위치가 화면 밖이면 보정 ──
                     var savedRect = new Helpers.NativeMethods.RECT
                     {
-                        Left = x, Top = y, Right = x + w, Bottom = y + h
+                        Left = x,
+                        Top = y,
+                        Right = x + w,
+                        Bottom = y + h
                     };
                     var hMonitor = Helpers.NativeMethods.MonitorFromRect(
                         ref savedRect, Helpers.NativeMethods.MONITOR_DEFAULTTONEAREST);
@@ -636,6 +668,12 @@ namespace Span
 
         #endregion
 
+        /// <summary>
+        /// 윈도우 닫힘 이벤트 핸들러.
+        /// 윈도우 배치 저장, 세션 탭 저장, 이벤트 구독 해제,
+        /// FileSystemWatcher 정리, Win32 서브클래스 제거, 미리보기 서비스 정리 등
+        /// 모든 리소스 해제 및 종료 작업을 수행한다.
+        /// </summary>
         private void OnClosed(object sender, WindowEventArgs args)
         {
             try
@@ -887,6 +925,12 @@ namespace Span
         //  Auto Scroll
         // =================================================================
 
+        /// <summary>
+        /// 좌측 탐색기의 Miller Column 컬렉션 변경 시 호출.
+        /// 새 컬럼 추가/교체 시 마지막 컬럼으로 자동 스크롤하고,
+        /// 체크박스 모드와 밀도 설정을 새 컬럼에 적용한다.
+        /// 탭 전환 중에는 성능 최적화를 위해 스킵한다.
+        /// </summary>
         private void OnColumnsChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
             // 탭 전환 중에는 ScrollToLastColumn + UpdateLayout 비용 회피
@@ -914,6 +958,10 @@ namespace Span
             UpdateFileSystemWatcherPaths();
         }
 
+        /// <summary>
+        /// 우측 탐색기의 Miller Column 컬렉션 변경 시 호출.
+        /// 새 컬럼 추가/교체 시 마지막 컬럼으로 자동 스크롤하고 슬라이드 애니메이션을 적용한다.
+        /// </summary>
         private void OnRightColumnsChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
             if (e.Action == NotifyCollectionChangedAction.Add ||
@@ -939,6 +987,10 @@ namespace Span
         //  밀러컬럼 뷰포트 리사이즈 → 마지막 컬럼 자동 스크롤
         // =================================================================
 
+        /// <summary>
+        /// 좌측 Miller 컬럼 ScrollViewer의 뷰포트 크기 변경 시 마지막 컬럼으로 자동 스크롤.
+        /// 너비 변경만 처리하고 높이 변경은 무시한다.
+        /// </summary>
         private void OnMillerScrollViewerSizeChanged(object sender, SizeChangedEventArgs e)
         {
             if (_isClosed || ViewModel?.LeftExplorer == null) return;
@@ -949,6 +1001,10 @@ namespace Span
                 ScrollToLastColumn(ViewModel.LeftExplorer, scrollViewer);
         }
 
+        /// <summary>
+        /// 우측 Miller 컬럼 ScrollViewer의 뷰포트 크기 변경 시 마지막 컬럼으로 자동 스크롤.
+        /// 너비 변경만 처리하고 높이 변경은 무시한다.
+        /// </summary>
         private void OnMillerScrollViewerRightSizeChanged(object sender, SizeChangedEventArgs e)
         {
             if (_isClosed || ViewModel?.RightExplorer == null) return;
@@ -1032,6 +1088,10 @@ namespace Span
         //  FileSystemWatcher: 자동 새로고침
         // =================================================================
 
+        /// <summary>
+        /// <see cref="FileSystemWatcherService"/>를 초기화하고 경로 변경 이벤트를 구독한다.
+        /// 파일 시스템의 변경 사항을 감지하여 자동 새로고침을 수행한다.
+        /// </summary>
         private void InitializeFileSystemWatcher()
         {
             try
@@ -1046,6 +1106,10 @@ namespace Span
             }
         }
 
+        /// <summary>
+        /// FileSystemWatcher가 감시할 경로 목록을 갱신한다.
+        /// 활성 탭의 좌/우 탐색기 컬럼 경로를 수집하여 감시 대상으로 등록한다.
+        /// </summary>
         private void UpdateFileSystemWatcherPaths()
         {
             if (_watcherService == null || _isClosed) return;
@@ -1080,7 +1144,11 @@ namespace Span
             _watcherService.SetWatchedPaths(paths);
         }
 
-        private void OnWatcherPathChanged(string changedPath)
+        /// <summary>
+        /// FileSystemWatcher에서 경로 변경이 감지됐을 때 호출되는 콜백.
+        /// 변경된 경로에 해당하는 좌/우 탐색기 컬럼을 찾아 비동기로 리로드한다.
+        /// </summary>
+        private async void OnWatcherPathChanged(string changedPath)
         {
             if (_isClosed) return;
 
@@ -1139,6 +1207,12 @@ namespace Span
         /// </summary>
         private ExplorerViewModel? _subscribedLeftExplorer;
 
+        /// <summary>
+        /// ViewModel의 프로퍼티 변경 이벤트 핸들러.
+        /// CurrentViewMode/RightViewMode 변경 시 뷰 가시성을 전환하고,
+        /// ActiveTab/Explorer 변경 시 현재 탐색기 구독을 재연결한다.
+        /// 탭 전환 중에는 성능 최적화를 위해 뷰 포커스 전환을 스킵한다.
+        /// </summary>
         private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
             if (e.PropertyName == nameof(MainViewModel.CurrentViewMode) ||
@@ -1297,6 +1371,12 @@ namespace Span
         private double _savedSidebarWidth = 200;
         private bool _sidebarHiddenForSpecialMode;
 
+        /// <summary>
+        /// 지정된 <see cref="ViewMode"/>에 따라 각 뷰 호스트(Miller, Details, List, Icon, Home, Settings)의
+        /// Visibility를 전환하고, 특수 모드(Settings)에서는 툴바/사이드바를 숨기며,
+        /// 일반 모드로 복귀 시 복원한다.
+        /// </summary>
+        /// <param name="mode">적용할 뷰 모드.</param>
         private void SetViewModeVisibility(ViewMode mode)
         {
             bool isSpecialMode = mode == ViewMode.Settings;
@@ -1399,6 +1479,11 @@ namespace Span
             }
         }
 
+        /// <summary>
+        /// 토스트 알림 UI의 나타남/사라짐 애니메이션을 실행한다.
+        /// 불투명도와 Y축 이동 애니메이션을 조합하여 실행한다.
+        /// </summary>
+        /// <param name="show">true면 나타남, false면 사라짐.</param>
         private void AnimateToast(bool show)
         {
             if (_isClosed) return;
@@ -1438,6 +1523,11 @@ namespace Span
             storyboard.Begin();
         }
 
+        /// <summary>
+        /// 현재 활성 뷰 모드에 따라 적절한 UI 요소에 포커스를 설정한다.
+        /// Miller Columns 모드에서는 마지막 컬럼의 ListView에,
+        /// Details/List/Icon 모드에서는 해당 뷰에 포커스를 설정한다.
+        /// </summary>
         private void FocusActiveView()
         {
             // Use DispatcherQueue for proper timing (after visibility changes take effect)
@@ -1495,6 +1585,10 @@ namespace Span
         //  Drive click
         // =================================================================
 
+        /// <summary>
+        /// 사이드바 드라이브 항목 클릭 이벤트 핸들러.
+        /// 선택된 드라이브 경로로 Miller Column 탐색을 시작한다.
+        /// </summary>
         private void OnDriveItemClick(object sender, ItemClickEventArgs e)
         {
             if (e.ClickedItem is DriveItem drive)
@@ -1513,8 +1607,8 @@ namespace Span
             {
                 switch (tag)
                 {
-                    case "Local":   ViewModel.IsLocalDrivesExpanded = !ViewModel.IsLocalDrivesExpanded; break;
-                    case "Cloud":   ViewModel.IsCloudDrivesExpanded = !ViewModel.IsCloudDrivesExpanded; break;
+                    case "Local": ViewModel.IsLocalDrivesExpanded = !ViewModel.IsLocalDrivesExpanded; break;
+                    case "Cloud": ViewModel.IsCloudDrivesExpanded = !ViewModel.IsCloudDrivesExpanded; break;
                     case "Network": ViewModel.IsNetworkDrivesExpanded = !ViewModel.IsNetworkDrivesExpanded; break;
                 }
             }
@@ -1541,6 +1635,10 @@ namespace Span
             }
         }
 
+        /// <summary>
+        /// 네트워크 찾아보기 버튼 탭 이벤트.
+        /// UNC 경로 입력 대화상자를 표시하며, SMB 네트워크 공유 폴더 검색과 연결을 처리한다.
+        /// </summary>
         private async void OnBrowseNetworkTapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
         {
             var networkService = App.Current.Services.GetRequiredService<NetworkBrowserService>();
@@ -1910,6 +2008,11 @@ namespace Span
             return (result, connInfoResult, passwordInput!.Password, saveCheckBox?.IsChecked == true);
         }
 
+        /// <summary>
+        /// 서버 연결 버튼 탭 이벤트.
+        /// 연결 대화상자를 표시하고, 사용자가 입력한 연결 정보로
+        /// 원격 서버(SFTP/FTP/SMB) 연결을 시도하고, 성공 시 저장한다.
+        /// </summary>
         private async void OnConnectToServerTapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
         {
             var (result, connInfo, password, saveChecked) = await ShowConnectionDialog(null);
@@ -1968,6 +2071,10 @@ namespace Span
             FocusColumnAsync(0);
         }
 
+        /// <summary>
+        /// 저장된 원격 연결 항목 탭 이벤트.
+        /// 선택된 연결 정보로 원격 서버에 재연결한다.
+        /// </summary>
         private async void OnSavedConnectionTapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
         {
             if (sender is Grid grid && grid.DataContext is Models.ConnectionInfo connInfo)
@@ -2142,6 +2249,11 @@ namespace Span
             FocusColumnAsync(0);
         }
 
+        /// <summary>
+        /// 반환된 원격 연결 오류를 사용자에게 토스트 메시지로 표시한다.
+        /// </summary>
+        /// <param name="connInfo">연결 정보 객체.</param>
+        /// <param name="detail">표시할 오류 상세 메시지.</param>
         private async Task ShowRemoteConnectionError(Models.ConnectionInfo connInfo, string detail)
         {
             Helpers.DebugLogger.Log($"[Network] 연결 실패: {connInfo.DisplayName} - {detail}");
@@ -2155,6 +2267,9 @@ namespace Span
             await errorDialog.ShowAsync();
         }
 
+        /// <summary>
+        /// 홈 항목 탭 이벤트. Home 뷰 모드로 전환한다.
+        /// </summary>
         private void OnHomeItemTapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
         {
             ViewModel.SwitchViewMode(ViewMode.Home);
@@ -2165,29 +2280,47 @@ namespace Span
         //  Sidebar Favorites Tree (TreeView with lazy-loaded subfolders)
         // =================================================================
 
-        private void ApplyFavoritesTreeMode(bool treeMode)
+        /// <summary>
+        /// 즐겨찾기 사이드바의 표시 모드(Tree/Flat)를 설정에 따라 적용한다.
+        /// </summary>
+        /// <param name="showTree">true면 트리 모드, false면 플랫 리스트 모드를 표시한다.</param>
+        private void ApplyFavoritesTreeMode(bool showTree)
         {
-            FavoritesTreeView.Visibility = treeMode
+            FavoritesTreeView.Visibility = showTree
                 ? Microsoft.UI.Xaml.Visibility.Visible
                 : Microsoft.UI.Xaml.Visibility.Collapsed;
-            FavoritesFlatList.Visibility = treeMode
+            FavoritesFlatList.Visibility = showTree
                 ? Microsoft.UI.Xaml.Visibility.Collapsed
                 : Microsoft.UI.Xaml.Visibility.Visible;
         }
 
+        /// <summary>
+        /// 즐겨찾기 Flat 목록의 항목 탭 이벤트.
+        /// 해당 즐겨찾기 경로로 탐색한다.
+        /// </summary>
         private void OnFavoritesFlatItemTapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
         {
             if (sender is FrameworkElement fe && fe.DataContext is FavoriteItem fav)
                 NavigateToFavorite(fav);
         }
 
+        /// <summary>
+        /// 즐겨찾기 Flat 목록의 항목 클릭 이벤트.
+        /// ItemClick 이벤트를 통해 해당 경로로 탐색한다.
+        /// </summary>
         private void OnFavoritesFlatItemClick(object sender, ItemClickEventArgs e)
         {
             if (e.ClickedItem is FavoriteItem fav)
                 NavigateToFavorite(fav);
         }
 
-        private void NavigateToFavorite(FavoriteItem fav)
+        /// <summary>
+        /// 즐겨찾기 경로로 탐색을 실행한다.
+        /// Home 모드인 경우 MillerColumns 모드로 전환 후 탐색하고,
+        /// 좌측 패널이 활성 패널인지 여부에 따라 적절한 탐색기에 경로를 설정한다.
+        /// </summary>
+        /// <param name="fav">탐색할 즐겨찾기 항목.</param>
+        private async void NavigateToFavorite(FavoriteItem fav)
         {
             if (!string.IsNullOrEmpty(fav.Path) && System.IO.Directory.Exists(fav.Path))
             {
@@ -2206,6 +2339,10 @@ namespace Span
             }
         }
 
+        /// <summary>
+        /// 즐겨찾기 Flat 목록 항목 우클릭 이벤트.
+        /// 즐겨찾기 컨텍스트 메뉴를 표시한다.
+        /// </summary>
         private void OnFavoritesFlatItemRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
         {
             if (sender is FrameworkElement fe && fe.DataContext is FavoriteItem fav)
@@ -2219,6 +2356,10 @@ namespace Span
             }
         }
 
+        /// <summary>
+        /// 즐겨찾기 Flat 목록 빈 영역 우클릭 이벤트.
+        /// 폴더 추가 컨텍스트 메뉴를 표시한다.
+        /// </summary>
         private void OnFavoritesFlatListRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
         {
             // ListView의 우클릭 → 클릭된 아이템에서 컨텍스트 메뉴 표시
@@ -2525,6 +2666,10 @@ namespace Span
 
         // ── Rubber-band selection: attach/detach helpers per column ──
 
+        /// <summary>
+        /// Miller Column 콘텐츠 Grid Loaded 이벤트.
+        /// 러버밴드(marquee) 선택 헬퍼를 연결하고, 어두운 테마 등의 렌더링 설정을 적용한다.
+        /// </summary>
         private void OnMillerColumnContentGridLoaded(object sender, RoutedEventArgs e)
         {
             if (sender is not Grid grid) return;
@@ -2542,6 +2687,11 @@ namespace Span
             _rubberBandHelpers[grid] = helper;
         }
 
+        /// <summary>
+        /// Miller Column의 각 아이템이 렌더링될 때 호출되는 콜백.
+        /// 대량 목록에서 성능 최적화를 위해 Preparing/Idle 페이즈를 처리하고,
+        /// 체크박스 모드, 밀도 설정, 썸네일 로딩, 클라우드/Git 상태 주입 등을 수행한다.
+        /// </summary>
         private void OnMillerContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
         {
             // 재활용 큐: 화면 밖 아이템의 썸네일 해제 (메모리 절약)
@@ -2588,6 +2738,10 @@ namespace Span
             }
         }
 
+        /// <summary>
+        /// Miller Column 콘텐츠 Grid Unloaded 이벤트.
+        /// 러버밴드 선택 헬퍼를 분리하고 리소스를 정리한다.
+        /// </summary>
         private void OnMillerColumnContentGridUnloaded(object sender, RoutedEventArgs e)
         {
             if (sender is not Grid grid) return;
@@ -2599,6 +2753,10 @@ namespace Span
             }
         }
 
+        /// <summary>
+        /// Miller Column에서 폴더 아이템 우클릭 이벤트.
+        /// 설정에서 ShowContextMenu가 활성화된 경우 폴더 컨텍스트 메뉴를 표시한다.
+        /// </summary>
         private async void OnFolderRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
         {
             if (!_settings.ShowContextMenu) return;
@@ -2613,6 +2771,10 @@ namespace Span
             }
         }
 
+        /// <summary>
+        /// Miller Column에서 파일 아이템 우클릭 이벤트.
+        /// 설정에서 ShowContextMenu가 활성화된 경우 파일 컨텍스트 메뉴를 표시한다.
+        /// </summary>
         private async void OnFileRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
         {
             if (!_settings.ShowContextMenu) return;
@@ -2627,6 +2789,10 @@ namespace Span
             }
         }
 
+        /// <summary>
+        /// 사이드바 드라이브 항목 우클릭 이벤트.
+        /// 드라이브 컨텍스트 메뉴(열기, 꾸내기, 미리보기 등)를 표시한다.
+        /// </summary>
         private void OnSidebarDriveRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
         {
             if (sender is Grid grid && grid.DataContext is DriveItem drive)
@@ -2719,6 +2885,11 @@ namespace Span
         //  P1: Focus Tracking (Active Column)
         // =================================================================
 
+        /// <summary>
+        /// Miller Column ListView의 GotFocus 이벤트.
+        /// 포커스를 얻은 컬럼의 FolderViewModel을 찾아
+        /// Left/Right Pane 활성 상태를 구분하여 ActivePane와 ActiveColumn을 설정한다.
+        /// </summary>
         private void OnMillerColumnGotFocus(object sender, RoutedEventArgs e)
         {
             // 리네임 TextBox로 포커스가 간 경우는 제외 (GotFocus 버블링)
@@ -2748,6 +2919,11 @@ namespace Span
             }
         }
 
+        /// <summary>
+        /// Miller Column Grid의 PointerPressed 이벤트.
+        /// 클릭된 컬럼의 FolderViewModel을 찾아 ActivePane와 ActiveColumn을 설정하고,
+        /// 벨도 선택 업데이트를 위해 포커스를 요청한다.
+        /// </summary>
         private void OnMillerColumnPointerPressed(object sender, PointerRoutedEventArgs e)
         {
             if (sender is not Grid grid) return;
@@ -2840,7 +3016,9 @@ namespace Span
         }
 
         /// <summary>
-        /// Handle double-click on Miller Column items (open files).
+        /// Miller Column 더블 탭 이벤트.
+        /// 파일 아이템을 더블 클릭하면 열기 동작을 실행하고,
+        /// MillerClickBehavior 설정에 따라 폴더 더블 클릭 시 자동 탐색을 수행한다.
         /// </summary>
         private void OnMillerColumnDoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
         {
@@ -2864,6 +3042,10 @@ namespace Span
             }
         }
 
+        /// <summary>
+        /// 폴더 로드 실패 시 재시도 버튼 클릭 핸들러.
+        /// 해당 FolderViewModel의 로드를 다시 시도한다.
+        /// </summary>
         private async void OnRetryFolderLoad(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
         {
             if (sender is Microsoft.UI.Xaml.Controls.HyperlinkButton btn && btn.Tag is FolderViewModel folder)
@@ -2873,6 +3055,10 @@ namespace Span
             }
         }
 
+        /// <summary>
+        /// 현재 활성 뷰에서 선택된 항목들을 반환한다.
+        /// Miller Columns 모드에서는 활성 컬럼의 선택 항목을 반환한다.
+        /// </summary>
         private FileSystemViewModel? GetCurrentSelected()
         {
             var columns = ViewModel.ActiveExplorer.Columns;
@@ -2886,6 +3072,10 @@ namespace Span
 
 
 
+        /// <summary>
+        /// 지정된 FolderViewModel에 바인딩된 ListView를 찾아 반환한다.
+        /// Miller Column의 컬럼 번호 기반으로 탐색한다.
+        /// </summary>
         private ListView? GetListViewForColumn(int columnIndex)
         {
             var control = GetActiveMillerColumnsControl();
@@ -2895,6 +3085,9 @@ namespace Span
             return FindChild<ListView>(container);
         }
 
+        /// <summary>
+        /// 비주얼 트리에서 지정된 타입의 첫 번째 자식 요소를 찾는다.
+        /// </summary>
         private static T? FindChild<T>(DependencyObject parent) where T : DependencyObject
         {
             int count = VisualTreeHelper.GetChildrenCount(parent);
@@ -2908,6 +3101,10 @@ namespace Span
             return null;
         }
 
+        /// <summary>
+        /// 지정된 UI 요소가 부모 요소의 하위에 있는지 확인한다.
+        /// Left/Right Pane 구분에 사용된다.
+        /// </summary>
         private static bool IsDescendant(DependencyObject parent, DependencyObject child)
         {
             var current = child;

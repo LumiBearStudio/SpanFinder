@@ -12,12 +12,21 @@ using System.Linq;
 
 namespace Span
 {
+    /// <summary>
+    /// MainWindow의 탭 관리 부분 클래스.
+    /// 탭별 독립 뷰 패널(Miller, Details, List, Icon)의 Show/Hide 패턴 관리,
+    /// 탭 생성·전환·닫기·복제·재정렬, 탭 떼어내기(tear-off) 드래그,
+    /// 탭 표시명 업데이트, 세션 복원 시 탭 패널 초기화 등을 담당한다.
+    /// </summary>
     public sealed partial class MainWindow
     {
         // =================================================================
         //  Tab Display Name
         // =================================================================
 
+        /// <summary>
+        /// 탭에 표시할 이름을 반환한다. Home 모드이면 "Home", 아니면 폴더명.
+        /// </summary>
         public string GetTabDisplayName(Models.ViewMode mode, string folderName)
             => mode == Models.ViewMode.Home ? "Home" : folderName;
 
@@ -424,6 +433,10 @@ namespace Span
 
         #region Tab Pointer Events
 
+        /// <summary>
+        /// 탭 아이템 PointerPressed 이벤트. 탭 클릭 시 탭 전환,
+        /// 드래그 시작 추적, 마우스 가운데 버튼 클릭 시 탭 닫기 등을 처리한다.
+        /// </summary>
         private void OnTabItemPointerPressed(object sender, PointerRoutedEventArgs e)
         {
             if (sender is FrameworkElement fe && fe.Tag is Models.TabItem tab)
@@ -459,6 +472,10 @@ namespace Span
             }
         }
 
+        /// <summary>
+        /// 탭 아이템 PointerMoved 이벤트. 드래그 임계값을 초과하면
+        /// 탭 재정렬 또는 탭 떼어내기(tear-off)를 시작한다.
+        /// </summary>
         private void OnTabItemPointerMoved(object sender, PointerRoutedEventArgs e)
         {
             if (_draggingTab == null) return;
@@ -510,6 +527,9 @@ namespace Span
             }
         }
 
+        /// <summary>
+        /// 탭 아이템 PointerReleased 이벤트. 드래그 상태를 초기화한다.
+        /// </summary>
         private void OnTabItemPointerReleased(object sender, PointerRoutedEventArgs e)
         {
             _draggingTab = null;
@@ -547,6 +567,10 @@ namespace Span
             }
         }
 
+        /// <summary>
+        /// 커서가 윈도우 영역 바깥에 있는지 확인한다.
+        /// 탭 tear-off 판단에 사용된다.
+        /// </summary>
         private bool IsCursorOutsideWindow()
         {
             if (!Helpers.NativeMethods.GetCursorPos(out var cursorPos))
@@ -967,6 +991,9 @@ namespace Span
             }
         }
 
+        /// <summary>
+        /// 새 탭 버튼 클릭 이벤트. 현재 활성 탭의 경로로 새 탭을 생성한다.
+        /// </summary>
         private void OnNewTabClick(object sender, RoutedEventArgs e)
         {
             ViewModel.AddNewTab();

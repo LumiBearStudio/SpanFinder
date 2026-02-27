@@ -8,6 +8,12 @@ using System.Collections.Specialized;
 
 namespace Span.Views
 {
+    /// <summary>
+    /// Home 뷰 모드 UserControl.
+    /// 로컬 드라이브, 클라우드 스토리지, 네트워크 위치, 즐겨찾기를
+    /// GridView로 표시하는 시작 화면이다.
+    /// 드라이브/즐겨찾기 클릭 시 탐색, 우클릭 컨텍스트 메뉴를 지원한다.
+    /// </summary>
     public sealed partial class HomeModeView : UserControl
     {
         public ContextMenuService? ContextMenuService { get; set; }

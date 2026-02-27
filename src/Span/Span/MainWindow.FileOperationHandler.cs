@@ -15,10 +15,21 @@ using Windows.ApplicationModel.DataTransfer;
 
 namespace Span
 {
+    /// <summary>
+    /// MainWindow의 파일 작업 처리 부분 클래스.
+    /// 선택 작업(전체 선택, 선택 해제, 반전), 복사/잘라내기/붙여넣기,
+    /// 새 폴더/파일 생성, 이름 변경, 삭제, 압축/해제 등
+    /// 모든 파일 시스템 작업의 UI 연동 로직을 담당한다.
+    /// 충돌 처리 대화상자 표시와 <see cref="FileOperationManager"/>를 통한 작업 실행을 포함한다.
+    /// </summary>
     public sealed partial class MainWindow
     {
         #region Selection Operations (SelectAll, SelectNone, InvertSelection)
 
+        /// <summary>
+        /// 전체 선택 처리. 현재 활성 뷰 모드에 따라 적절한 ListView를 찾아
+        /// SelectAll을 실행한다.
+        /// </summary>
         private void HandleSelectAll()
         {
             var viewMode = (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
@@ -38,6 +49,10 @@ namespace Span
         //  Select None (Ctrl+Shift+A)
         // =================================================================
 
+        /// <summary>
+        /// 선택 해제 처리. 현재 활성 뷰의 모든 선택을 해제하고
+        /// FolderViewModel의 선택 상태를 초기화한다.
+        /// </summary>
         private void HandleSelectNone()
         {
             var viewMode = (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
@@ -68,6 +83,9 @@ namespace Span
         //  Invert Selection (Ctrl+I)
         // =================================================================
 
+        /// <summary>
+        /// 선택 반전 처리. 현재 선택된 항목을 해제하고, 선택되지 않은 항목을 선택한다.
+        /// </summary>
         private void HandleInvertSelection()
         {
             var viewMode = (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
@@ -122,6 +140,10 @@ namespace Span
         //  Helper: Get current selected items (multi or single)
         // =================================================================
 
+        /// <summary>
+        /// 현재 활성 뷰에서 선택된 항목 목록을 반환한다.
+        /// 다중 선택이 있으면 다중 선택 항목을, 없으면 단일 선택 항목을 반환한다.
+        /// </summary>
         private List<FileSystemViewModel> GetCurrentSelectedItems()
         {
             var columns = ViewModel.ActiveExplorer.Columns;
@@ -136,6 +158,10 @@ namespace Span
 
         #region Clipboard Operations (Copy, Cut, Paste)
 
+        /// <summary>
+        /// 복사(코피) 작업 처리. 선택된 항목의 경로를 클립보드에 저장하고
+        /// 시스템 클립보드에도 StorageItems로 설정한다.
+        /// </summary>
         private void HandleCopy()
         {
             var selectedItems = GetCurrentSelectedItems();
@@ -190,6 +216,9 @@ namespace Span
             UpdateToolbarButtonStates();
         }
 
+        /// <summary>
+        /// 잘라내기(컷) 작업 처리. HandleCopy와 동일하지만 이동 플래그를 설정한다.
+        /// </summary>
         private void HandleCut()
         {
             var selectedItems = GetCurrentSelectedItems();
@@ -243,6 +272,10 @@ namespace Span
             UpdateToolbarButtonStates();
         }
 
+        /// <summary>
+        /// 붙여넣기 작업 처리. 클립보드의 파일 경로를 현재 폴더에 복사/이동한다.
+        /// 충돌 시 ConflictResolutionDialog를 표시하여 사용자 선택을 받는다.
+        /// </summary>
         private async void HandlePaste()
         {
             var columns = ViewModel.ActiveExplorer.Columns;
@@ -485,6 +518,10 @@ namespace Span
         //  P1: New Folder (Ctrl+Shift+N)
         // =================================================================
 
+        /// <summary>
+        /// 새 폴더 생성 처리. 현재 활성 컬럼 경로에 새 폴더를 만들고
+        /// 인라인 이름 변경 모드를 시작한다.
+        /// </summary>
         private async void HandleNewFolder()
         {
             var columns = ViewModel.ActiveExplorer.Columns;
@@ -538,6 +575,10 @@ namespace Span
         //  P1: Refresh (F5)
         // =================================================================
 
+        /// <summary>
+        /// 새로고침(Refresh) 처리. 현재 활성 컬럼을 다시 로드하쩰나
+        /// Home 뷰에서는 드라이브 목록을 리로드한다.
+        /// </summary>
         private async void HandleRefresh()
         {
             var columns = ViewModel.ActiveExplorer.Columns;
@@ -568,6 +609,10 @@ namespace Span
         //  P2: Rename (F2) — 인라인 이름 변경
         // =================================================================
 
+        /// <summary>
+        /// 이름 변경 처리. 단일 선택 시 인라인 이름 변경,
+        /// 다중 선택 시 배치 이름 변경 대화상자를 표시한다.
+        /// </summary>
         private void HandleRename()
         {
             var columns = ViewModel.ActiveExplorer.Columns;
@@ -813,6 +858,9 @@ namespace Span
             });
         }
 
+        /// <summary>
+        /// 활성 상태인 인라인 이름 변경을 취소한다.
+        /// </summary>
         private void CancelAnyActiveRename()
         {
             var explorer = ViewModel?.ActiveExplorer;
@@ -844,6 +892,10 @@ namespace Span
         //  P2: Delete (Delete key)
         // =================================================================
 
+        /// <summary>
+        /// 삭제 처리. 선택된 항목들을 휴지통으로 이동하거나 영구 삭제한다.
+        /// 확인 대화상자를 표시하고 FileOperationManager를 통해 작업을 실행한다.
+        /// </summary>
         private async void HandleDelete()
         {
             // ★ Save activeIndex BEFORE showing dialog (modal dialog steals focus)
@@ -932,6 +984,9 @@ namespace Span
             Helpers.DebugLogger.Log($"[HandleDelete] ===== COMPLETE =====");
         }
 
+        /// <summary>
+        /// 영구 삭제(Shift+Delete) 처리. 휴지통을 거치지 않고 영구 삭제한다.
+        /// </summary>
         private async void HandlePermanentDelete()
         {
             var columns = ViewModel.ActiveExplorer.Columns;

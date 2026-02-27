@@ -7,6 +7,10 @@ using Span.Models;
 
 namespace Span.Services
 {
+    /// <summary>
+    /// LAN 네트워크 브라우저 서비스. WNetEnumResource로 네트워크 컴퓨터를 열거하고,
+    /// NetShareEnum으로 서버의 공유 폴더를 열거한다. 타임아웃 보호(5초)를 적용.
+    /// </summary>
     public class NetworkBrowserService
     {
         private const int TimeoutMs = 5000;

@@ -4,6 +4,11 @@ using Span.Services;
 
 namespace Span.Views
 {
+    /// <summary>
+    /// 키보드 단축키 도움말 Flyout UserControl.
+    /// 탐색, 편집, 선택, 뷰, 윈도우/탭 카테고리별 단축키 목록을 표시한다.
+    /// 다국어 UI를 지원한다.
+    /// </summary>
     public sealed partial class HelpFlyoutContent : UserControl
     {
         private readonly LocalizationService? _loc;

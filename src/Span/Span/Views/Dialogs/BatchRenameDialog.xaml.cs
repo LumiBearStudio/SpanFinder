@@ -6,6 +6,11 @@ using System.Collections.Generic;
 
 namespace Span.Views.Dialogs
 {
+    /// <summary>
+    /// 일괄 이름 변경 대화상자.
+    /// 찾기/바꾸기, 접두사/접미사 추가, 번호 매기기 세 가지 모드를 제공하며,
+    /// 실시간 미리보기와 이름 충돌 감지 기능을 포함한다.
+    /// </summary>
     public sealed partial class BatchRenameDialog : ContentDialog
     {
         private readonly BatchRenameViewModel _viewModel;

@@ -11,6 +11,12 @@ using System.Linq;
 
 namespace Span.Views
 {
+    /// <summary>
+    /// List 뷰 모드 UserControl.
+    /// 파일/폴더를 WrapGrid 기반의 컬럼형 리스트로 표시한다.
+    /// ".." 상위 폴더 항목 지원, 인라인 F2 이름 변경(cycling),
+    /// 크기/날짜 토글, 컬럼 너비 조절, 그룹화, 드래그 앤 드롭을 포함한다.
+    /// </summary>
     public sealed partial class ListModeView : UserControl
     {
         public ContextMenuService? ContextMenuService { get; set; }

@@ -13,6 +13,11 @@ using Windows.Storage.Streams;
 
 namespace Span.Services
 {
+    /// <summary>
+    /// 미리보기 서비스 구현. 파일 확장자에 따라 미리보기 유형(Image/Text/PDF/Media/Hex/Font)을 결정하고,
+    /// 각 유형별 비동기 로더(썸네일, 텍스트 읽기, PDF 렌더링, MediaSource, Hex 덤프, 폰트 파싱)를 제공.
+    /// 클라우드 전용 파일은 다운로드 트리거를 방지한다.
+    /// </summary>
     public class PreviewService : IPreviewService
     {
         private static readonly HashSet<string> ImageExtensions = new(StringComparer.OrdinalIgnoreCase)

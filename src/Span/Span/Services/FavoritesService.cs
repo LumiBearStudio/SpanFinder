@@ -7,6 +7,10 @@ using Span.Models;
 
 namespace Span.Services
 {
+    /// <summary>
+    /// 즐겨찾기 서비스 구현. Windows Quick Access Shell Namespace를 통해
+    /// 고정된 폴더 목록을 읽고, Shell COM verb(pintohome/unpinfromhome)로 추가/제거한다.
+    /// </summary>
     public class FavoritesService : IFavoritesService
     {
         // Windows Quick Access shell namespace CLSID

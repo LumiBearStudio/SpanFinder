@@ -3,6 +3,11 @@ using Windows.Storage;
 
 namespace Span.Services;
 
+/// <summary>
+/// 앱 설정 서비스 구현. Windows ApplicationData.LocalSettings를 래핑하여
+/// 테마, 뷰 모드, 탭, 개발자 옵션 등 모든 앱 설정을 관리한다.
+/// 설정 변경 시 SettingChanged 이벤트를 발행하여 실시간 반영을 지원.
+/// </summary>
 public class SettingsService : ISettingsService
 {
     private readonly ApplicationDataContainer _localSettings;

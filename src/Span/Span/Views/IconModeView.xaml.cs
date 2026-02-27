@@ -9,6 +9,12 @@ using System.Linq;
 
 namespace Span.Views
 {
+    /// <summary>
+    /// Icon 뷰 모드 UserControl.
+    /// 파일/폴더를 아이콘 그리드(Small/Medium/Large/ExtraLarge)로 표시한다.
+    /// 러버 밴드 선택, 드래그 앤 드롭, 컨텍스트 메뉴, 키보드 내비게이션,
+    /// 밀도 설정, 그룹화 기능을 포함한다.
+    /// </summary>
     public sealed partial class IconModeView : UserControl
     {
         public ContextMenuService? ContextMenuService { get; set; }

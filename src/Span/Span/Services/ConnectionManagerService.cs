@@ -12,6 +12,10 @@ using Span.Models;
 
 namespace Span.Services
 {
+    /// <summary>
+    /// 원격 연결(SFTP/FTP/SMB) 관리 서비스. 연결 정보를 JSON으로, 자격 증명을 DPAPI로 암호화하여 저장.
+    /// ObservableCollection으로 사이드바 바인딩을 지원한다.
+    /// </summary>
     public class ConnectionManagerService
     {
         private const string ConnectionsFileName = "connections.json";

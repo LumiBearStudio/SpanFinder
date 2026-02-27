@@ -3,6 +3,13 @@ using System.Runtime.InteropServices;
 
 namespace Span.Helpers
 {
+    /// <summary>
+    /// Win32 P/Invoke 선언 모음.
+    /// - user32.dll: 커서 위치, 창 위치/크기, DWM 클로킹 (깜빡임 방지), DPI, 모니터 영역
+    /// - dwmapi.dll: DWM 윈도우 속성 제어 (트랜지션 비활성화, 클로킹)
+    /// - mpr.dll: 네트워크 리소스 열거 (WNetOpenEnumW, WNetEnumResourceW)
+    /// - netapi32.dll: 서버 공유 폴더 열거 (NetShareEnum)
+    /// </summary>
     internal static class NativeMethods
     {
         [DllImport("user32.dll")]

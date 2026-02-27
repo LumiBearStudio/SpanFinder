@@ -6,6 +6,12 @@ using Windows.Media.Playback;
 
 namespace Span.Views
 {
+    /// <summary>
+    /// 미리보기 패널 UserControl.
+    /// 선택된 파일의 이미지/오디오/비디오 미리보기, 메타데이터(유형, 크기, 날짜,
+    /// 해상도, 아티스트, Git 상태 등) 표시를 담당한다.
+    /// 컴팩트 모드에서는 미디어 컨트롤이 축소된 재생 버튼으로 대체된다.
+    /// </summary>
     public sealed partial class PreviewPanelView : UserControl
     {
         private bool _isCompactMode;

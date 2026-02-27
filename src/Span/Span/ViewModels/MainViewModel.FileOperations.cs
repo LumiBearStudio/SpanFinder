@@ -9,6 +9,11 @@ using System.Threading.Tasks;
 
 namespace Span.ViewModels
 {
+    /// <summary>
+    /// MainViewModel partial — 파일 조작 실행 (Copy/Move/Delete/Rename 등),
+    /// FileOperationHistory Undo/Redo, FileOperationManager 연동(동시 실행/일시정지/취소),
+    /// ActionLog 기록, 토스트 알림 처리.
+    /// </summary>
     public partial class MainViewModel
     {
         #region File Operations

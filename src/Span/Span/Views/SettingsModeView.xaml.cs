@@ -6,6 +6,12 @@ using System;
 
 namespace Span.Views;
 
+/// <summary>
+/// 설정 페이지 UserControl.
+/// NavigationView 기반의 섹션별 설정 UI(General, Appearance, Browsing,
+/// Tools, Advanced, About, OpenSource)를 제공한다.
+/// 설정값을 SettingsService와 양방향 동기화하고, 다국어 UI를 지원한다.
+/// </summary>
 public sealed partial class SettingsModeView : UserControl
 {
     private readonly ScrollViewer[] _sections;

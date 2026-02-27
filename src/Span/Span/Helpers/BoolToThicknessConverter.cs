@@ -4,6 +4,9 @@ using System;
 
 namespace Span.Helpers
 {
+    /// <summary>
+    /// bool → Thickness XAML 컨버터. 선택 상태에 따라 테두리 두께를 변경하는 데 사용.
+    /// </summary>
     public class BoolToThicknessConverter : IValueConverter
     {
         public Thickness TrueThickness { get; set; }

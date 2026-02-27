@@ -3,6 +3,10 @@ using System.Threading.Tasks;
 
 namespace Span.Services
 {
+    /// <summary>
+    /// 아이콘 서비스 인터페이스. 아이콘 팩(Remix/Phosphor/Tabler)에 따라
+    /// 파일/폴더/드라이브 등의 글리프, 브러시, 폰트 패밀리를 제공한다.
+    /// </summary>
     public interface IIconService
     {
         string FolderIcon { get; }

@@ -5,6 +5,11 @@ using Span.ViewModels;
 
 namespace Span.Views.Controls;
 
+/// <summary>
+/// 파일 작업 진행률 표시 UserControl.
+/// FileOperationManager의 활성 작업 목록을 실시간으로 표시하며,
+/// 개별 작업의 일시중지/재개 및 취소 기능을 제공한다.
+/// </summary>
 public sealed partial class FileOperationProgressControl : UserControl
 {
     public FileOperationProgressViewModel ViewModel { get; set; }

@@ -8,6 +8,11 @@ using System.Text.Json;
 
 namespace Span.ViewModels
 {
+    /// <summary>
+    /// MainViewModel partial — 탭 생명주기 관리.
+    /// 탭 추가/닫기/복제/전환, JSON 세션 저장/복원, 비활성 탭 지연 로딩,
+    /// 탭 분리(tear-off) DTO 처리, Settings 탭 관리.
+    /// </summary>
     public partial class MainViewModel
     {
         /// <summary>

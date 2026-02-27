@@ -6,6 +6,11 @@ using Span.Models;
 
 namespace Span.Services
 {
+    /// <summary>
+    /// 파일 시스템 프로바이더 추상화 인터페이스.
+    /// 로컬(LocalFileSystemProvider), FTP(FtpProvider), SFTP(SftpProvider)가 구현하여
+    /// FileSystemRouter가 URI 스킴에 따라 적절한 프로바이더로 라우팅한다.
+    /// </summary>
     public interface IFileSystemProvider
     {
         string Scheme { get; }       // "file", "sftp", "ftp"

@@ -12,43 +12,92 @@ using Windows.Foundation;
 namespace Span.Helpers
 {
     /// <summary>
-    /// Rubber-band (marquee) selection helper for ListView/GridView.
-    /// Attaches to the content Grid that wraps the ListViewBase, adding an overlay Canvas
-    /// with a selection rectangle. Mouse-only (v1).
+    /// 러버밴드(마키) 선택 헬퍼: ListView/GridView 위에 오버레이 Canvas를 배치하여
+    /// 마우스 드래그로 사각형 범위 선택을 구현한다 (마우스 전용, v1).
+    /// 
+    /// <para><b>상태 머신 (3단계):</b></para>
+    /// <list type="number">
+    ///   <item><description>Inactive → 대기 상태. PointerPressed가 발생하면 Starting으로 전환.</description></item>
+    ///   <item><description>Starting → 클릭 시작됨, 아직 드래그 임계값(5px) 미달. 임계값 초과 시 Active로 전환.
+    ///     임계값 미달 상태에서 PointerReleased 시 단일 클릭으로 처리 (데드존 클릭 or 빈 공간 클릭).</description></item>
+    ///   <item><description>Active → 러버밴드 사각형 표시 중. 마우스 이동에 따라 선택 영역 갱신.
+    ///     PointerReleased 시 최종 선택을 ViewModel에 동기화하고 정리.</description></item>
+    /// </list>
+    /// 
+    /// <para><b>데드존 처리:</b></para>
+    /// <para>ListViewItem의 텍스트/아이콘이 아닌 패딩 영역(데드존)을 클릭하면:  
+    /// - 선택된 항목의 데드존 → ListView에 위임 (드래그 시작 가능)  
+    /// - 미선택 항목의 데드존 → Starting 상태 진입 → 클릭 시 해당 항목 단일 선택  
+    /// - 빈 공간 → Starting 상태 진입 → 클릭 시 선택 해제</para>
+    /// 
+    /// <para><b>Ctrl 키:</b> Ctrl+드래그 시 기존 선택을 스냅샷으로 보존하고 XOR 방식으로 토글.</para>
+    /// <para><b>자동 스크롤:</b> 드래그가 뷰포트 가장자리(30px)에 도달하면 자동 스크롤 시작.</para>
     /// </summary>
     internal sealed class RubberBandSelectionHelper
     {
+        /// <summary>러버밴드 상태 머신. Inactive → Starting → Active 순으로 전환.</summary>
         private enum State { Inactive, Starting, Active }
 
+        /// <summary>러버밴드가 활성 상태(Starting 또는 Active)인지 여부.</summary>
         public bool IsActive => _state != State.Inactive;
 
+        /// <summary>Starting → Active 전환에 필요한 최소 이동 거리 (px).</summary>
         private const double DragThreshold = 5.0;
+        /// <summary>자동 스크롤이 시작되는 뷰포트 가장자리 영역 크기 (px).</summary>
         private const double AutoScrollEdge = 30.0;
+        /// <summary>자동 스크롤 최대 속도 (px/tick, ~60fps).</summary>
         private const double AutoScrollSpeed = 6.0;
 
+        /// <summary>오버레이 Canvas를 포함하는 부모 Grid (ListView와 같은 Grid 셀에 위치).</summary>
         private readonly Grid _contentGrid;
+        /// <summary>대상 ListView/GridView.</summary>
         private readonly ListViewBase _listView;
+        /// <summary>선택 사각형을 그리는 투명 오버레이 Canvas. ZIndex=100으로 ListView 위에 배치.</summary>
         private readonly Canvas _overlayCanvas;
+        /// <summary>시각적 선택 사각형 (Rectangle). Active 상태에서만 Visible.</summary>
         private readonly Rectangle _selectionRect;
+        /// <summary>선택 동기화 중 여부를 조회하는 콜백. SelectionChanged 재진입 방지용.</summary>
         private readonly Func<bool> _getIsSyncing;
+        /// <summary>선택 동기화 플래그를 설정하는 콜백.</summary>
         private readonly Action<bool> _setIsSyncing;
+        /// <summary>선택 완료 시 호출될 동기화 콜백 (null이면 FolderViewModel.SyncSelectedItems 사용).</summary>
         private readonly Action<IList<object>>? _syncCallback;
 
+        /// <summary>Detach() 호출됨 — 이후 이벤트 무시.</summary>
         private bool _detached;
+        /// <summary>현재 상태 머신 상태.</summary>
         private State _state = State.Inactive;
+        /// <summary>드래그 시작점 (_contentGrid 기준 좌표).</summary>
         private Point _origin;
+        /// <summary>PointerPressed 시 Ctrl 키 상태 스냅샷.</summary>
         private bool _isCtrlHeld;
+        /// <summary>Active 전환 시 캐시된 아이템 바운드 (가상화된 항목은 제외).</summary>
         private List<(FileSystemViewModel vm, Rect bounds)> _itemBoundsCache = new();
+        /// <summary>Ctrl+드래그 시 기존 선택 상태 스냅샷 (XOR 토글용).</summary>
         private HashSet<FileSystemViewModel> _preSelectionSnapshot = new();
-        private bool _isCapturing; // guard: ignore PointerCaptureLost from our own CapturePointer call
-        private bool _savedCanDragItems = true; // saved CanDragItems value to restore after rubber band
-        private Microsoft.UI.Xaml.Controls.Primitives.SelectorItem? _deadZoneSelectorItem; // item under dead-zone click (null = empty space)
+        /// <summary>CapturePointer 호출 중 PointerCaptureLost 재진입 방지 가드.</summary>
+        private bool _isCapturing;
+        /// <summary>러버밴드 시작 전 ListView.CanDragItems 원본값 (복원용).</summary>
+        private bool _savedCanDragItems = true;
+        /// <summary>Starting 상태에서 데드존 클릭된 SelectorItem (null이면 빈 공간 클릭).</summary>
+        private Microsoft.UI.Xaml.Controls.Primitives.SelectorItem? _deadZoneSelectorItem;
 
-        // Auto-scroll
+        // ── 자동 스크롤 ──
+        /// <summary>자동 스크롤 16ms 간격 타이머 (~60fps).</summary>
         private DispatcherTimer? _autoScrollTimer;
+        /// <summary>자동 스크롤 방향 및 속도 (양수=아래, 음수=위).</summary>
         private double _autoScrollDelta;
+        /// <summary>캐시된 ListView 내부 ScrollViewer 참조.</summary>
         private ScrollViewer? _scrollViewer;
 
+        /// <summary>
+        /// 러버밴드 선택 헬퍼를 초기화하고 contentGrid에 이벤트 핸들러를 등록한다.
+        /// </summary>
+        /// <param name="contentGrid">ListView를 감싸는 Grid. 오버레이 Canvas가 여기에 추가된다.</param>
+        /// <param name="listView">대상 ListViewBase (ListView 또는 GridView).</param>
+        /// <param name="getIsSyncing">선택 동기화 중 여부 조회 콜백.</param>
+        /// <param name="setIsSyncing">선택 동기화 플래그 설정 콜백.</param>
+        /// <param name="syncCallback">선택 완료 시 ViewModel 동기화 콜백 (null이면 FolderViewModel.SyncSelectedItems).</param>
         public RubberBandSelectionHelper(
             Grid contentGrid,
             ListViewBase listView,
@@ -97,6 +146,10 @@ namespace Span.Helpers
                 new PointerEventHandler(OnPointerCaptureLost), true);
         }
 
+        /// <summary>
+        /// 이벤트 핸들러를 해제하고 오버레이 Canvas를 제거한다.
+        /// 뷰 전환 또는 컬럼 제거 시 호출하여 메모리 누수를 방지한다.
+        /// </summary>
         public void Detach()
         {
             _detached = true;
@@ -357,6 +410,10 @@ namespace Span.Helpers
             }
         }
 
+        /// <summary>
+        /// ListView.SelectedItems를 ViewModel에 동기화한다.
+        /// syncCallback이 제공되면 사용하고, 없으면 FolderViewModel.SyncSelectedItems를 직접 호출한다.
+        /// </summary>
         private void SyncToViewModel()
         {
             if (_syncCallback != null)
@@ -369,6 +426,10 @@ namespace Span.Helpers
             }
         }
 
+        /// <summary>
+        /// 러버밴드 상태를 초기화한다: 상태를 Inactive로, 캐시 및 스냅샷 클리어,
+        /// CanDragItems 복원, 선택 사각형 숨김, 자동 스크롤 중지.
+        /// </summary>
         private void Cleanup()
         {
             _state = State.Inactive;
@@ -588,6 +649,7 @@ namespace Span.Helpers
             }
         }
 
+        /// <summary>두 Rect가 겹치는지 확인한다 (AABB 충돌 검사).</summary>
         private static bool RectsIntersect(Rect a, Rect b)
         {
             return a.X < b.X + b.Width &&

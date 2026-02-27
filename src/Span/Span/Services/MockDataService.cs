@@ -4,6 +4,10 @@ using System.Collections.Generic;
 
 namespace Span.Services
 {
+    /// <summary>
+    /// 개발/디버깅용 목 데이터 서비스. 가상의 파일/폴더 트리 구조를 생성하여
+    /// UI 프로토타이핑 시 실제 파일 시스템 없이 테스트할 수 있도록 한다.
+    /// </summary>
     public class MockDataService
     {
         private FolderItem _root;

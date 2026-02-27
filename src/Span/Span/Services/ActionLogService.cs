@@ -3,6 +3,10 @@ using System.Text.Json;
 
 namespace Span.Services;
 
+/// <summary>
+/// 파일 조작 이력 서비스 구현. JSON 파일로 영속화하며, FIFO 방식으로 최대 1000개 항목 유지.
+/// 로그 기록은 스레드풀에서 비동기로 디스크에 저장된다.
+/// </summary>
 public class ActionLogService : IActionLogService
 {
     private const int MaxEntries = 1000;

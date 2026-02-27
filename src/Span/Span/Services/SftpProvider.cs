@@ -10,6 +10,10 @@ using Span.Models;
 
 namespace Span.Services
 {
+    /// <summary>
+    /// SSH.NET 기반 SFTP 파일 시스템 프로바이더.
+    /// 자동 재연결, TOFU 호스트키 검증, SSH 키/비밀번호 인증을 지원.
+    /// </summary>
     public class SftpProvider : IFileSystemProvider, IDisposable
     {
         private SftpClient? _client;

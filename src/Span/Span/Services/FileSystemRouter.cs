@@ -4,6 +4,10 @@ using System.Threading.Tasks;
 
 namespace Span.Services
 {
+    /// <summary>
+    /// 파일 시스템 라우터. URI 스킴(file/sftp/ftp)에 따라 적절한 IFileSystemProvider를 반환하고,
+    /// 활성 원격 연결을 URI prefix 기반 longest-match로 관리한다.
+    /// </summary>
     public class FileSystemRouter
     {
         private readonly Dictionary<string, IFileSystemProvider> _providers = new(StringComparer.OrdinalIgnoreCase);

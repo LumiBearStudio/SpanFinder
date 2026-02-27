@@ -13,6 +13,12 @@ using Windows.Storage;
 
 namespace Span.Views
 {
+    /// <summary>
+    /// Details 뷰 모드 UserControl.
+    /// 파일/폴더를 컬럼 헤더(이름, 날짜, 유형, 크기, Git 상태) 기반의 리스트로 표시한다.
+    /// GridSplitter 컬럼 리사이즈, 정렬, 그룹화, 필터링, 인라인 이름 변경,
+    /// 러버 밴드 선택, 밀도 설정, 컬럼 표시/숨기기 기능을 포함한다.
+    /// </summary>
     public sealed partial class DetailsModeView : UserControl
     {
         public ContextMenuService? ContextMenuService { get; set; }

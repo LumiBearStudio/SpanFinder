@@ -8,6 +8,11 @@ using Span.ViewModels;
 
 namespace Span.Services
 {
+    /// <summary>
+    /// 컨텍스트 메뉴 구성 서비스. 파일/폴더/드라이브/즐겨찾기/빈 영역에 대한 MenuFlyout을 생성하고,
+    /// Windows Shell 확장 메뉴 항목(ShellContextMenu)을 비동기 로드하여 통합한다.
+    /// 다국어 번역(verb/text 기반), 개발자/Copilot/Shell Extras 필터링, Edit With 그룹핑을 지원.
+    /// </summary>
     public class ContextMenuService
     {
         private readonly ShellService _shellService;

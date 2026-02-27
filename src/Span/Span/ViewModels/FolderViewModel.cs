@@ -11,6 +11,11 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Span.ViewModels
 {
+    /// <summary>
+    /// 폴더 뷰모델. 지연 로딩(EnsureChildrenLoadedAsync), 정렬(Name/Date/Type/Size),
+    /// FolderContentCache 캐시 연동, 원격 폴더 로딩(FTP/SFTP/SMB), 멀티 선택,
+    /// on-demand 클라우드/Git 상태 주입, 폴더 크기 비동기 계산을 지원.
+    /// </summary>
     public partial class FolderViewModel : FileSystemViewModel
     {
         private readonly FileSystemService _fileService;

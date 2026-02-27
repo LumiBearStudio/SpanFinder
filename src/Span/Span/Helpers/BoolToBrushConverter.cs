@@ -4,7 +4,11 @@ using Microsoft.UI.Xaml.Media;
 using System;
 
 namespace Span.Helpers
-{ 
+{
+    /// <summary>
+    /// bool → Brush XAML 컨버터. DependencyProperty로 TrueBrush/FalseBrush를 정의하여
+    /// XAML에서 리소스 참조로 브러시를 지정할 수 있다.
+    /// </summary>
     public class BoolToBrushConverter : DependencyObject, IValueConverter
     {
         public static readonly DependencyProperty TrueBrushProperty =

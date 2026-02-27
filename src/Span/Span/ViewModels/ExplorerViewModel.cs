@@ -10,6 +10,11 @@ using Span.Services;
 
 namespace Span.ViewModels
 {
+    /// <summary>
+    /// 탐색기 뷰모델. Miller Columns, Details, Icon 뷰 공통의 폴더 탐색 엔진.
+    /// 컬럼 계층(Columns), 브레드크럼(PathSegments), Back/Forward 내비게이션 히스토리를 관리.
+    /// 선택 디바운싱(150ms), 경로 하이라이트, 원격(FTP/SFTP/SMB) 경로 탐색을 지원.
+    /// </summary>
     public partial class ExplorerViewModel : ObservableObject
     {
         // Columns for Miller View

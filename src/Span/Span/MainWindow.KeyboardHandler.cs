@@ -10,10 +10,22 @@ using System.Threading.Tasks;
 
 namespace Span
 {
+    /// <summary>
+    /// MainWindow의 키보드 단축키 처리 부분 클래스.
+    /// 글로벌 키보드 이벤트(Ctrl 조합, F 키, 방향키 등)를 가로채어
+    /// 탐색, 파일 작업, 탭 관리, 뷰 모드 전환, 설정 열기, 터미널 실행 등
+    /// 다양한 단축키 동작을 실행한다.
+    /// Miller Column 내 키보드 탐색과 타입 어헤드 검색도 포함한다.
+    /// </summary>
     public sealed partial class MainWindow
     {
         #region Global Keyboard Shortcuts (OnGlobalKeyDown)
 
+        /// <summary>
+        /// 윈도우 전체 글로벌 키보드 이벤트 핸들러.
+        /// Ctrl/Shift/Alt 조합에 따라 파일 작업, 탐색, 탭 관리, 뷰 모드 전환,
+        /// 설정 열기, 터미널 실행, 검색 등 다양한 단축키를 실행한다.
+        /// </summary>
         private void OnGlobalKeyDown(object sender, KeyRoutedEventArgs e)
         {
             // 이름 변경 중이면 F2(선택 영역 순환)만 허용, 나머지 글로벌 단축키 무시
@@ -430,6 +442,11 @@ namespace Span
 
         #region Miller Columns Keyboard (ItemsControl level)
 
+        /// <summary>
+        /// 분리 된 Miller Column 내 키보드 이벤트 핸들러.
+        /// 방향키 탐색(좌/우/상/하), Enter 실행, Home/End 이동,
+        /// 타입 어헤드 검색, 스페이스바 QuickLook 등을 처리한다.
+        /// </summary>
         private void OnMillerKeyDown(object sender, KeyRoutedEventArgs e)
         {
             // ★ 이름 변경 직후의 Enter/Esc가 파일 실행으로 이어지는 것을 방지
@@ -511,6 +528,10 @@ namespace Span
 
         #region Navigation (Arrow Keys, Enter, Backspace)
 
+        /// <summary>
+        /// 오른쪽 화살표 키 처리: 선택된 폴더의 첫 번째 자식 항목에 포커스를 이동하거나
+        /// 파일을 연다.
+        /// </summary>
         private void HandleRightArrow(int activeIndex)
         {
             var columns = ViewModel.ActiveExplorer.Columns;
@@ -540,6 +561,9 @@ namespace Span
             }
         }
 
+        /// <summary>
+        /// 왼쪽 화살표 키 처리: 부모 컬럼으로 포커스를 이동한다.
+        /// </summary>
         private void HandleLeftArrow(int activeIndex)
         {
             if (activeIndex > 0)
@@ -548,6 +572,10 @@ namespace Span
             }
         }
 
+        /// <summary>
+        /// Enter 키 처리: 선택된 파일을 열거나, MillerClickBehavior 설정에 따라
+        /// 폴더 자동 탐색을 실행한다.
+        /// </summary>
         private void HandleEnter(int activeIndex)
         {
             var columns = ViewModel.ActiveExplorer.Columns;
@@ -564,6 +592,9 @@ namespace Span
             }
         }
 
+        /// <summary>
+        /// Home/End 키 처리: Home은 첫 번째, End는 마지막 항목으로 이동한다.
+        /// </summary>
         private void HandleHomeEnd(int activeIndex, bool first)
         {
             var columns = ViewModel.ActiveExplorer.Columns;
@@ -583,6 +614,10 @@ namespace Span
 
         #region Type-Ahead Search
 
+        /// <summary>
+        /// 타입 어헤드 검색: 입력된 문자로 시작하는 항목을 찾아 선택한다.
+        /// 800ms 타이머로 버퍼를 초기화한다.
+        /// </summary>
         private void HandleTypeAhead(KeyRoutedEventArgs e, int activeIndex)
         {
             char ch = KeyToChar(e.Key);
@@ -609,6 +644,9 @@ namespace Span
             e.Handled = true;
         }
 
+        /// <summary>
+        /// VirtualKey를 문자로 변환한다. 타입 어헤드 검색용.
+        /// </summary>
         private static char KeyToChar(Windows.System.VirtualKey key)
         {
             if (key >= Windows.System.VirtualKey.A && key <= Windows.System.VirtualKey.Z)
@@ -629,6 +667,10 @@ namespace Span
 
         private bool _isQuickLookOpen = false;
 
+        /// <summary>
+        /// 스페이스바 QuickLook 미리보기를 표시/토글한다.
+        /// 선택된 파일의 미리보기를 ContentDialog로 표시한다.
+        /// </summary>
         private async void HandleQuickLook(int activeIndex)
         {
             if (_isQuickLookOpen) return;

@@ -14,10 +14,20 @@ using Windows.ApplicationModel.DataTransfer;
 
 namespace Span
 {
+    /// <summary>
+    /// MainWindow의 분할 뷰 및 미리보기 패널 관리 부분 클래스.
+    /// 좌/우 패널 활성 상태 관리, 분할 뷰 토글, 미리보기 패널 초기화·업데이트,
+    /// 인라인 미리보기 컬럼(Miller Columns 모드), 선택 기반 미리보기 갱신,
+    /// 활성 Explorer/ScrollViewer 접근자 등을 담당한다.
+    /// </summary>
     public sealed partial class MainWindow
     {
         #region Active Pane Helpers
 
+        /// <summary>
+        /// 현재 활성 패널의 Miller Columns ItemsControl을 반환한다.
+        /// 분할 뷰에서 우측 패널이 활성이면 Right 컨트롤, 아니면 활성 탭의 컨트롤을 반환한다.
+        /// </summary>
         private ItemsControl GetActiveMillerColumnsControl()
         {
             if (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
@@ -97,6 +107,9 @@ namespace Span
 
         // --- Focus tracking ---
 
+        /// <summary>
+        /// 좌측 패널 GotFocus 이벤트. ActivePane을 Left로 설정한다.
+        /// </summary>
         private void OnLeftPaneGotFocus(object sender, RoutedEventArgs e)
         {
             if (ViewModel.ActivePane != ActivePane.Left)
@@ -105,6 +118,9 @@ namespace Span
             }
         }
 
+        /// <summary>
+        /// 우측 패널 GotFocus 이벤트. ActivePane을 Right로 설정한다.
+        /// </summary>
         private void OnRightPaneGotFocus(object sender, RoutedEventArgs e)
         {
             if (ViewModel.ActivePane != ActivePane.Right)
@@ -346,6 +362,9 @@ namespace Span
 
         // --- Split View Toggle ---
 
+        /// <summary>
+        /// 분할 뷰 토글 버튼 클릭 이벤트.
+        /// </summary>
         private void OnSplitViewToggleClick(object sender, RoutedEventArgs e)
         {
             ToggleSplitView();
@@ -730,6 +749,15 @@ namespace Span
             }
 
             Helpers.DebugLogger.Log($"[MainWindow] Preview toggled: Left={ViewModel.IsLeftPreviewEnabled}, Right={ViewModel.IsRightPreviewEnabled}");
+
+            // After preview toggle, the Miller columns viewport width changes.
+            // Scroll to keep the last column visible.
+            var explorer = ViewModel.ActiveExplorer;
+            if (explorer != null && explorer.Columns.Count > 0)
+            {
+                var scrollViewer = GetActiveMillerScrollViewer();
+                ScrollToLastColumn(explorer, scrollViewer);
+            }
         }
 
         /// <summary>

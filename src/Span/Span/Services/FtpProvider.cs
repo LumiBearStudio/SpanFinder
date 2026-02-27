@@ -10,6 +10,10 @@ using Span.Models;
 
 namespace Span.Services
 {
+    /// <summary>
+    /// FluentFTP 기반 FTP/FTPS 파일 시스템 프로바이더.
+    /// 자동 재연결(NOOP heartbeat), FTPS TOFU 인증서 검증, raw SIZE/MDTM 커맨드 폴백을 지원.
+    /// </summary>
     public class FtpProvider : IFileSystemProvider, IAsyncDisposable, IDisposable
     {
         private AsyncFtpClient? _client;

@@ -11,6 +11,9 @@ using Windows.UI;
 
 namespace Span.Services
 {
+    /// <summary>
+    /// 파일 확장자 → 아이콘/색상 매핑 정의. icons.json에서 역직렬화된다.
+    /// </summary>
     public class IconMapping
     {
         public List<string> Extensions { get; set; } = new();
@@ -18,6 +21,9 @@ namespace Span.Services
         public string Color { get; set; } = "#ABABAB";
     }
 
+    /// <summary>
+    /// 아이콘 팩 설정 파일(icons.json/icons-phosphor.json/icons-tabler.json) 구조.
+    /// </summary>
     public class IconConfig
     {
         public string DefaultIcon { get; set; } = "file-text-line";
@@ -27,6 +33,10 @@ namespace Span.Services
         public List<IconMapping> Mappings { get; set; } = new();
     }
 
+    /// <summary>
+    /// 아이콘 서비스 구현. Remix/Phosphor/Tabler 아이콘 팩을 JSON에서 로드하고,
+    /// 파일 확장자별 글리프/브러시를 캐싱하여 제공한다. 싱글턴(IconService.Current)으로 접근.
+    /// </summary>
     public class IconService : IIconService
     {
         private IconConfig _config = new();
@@ -97,16 +107,16 @@ namespace Span.Services
             (FolderGlyph, FolderOpenGlyph, FileDefaultGlyph, DriveGlyph, NetworkGlyph, ServerGlyph, ChevronRightGlyph, NewFolderGlyph, SplitViewGlyph) = pack switch
             {
                 "phosphor" => ("\ue24a", "\ue256", "\ue23a", "\ue2a0", "\ue28e", "\ue2a0", "\ue0a4", "\ue258", "\ue1b0"),
-                "tabler"   => ("\uf749", "\ufaf7", "\ueaa2", "\ueb1f", "\ueb54", "\ueb1f", "\uea6e", "\ueaae", "\ueebc"),
-                _          => ("\uED53", "\uED6F", "\uECE0", "\uEC65", "\uEDD4", "\uEE71", "\uEA6E", "\uED59", "\uEE8C")
+                "tabler" => ("\uf749", "\ufaf7", "\ueaa2", "\ueb1f", "\ueb54", "\ueb1f", "\uea6e", "\ueaae", "\ueebc"),
+                _ => ("\uED53", "\uED6F", "\uECE0", "\uEC65", "\uEDD4", "\uEE71", "\uEA6E", "\uED59", "\uEE8C")
             };
 
             // Additional structural glyphs per pack (Removable/USB, CD-ROM, Cloud)
             (RemovableGlyph, CdRomGlyph, CloudGlyph) = pack switch
             {
                 "phosphor" => ("\ue2a0", "\ue0e0", "\ue288"),  // hard-drives, disc, globe
-                "tabler"   => ("\ueb1f", "\ueb3d", "\uf673"),  // device-floppy, disc, cloud-filled
-                _          => ("\uEDFA", "\uECA4", "\uEB9C")   // ri-hard-drive-fill, ri-disc-fill, ri-cloud-fill
+                "tabler" => ("\ueb1f", "\ueb3d", "\uf673"),  // device-floppy, disc, cloud-filled
+                _ => ("\uEDFA", "\uECA4", "\uEB9C")   // ri-hard-drive-fill, ri-disc-fill, ri-cloud-fill
             };
 
             try

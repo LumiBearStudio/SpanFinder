@@ -5,6 +5,10 @@ using System;
 
 namespace Span.Helpers
 {
+    /// <summary>
+    /// 파일 시스템 항목을 아이콘 글리프 문자열로 변환하는 XAML 컨버터.
+    /// FolderItem/FolderViewModel → 폴더 아이콘, FileItem/FileViewModel → 확장자별 아이콘 (App.xaml 리소스).
+    /// </summary>
     public class FileIconConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, string language)

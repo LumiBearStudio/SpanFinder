@@ -9,12 +9,23 @@ using System.Linq;
 
 namespace Span
 {
+    /// <summary>
+    /// MainWindow의 설정 처리 부분 클래스.
+    /// 테마 적용(Light/Dark/커스텀 테마 오버라이드), 폰트 패밀리·밀도 설정,
+    /// 숨김 파일·체크박스·즐겨찾기 트리 표시 전환,
+    /// Miller Column 클릭 동작 설정, 미리보기 패널 활성화,
+    /// 로컬라이제이션 문자열 적용 등 설정 변경 이벤트 처리를 담당한다.
+    /// </summary>
     public sealed partial class MainWindow
     {
         // =================================================================
         //  #region Theme Application
         // =================================================================
 
+        /// <summary>
+        /// 테마를 적용한다. Light/Dark/System/커스텀 테마를 처리하고,
+        /// 커스텀 테마인 경우 색상 오버라이드를 적용한다.
+        /// </summary>
         private void ApplyTheme(string theme)
         {
             bool isCustom = _customThemes.Contains(theme);
@@ -110,55 +121,55 @@ namespace Span
             var darkDict = new ResourceDictionary();
 
             // Color 리소스
-            darkDict["SpanBgMica"]        = p.bgMica;
-            darkDict["SpanBgLayer1"]      = p.bgLayer1;
-            darkDict["SpanBgLayer2"]      = p.bgLayer2;
-            darkDict["SpanBgLayer3"]      = p.bgLayer3;
-            darkDict["SpanAccent"]        = p.accent;
-            darkDict["SpanAccentHover"]   = p.accentHover;
-            darkDict["SpanTextPrimary"]   = p.textPri;
+            darkDict["SpanBgMica"] = p.bgMica;
+            darkDict["SpanBgLayer1"] = p.bgLayer1;
+            darkDict["SpanBgLayer2"] = p.bgLayer2;
+            darkDict["SpanBgLayer3"] = p.bgLayer3;
+            darkDict["SpanAccent"] = p.accent;
+            darkDict["SpanAccentHover"] = p.accentHover;
+            darkDict["SpanTextPrimary"] = p.textPri;
             darkDict["SpanTextSecondary"] = p.textSec;
-            darkDict["SpanTextTertiary"]  = p.textTer;
-            darkDict["SpanBgSelected"]    = p.bgSel;
-            darkDict["SpanBorderSubtle"]  = p.border;
+            darkDict["SpanTextTertiary"] = p.textTer;
+            darkDict["SpanBgSelected"] = p.bgSel;
+            darkDict["SpanBorderSubtle"] = p.border;
 
             // Brush 리소스
-            darkDict["SpanBgMicaBrush"]        = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.bgMica);
-            darkDict["SpanBgLayer1Brush"]      = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.bgLayer1);
-            darkDict["SpanBgLayer2Brush"]      = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.bgLayer2);
-            darkDict["SpanBgLayer3Brush"]      = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.bgLayer3);
-            darkDict["SpanAccentBrush"]        = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.accent);
-            darkDict["SpanAccentHoverBrush"]   = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.accentHover);
-            darkDict["SpanTextPrimaryBrush"]   = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.textPri);
+            darkDict["SpanBgMicaBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.bgMica);
+            darkDict["SpanBgLayer1Brush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.bgLayer1);
+            darkDict["SpanBgLayer2Brush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.bgLayer2);
+            darkDict["SpanBgLayer3Brush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.bgLayer3);
+            darkDict["SpanAccentBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.accent);
+            darkDict["SpanAccentHoverBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.accentHover);
+            darkDict["SpanTextPrimaryBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.textPri);
             darkDict["SpanTextSecondaryBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.textSec);
-            darkDict["SpanTextTertiaryBrush"]  = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.textTer);
-            darkDict["SpanBgSelectedBrush"]    = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.bgSel);
-            darkDict["SpanBorderSubtleBrush"]  = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.border);
+            darkDict["SpanTextTertiaryBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.textTer);
+            darkDict["SpanBgSelectedBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.bgSel);
+            darkDict["SpanBorderSubtleBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.border);
 
             // AccentDim = accent 색상에 70% 투명도 (탭/밀러컬럼 테두리용)
             var accentDim = Windows.UI.Color.FromArgb(0xB3, p.accent.R, p.accent.G, p.accent.B);
-            darkDict["SpanAccentDimColor"]  = accentDim;
-            darkDict["SpanAccentDimBrush"]  = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentDim);
+            darkDict["SpanAccentDimColor"] = accentDim;
+            darkDict["SpanAccentDimBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentDim);
 
             // Accent-tinted selection (Windows Explorer 스타일 통일)
-            var accentHover    = Windows.UI.Color.FromArgb(0x0F, p.accent.R, p.accent.G, p.accent.B);
-            var accentActive   = Windows.UI.Color.FromArgb(0x1A, p.accent.R, p.accent.G, p.accent.B);
+            var accentHover = Windows.UI.Color.FromArgb(0x0F, p.accent.R, p.accent.G, p.accent.B);
+            var accentActive = Windows.UI.Color.FromArgb(0x1A, p.accent.R, p.accent.G, p.accent.B);
             var accentSelected = Windows.UI.Color.FromArgb(0x25, p.accent.R, p.accent.G, p.accent.B);
             var accentSelHover = Windows.UI.Color.FromArgb(0x30, p.accent.R, p.accent.G, p.accent.B);
-            var pathHighlight  = Windows.UI.Color.FromArgb(0x20, p.accent.R, p.accent.G, p.accent.B);
-            darkDict["SpanBgHoverBrush"]         = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentHover);
-            darkDict["SpanBgActiveBrush"]        = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentActive);
-            darkDict["SpanBgSelectedBrush"]      = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentSelected);
+            var pathHighlight = Windows.UI.Color.FromArgb(0x20, p.accent.R, p.accent.G, p.accent.B);
+            darkDict["SpanBgHoverBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentHover);
+            darkDict["SpanBgActiveBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentActive);
+            darkDict["SpanBgSelectedBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentSelected);
             darkDict["SpanBgSelectedHoverBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentSelHover);
-            darkDict["SpanPathHighlightBrush"]   = new Microsoft.UI.Xaml.Media.SolidColorBrush(pathHighlight);
+            darkDict["SpanPathHighlightBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(pathHighlight);
 
             // ListView/GridView 선택 색상 (accent 기반 통일)
-            darkDict["ListViewItemBackgroundSelected"]            = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentSelected);
+            darkDict["ListViewItemBackgroundSelected"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentSelected);
             darkDict["ListViewItemBackgroundSelectedPointerOver"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentSelHover);
-            darkDict["ListViewItemBackgroundSelectedPressed"]     = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentActive);
-            darkDict["GridViewItemBackgroundSelected"]            = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentSelected);
+            darkDict["ListViewItemBackgroundSelectedPressed"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentActive);
+            darkDict["GridViewItemBackgroundSelected"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentSelected);
             darkDict["GridViewItemBackgroundSelectedPointerOver"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentSelHover);
-            darkDict["GridViewItemBackgroundSelectedPressed"]     = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentActive);
+            darkDict["GridViewItemBackgroundSelectedPressed"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentActive);
 
             root.Resources.ThemeDictionaries["Dark"] = darkDict;
         }
@@ -320,6 +331,9 @@ namespace Span
             }
         }
 
+        /// <summary>
+        /// 폰트 패밀리를 모든 뷰에 적용한다.
+        /// </summary>
         private void ApplyFontFamily(string fontFamily)
         {
             if (this.Content is FrameworkElement root && root.Resources != null)
@@ -334,6 +348,9 @@ namespace Span
             }
         }
 
+        /// <summary>
+        /// 밀도 설정(Compact/Standard/Comfortable)을 모든 뷰에 적용한다.
+        /// </summary>
         private void ApplyDensity(string density)
         {
             _densityPadding = density switch
@@ -446,6 +463,9 @@ namespace Span
         //  #region Terminal, Settings Tab, Refresh
         // =================================================================
 
+        /// <summary>
+        /// 터미널 열기 처리. 현재 활성 경로에서 설정된 터미널 애플리케이션을 실행한다.
+        /// </summary>
         private void HandleOpenTerminal()
         {
             var explorer = ViewModel.ActiveExplorer;
@@ -530,6 +550,9 @@ namespace Span
             }
         }
 
+        /// <summary>
+        /// 현재 활성 뷰를 새로고침한다.
+        /// </summary>
         private void RefreshCurrentView()
         {
             // Refresh only the leaf (last) column in the active pane.
@@ -551,6 +574,9 @@ namespace Span
 
         private bool _isHelpOpen = false;
 
+        /// <summary>
+        /// 단축키 도움말 오버레이를 토글한다.
+        /// </summary>
         private void ToggleHelpOverlay()
         {
             _isHelpOpen = !_isHelpOpen;
@@ -572,6 +598,9 @@ namespace Span
             }
         }
 
+        /// <summary>
+        /// 설정 버튼 클릭 이벤트. 설정 탭을 열다.
+        /// </summary>
         private void OnSettingsClick(object sender, RoutedEventArgs e)
         {
             OpenSettingsTab();

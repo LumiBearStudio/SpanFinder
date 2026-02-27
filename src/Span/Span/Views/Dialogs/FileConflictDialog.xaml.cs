@@ -6,6 +6,12 @@ using System;
 
 namespace Span.Views.Dialogs;
 
+/// <summary>
+/// 파일 충돌 해결 대화상자.
+/// 복사/이동 시 동일 이름 파일이 존재할 때 대체, 둘 다 유지, 건너뛰기
+/// 옵션을 제공하며, 소스/대상 파일의 크기 및 수정일을 비교 표시한다.
+/// "모든 충돌에 적용" 체크박스로 일괄 처리를 지원한다.
+/// </summary>
 public sealed partial class FileConflictDialog : ContentDialog
 {
     public FileConflictDialogViewModel ViewModel { get; }

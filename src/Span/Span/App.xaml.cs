@@ -7,6 +7,12 @@ using Span.ViewModels;
 
 namespace Span
 {
+    /// <summary>
+    /// Span 파일 탐색기 애플리케이션의 진입점.
+    /// DI 컨테이너(ServiceCollection) 구성, 멀티 윈도우 등록/해제 관리,
+    /// 글로벌 예외 처리(UI/AppDomain/Task), 크래시 리포팅(Sentry),
+    /// 아이콘 팩 로드 및 리소스 오버라이드, 언어 설정 적용을 담당한다.
+    /// </summary>
     public partial class App : Application
     {
         public IServiceProvider Services { get; }

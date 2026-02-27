@@ -2,8 +2,16 @@ using System.Collections.Generic;
 
 namespace Span.Helpers
 {
+    /// <summary>
+    /// Remix Icon 이름을 유니코드 글리프 문자로 매핑하는 헬퍼.
+    /// icons.json에서 로드된 데이터를 기반으로 아이콘 이름 → \uXXXX 변환을 수행한다.
+    /// </summary>
     public static class RemixIconHelper
     {
+        /// <summary>
+        /// Remix Icon 이름(예: "folder-fill")을 유니코드 글리프 문자로 변환한다.
+        /// "ri-" 접두사는 자동 제거. 매핑 실패 시 기본 파일 아이콘(\uECE0)을 반환.
+        /// </summary>
         public static string GetGlyph(string iconName)
         {
             if (string.IsNullOrEmpty(iconName)) return "\uECE0"; // Default icon

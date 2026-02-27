@@ -8,6 +8,11 @@ using System.Collections.ObjectModel;
 
 namespace Span.Views
 {
+    /// <summary>
+    /// 파일 작업 로그 Flyout UserControl.
+    /// ActionLogService에서 최근 100개 로그 항목을 가져와 ListView로 표시한다.
+    /// 각 항목의 작업 유형 아이콘, 성공/실패 상태, 타임스탬프를 시각화한다.
+    /// </summary>
     public sealed partial class LogFlyoutContent : UserControl
     {
         private readonly ActionLogService _logService;
@@ -62,6 +67,11 @@ namespace Span.Views
         }
     }
 
+    /// <summary>
+    /// ActionLogEntry의 디스플레이 래퍼.
+    /// 작업 유형별 아이콘 글리프, 성공/실패 색상, 포맷된 시간 등
+    /// UI 바인딩용 속성을 제공한다.
+    /// </summary>
     internal class LogEntryDisplay
     {
         private readonly ActionLogEntry _entry;

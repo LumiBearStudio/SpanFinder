@@ -4,6 +4,10 @@ using Span.Models;
 
 namespace Span
 {
+    /// <summary>
+    /// Miller Column 항목의 DataTemplate 선택기.
+    /// FolderViewModel이면 FolderTemplate, FileViewModel이면 FileTemplate을 반환한다.
+    /// </summary>
     public class FileSystemItemTemplateSelector : DataTemplateSelector
     {
         public DataTemplate FolderTemplate { get; set; }

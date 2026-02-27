@@ -4,6 +4,9 @@ using Span.Services;
 
 namespace Span.Helpers
 {
+    /// <summary>
+    /// ViewMode enum 확장 메서드. 아이콘 계열 판별, 픽셀 크기 반환, 표시 이름, 단축키 텍스트 변환.
+    /// </summary>
     public static class ViewModeExtensions
     {
         /// <summary>

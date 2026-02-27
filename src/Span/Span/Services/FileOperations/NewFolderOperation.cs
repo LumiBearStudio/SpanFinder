@@ -1,5 +1,9 @@
 namespace Span.Services.FileOperations;
 
+/// <summary>
+/// 새 폴더 생성 오퍼레이션. 로컬/원격 경로 모두 지원.
+/// Undo 시 빈 폴더만 삭제 가능 (원격은 Undo 불가).
+/// </summary>
 public class NewFolderOperation : IFileOperation
 {
     private readonly string _folderPath;

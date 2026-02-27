@@ -17,10 +17,22 @@ using Windows.ApplicationModel.DataTransfer;
 
 namespace Span
 {
+    /// <summary>
+    /// MainWindow의 드래그 앤 드롭 처리 부분 클래스.
+    /// Miller Column 내 파일/폴더 드래그, 즐겨찾기 드롭, 폴더 간 드롭,
+    /// 외부 애플리케이션 간 StorageItems 교환, 스프링 로디드 폴더,
+    /// 컬럼 리사이즈 그립 등의 기능을 담당한다.
+    /// </summary>
     public sealed partial class MainWindow
     {
         #region Drag & Drop: Drag start and Favorites
 
+        /// <summary>
+        /// Miller Column ListView에서 드래그 시작 시 호출.
+        /// 드래그 데이터에 경로 목록과 출처 패널 정보를 설정하고,
+        /// 외부 앱 드롭을 위한 StorageItems를 지연 로딩으로 제공한다.
+        /// 러버밴드 선택 중에는 드래그를 취소한다.
+        /// </summary>
         private void OnDragItemsStarting(object sender, DragItemsStartingEventArgs e)
         {
             // Cancel file D&D if rubber-band selection is active
@@ -52,6 +64,9 @@ namespace Span
             });
         }
 
+        /// <summary>
+        /// 이벤트 발신자(ListView)가 좌측/우측 탐색기 중 어느 패널에 속하는지 판단한다.
+        /// </summary>
         private string DeterminePane(object sender)
         {
             if (sender is DependencyObject depObj)
@@ -97,6 +112,10 @@ namespace Span
             }
         }
 
+        /// <summary>
+        /// 즐겨찾기 사이드바 영역에 드래그 오버 시 AcceptedOperation을 설정한다.
+        /// 폴더/파일 드롭을 Link 작업으로 표시하여 즐겨찾기 추가 의도를 나타낸다.
+        /// </summary>
         private void OnFavoritesDragOver(object sender, DragEventArgs e)
         {
             if (e.DataView.Contains(StandardDataFormats.Text) ||
@@ -107,6 +126,9 @@ namespace Span
             }
         }
 
+        /// <summary>
+        /// 즐겨찾기 사이드바에 드롭 시 드롭된 경로를 즐겨찾기 목록에 추가한다.
+        /// </summary>
         private async void OnFavoritesDrop(object sender, DragEventArgs e)
         {
             if (e.DataView.Contains(StandardDataFormats.Text))
@@ -136,6 +158,11 @@ namespace Span
 
         #region Drag & Drop: Folder item targets (drop file onto a folder)
 
+        /// <summary>
+        /// 폴더 아이템 위에 드래그 오버 시 AcceptedOperation을 설정하고
+        /// 스프링 로디드 타이머를 시작한다.
+        /// 자기 자신에 드롭, 소스와 대상 동일 등의 무효 드롭을 방지한다.
+        /// </summary>
         private void OnFolderItemDragOver(object sender, DragEventArgs e)
         {
             if (sender is not Grid grid || grid.DataContext is not FolderViewModel targetFolder) return;
@@ -186,6 +213,10 @@ namespace Span
             e.Handled = true;
         }
 
+        /// <summary>
+        /// 폴더 아이템에 드롭 시 파일 작업(복사/이동)을 실행한다.
+        /// 스프링 로디드 타이머를 정지하고 드롭 대상 폴더로 파일 작업을 실행한다.
+        /// </summary>
         private async void OnFolderItemDrop(object sender, DragEventArgs e)
         {
             if (sender is not Grid grid || grid.DataContext is not FolderViewModel targetFolder) return;
@@ -202,6 +233,9 @@ namespace Span
             await HandleDropAsync(paths, targetFolder.Path, isMove: isMove);
         }
 
+        /// <summary>
+        /// 폴더 아이템에서 드래그 나갈 시 스프링 로디드 타이머를 정지하고 시각적 피드백을 초기화한다.
+        /// </summary>
         private void OnFolderItemDragLeave(object sender, DragEventArgs e)
         {
             if (sender is Grid grid)
@@ -221,6 +255,9 @@ namespace Span
 
         #region Spring-loaded folders: auto-open folder after drag hover delay
 
+        /// <summary>
+        /// 스프링 로디드 타이머를 시작하여 지정된 폴더 위에서 일정 시간 호버 시 자동 열림을 준비한다.
+        /// </summary>
         private void StartSpringLoadTimer()
         {
             _springLoadTimer = new DispatcherTimer();
@@ -229,6 +266,9 @@ namespace Span
             _springLoadTimer.Start();
         }
 
+        /// <summary>
+        /// 스프링 로디드 타이머를 정지하고 관련 상태를 초기화한다.
+        /// </summary>
         private void StopSpringLoadTimer()
         {
             if (_springLoadTimer != null)
@@ -241,6 +281,10 @@ namespace Span
             _springLoadGrid = null;
         }
 
+        /// <summary>
+        /// 스프링 로디드 타이머 틱 이벤트.
+        /// 드래그 호버 중인 폴더를 자동으로 열어 하위 폴더를 표시한다.
+        /// </summary>
         private void OnSpringLoadTimerTick(object? sender, object e)
         {
             var folder = _springLoadTarget;
@@ -268,6 +312,10 @@ namespace Span
 
         #region Drag & Drop: Column-level targets (drop into current folder)
 
+        /// <summary>
+        /// Miller Column 빈 영역에 드래그 오버 시 AcceptedOperation을 설정한다.
+        /// 수정키(Shift/Ctrl)에 따라 이동/복사를 결정한다.
+        /// </summary>
         private void OnColumnDragOver(object sender, DragEventArgs e)
         {
             if (sender is not ListView listView || listView.DataContext is not FolderViewModel folderVm) return;
@@ -299,6 +347,10 @@ namespace Span
             e.Handled = true; // Prevent bubbling to PaneDragOver
         }
 
+        /// <summary>
+        /// Miller Column 빈 영역에 드롭 시 파일 작업(복사/이동)을 실행한다.
+        /// 대상 경로는 해당 컬럼의 FolderViewModel 경로이다.
+        /// </summary>
         private async void OnColumnDrop(object sender, DragEventArgs e)
         {
             if (sender is not ListView listView || listView.DataContext is not FolderViewModel folderVm) return;
@@ -315,6 +367,10 @@ namespace Span
 
         #region Drag & Drop: Shared helpers
 
+        /// <summary>
+        /// 드롭 이벤트에서 파일 경로 목록을 추출한다.
+        /// 내부 Span 드래그(SourcePaths)와 외부 앱 StorageItems를 모두 지원한다.
+        /// </summary>
         private async Task<List<string>> ExtractDropPaths(DragEventArgs e)
         {
             if (e.DataView.Properties.TryGetValue("SourcePaths", out var srcObj) && srcObj is List<string> srcPaths)
@@ -365,6 +421,10 @@ namespace Span
             return false; // fallback: Copy
         }
 
+        /// <summary>
+        /// 드롭 작업을 실제로 실행한다.
+        /// 충돌 처리 대화상자 표시, 파일 작업 실행, 대상 컬럼 리로드를 처리한다.
+        /// </summary>
         private async System.Threading.Tasks.Task HandleDropAsync(List<string> sourcePaths, string destFolder, bool isMove)
         {
             // Validate: don't drop onto itself or into child
@@ -500,6 +560,10 @@ namespace Span
 
         #region Drag & Drop: Cross-pane (left <-> right)
 
+        /// <summary>
+        /// 좌측/우측 패널 영역에 드래그 오버 시 AcceptedOperation을 설정한다.
+        /// 크로스패널 드롭 시 대상 패널의 현재 경로로 드롭 작업을 설정한다.
+        /// </summary>
         private void OnPaneDragOver(object sender, DragEventArgs e)
         {
             if (sender is not FrameworkElement fe) return;
@@ -541,6 +605,9 @@ namespace Span
             e.Handled = true;
         }
 
+        /// <summary>
+        /// 좌측/우측 패널 영역에 드롭 시 파일 작업(복사/이동)을 실행한다.
+        /// </summary>
         private async void OnPaneDrop(object sender, DragEventArgs e)
         {
             if (sender is not FrameworkElement fe) return;
@@ -578,6 +645,9 @@ namespace Span
             e.Handled = true;
         }
 
+        /// <summary>
+        /// 좌측/우측 패널 영역에서 드래그 나갈 시 시각적 피드백을 초기화한다.
+        /// </summary>
         private void OnPaneDragLeave(object sender, DragEventArgs e)
         {
             if (sender is FrameworkElement fe)
@@ -600,7 +670,8 @@ namespace Span
             if (sender is Grid grid)
             {
                 grid.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
-                    Microsoft.UI.Colors.White) { Opacity = 0.05 };
+                    Microsoft.UI.Colors.White)
+                { Opacity = 0.05 };
                 Helpers.CursorHelper.SetHandCursor(grid);
             }
         }
@@ -621,6 +692,9 @@ namespace Span
 
         #region Column Resize Grip Handlers (Miller Columns drag-to-resize)
 
+        /// <summary>
+        /// 컬럼 리사이즈 그립에 마우스 진입 시 수평 리사이즈 커서를 표시한다.
+        /// </summary>
         private void OnColumnResizeGripPointerEntered(object sender, PointerRoutedEventArgs e)
         {
             if (sender is Microsoft.UI.Xaml.Shapes.Rectangle rect)
@@ -631,6 +705,9 @@ namespace Span
             }
         }
 
+        /// <summary>
+        /// 컬럼 리사이즈 그립에서 마우스 나갈 시 기본 커서로 복원한다.
+        /// </summary>
         private void OnColumnResizeGripPointerExited(object sender, PointerRoutedEventArgs e)
         {
             if (!_isResizingColumn && sender is Microsoft.UI.Xaml.Shapes.Rectangle rect)

@@ -5,6 +5,11 @@ using System;
 
 namespace Span.ViewModels
 {
+    /// <summary>
+    /// MainViewModel partial — 뷰 모드 전환 및 영속화.
+    /// Miller Columns/Details/Icon/Home/Settings 모드 스위칭, 듀얼 패인 별 ViewMode 관리,
+    /// 미리보기 패널 토글, Split View 상태 저장/복원.
+    /// </summary>
     public partial class MainViewModel
     {
         #region View Mode Switching

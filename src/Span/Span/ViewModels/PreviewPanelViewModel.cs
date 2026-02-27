@@ -13,6 +13,11 @@ using Windows.Media.Core;
 
 namespace Span.ViewModels
 {
+    /// <summary>
+    /// 미리보기 패널 뷰모델. 파일 선택 시 200ms 디바운싱 후 유형별 미리보기를 로딩.
+    /// Image/Text/PDF/Media/Hex/Font/Folder/Generic 프리뷰와 파일 메타데이터(크기/날짜),
+    /// Git 정보(Tier 1: 파일 최근 커밋, Tier 2: 폴더 레포 대시보드)를 병렬 로딩.
+    /// </summary>
     public partial class PreviewPanelViewModel : ObservableObject, IDisposable
     {
         private readonly PreviewService _previewService;

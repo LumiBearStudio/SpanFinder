@@ -5,6 +5,11 @@ using Span.Models;
 
 namespace Span.ViewModels
 {
+    /// <summary>
+    /// 파일/폴더 공통 뷰모델 베이스 클래스. IFileSystemItem을 래핑하여
+    /// 이름, 경로, 아이콘, 썸네일, 인라인 이름 변경(F2), 클라우드/Git 상태 뱃지,
+    /// 경로 하이라이트 배경, Details 모드용 날짜/크기/타입 프로퍼티를 제공.
+    /// </summary>
     public partial class FileSystemViewModel : ObservableObject
     {
         protected readonly IFileSystemItem _model;

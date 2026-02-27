@@ -7,6 +7,10 @@ using Span.Models;
 
 namespace Span.Services
 {
+    /// <summary>
+    /// 로컬 파일 시스템 프로바이더 구현. System.IO API를 사용하여
+    /// 파일/폴더의 CRUD, 복사, 이동, 스트림 읽기/쓰기를 처리한다.
+    /// </summary>
     public class LocalFileSystemProvider : IFileSystemProvider
     {
         private readonly SettingsService _settings;

@@ -14,6 +14,11 @@ using System.Text.Json;
 
 namespace Span.ViewModels
 {
+    /// <summary>
+    /// 메인 뷰모델. 앱 전체 상태를 관리: 탭, 사이드바(드라이브/즐겨찾기/최근폴더/원격연결),
+    /// 듀얼 패인(Split View), 뷰 모드 전환, Undo/Redo 히스토리, 상태바, 토스트 알림.
+    /// Tab/ViewMode/FileOperations/SplitPreview 로직은 partial 클래스로 분리.
+    /// </summary>
     public partial class MainViewModel : ObservableObject
     {
         [ObservableProperty]
@@ -545,8 +550,8 @@ namespace Span.ViewModels
             var sortedConnections = SavedConnections
                 .OrderBy(c => c.Protocol switch
                 {
-                    Models.RemoteProtocol.SMB  => 0,
-                    Models.RemoteProtocol.FTP  => 1,
+                    Models.RemoteProtocol.SMB => 0,
+                    Models.RemoteProtocol.FTP => 1,
                     Models.RemoteProtocol.FTPS => 2,
                     Models.RemoteProtocol.SFTP => 3,
                     _ => 9
@@ -722,9 +727,13 @@ namespace Span.ViewModels
                 var settings = Windows.Storage.ApplicationData.Current.LocalSettings;
                 var dtos = drives.Select(d => new DrivesCacheDto
                 {
-                    Name = d.Name, Path = d.Path, Label = d.Label,
-                    TotalSize = d.TotalSize, AvailableFreeSpace = d.AvailableFreeSpace,
-                    DriveFormat = d.DriveFormat, DriveType = d.DriveType,
+                    Name = d.Name,
+                    Path = d.Path,
+                    Label = d.Label,
+                    TotalSize = d.TotalSize,
+                    AvailableFreeSpace = d.AvailableFreeSpace,
+                    DriveFormat = d.DriveFormat,
+                    DriveType = d.DriveType,
                     IconGlyph = d.IconGlyph
                 }).ToList();
 
