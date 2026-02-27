@@ -137,6 +137,9 @@ namespace Span
                 Visibility = Visibility.Collapsed // 생성 시 숨김, 전환 시 표시
             };
 
+            // 뷰포트 리사이즈 시 마지막 컬럼으로 자동 스크롤
+            scrollViewer.SizeChanged += OnMillerScrollViewerSizeChanged;
+
             // MillerTabsHost Grid에 추가
             MillerTabsHost.Children.Add(scrollViewer);
             _tabMillerPanels[tab.Id] = (scrollViewer, itemsControl);
@@ -182,7 +185,8 @@ namespace Span
         {
             if (_tabMillerPanels.TryGetValue(tabId, out var panel))
             {
-                // 키보드 이벤트 해제
+                // 이벤트 해제
+                panel.scroller.SizeChanged -= OnMillerScrollViewerSizeChanged;
                 panel.items.RemoveHandler(UIElement.KeyDownEvent, new KeyEventHandler(OnMillerKeyDown));
                 panel.items.ItemsSource = null;
                 MillerTabsHost.Children.Remove(panel.scroller);

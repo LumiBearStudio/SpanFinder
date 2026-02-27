@@ -401,6 +401,9 @@ namespace Span
                         _previousViewMode = ViewModel.CurrentViewMode;
                         SetViewModeVisibility(ViewModel.CurrentViewMode);
 
+                        // ── 밀러컬럼 뷰포트 리사이즈 시 마지막 컬럼으로 자동 스크롤 ──
+                        MillerScrollViewer.SizeChanged += OnMillerScrollViewerSizeChanged;
+
                         // Set tab bar as passthrough so pointer events work for tear-off
                         UpdateTitleBarRegions();
                         TabScrollViewer.SizeChanged += (_, __) => UpdateTitleBarRegions();
@@ -473,6 +476,10 @@ namespace Span
                     ApplyFavoritesTreeMode(_settings.ShowFavoritesTree);
                     PopulateFavoritesTree();
                     ViewModel.Favorites.CollectionChanged += OnFavoritesCollectionChanged;
+
+                    // ── 밀러컬럼 뷰포트 리사이즈 시 마지막 컬럼으로 자동 스크롤 ──
+                    MillerScrollViewer.SizeChanged += OnMillerScrollViewerSizeChanged;
+                    MillerScrollViewerRight.SizeChanged += OnMillerScrollViewerRightSizeChanged;
 
                     // Set tab bar as passthrough so pointer events work for tab tear-off
                     UpdateTitleBarRegions();
@@ -568,6 +575,45 @@ namespace Span
                     // 최소 크기 보장
                     if (w < 400) w = 400;
                     if (h < 300) h = 300;
+
+                    // ── 모니터 영역 검증: 저장된 위치가 화면 밖이면 보정 ──
+                    var savedRect = new Helpers.NativeMethods.RECT
+                    {
+                        Left = x, Top = y, Right = x + w, Bottom = y + h
+                    };
+                    var hMonitor = Helpers.NativeMethods.MonitorFromRect(
+                        ref savedRect, Helpers.NativeMethods.MONITOR_DEFAULTTONEAREST);
+                    if (hMonitor != IntPtr.Zero)
+                    {
+                        var monInfo = new Helpers.NativeMethods.MONITORINFO();
+                        monInfo.cbSize = System.Runtime.InteropServices.Marshal.SizeOf<Helpers.NativeMethods.MONITORINFO>();
+                        if (Helpers.NativeMethods.GetMonitorInfo(hMonitor, ref monInfo))
+                        {
+                            var work = monInfo.rcWork;
+                            int workW = work.Right - work.Left;
+                            int workH = work.Bottom - work.Top;
+
+                            // 창 크기가 모니터 작업영역보다 크면 축소
+                            if (w > workW) w = workW;
+                            if (h > workH) h = workH;
+
+                            // 교차 영역 계산 — 창이 모니터에 얼마나 걸쳐있는지
+                            int overlapLeft = Math.Max(x, work.Left);
+                            int overlapTop = Math.Max(y, work.Top);
+                            int overlapRight = Math.Min(x + w, work.Right);
+                            int overlapBottom = Math.Min(y + h, work.Bottom);
+                            int overlapArea = Math.Max(0, overlapRight - overlapLeft)
+                                            * Math.Max(0, overlapBottom - overlapTop);
+
+                            // 교차 영역이 100px 미만이면 → 모니터 중앙 배치
+                            if (overlapArea < 100 * 100)
+                            {
+                                x = work.Left + (workW - w) / 2;
+                                y = work.Top + (workH - h) / 2;
+                                Helpers.DebugLogger.Log($"[Window] Off-screen detected, centering on monitor work area: {work.Left},{work.Top} {workW}x{workH}");
+                            }
+                        }
+                    }
 
                     // Win32 SetWindowPos 사용 (물리 픽셀 직접 지정)
                     // AppWindow.MoveAndResize는 DPI 이중적용 버그 있음
@@ -887,6 +933,27 @@ namespace Span
             {
                 PrepareAndAnimateNewColumn(MillerColumnsControlRight);
             }
+        }
+
+        // =================================================================
+        //  밀러컬럼 뷰포트 리사이즈 → 마지막 컬럼 자동 스크롤
+        // =================================================================
+
+        private void OnMillerScrollViewerSizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            if (_isClosed || ViewModel?.LeftExplorer == null) return;
+            // 뷰포트 너비가 변경되었을 때만 (높이 변경은 무시)
+            if (Math.Abs(e.PreviousSize.Width - e.NewSize.Width) < 1) return;
+            var scrollViewer = GetActiveMillerScrollViewer();
+            if (sender == scrollViewer)
+                ScrollToLastColumn(ViewModel.LeftExplorer, scrollViewer);
+        }
+
+        private void OnMillerScrollViewerRightSizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            if (_isClosed || ViewModel?.RightExplorer == null) return;
+            if (Math.Abs(e.PreviousSize.Width - e.NewSize.Width) < 1) return;
+            ScrollToLastColumn(ViewModel.RightExplorer, MillerScrollViewerRight);
         }
 
         /// <summary>

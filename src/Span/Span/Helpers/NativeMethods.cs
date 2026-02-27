@@ -53,6 +53,24 @@ namespace Span.Helpers
         [DllImport("user32.dll")]
         internal static extern uint GetDpiForWindow(IntPtr hwnd);
 
+        // 모니터 영역 검증용
+        [DllImport("user32.dll")]
+        internal static extern IntPtr MonitorFromRect(ref RECT lprc, uint dwFlags);
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto)]
+        internal static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
+
+        internal const uint MONITOR_DEFAULTTONEAREST = 0x00000002;
+
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct MONITORINFO
+        {
+            public int cbSize;
+            public RECT rcMonitor;
+            public RECT rcWork;
+            public uint dwFlags;
+        }
+
         [StructLayout(LayoutKind.Sequential)]
         internal struct POINT
         {
