@@ -703,7 +703,7 @@ namespace Span
                 // Set dialog size constraints
                 dialog.Resources["ContentDialogMaxWidth"] = 800.0;
 
-                await dialog.ShowAsync();
+                await ShowContentDialogSafeAsync(dialog);
             }
             catch (Exception ex)
             {

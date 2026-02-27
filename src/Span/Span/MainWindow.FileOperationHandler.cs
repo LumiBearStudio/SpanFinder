@@ -392,7 +392,7 @@ namespace Span
                     var dialog = new FileConflictDialog(vm);
                     dialog.XamlRoot = this.Content.XamlRoot;
 
-                    var dialogResult = await dialog.ShowAsync();
+                    var dialogResult = await ShowContentDialogSafeAsync(dialog);
                     if (dialogResult != ContentDialogResult.Primary)
                     {
                         Helpers.DebugLogger.Log("[Clipboard] Paste cancelled by user (conflict dialog)");
@@ -677,7 +677,7 @@ namespace Span
             var dialog = new Views.Dialogs.BatchRenameDialog(items);
             dialog.XamlRoot = this.Content.XamlRoot;
 
-            var result = await dialog.ShowAsync();
+            var result = await ShowContentDialogSafeAsync(dialog);
             if (result != ContentDialogResult.Primary) return;
 
             var renameList = dialog.GetRenameList();
@@ -935,7 +935,7 @@ namespace Span
                     DefaultButton = ContentDialogButton.Close
                 };
 
-                var result = await dialog.ShowAsync();
+                var result = await ShowContentDialogSafeAsync(dialog);
                 if (result != ContentDialogResult.Primary) return;
                 // await 후 상태 재검증 — dialog 표시 중 탭 전환/창 닫기 가능
                 if (_isClosed) return;
@@ -1017,7 +1017,7 @@ namespace Span
                 DefaultButton = ContentDialogButton.Close
             };
 
-            var result = await dialog.ShowAsync();
+            var result = await ShowContentDialogSafeAsync(dialog);
             if (result != ContentDialogResult.Primary) return;
 
             // await 후 상태 재검증

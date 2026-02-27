@@ -158,6 +158,9 @@ namespace Span
         private bool _isResizingColumn = false;
         private Grid? _resizingColumnGrid = null;
 
+        // ContentDialog 중복 열기 방지 가드
+        private bool _isContentDialogOpen = false;
+
         // F2 rename selection cycling: 0=name only, 1=all, 2=extension only
         private int _renameSelectionCycle = 0;
         private string? _renameTargetPath = null;
@@ -223,7 +226,9 @@ namespace Span
             // Auto-scroll on column change (both panes)
             _subscribedLeftExplorer = ViewModel.Explorer;
             ViewModel.Explorer.Columns.CollectionChanged += OnColumnsChanged;
+            ViewModel.Explorer.NavigationError += OnNavigationError;
             ViewModel.RightExplorer.Columns.CollectionChanged += OnRightColumnsChanged;
+            ViewModel.RightExplorer.NavigationError += OnNavigationError;
 
             // ── Per-Tab Miller Panel 초기화 ──
             // XAML에서 ItemsSource가 제거되었으므로 코드에서 설정
@@ -719,11 +724,13 @@ namespace Span
                 {
                     _subscribedLeftExplorer.Columns.CollectionChanged -= OnColumnsChanged;
                     _subscribedLeftExplorer.Columns.CollectionChanged -= OnLeftColumnsChangedForPreview;
+                    _subscribedLeftExplorer.NavigationError -= OnNavigationError;
                     _subscribedLeftExplorer = null;
                 }
                 if (ViewModel?.RightExplorer != null)
                 {
                     ViewModel.RightExplorer.Columns.CollectionChanged -= OnRightColumnsChanged;
+                    ViewModel.RightExplorer.NavigationError -= OnNavigationError;
                 }
                 if (ViewModel != null)
                 {
@@ -1020,17 +1027,33 @@ namespace Span
         {
             var lastIndex = control.Items.Count - 1;
 
-            // Force layout pass so the container is created synchronously
-            control.UpdateLayout();
-
             var container = control.ContainerFromIndex(lastIndex);
-            if (container is not UIElement element) return;
+            if (container is UIElement element)
+            {
+                HideAndAnimateColumn(element);
+                return;
+            }
 
-            // Hide immediately — before ANY render frame
+            // 컨테이너 미생성 시 → 다음 프레임에서 재시도
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+            {
+                if (_isClosed) return;
+                var retryContainer = control.ContainerFromIndex(lastIndex);
+                if (retryContainer is UIElement retryElement)
+                {
+                    HideAndAnimateColumn(retryElement);
+                }
+            });
+        }
+
+        /// <summary>
+        /// 새 컬럼 요소를 즉시 숨긴 뒤 다음 프레임에서 슬라이드-인 애니메이션을 시작한다.
+        /// </summary>
+        private void HideAndAnimateColumn(UIElement element)
+        {
             var visual = ElementCompositionPreview.GetElementVisual(element);
             visual.Opacity = 0f;
 
-            // Start smooth animation after scroll settles
             DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
             {
                 if (_isClosed) return;
@@ -1248,6 +1271,23 @@ namespace Span
                         ToastText.Text = ViewModel.ToastMessage;
                 });
             }
+            else if (e.PropertyName == nameof(MainViewModel.IsToastError))
+            {
+                DispatcherQueue.TryEnqueue(() =>
+                {
+                    if (ViewModel.IsToastError)
+                    {
+                        ToastIcon.Glyph = "\uE783"; // ErrorBadge
+                        ToastIcon.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                            Windows.UI.Color.FromArgb(255, 235, 87, 87));
+                    }
+                    else
+                    {
+                        ToastIcon.Glyph = "\uE73E"; // Checkmark
+                        ToastIcon.Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SpanAccentBrush"];
+                    }
+                });
+            }
         }
 
         /// <summary>
@@ -1263,6 +1303,7 @@ namespace Span
                 _subscribedLeftExplorer.Columns.CollectionChanged -= OnColumnsChanged;
                 _subscribedLeftExplorer.Columns.CollectionChanged -= OnLeftColumnsChangedForPreview;
                 _subscribedLeftExplorer.PropertyChanged -= OnLeftExplorerCurrentPathChanged;
+                _subscribedLeftExplorer.NavigationError -= OnNavigationError;
             }
 
             // 새 Explorer 구독
@@ -1272,6 +1313,7 @@ namespace Span
                 newExplorer.Columns.CollectionChanged += OnColumnsChanged;
                 newExplorer.Columns.CollectionChanged += OnLeftColumnsChangedForPreview;
                 newExplorer.PropertyChanged += OnLeftExplorerCurrentPathChanged;
+                newExplorer.NavigationError += OnNavigationError;
 
                 // AddressBarControl 동기화
                 SyncAddressBarControls(newExplorer);
@@ -1477,6 +1519,11 @@ namespace Span
                     SearchBox.PlaceholderText = "Search (kind: size: ext: date:)";
                 }
             }
+        }
+
+        private void OnNavigationError(string message)
+        {
+            DispatcherQueue.TryEnqueue(() => ViewModel.ShowError(message));
         }
 
         /// <summary>
@@ -1757,7 +1804,7 @@ namespace Span
                 XamlRoot = this.Content.XamlRoot
             };
 
-            var result = await dialog.ShowAsync();
+            var result = await ShowContentDialogSafeAsync(dialog);
 
             if (result == ContentDialogResult.Primary)
             {
@@ -1963,7 +2010,7 @@ namespace Span
                 XamlRoot = this.Content.XamlRoot
             };
 
-            var result = await dialog.ShowAsync();
+            var result = await ShowContentDialogSafeAsync(dialog);
 
             if (result != ContentDialogResult.Primary)
                 return (result, null, null, false);
@@ -2187,7 +2234,7 @@ namespace Span
                     XamlRoot = this.Content.XamlRoot
                 };
 
-                var result = await dialog.ShowAsync();
+                var result = await ShowContentDialogSafeAsync(dialog);
                 if (result != ContentDialogResult.Primary) return;
                 savedPassword = passwordInput.Password;
             }
@@ -2264,7 +2311,30 @@ namespace Span
                 CloseButtonText = _loc.Get("OK"),
                 XamlRoot = this.Content.XamlRoot
             };
-            await errorDialog.ShowAsync();
+            await ShowContentDialogSafeAsync(errorDialog);
+        }
+
+        /// <summary>
+        /// ContentDialog를 안전하게 표시한다.
+        /// 이미 다른 ContentDialog가 열려 있으면 COMException을 방지한다.
+        /// </summary>
+        private async Task<ContentDialogResult> ShowContentDialogSafeAsync(ContentDialog dialog)
+        {
+            if (_isContentDialogOpen)
+            {
+                Helpers.DebugLogger.Log("[Dialog] ContentDialog 중복 열기 방지 — 이미 열려 있음");
+                return ContentDialogResult.None;
+            }
+
+            _isContentDialogOpen = true;
+            try
+            {
+                return await dialog.ShowAsync();
+            }
+            finally
+            {
+                _isContentDialogOpen = false;
+            }
         }
 
         /// <summary>
@@ -3620,7 +3690,7 @@ namespace Span
                 DefaultButton = ContentDialogButton.Close
             };
 
-            var result = await dialog.ShowAsync();
+            var result = await ShowContentDialogSafeAsync(dialog);
             if (result != ContentDialogResult.Primary) return;
 
             var router = App.Current.Services.GetRequiredService<Services.FileSystemRouter>();
@@ -3926,7 +3996,7 @@ namespace Span
                 XamlRoot = this.Content.XamlRoot
             };
 
-            var result = await dialog.ShowAsync();
+            var result = await ShowContentDialogSafeAsync(dialog);
             if (result == ContentDialogResult.Primary)
             {
                 // 활성 연결 해제

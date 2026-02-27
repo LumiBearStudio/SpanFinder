@@ -509,7 +509,7 @@ namespace Span
                     var dialog = new FileConflictDialog(vm);
                     dialog.XamlRoot = this.Content.XamlRoot;
 
-                    var dialogResult = await dialog.ShowAsync();
+                    var dialogResult = await ShowContentDialogSafeAsync(dialog);
                     if (dialogResult != ContentDialogResult.Primary)
                     {
                         Helpers.DebugLogger.Log("[DragDrop] Drop cancelled by user (conflict dialog)");
