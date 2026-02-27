@@ -326,12 +326,15 @@ namespace Span.Views
 
         public void ApplyDensity(string density)
         {
-            _densityRowHeight = density switch
+            // 숫자 문자열(0~6) 또는 레거시 이름 지원
+            int level = density switch
             {
-                "compact" => 20.0,
-                "spacious" => 28.0,
-                _ => 24.0
+                "compact" => 0,
+                "comfortable" => 2,
+                "spacious" => 4,
+                _ => int.TryParse(density, out var n) ? Math.Clamp(n, 0, 6) : 2
             };
+            _densityRowHeight = 20.0 + level;
 
             // Update header row height to match
             if (HeaderGrid != null)

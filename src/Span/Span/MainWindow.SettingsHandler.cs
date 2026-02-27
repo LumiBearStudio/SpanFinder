@@ -36,6 +36,7 @@ namespace Span
                 {
                     "light" => ElementTheme.Light,
                     "dark" => ElementTheme.Dark,
+                    _ when isCustom && theme == "solarized-light" => ElementTheme.Light,
                     _ when isCustom => ElementTheme.Dark, // 커스텀 테마는 Dark 기반
                     _ => ElementTheme.Default
                 };
@@ -43,12 +44,13 @@ namespace Span
                 // 커스텀 테마: 리소스 설정 후 테마 토글로 {ThemeResource} 바인딩 강제 갱신
                 if (isCustom)
                 {
-                    // 1) 먼저 Light로 전환하여 기존 Dark 리소스 해제
-                    root.RequestedTheme = ElementTheme.Light;
+                    bool isLightCustom = theme == "solarized-light";
+                    // 1) 반대 테마로 전환하여 기존 리소스 해제
+                    root.RequestedTheme = isLightCustom ? ElementTheme.Dark : ElementTheme.Light;
                     // 2) 커스텀 리소스 오버라이드 적용
                     ApplyCustomThemeOverrides(root, theme);
-                    // 3) Dark로 복귀 → 모든 {ThemeResource} 바인딩 재평가
-                    root.RequestedTheme = ElementTheme.Dark;
+                    // 3) 대상 테마로 복귀 → 모든 {ThemeResource} 바인딩 재평가
+                    root.RequestedTheme = isLightCustom ? ElementTheme.Light : ElementTheme.Dark;
                 }
                 else
                 {
@@ -104,14 +106,47 @@ namespace Span
             }
             titleBar.ButtonBackgroundColor = Windows.UI.Color.FromArgb(0, 0, 0, 0);
             titleBar.ButtonInactiveBackgroundColor = Windows.UI.Color.FromArgb(0, 0, 0, 0);
+
+            // DWM 윈도우 보더 색상 → 테마 배경색에 맞춰 최대화 시 흰색 라인 방지
+            UpdateDwmBorderColor(theme, isCustom);
+        }
+
+        /// <summary>
+        /// DWM 윈도우 프레임 보더 색상을 현재 테마 배경에 맞춘다.
+        /// 최대화 시 1px 흰색 라인이 보이는 WinUI 3 이슈를 방지한다.
+        /// </summary>
+        private void UpdateDwmBorderColor(string theme, bool isCustom)
+        {
+            if (_hwnd == IntPtr.Zero) return;
+
+            Windows.UI.Color bgColor;
+            if (isCustom)
+            {
+                var p = GetThemePalette(theme);
+                bgColor = p.bgMica;
+            }
+            else
+            {
+                bool isLight = theme == "light" ||
+                               (theme == "system" && App.Current.RequestedTheme == ApplicationTheme.Light);
+                bgColor = isLight
+                    ? Windows.UI.Color.FromArgb(255, 243, 243, 243)   // #F3F3F3
+                    : Windows.UI.Color.FromArgb(255, 32, 32, 32);     // #202020
+            }
+
+            // COLORREF = 0x00BBGGRR (BGR 순서)
+            int colorRef = bgColor.R | (bgColor.G << 8) | (bgColor.B << 16);
+            Helpers.NativeMethods.DwmSetWindowAttribute(
+                _hwnd, Helpers.NativeMethods.DWMWA_BORDER_COLOR, ref colorRef, sizeof(int));
         }
 
         private void ApplyCustomThemeOverrides(FrameworkElement root, string theme)
         {
             if (!_customThemes.Contains(theme))
             {
-                // root 레벨 Dark 오버라이드 제거 → App.xaml 원본 Dark dict가 자동 적용
+                // root 레벨 Dark/Light 오버라이드 제거 → App.xaml 원본 dict가 자동 적용
                 root.Resources.ThemeDictionaries.Remove("Dark");
+                root.Resources.ThemeDictionaries.Remove("Light");
                 return;
             }
 
@@ -171,7 +206,8 @@ namespace Span
             darkDict["GridViewItemBackgroundSelectedPointerOver"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentSelHover);
             darkDict["GridViewItemBackgroundSelectedPressed"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentActive);
 
-            root.Resources.ThemeDictionaries["Dark"] = darkDict;
+            var dictKey = theme == "solarized-light" ? "Light" : "Dark";
+            root.Resources.ThemeDictionaries[dictKey] = darkDict;
         }
 
         private static (
@@ -210,6 +246,34 @@ namespace Span
                 Clr("#4Dfe8019"), Clr("#33ebdbb2"),                               // Selection/border
                 Clr("#99fe8019"), Clr("#B3fe8019"), Clr("#80fe8019")              // List selection
             ),
+            "nord" => (
+                Clr("#2e3440"), Clr("#3b4252"), Clr("#434c5e"), Clr("#4c566a"),
+                Clr("#88c0d0"), Clr("#81a1c1"),
+                Clr("#d8dee9"), Clr("#e5e9f0"), Clr("#4c566a"),
+                Clr("#4D88c0d0"), Clr("#334c566a"),
+                Clr("#9988c0d0"), Clr("#B388c0d0"), Clr("#8088c0d0")
+            ),
+            "onedark" => (
+                Clr("#21252b"), Clr("#282c34"), Clr("#2c313a"), Clr("#3e4451"),
+                Clr("#61afef"), Clr("#c678dd"),
+                Clr("#abb2bf"), Clr("#5c6370"), Clr("#4b5263"),
+                Clr("#4D61afef"), Clr("#333e4451"),
+                Clr("#9961afef"), Clr("#B361afef"), Clr("#8061afef")
+            ),
+            "monokai" => (
+                Clr("#1e1f1c"), Clr("#272822"), Clr("#2d2e2a"), Clr("#49483e"),
+                Clr("#f92672"), Clr("#a6e22e"),
+                Clr("#f8f8f2"), Clr("#a59f85"), Clr("#75715e"),
+                Clr("#4Df92672"), Clr("#33f8f8f2"),
+                Clr("#99f92672"), Clr("#B3f92672"), Clr("#80f92672")
+            ),
+            "solarized-light" => (
+                Clr("#fdf6e3"), Clr("#eee8d5"), Clr("#fdf6e3"), Clr("#d3cbb7"),
+                Clr("#268bd2"), Clr("#2aa198"),
+                Clr("#586e75"), Clr("#657b83"), Clr("#93a1a1"),
+                Clr("#4D268bd2"), Clr("#33586e75"),
+                Clr("#99268bd2"), Clr("#B3268bd2"), Clr("#80268bd2")
+            ),
             _ => default
         };
 
@@ -233,6 +297,22 @@ namespace Span
             "gruvbox" => (
                 Clr("#a89984"), Clr("#ebdbb2"), Clr("#1Febdbb2"),
                 Clr("#fe8019"), Clr("#33fe8019"), Clr("#665c54")
+            ),
+            "nord" => (
+                Clr("#d8dee9"), Clr("#88c0d0"), Clr("#2688c0d0"),
+                Clr("#81a1c1"), Clr("#4088c0d0"), Clr("#4c566a")
+            ),
+            "onedark" => (
+                Clr("#abb2bf"), Clr("#61afef"), Clr("#2661afef"),
+                Clr("#c678dd"), Clr("#4061afef"), Clr("#5c6370")
+            ),
+            "monokai" => (
+                Clr("#f8f8f2"), Clr("#f92672"), Clr("#26f92672"),
+                Clr("#a6e22e"), Clr("#40f92672"), Clr("#75715e")
+            ),
+            "solarized-light" => (
+                Clr("#586e75"), Clr("#268bd2"), Clr("#26268bd2"),
+                Clr("#2aa198"), Clr("#40268bd2"), Clr("#93a1a1")
             ),
             _ => (
                 Clr("#FFFFFF"), Clr("#FFFFFF"), Clr("#0FFFFFFF"),
@@ -353,19 +433,19 @@ namespace Span
         /// </summary>
         private void ApplyDensity(string density)
         {
-            _densityPadding = density switch
+            // 숫자 문자열(0~6) 또는 레거시 이름 지원
+            int level = density switch
             {
-                "compact" => new Thickness(12, 0, 12, 0),
-                "spacious" => new Thickness(12, 4, 12, 4),
-                _ => new Thickness(12, 2, 12, 2) // comfortable
+                "compact" => 0,
+                "comfortable" => 2,
+                "spacious" => 4,
+                _ => int.TryParse(density, out var n) ? Math.Clamp(n, 0, 5) : 2
             };
 
-            _densityMinHeight = density switch
-            {
-                "compact" => 20.0,
-                "spacious" => 28.0,
-                _ => 24.0 // comfortable
-            };
+            _densityPadding = new Thickness(12, level, 12, level);
+            _densityMinHeight = 20.0 + level;
+
+            var densityStr = level.ToString();
 
             // Apply to all visible Miller Column ListViews
             foreach (var kvp in _tabMillerPanels)
@@ -374,11 +454,11 @@ namespace Span
 
             // Apply to Details/List/Icon views via their public methods
             foreach (var kvp in _tabDetailsPanels)
-                kvp.Value.ApplyDensity(density);
+                kvp.Value.ApplyDensity(densityStr);
             foreach (var kvp in _tabListPanels)
-                kvp.Value.ApplyDensity(density);
+                kvp.Value.ApplyDensity(densityStr);
             foreach (var kvp in _tabIconPanels)
-                kvp.Value.ApplyDensity(density);
+                kvp.Value.ApplyDensity(densityStr);
         }
 
         private void ApplyDensityToItemsControl(ItemsControl? millerControl)

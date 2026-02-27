@@ -418,6 +418,10 @@ namespace Span.Services
             ("Theme_TokyoNightDesc", "Navy + cyan accent", "네이비 + 시안 포인트", "ネイビー＋シアンアクセント", "海军蓝+青色", "海軍藍+青色", "Navy + Cyan-Akzent", "Azul marino + cian", "Marine + accent cyan", "Azul marinho + ciano"),
             ("Theme_CatppuccinDesc", "Warm pastel dark", "따뜻한 파스텔 다크", "暖色パステルダーク", "暖色柔和暗色", "暖色柔和暗色", "Warmes Pastell-Dunkel", "Pastel oscuro cálido", "Pastel sombre chaud", "Pastel escuro quente"),
             ("Theme_GruvboxDesc", "Retro warm earth tone", "레트로 웜 어스톤", "レトロウォームアーストーン", "复古暖色调", "復古暖色調", "Retro warmer Erdton", "Tono tierra cálido retro", "Rétro tons chauds terreux", "Tom terroso quente retrô"),
+            ("Theme_SolarizedLightDesc", "Solarized", "솔라라이즈드", "ソラライズド", "日光化", "日光化", "Solarisiert", "Solarizado", "Solarisé", "Solarizado"),
+            ("Theme_NordDesc", "Nord", "노드", "ノルド", "北极", "北極", "Nord", "Nord", "Nord", "Nord"),
+            ("Theme_OneDarkDesc", "One Dark", "원 다크", "ワンダーク", "一暗色", "一暗色", "One Dark", "One Dark", "One Dark", "One Dark"),
+            ("Theme_MonokaiDesc", "Monokai", "모노카이", "モノカイ", "暗色经典", "暗色經典", "Monokai", "Monokai", "Monokai", "Monokai"),
 
             // ── Settings - Undo count display ────────────────────────────────
             ("Settings_UndoCount", "{0} items", "{0}개", "{0}件", "{0} 个", "{0} 個", "{0} Einträge", "{0} elementos", "{0} éléments", "{0} itens"),

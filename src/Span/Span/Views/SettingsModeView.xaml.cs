@@ -107,11 +107,22 @@ public sealed partial class SettingsModeView : UserControl
             ThemeTokyoNight.IsChecked = theme == "tokyonight";
             ThemeCatppuccin.IsChecked = theme == "catppuccin";
             ThemeGruvbox.IsChecked = theme == "gruvbox";
+            ThemeSolarizedLight.IsChecked = theme == "solarized-light";
+            ThemeNord.IsChecked = theme == "nord";
+            ThemeOneDark.IsChecked = theme == "onedark";
+            ThemeMonokai.IsChecked = theme == "monokai";
 
+            // Density: 숫자(0~5) 또는 레거시 이름
             var density = _settings.Density;
-            DensityCompact.IsChecked = density == "compact";
-            DensityComfortable.IsChecked = density == "comfortable";
-            DensitySpacious.IsChecked = density == "spacious";
+            int densityLevel = density switch
+            {
+                "compact" => 0,
+                "comfortable" => 2,
+                "spacious" => 4,
+                _ => int.TryParse(density, out var n) ? Math.Clamp(n, 0, 5) : 2
+            };
+            var densityButtons = new[] { Density0, Density1, Density2, Density3, Density4, Density5 };
+            densityButtons[densityLevel].IsChecked = true;
 
             var iconPack = _settings.IconPack;
             IconPackCombo.SelectedIndex = iconPack switch
@@ -207,10 +218,17 @@ public sealed partial class SettingsModeView : UserControl
         ThemeTokyoNight.Checked += (s, e) => { if (!_isLoading) _settings.Theme = "tokyonight"; };
         ThemeCatppuccin.Checked += (s, e) => { if (!_isLoading) _settings.Theme = "catppuccin"; };
         ThemeGruvbox.Checked += (s, e) => { if (!_isLoading) _settings.Theme = "gruvbox"; };
+        ThemeSolarizedLight.Checked += (s, e) => { if (!_isLoading) _settings.Theme = "solarized-light"; };
+        ThemeNord.Checked += (s, e) => { if (!_isLoading) _settings.Theme = "nord"; };
+        ThemeOneDark.Checked += (s, e) => { if (!_isLoading) _settings.Theme = "onedark"; };
+        ThemeMonokai.Checked += (s, e) => { if (!_isLoading) _settings.Theme = "monokai"; };
 
-        DensityCompact.Checked += (s, e) => { if (!_isLoading) _settings.Density = "compact"; };
-        DensityComfortable.Checked += (s, e) => { if (!_isLoading) _settings.Density = "comfortable"; };
-        DensitySpacious.Checked += (s, e) => { if (!_isLoading) _settings.Density = "spacious"; };
+        Density0.Checked += (s, e) => { if (!_isLoading) _settings.Density = "0"; };
+        Density1.Checked += (s, e) => { if (!_isLoading) _settings.Density = "1"; };
+        Density2.Checked += (s, e) => { if (!_isLoading) _settings.Density = "2"; };
+        Density3.Checked += (s, e) => { if (!_isLoading) _settings.Density = "3"; };
+        Density4.Checked += (s, e) => { if (!_isLoading) _settings.Density = "4"; };
+        Density5.Checked += (s, e) => { if (!_isLoading) _settings.Density = "5"; };
 
         IconPackCombo.SelectionChanged += (s, e) =>
         {
@@ -283,8 +301,9 @@ public sealed partial class SettingsModeView : UserControl
         foreach (var rb in new[] {
             ThemeSystem, ThemeLight, ThemeDark, ThemeDracula,
             ThemeTokyoNight, ThemeCatppuccin, ThemeGruvbox,
-            DensityCompact, DensityComfortable, DensitySpacious,
-            StartupRestore, StartupHome, StartupFolder })
+            ThemeSolarizedLight, ThemeNord, ThemeOneDark, ThemeMonokai,
+            StartupRestore, StartupHome, StartupFolder,
+            Density0, Density1, Density2, Density3, Density4, Density5 })
             Helpers.CursorHelper.SetHandCursor(rb);
 
         foreach (var toggle in new[] {
@@ -431,6 +450,10 @@ public sealed partial class SettingsModeView : UserControl
         TokyoNightDescText.Text = _loc.Get("Theme_TokyoNightDesc");
         CatppuccinDescText.Text = _loc.Get("Theme_CatppuccinDesc");
         GruvboxDescText.Text = _loc.Get("Theme_GruvboxDesc");
+        SolarizedLightDescText.Text = _loc.Get("Theme_SolarizedLightDesc");
+        NordDescText.Text = _loc.Get("Theme_NordDesc");
+        OneDarkDescText.Text = _loc.Get("Theme_OneDarkDesc");
+        MonokaiDescText.Text = _loc.Get("Theme_MonokaiDesc");
 
         // Browsing
         BrowsingTitle.Text = _loc.Get("Settings_Browsing");

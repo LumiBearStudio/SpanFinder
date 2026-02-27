@@ -244,12 +244,15 @@ namespace Span.Views
 
         public void ApplyDensity(string density)
         {
-            var margin = density switch
+            // 숫자 문자열(0~6) 또는 레거시 이름 지원
+            int level = density switch
             {
-                "compact" => new Thickness(2),
-                "spacious" => new Thickness(8),
-                _ => new Thickness(4)
+                "compact" => 0,
+                "comfortable" => 2,
+                "spacious" => 4,
+                _ => int.TryParse(density, out var n) ? Math.Clamp(n, 0, 6) : 2
             };
+            var margin = new Thickness(2 + level);
 
             if (IconGridView != null)
             {
