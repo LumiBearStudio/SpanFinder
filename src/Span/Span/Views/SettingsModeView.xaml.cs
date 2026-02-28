@@ -20,6 +20,7 @@ public sealed partial class SettingsModeView : UserControl
     private DispatcherTimer? _updateTimer;
     private int _updateStage;
     private bool _isLoading = true;
+    // 절대값 기반 스케일 (MainWindow.BaselineFontSizes 사용) — _previousScaleLevel 불필요
 
     /// <summary>
     /// 뒤로가기 요청 이벤트 (MainWindow에서 구독)
@@ -574,4 +575,17 @@ public sealed partial class SettingsModeView : UserControl
         }
     }
 
+    // ── Icon & Font Scale for Settings page ──
+
+    /// <summary>
+    /// 설정 페이지 내부의 TextBlock/FontIcon 크기를 스케일 레벨에 맞춰 조정한다.
+    /// 절대값 기반: baseline + level = 최종 FontSize.
+    /// ConditionalWeakTable에 원본 폰트 크기를 저장하므로 레벨 변경 순서에 무관하게 정확.
+    /// </summary>
+    public void ApplyIconFontScale(int level)
+    {
+        // Settings: TextBlock 8~24, FontIcon 10~24 범위의 baseline만 스케일
+        // (40px 앱 아이콘은 자동 제외)
+        MainWindow.ApplyAbsoluteScaleToTree(this, level, 8, 24);
+    }
 }

@@ -15,10 +15,72 @@ namespace Span.Controls
     public sealed partial class AddressBarControl : UserControl
     {
         private bool _isEditMode;
+        private int _scaleLevel;
 
         public AddressBarControl()
         {
             this.InitializeComponent();
+            BreadcrumbRepeater.ElementPrepared += OnBreadcrumbElementPrepared;
+            BreadcrumbRepeater.ElementClearing += OnBreadcrumbElementClearing;
+        }
+
+        /// <summary>
+        /// 현재 폰트 스케일 레벨. 변경 시 기존 브레드크럼 element에 즉시 적용.
+        /// ElementPrepared에서 새/재활용 element에도 자동 적용.
+        /// </summary>
+        public int ScaleLevel
+        {
+            get => _scaleLevel;
+            set
+            {
+                _scaleLevel = value;
+                ApplyScaleToBreadcrumbs();
+            }
+        }
+
+        /// <summary>
+        /// ItemsRepeater가 element를 준비(새 생성 또는 재활용)할 때 호출.
+        /// 재활용된 element는 ConditionalWeakTable에 기존 baseline이 남아있어 정확히 재적용됨.
+        /// 새 element는 XAML 기본 FontSize가 baseline으로 저장됨.
+        /// ClearBaseline 불필요: 재활용 시 동일 DependencyObject이므로 기존 baseline 유지.
+        /// </summary>
+        private void OnBreadcrumbElementPrepared(ItemsRepeater sender, ItemsRepeaterElementPreparedEventArgs args)
+        {
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+            {
+                MainWindow.ApplyAbsoluteScaleToTree(args.Element, _scaleLevel, 8, 20);
+            });
+        }
+
+        /// <summary>
+        /// ItemsRepeater가 element를 recycle pool로 반환할 때 호출.
+        /// ConditionalWeakTable은 WeakReference이므로 GC 시 자동 정리됨.
+        /// 재활용 시 동일 인스턴스이므로 baseline이 보존되어 정확한 스케일링 가능.
+        /// </summary>
+        private void OnBreadcrumbElementClearing(ItemsRepeater sender, ItemsRepeaterElementClearingEventArgs args)
+        {
+            // no-op: baseline을 명시적으로 제거하면 이중 적용 버그 발생.
+            // ConditionalWeakTable이 GC 시 자동 정리하므로 수동 제거 불필요.
+        }
+
+        /// <summary>
+        /// 현재 BreadcrumbRepeater의 모든 visible element에 스케일을 재적용.
+        /// Global traversal(ApplyIconFontScaleToGlobalUI)은 AddressBarControl을 skip하므로
+        /// 이 메서드가 AddressBar의 유일한 스케일 적용 경로.
+        /// </summary>
+        private void ApplyScaleToBreadcrumbs()
+        {
+            // BreadcrumbRepeater visible elements
+            int count = VisualTreeHelper.GetChildrenCount(BreadcrumbRepeater);
+            for (int i = 0; i < count; i++)
+            {
+                var child = VisualTreeHelper.GetChild(BreadcrumbRepeater, i);
+                MainWindow.ApplyAbsoluteScaleToTree(child, _scaleLevel, 8, 20);
+            }
+
+            // AutoSuggestBox와 OverflowIndicator도 스케일 적용
+            MainWindow.ApplyAbsoluteScaleToTree(AutoSuggest, _scaleLevel, 8, 20, 10, 16);
+            MainWindow.ApplyAbsoluteScaleToTree(OverflowIndicator, _scaleLevel, 8, 20);
         }
 
         #region Dependency Properties

@@ -15,7 +15,8 @@
         <ScrollViewer x:Name="BreadcrumbScroller"
                       HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled"
                       HorizontalScrollMode="Auto" VerticalScrollMode="Disabled"
-                      Padding="2,6,2,0"
+                      Padding="2,0,2,0"
+                      VerticalContentAlignment="Center"
                       SizeChanged="OnScrollerSizeChanged"
                       ViewChanged="OnScrollerViewChanged">
             <ItemsRepeater x:Name="BreadcrumbRepeater"
@@ -51,7 +52,7 @@
         <!-- Overflow indicator -->
         <Border x:Name="OverflowIndicator" HorizontalAlignment="Left"
                 VerticalAlignment="Stretch" Visibility="Collapsed"
-                IsHitTestVisible="False" Padding="2,0,10,0" Margin="0,6,0,0">
+                IsHitTestVisible="False" Padding="2,0,10,0" Margin="0,0,0,0">
             <Border.Background>
                 <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
                     <GradientStop Color="{ThemeResource SpanBgLayer2Color}" Offset="0"/>

@@ -36,6 +36,12 @@ namespace Span.Models
         public bool IsNetworkDrive => IsRemoteConnection || DriveType == "Network";
 
         /// <summary>
+        /// 사이드바 ToolTip용: 이름 + 용량 정보 (용량이 없으면 이름만)
+        /// </summary>
+        public string TooltipText => string.IsNullOrEmpty(SizeDescription)
+            ? Name : $"{Name}\n{SizeDescription}";
+
+        /// <summary>
         /// Usage percentage (0-100). Returns 0 if TotalSize is 0.
         /// </summary>
         public double UsagePercent =>

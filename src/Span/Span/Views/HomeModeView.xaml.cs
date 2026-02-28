@@ -157,6 +157,16 @@ namespace Span.Views
             }
         }
 
+        /// <summary>
+        /// 홈 화면의 TextBlock/FontIcon 크기를 스케일 레벨에 맞춰 조정한다.
+        /// 절대값 기반: baseline + level = 최종 FontSize.
+        /// 범위: TextBlock/FontIcon 8~20 (28px 드라이브 아이콘, 24px 즐겨찾기 아이콘은 제외)
+        /// </summary>
+        public void ApplyIconFontScale(int level)
+        {
+            MainWindow.ApplyAbsoluteScaleToTree(this, level, 8, 20);
+        }
+
         public void Cleanup()
         {
             try
