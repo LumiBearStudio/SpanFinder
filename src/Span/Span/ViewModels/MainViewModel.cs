@@ -101,6 +101,18 @@ namespace Span.ViewModels
         }
 
         /// <summary>
+        /// ActionLog/Settings 탭 변환 시 Explorer를 직접 설정.
+        /// backing field 교체 + PropertyChanged 구독 관리.
+        /// </summary>
+        public void SetLeftExplorer(ExplorerViewModel explorer)
+        {
+            var old = _leftExplorer;
+            if (old != null) old.PropertyChanged -= OnLeftExplorerPropertyChanged;
+            _leftExplorer = explorer;
+            if (_leftExplorer != null) _leftExplorer.PropertyChanged += OnLeftExplorerPropertyChanged;
+        }
+
+        /// <summary>
         /// Backward-compat: always returns LeftExplorer.
         /// XAML bindings for the left/single pane use this.
         /// </summary>

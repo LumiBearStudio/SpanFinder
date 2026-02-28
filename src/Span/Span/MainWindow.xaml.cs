@@ -1788,6 +1788,8 @@ namespace Span
         {
             if (e.ClickedItem is DriveItem drive)
             {
+                if (ViewModel.CurrentViewMode == ViewMode.ActionLog)
+                    ConvertLogTabToExplorer();
                 ViewModel.OpenDrive(drive);
                 FocusColumnAsync(0);
             }
@@ -1823,6 +1825,8 @@ namespace Span
                 }
                 else
                 {
+                    if (ViewModel.CurrentViewMode == ViewMode.ActionLog)
+                        ConvertLogTabToExplorer();
                     ViewModel.OpenDrive(drive);
                     FocusColumnAsync(0);
                 }
@@ -2544,6 +2548,8 @@ namespace Span
             {
                 var activeViewMode = (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
                     ? ViewModel.RightViewMode : ViewModel.CurrentViewMode;
+                if (activeViewMode == ViewMode.ActionLog)
+                    ConvertLogTabToExplorer();
                 if (activeViewMode == ViewMode.Home || activeViewMode == ViewMode.ActionLog)
                     ViewModel.SwitchViewMode(ViewMode.MillerColumns);
 
@@ -2729,9 +2735,11 @@ namespace Span
 
             if (!string.IsNullOrEmpty(path) && System.IO.Directory.Exists(path))
             {
-                // Switch away from Home mode if needed
+                // Switch away from Home/ActionLog mode if needed
                 var activeViewMode = (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
                     ? ViewModel.RightViewMode : ViewModel.CurrentViewMode;
+                if (activeViewMode == ViewMode.ActionLog)
+                    ConvertLogTabToExplorer();
                 if (activeViewMode == ViewMode.Home || activeViewMode == ViewMode.ActionLog)
                 {
                     ViewModel.SwitchViewMode(ViewMode.MillerColumns);

@@ -77,14 +77,14 @@ namespace Span.ViewModels
                 Helpers.DebugLogger.Log($"[MainViewModel] Left pane AutoNav: {LeftExplorer.EnableAutoNavigation} (mode: {mode})");
             }
 
-            SaveViewModePreference();
-            UpdateActiveTabHeader();
-            // 활성 탭의 ViewMode도 즉시 동기화
+            // 활성 탭의 ViewMode를 먼저 동기화 (UpdateActiveTabHeader가 참조하므로)
             if (ActiveTab != null)
             {
                 ActiveTab.ViewMode = CurrentViewMode;
                 ActiveTab.IconSize = CurrentIconSize;
             }
+            SaveViewModePreference();
+            UpdateActiveTabHeader();
             Helpers.DebugLogger.Log($"[MainViewModel] ViewMode changed: {Helpers.ViewModeExtensions.GetDisplayName(mode)}");
             UpdateStatusBar();
         }
