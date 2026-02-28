@@ -238,6 +238,11 @@
                         SizeChanged="SettingsNav_SizeChanged"
                         Background="Transparent">
 
+            <NavigationView.MenuItemContainerStyle>
+                <Style TargetType="NavigationViewItem">
+                    <Setter Property="helpers:CursorHelper.IsHandCursor" Value="True"/>
+                </Style>
+            </NavigationView.MenuItemContainerStyle>
             <NavigationView.MenuItems>
                 <NavigationViewItem x:Name="NavGeneral" Content="일반" Tag="General" IsSelected="True">
                     <NavigationViewItem.Icon>
