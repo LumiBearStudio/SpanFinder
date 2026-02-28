@@ -255,7 +255,6 @@ namespace Span
             IconView.ViewModel = ViewModel.Explorer;
             HomeView.MainViewModel = ViewModel;
             SettingsView.BackRequested += (s, e) => CloseCurrentSettingsTab();
-            LogView.BackRequested += (s, e) => CloseCurrentLogTab();
 
             // AddressBarControl에 PathSegments/CurrentPath 바인딩
             SyncAddressBarControls(ViewModel.Explorer);
@@ -1517,7 +1516,7 @@ namespace Span
         /// <param name="mode">적용할 뷰 모드.</param>
         private void SetViewModeVisibility(ViewMode mode)
         {
-            bool isSpecialMode = mode == ViewMode.Settings || mode == ViewMode.ActionLog;
+            bool isSpecialMode = mode == ViewMode.Settings;
 
             // HOST 단위 Visibility
             MillerTabsHost.Visibility = mode == ViewMode.MillerColumns ? Visibility.Visible : Visibility.Collapsed;

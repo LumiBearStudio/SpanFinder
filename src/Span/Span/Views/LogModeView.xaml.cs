@@ -9,8 +9,7 @@ using System.Collections.ObjectModel;
 namespace Span.Views;
 
 /// <summary>
-/// 작업 로그 탭 뷰. Settings 탭과 동일한 패턴으로 동작한다.
-/// BackRequested 이벤트로 탭 닫기를 MainWindow에 위임한다.
+/// 작업 로그 탭 뷰. Home 탭과 동일한 패턴으로 사이드바를 유지한 채 탐색기 영역에 표시.
 /// LogEntryDisplay는 LogFlyoutContent.xaml.cs에 정의되어 있으며 공유한다.
 /// </summary>
 public sealed partial class LogModeView : UserControl
@@ -20,11 +19,6 @@ public sealed partial class LogModeView : UserControl
     private List<Models.ActionLogEntry> _allEntries = new();
     private string? _activeFilter;
     private LocalizationService? _loc;
-
-    /// <summary>
-    /// 뒤로가기 요청 이벤트 (MainWindow에서 구독하여 탭 닫기 처리)
-    /// </summary>
-    public event EventHandler? BackRequested;
 
     public LogModeView()
     {
@@ -75,11 +69,6 @@ public sealed partial class LogModeView : UserControl
         TitleText.Text = _loc.Get("Log_Title");
         ClearButton.Content = _loc.Get("Log_Clear");
         EmptyStateText.Text = _loc.Get("Log_Empty");
-    }
-
-    private void OnBackClick(object sender, RoutedEventArgs e)
-    {
-        BackRequested?.Invoke(this, EventArgs.Empty);
     }
 
     private void OnClearClick(object sender, RoutedEventArgs e)

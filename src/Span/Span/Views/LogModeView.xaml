@@ -10,34 +10,25 @@
         </Grid.RowDefinitions>
 
         <!-- Header Bar -->
-        <Grid Grid.Row="0" Padding="24,16" BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="0,0,0,1">
+        <Grid Grid.Row="0" Padding="16,12" BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="0,0,0,1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Back Button -->
-            <Button Grid.Column="0" Click="OnBackClick"
-                    Background="Transparent" Padding="8,6" MinWidth="0" MinHeight="0"
-                    Margin="0,0,12,0" VerticalAlignment="Center">
-                <FontIcon Glyph="&#xE72B;" FontSize="14"
-                          Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
-            </Button>
-
             <!-- Title -->
-            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                <FontIcon Glyph="&#xE81C;" FontSize="18"
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                <FontIcon Glyph="&#xE81C;" FontSize="16"
                           Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
                 <TextBlock x:Name="TitleText" Text="작업 로그"
-                           FontSize="18" FontWeight="SemiBold"
+                           FontSize="16" FontWeight="SemiBold"
                            Foreground="{ThemeResource SpanTextPrimaryBrush}"/>
             </StackPanel>
 
             <!-- Filter Buttons -->
-            <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4"
+                        VerticalAlignment="Center" HorizontalAlignment="Center">
                 <ToggleButton x:Name="FilterAll" Content="전체" IsChecked="True" Click="OnFilterClick"
                               FontSize="12" Padding="12,6" MinWidth="0" MinHeight="0"/>
                 <ToggleButton x:Name="FilterCopy" Content="복사" Click="OnFilterClick"
@@ -51,12 +42,12 @@
             </StackPanel>
 
             <!-- Clear Button -->
-            <Button x:Name="ClearButton" Grid.Column="4" Content="지우기"
+            <Button x:Name="ClearButton" Grid.Column="2" Content="지우기"
                     FontSize="12" Padding="12,6"
                     Click="OnClearClick"
                     Background="Transparent"
                     Foreground="{ThemeResource SpanTextSecondaryBrush}"
-                    Margin="12,0,0,0" VerticalAlignment="Center"/>
+                    VerticalAlignment="Center"/>
         </Grid>
 
         <!-- Content Area -->
