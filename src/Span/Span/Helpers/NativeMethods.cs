@@ -32,6 +32,7 @@ namespace Span.Helpers
         internal const int DWMWA_TRANSITIONS_FORCEDISABLED = 3;
         internal const int DWMWA_CLOAK = 13;
         internal const int DWMWA_BORDER_COLOR = 34;
+        internal const int DWMWA_CAPTION_COLOR = 35;
 
         [DllImport("user32.dll")]
         internal static extern bool SetForegroundWindow(IntPtr hWnd);

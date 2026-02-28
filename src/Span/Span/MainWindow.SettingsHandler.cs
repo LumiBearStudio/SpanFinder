@@ -139,6 +139,9 @@ namespace Span
             int colorRef = bgColor.R | (bgColor.G << 8) | (bgColor.B << 16);
             Helpers.NativeMethods.DwmSetWindowAttribute(
                 _hwnd, Helpers.NativeMethods.DWMWA_BORDER_COLOR, ref colorRef, sizeof(int));
+            // 캡션(타이틀바) 색상도 동일하게 설정 — 최대화 시 상단 흰색 라인 방지
+            Helpers.NativeMethods.DwmSetWindowAttribute(
+                _hwnd, Helpers.NativeMethods.DWMWA_CAPTION_COLOR, ref colorRef, sizeof(int));
         }
 
         private void ApplyCustomThemeOverrides(FrameworkElement root, string theme)
