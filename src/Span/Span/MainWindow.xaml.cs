@@ -1598,6 +1598,25 @@ namespace Span
                 }
             }
 
+            // Home/ActionLog 모드: 툴바 버튼 비활성화 (탐색기 컨텍스트 없음)
+            bool isNonExplorerMode = mode == ViewMode.Home || mode == ViewMode.ActionLog;
+            BackButton.IsEnabled = !isNonExplorerMode && ViewModel.CanGoBack;
+            ForwardButton.IsEnabled = !isNonExplorerMode && ViewModel.CanGoForward;
+            UpButton.IsEnabled = !isNonExplorerMode;
+            NewFolderButton.IsEnabled = !isNonExplorerMode;
+            NewItemDropdown.IsEnabled = !isNonExplorerMode;
+            SortButton.IsEnabled = !isNonExplorerMode;
+            ViewModeButton.IsEnabled = !isNonExplorerMode;
+            PreviewToggleButton.IsEnabled = !isNonExplorerMode;
+            SplitViewButton.IsEnabled = !isNonExplorerMode;
+            CopyPathButton.IsEnabled = !isNonExplorerMode;
+            SearchBox.IsEnabled = !isNonExplorerMode;
+            ToolbarCutButton.IsEnabled = false;
+            ToolbarCopyButton.IsEnabled = false;
+            ToolbarPasteButton.IsEnabled = false;
+            ToolbarRenameButton.IsEnabled = false;
+            ToolbarDeleteButton.IsEnabled = false;
+
             // Lazy 패널 생성 + 활성 패널 Visible 보장
             var tabId = ViewModel.ActiveTab?.Id;
             if (tabId != null && mode == ViewMode.Details)
@@ -2525,7 +2544,7 @@ namespace Span
             {
                 var activeViewMode = (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
                     ? ViewModel.RightViewMode : ViewModel.CurrentViewMode;
-                if (activeViewMode == ViewMode.Home)
+                if (activeViewMode == ViewMode.Home || activeViewMode == ViewMode.ActionLog)
                     ViewModel.SwitchViewMode(ViewMode.MillerColumns);
 
                 var folder = new FolderItem
@@ -2713,7 +2732,7 @@ namespace Span
                 // Switch away from Home mode if needed
                 var activeViewMode = (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
                     ? ViewModel.RightViewMode : ViewModel.CurrentViewMode;
-                if (activeViewMode == ViewMode.Home)
+                if (activeViewMode == ViewMode.Home || activeViewMode == ViewMode.ActionLog)
                 {
                     ViewModel.SwitchViewMode(ViewMode.MillerColumns);
                 }

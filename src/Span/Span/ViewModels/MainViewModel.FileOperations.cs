@@ -24,7 +24,7 @@ namespace Span.ViewModels
             // Switch away from Home mode if needed (same pattern as NavigateToFavorite)
             var activeViewMode = (IsSplitViewEnabled && ActivePane == ActivePane.Right)
                 ? RightViewMode : CurrentViewMode;
-            if (activeViewMode == ViewMode.Home)
+            if (activeViewMode == ViewMode.Home || activeViewMode == ViewMode.ActionLog)
             {
                 SwitchViewMode(ViewMode.MillerColumns);
             }
