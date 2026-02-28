@@ -755,6 +755,131 @@
                                 </StackPanel>
                             </Border>
 
+                            <!-- ═══ Icon & Font Size ═══ -->
+                            <Border Style="{StaticResource SettingsCardBorder}">
+                                <StackPanel Spacing="14">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Style="{StaticResource CardIconContainer}">
+                                            <FontIcon Glyph="&#xE8E8;" Style="{StaticResource CardIconStyle}" />
+                                        </Border>
+                                        <StackPanel Spacing="2" VerticalAlignment="Center">
+                                            <TextBlock x:Name="IconFontScaleLabel" Text="아이콘 및 글꼴 크기" Style="{StaticResource SettingsCardLabel}" />
+                                            <TextBlock x:Name="IconFontScaleDesc" Text="사이드바, 탐색기 항목의 아이콘과 텍스트 크기" Style="{StaticResource SettingsCardDesc}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                    <helpers:WrapPanel Margin="48,0,0,0" HorizontalSpacing="8" VerticalSpacing="8">
+                                        <helpers:WrapPanel.Resources>
+                                            <SolidColorBrush x:Key="RadioButtonBackgroundPointerOver" Color="{ThemeResource SpanBgLayer3Color}" />
+                                            <SolidColorBrush x:Key="RadioButtonBorderBrushPointerOver" Color="{ThemeResource SpanAccentHoverColor}" />
+                                            <SolidColorBrush x:Key="RadioButtonBackgroundPressed" Color="{ThemeResource SpanBgLayer3Color}" />
+                                            <SolidColorBrush x:Key="RadioButtonBorderBrushPressed" Color="{ThemeResource SpanAccentColor}" />
+                                        </helpers:WrapPanel.Resources>
+
+                                        <!-- Scale 0: 기본 (13px/16px) -->
+                                        <RadioButton x:Name="Scale0" GroupName="IconFontScale" Width="156"
+                                                     Style="{StaticResource CardRadioButtonStyle}" IsChecked="True">
+                                            <StackPanel Spacing="0">
+                                                <Border CornerRadius="4" Padding="10,8" Height="52" Background="{ThemeResource SpanBgLayer2Brush}" BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="1">
+                                                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                        <Border Width="13" Height="13" CornerRadius="3" Background="{ThemeResource SpanAccentBrush}" Opacity="0.7" />
+                                                        <StackPanel Spacing="2">
+                                                            <Border Height="3" Width="40" CornerRadius="1" Background="{ThemeResource SpanTextSecondaryBrush}" Opacity="0.5" />
+                                                            <Border Height="2" Width="28" CornerRadius="1" Background="{ThemeResource SpanTextTertiaryBrush}" Opacity="0.3" />
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                </Border>
+                                                <TextBlock Text="XS" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,6,0,0" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
+                                            </StackPanel>
+                                        </RadioButton>
+
+                                        <!-- Scale 1: +1px -->
+                                        <RadioButton x:Name="Scale1" GroupName="IconFontScale" Width="156"
+                                                     Style="{StaticResource CardRadioButtonStyle}">
+                                            <StackPanel Spacing="0">
+                                                <Border CornerRadius="4" Padding="10,8" Height="52" Background="{ThemeResource SpanBgLayer2Brush}" BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="1">
+                                                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                        <Border Width="15" Height="15" CornerRadius="3" Background="{ThemeResource SpanAccentBrush}" Opacity="0.7" />
+                                                        <StackPanel Spacing="2">
+                                                            <Border Height="3" Width="42" CornerRadius="1" Background="{ThemeResource SpanTextSecondaryBrush}" Opacity="0.5" />
+                                                            <Border Height="2" Width="30" CornerRadius="1" Background="{ThemeResource SpanTextTertiaryBrush}" Opacity="0.3" />
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                </Border>
+                                                <TextBlock Text="S" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,6,0,0" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
+                                            </StackPanel>
+                                        </RadioButton>
+
+                                        <!-- Scale 2: +2px -->
+                                        <RadioButton x:Name="Scale2" GroupName="IconFontScale" Width="156"
+                                                     Style="{StaticResource CardRadioButtonStyle}">
+                                            <StackPanel Spacing="0">
+                                                <Border CornerRadius="4" Padding="10,8" Height="52" Background="{ThemeResource SpanBgLayer2Brush}" BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="1">
+                                                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                        <Border Width="17" Height="17" CornerRadius="3" Background="{ThemeResource SpanAccentBrush}" Opacity="0.7" />
+                                                        <StackPanel Spacing="2">
+                                                            <Border Height="4" Width="44" CornerRadius="1" Background="{ThemeResource SpanTextSecondaryBrush}" Opacity="0.5" />
+                                                            <Border Height="3" Width="32" CornerRadius="1" Background="{ThemeResource SpanTextTertiaryBrush}" Opacity="0.3" />
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                </Border>
+                                                <TextBlock Text="M" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,6,0,0" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
+                                            </StackPanel>
+                                        </RadioButton>
+
+                                        <!-- Scale 3: +3px -->
+                                        <RadioButton x:Name="Scale3" GroupName="IconFontScale" Width="156"
+                                                     Style="{StaticResource CardRadioButtonStyle}">
+                                            <StackPanel Spacing="0">
+                                                <Border CornerRadius="4" Padding="10,8" Height="52" Background="{ThemeResource SpanBgLayer2Brush}" BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="1">
+                                                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                        <Border Width="19" Height="19" CornerRadius="4" Background="{ThemeResource SpanAccentBrush}" Opacity="0.7" />
+                                                        <StackPanel Spacing="2">
+                                                            <Border Height="4" Width="46" CornerRadius="1" Background="{ThemeResource SpanTextSecondaryBrush}" Opacity="0.5" />
+                                                            <Border Height="3" Width="34" CornerRadius="1" Background="{ThemeResource SpanTextTertiaryBrush}" Opacity="0.3" />
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                </Border>
+                                                <TextBlock Text="L" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,6,0,0" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
+                                            </StackPanel>
+                                        </RadioButton>
+
+                                        <!-- Scale 4: +4px -->
+                                        <RadioButton x:Name="Scale4" GroupName="IconFontScale" Width="156"
+                                                     Style="{StaticResource CardRadioButtonStyle}">
+                                            <StackPanel Spacing="0">
+                                                <Border CornerRadius="4" Padding="10,8" Height="52" Background="{ThemeResource SpanBgLayer2Brush}" BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="1">
+                                                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                        <Border Width="21" Height="21" CornerRadius="4" Background="{ThemeResource SpanAccentBrush}" Opacity="0.7" />
+                                                        <StackPanel Spacing="3">
+                                                            <Border Height="4" Width="48" CornerRadius="1" Background="{ThemeResource SpanTextSecondaryBrush}" Opacity="0.5" />
+                                                            <Border Height="3" Width="36" CornerRadius="1" Background="{ThemeResource SpanTextTertiaryBrush}" Opacity="0.3" />
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                </Border>
+                                                <TextBlock Text="XL" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,6,0,0" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
+                                            </StackPanel>
+                                        </RadioButton>
+
+                                        <!-- Scale 5: +5px -->
+                                        <RadioButton x:Name="Scale5" GroupName="IconFontScale" Width="156"
+                                                     Style="{StaticResource CardRadioButtonStyle}">
+                                            <StackPanel Spacing="0">
+                                                <Border CornerRadius="4" Padding="10,8" Height="52" Background="{ThemeResource SpanBgLayer2Brush}" BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="1">
+                                                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                        <Border Width="23" Height="23" CornerRadius="5" Background="{ThemeResource SpanAccentBrush}" Opacity="0.7" />
+                                                        <StackPanel Spacing="3">
+                                                            <Border Height="5" Width="50" CornerRadius="1" Background="{ThemeResource SpanTextSecondaryBrush}" Opacity="0.5" />
+                                                            <Border Height="3" Width="38" CornerRadius="1" Background="{ThemeResource SpanTextTertiaryBrush}" Opacity="0.3" />
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                </Border>
+                                                <TextBlock Text="XXL" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,6,0,0" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
+                                            </StackPanel>
+                                        </RadioButton>
+                                    </helpers:WrapPanel>
+                                </StackPanel>
+                            </Border>
+
                             <!-- Icon Pack -->
                             <Border Style="{StaticResource SettingsCardBorder}">
                                 <StackPanel Spacing="0">

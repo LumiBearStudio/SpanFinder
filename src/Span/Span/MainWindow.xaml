@@ -400,7 +400,8 @@
                                   CanReorderItems="True"
                                   AllowDrop="True"
                                   DragItemsCompleted="OnFavoritesDragCompleted"
-                                  RightTapped="OnFavoritesFlatListRightTapped">
+                                  RightTapped="OnFavoritesFlatListRightTapped"
+                                  ContainerContentChanging="OnSidebarContainerContentChanging">
                             <ListView.ItemContainerStyle>
                                 <Style TargetType="ListViewItem">
                                     <Setter Property="Padding" Value="0"/>

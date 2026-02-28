@@ -364,6 +364,10 @@ namespace Span
                     DispatcherQueue.TryEnqueue(() => ApplyDensity(value as string ?? "comfortable"));
                     break;
 
+                case "IconFontScale":
+                    DispatcherQueue.TryEnqueue(() => ApplyIconFontScale(value as string ?? "0"));
+                    break;
+
                 case "ShowHiddenFiles":
                 case "ShowFileExtensions":
                     // Refresh current folder contents to apply filter change
@@ -486,6 +490,175 @@ namespace Span
                 }
             }
         }
+
+        // =================================================================
+        //  #region Icon & Font Scale
+        // =================================================================
+
+        private int _iconFontScaleLevel = 0;
+
+        /// <summary>
+        /// 아이콘/폰트 스케일(0~5)을 사이드바, 밀러, 리스트/상세 뷰에 적용한다.
+        /// 레벨 0 = 기본 크기(아이콘 16px, 텍스트 13px), 각 레벨 +1px.
+        /// </summary>
+        private void ApplyIconFontScale(string scale)
+        {
+            _iconFontScaleLevel = int.TryParse(scale, out var n) ? Math.Clamp(n, 0, 5) : 0;
+
+            double itemFont = 13.0 + _iconFontScaleLevel;
+            double iconFont = 16.0 + _iconFontScaleLevel;
+
+            // Sidebar width scaling (base 200 + level * 6)
+            double sidebarWidth = 200 + _iconFontScaleLevel * 6;
+            if (!_sidebarHiddenForSpecialMode)
+                SidebarCol.Width = new GridLength(sidebarWidth);
+            else
+                _savedSidebarWidth = sidebarWidth; // Settings 모드 해제 시 복원될 값 갱신
+
+            // Sidebar font/icon
+            ApplyIconFontScaleToSidebar(itemFont, iconFont);
+
+            // Miller columns
+            foreach (var kvp in _tabMillerPanels)
+                ApplyIconFontScaleToMillerControl(kvp.Value.items, itemFont, iconFont);
+            ApplyIconFontScaleToMillerControl(MillerColumnsControlRight, itemFont, iconFont);
+
+            // Details / List views
+            var scaleStr = _iconFontScaleLevel.ToString();
+            foreach (var kvp in _tabDetailsPanels)
+                kvp.Value.ApplyIconFontScale(scaleStr);
+            foreach (var kvp in _tabListPanels)
+                kvp.Value.ApplyIconFontScale(scaleStr);
+        }
+
+        private void ApplyIconFontScaleToSidebar(double itemFont, double iconFont)
+        {
+            // Home item
+            if (SidebarHomeText != null) SidebarHomeText.FontSize = itemFont;
+            var homeGrid = SidebarHomeText?.Parent as Grid;
+            if (homeGrid != null)
+            {
+                var homeIcon = FindChild<FontIcon>(homeGrid);
+                if (homeIcon != null) homeIcon.FontSize = iconFont;
+            }
+
+            // Favorites list
+            ApplyIconFontScaleToItemsControl(FavoritesFlatList, itemFont, iconFont);
+
+            // Drive sections (Local, Cloud, Network) — find ItemsControls in sidebar
+            var sidebarScroll = FindChild<ScrollViewer>(SidebarBorder);
+            if (sidebarScroll?.Content is StackPanel sidebarStack)
+            {
+                foreach (var child in sidebarStack.Children)
+                {
+                    // Direct ItemsControls (local drives)
+                    if (child is ItemsControl ic && child is not Microsoft.UI.Xaml.Controls.ListView)
+                        ApplyIconFontScaleToItemsControl(ic, itemFont, iconFont);
+
+                    // StackPanels wrapping cloud/network sections
+                    if (child is StackPanel sp)
+                    {
+                        foreach (var spChild in sp.Children)
+                        {
+                            if (spChild is ItemsControl sic && spChild is not Microsoft.UI.Xaml.Controls.ListView)
+                                ApplyIconFontScaleToItemsControl(sic, itemFont, iconFont);
+                        }
+                    }
+                }
+            }
+        }
+
+        private void ApplyIconFontScaleToItemsControl(ItemsControl? itemsControl, double itemFont, double iconFont)
+        {
+            if (itemsControl?.ItemsPanelRoot == null) return;
+            foreach (var container in itemsControl.ItemsPanelRoot.Children)
+            {
+                ApplyIconFontScaleToContainer(container, itemFont, iconFont);
+            }
+        }
+
+        private void ApplyIconFontScaleToMillerControl(ItemsControl? millerControl, double itemFont, double iconFont)
+        {
+            if (millerControl?.ItemsPanelRoot == null) return;
+            double columnWidth = 220 + _iconFontScaleLevel * 6;
+            foreach (var columnContainer in millerControl.ItemsPanelRoot.Children)
+            {
+                // ItemsControl + ItemTemplate → ContentPresenter가 DataTemplate 루트를 래핑
+                Grid? columnGrid = columnContainer as Grid
+                    ?? FindChild<Grid>(columnContainer);
+                if (columnGrid != null && columnGrid.Width >= 220 && columnGrid.Width <= 250)
+                    columnGrid.Width = columnWidth;
+
+                // Miller 컬럼 내부의 ListView 찾기 (ListView 타입 명시 — x:Name "ListView" 필드와 충돌 방지)
+                var listView = FindChild<Microsoft.UI.Xaml.Controls.ListView>(columnContainer);
+                if (listView?.ItemsPanelRoot == null) continue;
+                for (int i = 0; i < listView.Items.Count; i++)
+                {
+                    if (listView.ContainerFromIndex(i) is ListViewItem item)
+                    {
+                        // ListViewItem → ContentPresenter → DataTemplate Grid 경로 사용
+                        var cp = FindChild<ContentPresenter>(item);
+                        if (cp != null)
+                        {
+                            var grid = FindChild<Grid>(cp);
+                            if (grid != null)
+                                ApplyScaleToTemplateGrid(grid, itemFont, iconFont);
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// DataTemplate의 루트 Grid에서 텍스트(13~18px)와 아이콘(16~21px) 크기를 조정한다.
+        /// ContentPresenter를 통해 찾은 Grid에만 적용하여 WinUI 내부 Grid와 혼동 방지.
+        /// </summary>
+        private static void ApplyScaleToTemplateGrid(Grid grid, double itemFont, double iconFont)
+        {
+            for (int i = 0; i < Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(grid); i++)
+            {
+                var child = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(grid, i);
+                if (child is TextBlock tb && tb.FontSize >= 13 && tb.FontSize <= 18)
+                    tb.FontSize = itemFont;
+                else if (child is FontIcon fi && fi.FontSize >= 16 && fi.FontSize <= 21)
+                    fi.FontSize = iconFont;
+                // Icon inside a nested Grid (e.g., file icon container Grid wrapping FontIcon)
+                else if (child is Grid iconGrid)
+                {
+                    var nestedIcon = FindChild<FontIcon>(iconGrid);
+                    if (nestedIcon != null && nestedIcon.FontSize >= 16 && nestedIcon.FontSize <= 21)
+                        nestedIcon.FontSize = iconFont;
+                    // 아이콘 Grid 크기도 스케일에 맞춰 조정 (기본 16x16)
+                    if (iconGrid.Width >= 16 && iconGrid.Width <= 21)
+                        iconGrid.Width = iconFont;
+                    if (iconGrid.Height >= 16 && iconGrid.Height <= 21)
+                        iconGrid.Height = iconFont;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Sidebar 등 비 ListView 컨테이너(ContentPresenter 직접 자식)에 스케일 적용.
+        /// </summary>
+        private static void ApplyIconFontScaleToContainer(DependencyObject container, double itemFont, double iconFont)
+        {
+            // ContentControl(ListViewItem 등): ContentPresenter 경유
+            if (container is ContentControl)
+            {
+                var cp = FindChild<ContentPresenter>(container);
+                if (cp != null)
+                {
+                    var grid = FindChild<Grid>(cp);
+                    if (grid != null) { ApplyScaleToTemplateGrid(grid, itemFont, iconFont); return; }
+                }
+            }
+            // ContentPresenter 또는 일반 요소: 직접 Grid 탐색 (사이드바 ItemsControl용)
+            var directGrid = FindChild<Grid>(container);
+            if (directGrid != null)
+                ApplyScaleToTemplateGrid(directGrid, itemFont, iconFont);
+        }
+
+        // #endregion Icon & Font Scale
 
         private void ApplyMillerCheckboxMode(bool showCheckboxes)
         {

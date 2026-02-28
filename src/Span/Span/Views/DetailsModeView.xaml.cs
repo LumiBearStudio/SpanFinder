@@ -248,6 +248,39 @@ namespace Span.Views
             {
                 ApplyCellWidths(grid);
                 grid.Height = _densityRowHeight;
+
+                // Apply icon/font scale to newly materialized containers
+                if (_iconFontScaleLevel > 0)
+                {
+                    double itemFont = 13.0 + _iconFontScaleLevel;
+                    double iconFont = 16.0 + _iconFontScaleLevel;
+                    double secondaryFont = 12.0 + _iconFontScaleLevel;
+                    foreach (var child in grid.Children)
+                    {
+                        if (child is TextBlock tb)
+                        {
+                            if (tb.FontSize >= 13 && tb.FontSize <= 18)
+                                tb.FontSize = itemFont;
+                            else if (tb.FontSize >= 12 && tb.FontSize < 13)
+                                tb.FontSize = secondaryFont;
+                        }
+                        else if (child is Border b && b.Child is TextBlock btb)
+                        {
+                            if (btb.FontSize >= 12 && btb.FontSize <= 17)
+                                btb.FontSize = secondaryFont;
+                        }
+                        else if (child is Grid iconGrid && iconGrid.Width <= 24)
+                        {
+                            var fi = FindChild<FontIcon>(iconGrid);
+                            if (fi != null && fi.FontSize >= 16 && fi.FontSize <= 21)
+                                fi.FontSize = iconFont;
+                            if (iconGrid.Width >= 16 && iconGrid.Width <= 21)
+                                iconGrid.Width = iconFont;
+                            if (iconGrid.Height >= 16 && iconGrid.Height <= 21)
+                                iconGrid.Height = iconFont;
+                        }
+                    }
+                }
             }
 
             // Details 뷰에서 폴더 표시 시 크기 계산 요청 (lazy)
@@ -323,6 +356,7 @@ namespace Span.Views
         #region Density
 
         private double _densityRowHeight = 24.0; // comfortable default
+        private int _iconFontScaleLevel = 0;
 
         public void ApplyDensity(string density)
         {
@@ -364,6 +398,55 @@ namespace Span.Views
             var style = new Style(typeof(ListViewItem)) { BasedOn = baseStyle };
             style.Setters.Add(new Setter(ListViewItem.MinHeightProperty, minHeight));
             return style;
+        }
+
+        /// <summary>
+        /// 아이콘/폰트 스케일(0~5)을 적용한다. 레벨 0 = 기본(13px/16px).
+        /// </summary>
+        public void ApplyIconFontScale(string scale)
+        {
+            int level = int.TryParse(scale, out var n) ? Math.Clamp(n, 0, 5) : 0;
+            _iconFontScaleLevel = level;
+            double itemFont = 13.0 + level;
+            double iconFont = 16.0 + level;
+            double secondaryFont = 12.0 + level;
+
+            if (DetailsListView?.ItemsPanelRoot == null) return;
+            for (int i = 0; i < DetailsListView.Items.Count; i++)
+            {
+                if (DetailsListView.ContainerFromIndex(i) is ListViewItem container &&
+                    container.ContentTemplateRoot is Grid grid)
+                {
+                    foreach (var child in grid.Children)
+                    {
+                        if (child is TextBlock tb)
+                        {
+                            if (tb.FontSize >= 13 && tb.FontSize <= 18)
+                                tb.FontSize = itemFont;
+                            else if (tb.FontSize >= 12 && tb.FontSize < 13)
+                                tb.FontSize = secondaryFont;
+                        }
+                        else if (child is Grid iconGrid && iconGrid.Width <= 24)
+                        {
+                            var fi = FindChild<FontIcon>(iconGrid);
+                            if (fi != null && fi.FontSize >= 16 && fi.FontSize <= 21)
+                                fi.FontSize = iconFont;
+                        }
+                    }
+                }
+            }
+        }
+
+        private static T? FindChild<T>(DependencyObject parent) where T : DependencyObject
+        {
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is T t) return t;
+                var result = FindChild<T>(child);
+                if (result != null) return result;
+            }
+            return null;
         }
 
         #endregion

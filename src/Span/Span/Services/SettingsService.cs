@@ -98,6 +98,12 @@ public class SettingsService : ISettingsService
         set => Set("IconPack", value);
     }
 
+    public string IconFontScale
+    {
+        get => Get("IconFontScale", "0");  // "0"~"5" (0=기본, 각 단계 +1px)
+        set => Set("IconFontScale", value);
+    }
+
     // ── Browsing ──
 
     public bool ShowHiddenFiles

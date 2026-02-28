@@ -124,6 +124,12 @@ public sealed partial class SettingsModeView : UserControl
             var densityButtons = new[] { Density0, Density1, Density2, Density3, Density4, Density5 };
             densityButtons[densityLevel].IsChecked = true;
 
+            // Icon & Font Scale
+            var iconFontScale = _settings.IconFontScale;
+            int scaleLevel = int.TryParse(iconFontScale, out var sl) ? Math.Clamp(sl, 0, 5) : 0;
+            var scaleButtons = new[] { Scale0, Scale1, Scale2, Scale3, Scale4, Scale5 };
+            scaleButtons[scaleLevel].IsChecked = true;
+
             var iconPack = _settings.IconPack;
             IconPackCombo.SelectedIndex = iconPack switch
             {
@@ -230,6 +236,13 @@ public sealed partial class SettingsModeView : UserControl
         Density4.Checked += (s, e) => { if (!_isLoading) _settings.Density = "4"; };
         Density5.Checked += (s, e) => { if (!_isLoading) _settings.Density = "5"; };
 
+        Scale0.Checked += (s, e) => { if (!_isLoading) _settings.IconFontScale = "0"; };
+        Scale1.Checked += (s, e) => { if (!_isLoading) _settings.IconFontScale = "1"; };
+        Scale2.Checked += (s, e) => { if (!_isLoading) _settings.IconFontScale = "2"; };
+        Scale3.Checked += (s, e) => { if (!_isLoading) _settings.IconFontScale = "3"; };
+        Scale4.Checked += (s, e) => { if (!_isLoading) _settings.IconFontScale = "4"; };
+        Scale5.Checked += (s, e) => { if (!_isLoading) _settings.IconFontScale = "5"; };
+
         IconPackCombo.SelectionChanged += (s, e) =>
         {
             if (_isLoading) return;
@@ -303,7 +316,8 @@ public sealed partial class SettingsModeView : UserControl
             ThemeTokyoNight, ThemeCatppuccin, ThemeGruvbox,
             ThemeSolarizedLight, ThemeNord, ThemeOneDark, ThemeMonokai,
             StartupRestore, StartupHome, StartupFolder,
-            Density0, Density1, Density2, Density3, Density4, Density5 })
+            Density0, Density1, Density2, Density3, Density4, Density5,
+            Scale0, Scale1, Scale2, Scale3, Scale4, Scale5 })
             Helpers.CursorHelper.SetHandCursor(rb);
 
         foreach (var toggle in new[] {
@@ -438,6 +452,8 @@ public sealed partial class SettingsModeView : UserControl
         ThemeDarkText.Text = _loc.Get("Settings_Dark");
         DensityLabel.Text = _loc.Get("Settings_LayoutDensity");
         DensityDesc.Text = _loc.Get("Settings_LayoutDensityDesc");
+        IconFontScaleLabel.Text = _loc.Get("Settings_IconFontScale");
+        IconFontScaleDesc.Text = _loc.Get("Settings_IconFontScaleDesc");
         IconPackLabel.Text = _loc.Get("Settings_IconPack");
         IconPackDesc.Text = _loc.Get("Settings_IconPackDesc");
         IconPackRestartText.Text = _loc.Get("Settings_IconPackRestart");

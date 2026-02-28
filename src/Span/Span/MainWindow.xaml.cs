@@ -376,6 +376,7 @@ namespace Span
             ApplyTheme(_settings.Theme);
             ApplyFontFamily(_settings.FontFamily);
             ApplyDensity(_settings.Density);
+            ApplyIconFontScale(_settings.IconFontScale);
             _settings.SettingChanged += OnSettingChanged;
 
             // Connect Language setting to LocalizationService
@@ -446,6 +447,13 @@ namespace Span
                             int cloakOff = 0;
                             Helpers.NativeMethods.DwmSetWindowAttribute(
                                 _hwnd, Helpers.NativeMethods.DWMWA_CLOAK, ref cloakOff, sizeof(int));
+                        }
+
+                        // Re-apply icon/font scale after sidebar items are materialized
+                        if (_iconFontScaleLevel > 0)
+                        {
+                            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+                                () => ApplyIconFontScale(_settings.IconFontScale));
                         }
 
                         DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
@@ -526,6 +534,13 @@ namespace Span
                     {
                         DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
                             () => ApplyMillerCheckboxMode(true));
+                    }
+
+                    // Re-apply icon/font scale after sidebar items are materialized
+                    if (_iconFontScaleLevel > 0)
+                    {
+                        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+                            () => ApplyIconFontScale(_settings.IconFontScale));
                     }
 
                     // Apply MillerClickBehavior on startup
@@ -2737,12 +2752,45 @@ namespace Span
         // ── Rubber-band selection: attach/detach helpers per column ──
 
         /// <summary>
+        /// 사이드바 ListView(즐겨찾기) 컨테이너 생성 시 아이콘/폰트 스케일 적용.
+        /// </summary>
+        private void OnSidebarContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
+        {
+            if (args.InRecycleQueue || _iconFontScaleLevel <= 0) return;
+            if (args.ItemContainer?.ContentTemplateRoot is Grid grid)
+            {
+                double itemFont = 13.0 + _iconFontScaleLevel;
+                double iconFont = 16.0 + _iconFontScaleLevel;
+                foreach (var child in grid.Children)
+                {
+                    if (child is TextBlock tb)
+                    {
+                        // RemixIcons → 아이콘 폰트, 그 외 → 텍스트 폰트
+                        bool isIcon = tb.FontFamily?.Source?.Contains("Remix") == true;
+                        if (isIcon && tb.FontSize >= 16 && tb.FontSize <= 21)
+                            tb.FontSize = iconFont;
+                        else if (!isIcon && tb.FontSize >= 13 && tb.FontSize <= 18)
+                            tb.FontSize = itemFont;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
         /// Miller Column 콘텐츠 Grid Loaded 이벤트.
         /// 러버밴드(marquee) 선택 헬퍼를 연결하고, 어두운 테마 등의 렌더링 설정을 적용한다.
         /// </summary>
         private void OnMillerColumnContentGridLoaded(object sender, RoutedEventArgs e)
         {
             if (sender is not Grid grid) return;
+
+            // 새 밀러 컬럼 생성 시 너비 스케일링 적용 (base 220 + level * 6)
+            if (_iconFontScaleLevel > 0 && grid.Parent is Border border && border.Parent is Grid columnRoot
+                && columnRoot.Width >= 220 && columnRoot.Width <= 250)
+            {
+                columnRoot.Width = 220 + _iconFontScaleLevel * 6;
+            }
+
             if (_rubberBandHelpers.ContainsKey(grid)) return;
 
             var listView = FindChild<ListView>(grid);
@@ -2789,6 +2837,10 @@ namespace Span
                     {
                         grid.Padding = _densityPadding;
                         grid.MinHeight = _densityMinHeight;
+
+                        // Apply icon/font scale to newly materialized containers
+                        if (_iconFontScaleLevel > 0)
+                            ApplyScaleToTemplateGrid(grid, 13.0 + _iconFontScaleLevel, 16.0 + _iconFontScaleLevel);
                     }
                 }
             }

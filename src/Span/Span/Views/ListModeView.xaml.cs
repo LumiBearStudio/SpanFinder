@@ -933,6 +933,7 @@ namespace Span.Views
         #region Density
 
         private double _densityRowHeight = 24.0; // comfortable default
+        private int _iconFontScaleLevel = 0;
 
         public void ApplyDensity(string density)
         {
@@ -968,6 +969,37 @@ namespace Span.Views
                     container.ContentTemplateRoot is Grid grid)
                 {
                     grid.Height = _densityRowHeight;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 아이콘/폰트 스케일(0~5)을 적용한다. 레벨 0 = 기본(13px/16px).
+        /// </summary>
+        public void ApplyIconFontScale(string scale)
+        {
+            int level = int.TryParse(scale, out var n) ? Math.Clamp(n, 0, 5) : 0;
+            _iconFontScaleLevel = level;
+            double itemFont = 13.0 + level;
+            double iconFont = 16.0 + level;
+
+            if (ListGridView?.ItemsPanelRoot == null) return;
+            for (int i = 0; i < ListGridView.Items.Count; i++)
+            {
+                if (ListGridView.ContainerFromIndex(i) is GridViewItem container &&
+                    container.ContentTemplateRoot is Grid grid)
+                {
+                    foreach (var child in grid.Children)
+                    {
+                        if (child is TextBlock tb && tb.FontSize >= 13 && tb.FontSize <= 18)
+                            tb.FontSize = itemFont;
+                        else if (child is Grid iconGrid && iconGrid.Width <= 24)
+                        {
+                            var fi = FindChild<FontIcon>(iconGrid);
+                            if (fi != null && fi.FontSize >= 16 && fi.FontSize <= 21)
+                                fi.FontSize = iconFont;
+                        }
+                    }
                 }
             }
         }
