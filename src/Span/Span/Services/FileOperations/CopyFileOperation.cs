@@ -34,6 +34,9 @@ public class CopyFileOperation : IFileOperation, IPausableOperation
                           || FileSystemRouter.IsRemotePath(_destinationDirectory);
     }
 
+    /// <summary>Gets the destination directory for this copy operation.</summary>
+    public string DestinationDirectory => _destinationDirectory;
+
     /// <inheritdoc/>
     public string Description => _sourcePaths.Count == 1
         ? $"Copy \"{GetFileName(_sourcePaths[0])}\" to {GetFileName(_destinationDirectory)}"

@@ -6,6 +6,7 @@ using Span.Models;
 using Span.ViewModels;
 using System;
 using System.Linq;
+using System.Runtime.CompilerServices;
 
 namespace Span
 {
@@ -498,6 +499,13 @@ namespace Span
         private int _iconFontScaleLevel = 0;
 
         /// <summary>
+        /// 각 UI 요소의 원래(XAML 기본) FontSize를 저장하는 약한 참조 테이블.
+        /// 절대값 기반 스케일링의 핵심: baseline + level = target FontSize.
+        /// 요소가 GC되면 자동 정리됨.
+        /// </summary>
+        internal static readonly ConditionalWeakTable<DependencyObject, double[]> BaselineFontSizes = new();
+
+        /// <summary>
         /// 아이콘/폰트 스케일(0~5)을 사이드바, 밀러, 리스트/상세 뷰에 적용한다.
         /// 레벨 0 = 기본 크기(아이콘 16px, 텍스트 13px), 각 레벨 +1px.
         /// </summary>
@@ -529,6 +537,30 @@ namespace Span
                 kvp.Value.ApplyIconFontScale(scaleStr);
             foreach (var kvp in _tabListPanels)
                 kvp.Value.ApplyIconFontScale(scaleStr);
+
+            // Global UI (toolbar, tab bar, status bar)
+            ApplyIconFontScaleToGlobalUI(_iconFontScaleLevel);
+
+            // Settings page — Collapsed 상태에선 VisualTree 순회 불가하므로 Visible일 때만 적용
+            if (SettingsView.Visibility == Visibility.Visible)
+                SettingsView.ApplyIconFontScale(_iconFontScaleLevel);
+
+            // Home page — 동일하게 Visible일 때만 적용
+            if (HomeView.Visibility == Visibility.Visible)
+                HomeView.ApplyIconFontScale(_iconFontScaleLevel);
+
+            // Address bars — ScaleLevel 설정으로 ElementPrepared 자동 스케일 + 기존 element 즉시 적용
+            MainAddressBar.ScaleLevel = _iconFontScaleLevel;
+            LeftAddressBar.ScaleLevel = _iconFontScaleLevel;
+            RightAddressBar.ScaleLevel = _iconFontScaleLevel;
+
+            // Sidebar width: reset custom width on scale change
+            try
+            {
+                var appSettings = Windows.Storage.ApplicationData.Current.LocalSettings;
+                appSettings.Values.Remove("CustomSidebarWidth");
+            }
+            catch { }
         }
 
         private void ApplyIconFontScaleToSidebar(double itemFont, double iconFont)
@@ -611,6 +643,7 @@ namespace Span
 
         /// <summary>
         /// DataTemplate의 루트 Grid에서 텍스트(13~18px)와 아이콘(16~21px) 크기를 조정한다.
+        /// RemixIcons 폰트를 사용하는 TextBlock은 아이콘으로 취급하여 iconFont를 적용한다.
         /// ContentPresenter를 통해 찾은 Grid에만 적용하여 WinUI 내부 Grid와 혼동 방지.
         /// </summary>
         private static void ApplyScaleToTemplateGrid(Grid grid, double itemFont, double iconFont)
@@ -618,8 +651,15 @@ namespace Span
             for (int i = 0; i < Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(grid); i++)
             {
                 var child = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(grid, i);
-                if (child is TextBlock tb && tb.FontSize >= 13 && tb.FontSize <= 18)
-                    tb.FontSize = itemFont;
+                if (child is TextBlock tb)
+                {
+                    // RemixIcons 폰트 사용 TextBlock은 아이콘 → iconFont 적용
+                    bool isIcon = tb.FontFamily?.Source?.Contains("Remix") == true;
+                    if (isIcon && tb.FontSize >= 13 && tb.FontSize <= 21)
+                        tb.FontSize = iconFont;
+                    else if (!isIcon && tb.FontSize >= 13 && tb.FontSize <= 18)
+                        tb.FontSize = itemFont;
+                }
                 else if (child is FontIcon fi && fi.FontSize >= 16 && fi.FontSize <= 21)
                     fi.FontSize = iconFont;
                 // Icon inside a nested Grid (e.g., file icon container Grid wrapping FontIcon)
@@ -656,6 +696,101 @@ namespace Span
             var directGrid = FindChild<Grid>(container);
             if (directGrid != null)
                 ApplyScaleToTemplateGrid(directGrid, itemFont, iconFont);
+        }
+
+        /// <summary>
+        /// 탭 바(Row 0), 툴바(Row 1), 상태바(Row 3)의 TextBlock/FontIcon/TextBox에
+        /// 절대값 기반 폰트 스케일을 적용한다. baseline + level = 최종 FontSize.
+        /// </summary>
+        private void ApplyIconFontScaleToGlobalUI(int level)
+        {
+            // AppTitleBar (Tab bar, Row 0)
+            if (AppTitleBar != null)
+                ApplyAbsoluteScaleToTree(AppTitleBar, level, 8, 20, 10, 16);
+
+            // "SPAN Finder" 타이틀 TextBlock: ConditionalWeakTable 순회에서 누락될 수 있으므로
+            // baseline(12) 기준으로 직접 설정하여 스케일 전환 시 크기가 남아있는 버그 방지
+            if (AppTitleText != null)
+                AppTitleText.FontSize = Math.Max(7, 12.0 + level);
+
+            // Row 1 (Toolbar) and Row 3 (StatusBar) — find from root Grid
+            if (this.Content is Grid rootGrid)
+            {
+                foreach (var child in rootGrid.Children)
+                {
+                    if (child is FrameworkElement fe)
+                    {
+                        int row = Grid.GetRow(fe);
+                        if (row == 1 || row == 3)
+                            ApplyAbsoluteScaleToTree(fe, level, 8, 20, 10, 16);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// 절대값 기반 폰트 스케일: 각 요소의 원래 FontSize(baseline)를 ConditionalWeakTable에 저장하고,
+        /// baseline + level로 최종 FontSize를 설정한다.
+        /// range 필터는 baseline 기준이므로 스케일 레벨 변경 후에도 정확하게 동작.
+        /// </summary>
+        /// <param name="parent">순회 시작점</param>
+        /// <param name="level">스케일 레벨 (0~5)</param>
+        /// <param name="tbMin">TextBlock/FontIcon baseline 최소값</param>
+        /// <param name="tbMax">TextBlock/FontIcon baseline 최대값</param>
+        /// <param name="tboxMin">TextBox baseline 최소값 (-1이면 TextBox 무시)</param>
+        /// <param name="tboxMax">TextBox baseline 최대값</param>
+        internal static void ApplyAbsoluteScaleToTree(
+            DependencyObject parent, int level,
+            double tbMin, double tbMax,
+            double tboxMin = -1, double tboxMax = -1)
+        {
+            int count = VisualTreeHelper.GetChildrenCount(parent);
+            for (int i = 0; i < count; i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+
+                // AddressBarControl은 자체 ScaleLevel 속성으로 스케일을 관리하므로 skip.
+                // Global 순회가 내부까지 진입하면 이중 적용(double traversal) 버그 발생.
+                if (child is Controls.AddressBarControl)
+                    continue;
+
+                if (child is TextBlock tb)
+                {
+                    if (!BaselineFontSizes.TryGetValue(tb, out var stored))
+                    {
+                        stored = new[] { tb.FontSize };
+                        BaselineFontSizes.Add(tb, stored);
+                    }
+                    if (stored[0] >= tbMin && stored[0] <= tbMax)
+                        tb.FontSize = Math.Max(7, stored[0] + level);
+                }
+                else if (child is FontIcon fi)
+                {
+                    if (!BaselineFontSizes.TryGetValue(fi, out var stored))
+                    {
+                        stored = new[] { fi.FontSize };
+                        BaselineFontSizes.Add(fi, stored);
+                    }
+                    if (stored[0] >= tbMin && stored[0] <= tbMax)
+                        fi.FontSize = Math.Max(7, stored[0] + level);
+                }
+                else if (tboxMin >= 0 && child is TextBox tbox)
+                {
+                    if (!BaselineFontSizes.TryGetValue(tbox, out var stored))
+                    {
+                        stored = new[] { tbox.FontSize };
+                        BaselineFontSizes.Add(tbox, stored);
+                    }
+                    if (stored[0] >= tboxMin && stored[0] <= tboxMax)
+                        tbox.FontSize = Math.Max(9, stored[0] + level);
+                    // TextBox 내부로 재귀하지 않음: 내부 PlaceholderText TextBlock이
+                    // 이미 스케일된 FontSize를 상속받아 baseline 오염 발생 방지.
+                    // TextBox.FontSize 설정만으로 내부 요소에 자동 전파됨.
+                    continue;
+                }
+
+                ApplyAbsoluteScaleToTree(child, level, tbMin, tbMax, tboxMin, tboxMax);
+            }
         }
 
         // #endregion Icon & Font Scale
@@ -878,14 +1013,20 @@ namespace Span
                 var flyout = new Flyout
                 {
                     Content = _logFlyout,
-                    Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.BottomEdgeAlignedRight
+                    Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.BottomEdgeAlignedRight,
+                    ShouldConstrainToRootBounds = false
                 };
                 flyout.Closed += (s, args) => _isLogOpen = false;
-                flyout.Opening += (s, args) => _logFlyout.Refresh();
+                flyout.Opening += (s, args) =>
+                {
+                    _logFlyout.UpdateWidth(this.AppWindow.Size.Width / (this.Content.XamlRoot?.RasterizationScale ?? 1.0));
+                    _logFlyout.Refresh();
+                };
                 LogButton.Flyout = flyout;
             }
             else
             {
+                _logFlyout?.UpdateWidth(this.AppWindow.Size.Width / (this.Content.XamlRoot?.RasterizationScale ?? 1.0));
                 _logFlyout?.Refresh();
             }
 

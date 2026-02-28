@@ -2,10 +2,11 @@
     x:Class="Span.Views.LogFlyoutContent"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    Width="400" MaxHeight="500">
+    MinWidth="360" MaxWidth="560" MaxHeight="600">
 
     <Grid Background="{ThemeResource SpanBgLayer1Brush}" CornerRadius="8">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
@@ -32,8 +33,23 @@
                     Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
         </Grid>
 
+        <!-- Filter Buttons -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="4" Padding="12,8"
+                    BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="0,0,0,1">
+            <ToggleButton x:Name="FilterAll" Content="전체" IsChecked="True" Click="OnFilterClick"
+                          FontSize="11" Padding="10,4" MinWidth="0" MinHeight="0"/>
+            <ToggleButton x:Name="FilterCopy" Content="복사" Click="OnFilterClick"
+                          FontSize="11" Padding="10,4" MinWidth="0" MinHeight="0"/>
+            <ToggleButton x:Name="FilterMove" Content="이동" Click="OnFilterClick"
+                          FontSize="11" Padding="10,4" MinWidth="0" MinHeight="0"/>
+            <ToggleButton x:Name="FilterDelete" Content="삭제" Click="OnFilterClick"
+                          FontSize="11" Padding="10,4" MinWidth="0" MinHeight="0"/>
+            <ToggleButton x:Name="FilterRename" Content="이름변경" Click="OnFilterClick"
+                          FontSize="11" Padding="10,4" MinWidth="0" MinHeight="0"/>
+        </StackPanel>
+
         <!-- Empty State -->
-        <StackPanel x:Name="EmptyState" Grid.Row="1"
+        <StackPanel x:Name="EmptyState" Grid.Row="2"
                     VerticalAlignment="Center" HorizontalAlignment="Center"
                     Spacing="8" Padding="24"
                     Visibility="Collapsed">
@@ -46,9 +62,11 @@
         </StackPanel>
 
         <!-- Log List -->
-        <ScrollViewer x:Name="LogScrollViewer" Grid.Row="1"
+        <ScrollViewer x:Name="LogScrollViewer" Grid.Row="2"
                       VerticalScrollBarVisibility="Auto"
-                      MaxHeight="440">
+                      HorizontalScrollBarVisibility="Disabled"
+                      HorizontalScrollMode="Disabled"
+                      MaxHeight="500">
             <ListView x:Name="LogListView"
                       SelectionMode="None" IsItemClickEnabled="False"
                       Padding="4,4,4,4">
@@ -61,55 +79,97 @@
                 </ListView.ItemContainerStyle>
                 <ListView.ItemTemplate>
                     <DataTemplate>
-                        <Grid Padding="12,8" ColumnSpacing="10">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
+                        <StackPanel>
+                            <!-- Header Row -->
+                            <Grid Padding="12,8" ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
 
-                            <!-- Operation Icon -->
-                            <FontIcon Grid.Column="0" Grid.RowSpan="2"
-                                      Glyph="{Binding OperationGlyph}"
-                                      FontSize="16"
-                                      Foreground="{ThemeResource SpanTextSecondaryBrush}"
-                                      VerticalAlignment="Center"/>
+                                <!-- Operation Icon -->
+                                <FontIcon Grid.Column="0" Grid.RowSpan="2"
+                                          Glyph="{Binding OperationGlyph}"
+                                          FontSize="16"
+                                          Foreground="{ThemeResource SpanTextSecondaryBrush}"
+                                          VerticalAlignment="Center"/>
 
-                            <!-- Description -->
-                            <TextBlock Grid.Column="1" Grid.Row="0"
-                                       Text="{Binding Description}"
-                                       FontSize="12" FontWeight="SemiBold"
-                                       Foreground="{ThemeResource SpanTextPrimaryBrush}"
-                                       TextTrimming="CharacterEllipsis" MaxLines="1"/>
+                                <!-- Description -->
+                                <TextBlock Grid.Column="1" Grid.Row="0"
+                                           Text="{Binding Description}"
+                                           FontSize="12" FontWeight="SemiBold"
+                                           Foreground="{ThemeResource SpanTextPrimaryBrush}"
+                                           TextTrimming="CharacterEllipsis" MaxLines="1"/>
 
-                            <!-- Timestamp -->
-                            <TextBlock Grid.Column="2" Grid.Row="0"
-                                       Text="{Binding FormattedTime}"
-                                       FontSize="11"
-                                       Foreground="{ThemeResource SpanTextTertiaryBrush}"
-                                       VerticalAlignment="Center"/>
+                                <!-- Timestamp -->
+                                <TextBlock Grid.Column="2" Grid.Row="0"
+                                           Text="{Binding FormattedTime}"
+                                           FontSize="11"
+                                           Foreground="{ThemeResource SpanTextTertiaryBrush}"
+                                           VerticalAlignment="Center"/>
 
-                            <!-- Success/Failure Icon -->
-                            <FontIcon Grid.Column="3" Grid.Row="0"
-                                      Glyph="{Binding StatusGlyph}"
-                                      FontSize="12"
-                                      Foreground="{Binding StatusBrush}"
-                                      VerticalAlignment="Center"/>
+                                <!-- Success/Failure Icon -->
+                                <FontIcon Grid.Column="3" Grid.Row="0"
+                                          Glyph="{Binding StatusGlyph}"
+                                          FontSize="12"
+                                          Foreground="{Binding StatusBrush}"
+                                          VerticalAlignment="Center"/>
 
-                            <!-- Error Message (only if failed) -->
-                            <TextBlock Grid.Column="1" Grid.ColumnSpan="3" Grid.Row="1"
-                                       Text="{Binding ErrorMessage}"
-                                       Visibility="{Binding ErrorVisibility}"
-                                       FontSize="11"
-                                       Foreground="#E74856"
-                                       TextTrimming="CharacterEllipsis" MaxLines="2"
-                                       Margin="0,2,0,0"/>
-                        </Grid>
+                                <!-- Expand/Collapse Button -->
+                                <Button Grid.Column="4" Grid.Row="0"
+                                        Visibility="{Binding ExpandButtonVisibility}"
+                                        Click="OnExpandClick"
+                                        Background="Transparent"
+                                        Padding="4,2" MinWidth="0" MinHeight="0"
+                                        VerticalAlignment="Center">
+                                    <FontIcon Glyph="{Binding ExpandGlyph}" FontSize="10"
+                                              Foreground="{ThemeResource SpanTextTertiaryBrush}"/>
+                                </Button>
+
+                                <!-- Error Message (only if failed) -->
+                                <TextBlock Grid.Column="1" Grid.ColumnSpan="4" Grid.Row="1"
+                                           Text="{Binding ErrorMessage}"
+                                           Visibility="{Binding ErrorVisibility}"
+                                           FontSize="11"
+                                           Foreground="#E74856"
+                                           TextTrimming="CharacterEllipsis" MaxLines="2"
+                                           Margin="0,2,0,0"/>
+                            </Grid>
+
+                            <!-- Expandable Detail Panel -->
+                            <StackPanel Visibility="{Binding DetailVisibility}"
+                                        Padding="40,0,12,8" Spacing="2">
+                                <!-- Destination Path (Copy/Move) -->
+                                <TextBlock Text="{Binding DestinationText}"
+                                           Visibility="{Binding DestinationVisibility}"
+                                           FontSize="11" FontWeight="SemiBold"
+                                           Foreground="{ThemeResource SpanAccentBrush}"
+                                           TextTrimming="CharacterEllipsis"
+                                           Margin="0,0,0,4"/>
+
+                                <!-- Individual file list -->
+                                <ItemsRepeater ItemsSource="{Binding FileDetails}">
+                                    <ItemsRepeater.Layout>
+                                        <StackLayout Spacing="1"/>
+                                    </ItemsRepeater.Layout>
+                                    <ItemsRepeater.ItemTemplate>
+                                        <DataTemplate x:DataType="x:String">
+                                            <TextBlock Text="{Binding}"
+                                                       FontSize="11"
+                                                       Foreground="{ThemeResource SpanTextSecondaryBrush}"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                        </DataTemplate>
+                                    </ItemsRepeater.ItemTemplate>
+                                </ItemsRepeater>
+                            </StackPanel>
+                        </StackPanel>
                     </DataTemplate>
                 </ListView.ItemTemplate>
             </ListView>

@@ -74,9 +74,13 @@ public class DeleteFileOperation : IFileOperation
     }
 
     /// <inheritdoc/>
-    public string Description => _permanent
-        ? $"Permanently delete {_sourcePaths.Count} item(s)"
-        : $"Delete {_sourcePaths.Count} item(s)";
+    public string Description => _sourcePaths.Count == 1
+        ? (_permanent
+            ? $"Permanently delete \"{GetFileName(_sourcePaths[0])}\""
+            : $"Delete \"{GetFileName(_sourcePaths[0])}\"")
+        : (_permanent
+            ? $"Permanently delete {_sourcePaths.Count} item(s)"
+            : $"Delete {_sourcePaths.Count} item(s)");
 
     /// <inheritdoc/>
     public bool CanUndo => !_permanent && !_sourcePaths.Any(FileSystemRouter.IsRemotePath);

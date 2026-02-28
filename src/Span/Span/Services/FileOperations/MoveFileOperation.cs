@@ -35,6 +35,9 @@ public class MoveFileOperation : IFileOperation, IPausableOperation
                           || FileSystemRouter.IsRemotePath(_destinationDirectory);
     }
 
+    /// <summary>Gets the destination directory for this move operation.</summary>
+    public string DestinationDirectory => _destinationDirectory;
+
     /// <inheritdoc/>
     public string Description => _sourcePaths.Count == 1
         ? $"Move \"{GetFileName(_sourcePaths[0])}\" to {GetFileName(_destinationDirectory)}"

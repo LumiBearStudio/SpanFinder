@@ -199,7 +199,13 @@ namespace Span.ViewModels
                 Success = result.Success,
                 ErrorMessage = result.ErrorMessage,
                 SourcePaths = result.AffectedPaths,
-                ItemCount = result.AffectedPaths.Count
+                ItemCount = result.AffectedPaths.Count,
+                DestinationPath = operation switch
+                {
+                    CopyFileOperation copyOp => copyOp.DestinationDirectory,
+                    MoveFileOperation moveOp => moveOp.DestinationDirectory,
+                    _ => null
+                }
             });
         }
 
@@ -262,10 +268,11 @@ namespace Span.ViewModels
 
         #region Toast / Notifications
 
-        public void ShowToast(string message, int durationMs = 3000)
+        public void ShowToast(string message, int durationMs = 3000, bool isError = false)
         {
             _toastTimer?.Dispose();
             ToastMessage = message;
+            IsToastError = isError;
             IsToastVisible = true;
 
             _toastTimer = new System.Threading.Timer(_ =>
@@ -274,9 +281,9 @@ namespace Span.ViewModels
             }, null, durationMs, System.Threading.Timeout.Infinite);
         }
 
-        private void ShowError(string message)
+        public void ShowError(string message)
         {
-            ShowToast($"Error: {message}", 5000);
+            ShowToast(message, 5000, isError: true);
         }
 
         #endregion
