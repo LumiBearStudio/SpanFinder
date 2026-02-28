@@ -208,10 +208,11 @@ namespace Span.Services
                     }
                 }
             }
-            catch (OperationCanceledException) { throw; }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
             catch (Exception ex)
             {
                 DebugLogger.Log($"[FtpProvider] GetItemsAsync 오류 ({path}): {ex.Message}");
+                throw; // 상위(LoadFromRemoteAsync)에서 에러 메시지를 설정하도록 전파
             }
 
             return items;

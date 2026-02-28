@@ -72,6 +72,12 @@ namespace Span.ViewModels
         /// </summary>
         public bool EnableAutoNavigation { get; set; } = true;
 
+        /// <summary>
+        /// 폴더 로딩 또는 경로 탐색 실패 시 에러 메시지를 전파하는 이벤트.
+        /// MainWindow에서 구독하여 토스트 알림으로 표시.
+        /// </summary>
+        public event Action<string>? NavigationError;
+
         // ── Back/Forward Navigation History ──
         private const int MaxHistorySize = 50;
         private readonly Stack<string> _backStack = new();
@@ -442,17 +448,17 @@ namespace Span.ViewModels
             foreach (var col in Columns)
             {
                 col.PropertyChanged -= FolderVm_PropertyChanged;
+                col.LoadError -= OnColumnLoadError;
                 col.CancelLoading();
                 col.SelectedChild = null;
             }
             Columns.Clear();
 
             var rootVm = new FolderViewModel(folder, _fileService);
-            await rootVm.EnsureChildrenLoadedAsync();
-
-            AddColumn(rootVm);
+            AddColumn(rootVm);                          // 즉시 UI에 추가 → ProgressRing 표시
             CurrentPath = rootVm.Path;
             SelectedFile = null;
+            await rootVm.EnsureChildrenLoadedAsync();   // 로딩 완료 시 항목 표시
 
             Helpers.DebugLogger.Log($"[NavigateTo] Navigation complete. Current path: {CurrentPath}");
         }
@@ -473,11 +479,30 @@ namespace Span.ViewModels
                 return;
             }
 
-            if (!System.IO.Directory.Exists(path)) return;
+            // UNC 경로: Directory.Exists가 30초+ 블로킹하므로 비동기 처리
+            // 로컬 경로: 즉시 확인
+            if (path.StartsWith(@"\\"))
+            {
+                var exists = await Task.Run(() => System.IO.Directory.Exists(path));
+                if (!exists)
+                {
+                    NavigationError?.Invoke($"네트워크 경로에 접근할 수 없습니다: {path}");
+                    return;
+                }
+            }
+            else if (!System.IO.Directory.Exists(path))
+            {
+                NavigationError?.Invoke($"폴더를 찾을 수 없습니다: {System.IO.Path.GetFileName(path)}");
+                return;
+            }
 
             // Normalize path (guard against PathTooLongException)
             try { path = System.IO.Path.GetFullPath(path); }
-            catch (System.IO.PathTooLongException) { return; }
+            catch (System.IO.PathTooLongException)
+            {
+                NavigationError?.Invoke("경로가 너무 깁니다 (260자 초과)");
+                return;
+            }
 
             // Push current path to history before navigating
             PushToHistory(path);
@@ -521,16 +546,17 @@ namespace Span.ViewModels
                 foreach (var col in Columns)
                 {
                     col.PropertyChanged -= FolderVm_PropertyChanged;
+                    col.LoadError -= OnColumnLoadError;
                     col.CancelLoading();
                     col.SelectedChild = null;
                 }
                 Columns.Clear();
 
-                // Create root column (drive)
+                // Create root column (drive) — 컬럼 먼저 배치 후 로딩 (ProgressRing 표시)
                 var rootFolder = new FolderItem { Name = root.TrimEnd('\\'), Path = root };
                 var currentVm = new FolderViewModel(rootFolder, _fileService);
-                await currentVm.EnsureChildrenLoadedAsync();
                 AddColumn(currentVm);
+                await currentVm.EnsureChildrenLoadedAsync();
 
                 // Build columns for each path segment
                 for (int i = 0; i < parts.Length; i++)
@@ -548,9 +574,9 @@ namespace Span.ViewModels
                     // Select child in parent column (visual highlight)
                     currentVm.SelectedChild = childVm;
 
-                    // Load children and add as next column
-                    await childVm.EnsureChildrenLoadedAsync();
+                    // 컬럼 먼저 배치 후 로딩 (ProgressRing 표시)
                     AddColumn(childVm);
+                    await childVm.EnsureChildrenLoadedAsync();
 
                     currentVm = childVm;
                 }
@@ -679,9 +705,6 @@ namespace Span.ViewModels
             // Push current path to history before navigating
             PushToHistory(folder.Path);
 
-            // Load children first
-            await folder.EnsureChildrenLoadedAsync();
-
             // Find parent column index
             var parentFolder = fromColumn ?? CurrentFolder;
             if (parentFolder == null) return;
@@ -694,15 +717,17 @@ namespace Span.ViewModels
             // Remove columns after current
             RemoveColumnsFrom(nextIndex + 1);
 
-            // Replace or add the new column
+            // Replace or add the new column FIRST → ProgressRing 즉시 표시
             if (nextIndex < Columns.Count)
             {
                 var oldColumn = Columns[nextIndex];
                 oldColumn.PropertyChanged -= FolderVm_PropertyChanged;
+                oldColumn.LoadError -= OnColumnLoadError;
                 oldColumn.CancelLoading();
                 oldColumn.SelectedChild = null;
 
                 folder.PropertyChanged += FolderVm_PropertyChanged;
+                folder.LoadError += OnColumnLoadError;
                 Columns[nextIndex] = folder;
             }
             else
@@ -712,6 +737,9 @@ namespace Span.ViewModels
 
             CurrentPath = folder.Path;
             SelectedFile = null;
+
+            // 로딩 중 ProgressRing 표시, 완료 시 항목 표시
+            await folder.EnsureChildrenLoadedAsync();
             Helpers.DebugLogger.Log($"[NavigateIntoFolder] Navigation complete to: {folder.Path}");
         }
 
@@ -756,8 +784,11 @@ namespace Span.ViewModels
         private void AddColumn(FolderViewModel folderVm)
         {
             folderVm.PropertyChanged += FolderVm_PropertyChanged;
+            folderVm.LoadError += OnColumnLoadError;
             Columns.Add(folderVm);
         }
+
+        private void OnColumnLoadError(string message) => NavigationError?.Invoke(message);
 
         /// <summary>
         /// Update IsOnPath for all items in all columns.
@@ -794,6 +825,7 @@ namespace Span.ViewModels
                 Helpers.DebugLogger.Log($"[RemoveColumnsFrom] Removing column at index {i}: {column.Name}");
 
                 column.PropertyChanged -= FolderVm_PropertyChanged;
+                column.LoadError -= OnColumnLoadError;
 
                 // 경량 초기화: 선택 해제만 수행, Children 및 _isLoaded 유지
                 // 재방문 시 디스크 I/O 없이 즉시 표시 가능
@@ -917,27 +949,22 @@ namespace Span.ViewModels
                 if (Columns.IndexOf(parentFolder) != parentIndex) return;
                 if (parentFolder.SelectedChild != selectedFolder) return;
 
-                await selectedFolder.EnsureChildrenLoadedAsync();
-
-                // Re-validate AFTER loading completes
-                if (token.IsCancellationRequested) return;
-                if (Columns.IndexOf(parentFolder) != parentIndex) return;
-                if (parentFolder.SelectedChild != selectedFolder) return;
-
                 // Push current path to history before changing (Miller auto-navigation)
                 PushToHistory(selectedFolder.Path);
 
                 RemoveColumnsFrom(nextIndex + 1);
 
-                // Replace or Add
+                // 컬럼을 먼저 배치 → ProgressRing이 즉시 표시됨
                 if (nextIndex < Columns.Count)
                 {
                     var oldColumn = Columns[nextIndex];
                     oldColumn.PropertyChanged -= FolderVm_PropertyChanged;
+                    oldColumn.LoadError -= OnColumnLoadError;
                     oldColumn.CancelLoading();
                     oldColumn.SelectedChild = null;
 
                     selectedFolder.PropertyChanged += FolderVm_PropertyChanged;
+                    selectedFolder.LoadError += OnColumnLoadError;
                     Columns[nextIndex] = selectedFolder;
                 }
                 else
@@ -948,8 +975,16 @@ namespace Span.ViewModels
                 CurrentPath = selectedFolder.Path;
                 SelectedFile = null;
                 UpdatePathHighlights();
+
+                // 컬럼이 UI에 보인 상태에서 로딩 (ProgressRing 표시)
+                await selectedFolder.EnsureChildrenLoadedAsync();
+
+                // Re-validate AFTER loading completes
+                if (token.IsCancellationRequested) return;
+                if (Columns.IndexOf(parentFolder) != parentIndex) return;
+                if (parentFolder.SelectedChild != selectedFolder) return;
             }
-            catch (TaskCanceledException) { }
+            catch (OperationCanceledException) { }
             catch (Exception ex)
             {
                 Helpers.DebugLogger.Log($"[HandleFolderSelectionAsync] 예외 발생 (무시): {ex.Message}");
@@ -990,6 +1025,7 @@ namespace Span.ViewModels
                 foreach (var column in Columns.ToList())
                 {
                     column.PropertyChanged -= FolderVm_PropertyChanged;
+                    column.LoadError -= OnColumnLoadError;
                     column.CancelLoading();
                     column.ClearChildren();
                 }

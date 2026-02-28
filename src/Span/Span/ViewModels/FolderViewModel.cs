@@ -77,8 +77,18 @@ namespace Span.ViewModels
 
         public bool HasError => !string.IsNullOrEmpty(ErrorMessage);
 
+        /// <summary>
+        /// 폴더 로딩 실패 시 에러 메시지를 전파하는 이벤트.
+        /// ExplorerViewModel에서 구독하여 토스트 알림으로 버블링.
+        /// </summary>
+        public event Action<string>? LoadError;
+
         partial void OnErrorMessageChanged(string? value)
-            => OnPropertyChanged(nameof(HasError));
+        {
+            OnPropertyChanged(nameof(HasError));
+            if (!string.IsNullOrEmpty(value))
+                LoadError?.Invoke(value);
+        }
 
         [ObservableProperty]
         private bool _isActive = false; // Indicates if this column has focus
@@ -238,7 +248,7 @@ namespace Span.ViewModels
                     await LoadFromDiskAsync(folderPath, showHidden, folderCache, token);
                 }
             }
-            catch (TaskCanceledException) { }
+            catch (OperationCanceledException) { }
             catch (Exception ex)
             {
                 Helpers.DebugLogger.Log($"[EnsureChildrenLoadedAsync] 예외: {ex.Message}");
@@ -281,29 +291,48 @@ namespace Span.ViewModels
                 return;
             }
 
-            var remotePath = FileSystemRouter.ExtractRemotePath(folderPath);
-            var uriPrefix = FileSystemRouter.GetUriPrefix(folderPath);
-            var remoteItems = await provider.GetItemsAsync(remotePath, token);
-
-            var items = new List<FileSystemViewModel>();
-            foreach (var item in remoteItems)
+            try
             {
-                if (token.IsCancellationRequested) break;
-                var fullPath = uriPrefix + item.Path;
-                if (item is FolderItem folder)
-                {
-                    folder.Path = fullPath;
-                    items.Add(new FolderViewModel(folder, _fileService));
-                }
-                else if (item is FileItem file)
-                {
-                    file.Path = fullPath;
-                    items.Add(new FileViewModel(file));
-                }
-            }
+                var remotePath = FileSystemRouter.ExtractRemotePath(folderPath);
+                var uriPrefix = FileSystemRouter.GetUriPrefix(folderPath);
+                var remoteItems = await provider.GetItemsAsync(remotePath, token);
 
-            if (!token.IsCancellationRequested)
-                PopulateChildren(items, token);
+                var items = new List<FileSystemViewModel>();
+                foreach (var item in remoteItems)
+                {
+                    if (token.IsCancellationRequested) break;
+                    var fullPath = uriPrefix + item.Path;
+                    if (item is FolderItem folder)
+                    {
+                        folder.Path = fullPath;
+                        items.Add(new FolderViewModel(folder, _fileService));
+                    }
+                    else if (item is FileItem file)
+                    {
+                        file.Path = fullPath;
+                        items.Add(new FileViewModel(file));
+                    }
+                }
+
+                if (!token.IsCancellationRequested)
+                    PopulateChildren(items, token);
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested)
+            {
+                // 사용자가 명시적으로 취소한 경우만 재전파
+                throw;
+            }
+            catch (OperationCanceledException ex)
+            {
+                // 소켓 타임아웃 등 네트워크 레벨 취소 → 에러로 분류
+                ErrorMessage = ClassifyRemoteError(ex);
+                ErrorIcon = "\uE871";
+            }
+            catch (Exception ex)
+            {
+                ErrorMessage = ClassifyRemoteError(ex);
+                ErrorIcon = "\uE871";
+            }
         }
 
         private async Task LoadFromDiskAsync(
@@ -317,8 +346,17 @@ namespace Span.ViewModels
                 var folders = new List<Models.FolderItem>();
                 var files = new List<Models.FileItem>();
 
-                if (string.IsNullOrEmpty(folderPath) || !System.IO.Directory.Exists(folderPath))
+                if (string.IsNullOrEmpty(folderPath))
                     return (result, folders, files, (string?)null, (string?)null);
+
+                if (!System.IO.Directory.Exists(folderPath))
+                {
+                    // UNC 경로는 네트워크 문제와 경로 미존재를 구분
+                    if (folderPath.StartsWith(@"\\"))
+                        return (result, folders, files, "\uB124\uD2B8\uC6CC\uD06C \uACBD\uB85C\uC5D0 \uC811\uADFC\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4", "\uE871");
+                    else
+                        return (result, folders, files, "\uD3F4\uB354\uB97C \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4", "\uE711");
+                }
 
                 try
                 {
@@ -602,6 +640,52 @@ namespace Span.ViewModels
         /// Git 레포 여부를 반환 (Details 뷰에서 상태 로드 판단용).
         /// </summary>
         public bool IsGitFolder => _isGitFolder;
+
+        /// <summary>
+        /// 원격 연결 예외를 사용자 친화적 에러 메시지로 분류.
+        /// 연결 실패, 인증 실패, 타임아웃, 권한 거부를 구분.
+        /// </summary>
+        private static string ClassifyRemoteError(Exception ex)
+        {
+            var msg = ex.Message;
+            var typeName = ex.GetType().Name;
+
+            // 소켓/네트워크 레벨의 OperationCanceledException (사용자 취소가 아닌 타임아웃)
+            if (ex is OperationCanceledException)
+                return "연결 시간이 초과되었습니다: 서버 상태를 확인하세요";
+
+            // SSH.NET 인증 실패
+            if (typeName.Contains("Authentication") || msg.Contains("denied") || msg.Contains("authentication", StringComparison.OrdinalIgnoreCase))
+                return "인증 실패: 사용자 이름 또는 비밀번호를 확인하세요";
+
+            // SSH.NET 연결 끊김
+            if (typeName.Contains("SshConnection") || typeName.Contains("SshOperationTimeout"))
+                return "서버 연결이 끊어졌습니다";
+
+            // 소켓/네트워크 에러
+            if (typeName.Contains("Socket") || msg.Contains("No such host")
+                || msg.Contains("actively refused") || msg.Contains("Connection refused")
+                || msg.Contains("unreachable", StringComparison.OrdinalIgnoreCase))
+                return "서버에 연결할 수 없습니다: 네트워크 상태를 확인하세요";
+
+            // 타임아웃
+            if (msg.Contains("timed out", StringComparison.OrdinalIgnoreCase)
+                || msg.Contains("Timeout", StringComparison.OrdinalIgnoreCase))
+                return "연결 시간이 초과되었습니다: 서버 상태를 확인하세요";
+
+            // FTP 권한 에러 (530, 550 등)
+            if (msg.Contains("550") || msg.Contains("Permission denied")
+                || msg.Contains("Access denied", StringComparison.OrdinalIgnoreCase))
+                return "접근이 거부되었습니다";
+
+            // FluentFTP 연결 실패
+            if (msg.Contains("Unable to connect") || msg.Contains("disconnected")
+                || msg.Contains("Not connected", StringComparison.OrdinalIgnoreCase))
+                return "서버 연결에 실패했습니다";
+
+            // 기본
+            return $"원격 연결 오류: {msg}";
+        }
 
         public void CancelLoading()
         {
