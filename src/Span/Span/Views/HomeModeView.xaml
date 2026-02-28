@@ -5,6 +5,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:models="using:Span.Models"
+    xmlns:helpers="using:Span.Helpers"
     mc:Ignorable="d">
 
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
@@ -140,7 +141,8 @@
                                                FontSize="10"
                                                Foreground="{ThemeResource SpanTextTertiaryBrush}"
                                                TextTrimming="CharacterEllipsis"
-                                               MaxLines="1"/>
+                                               MaxLines="1"
+                                               Visibility="{x:Bind helpers:VisibilityHelper.FromNonEmpty(SizeDescription)}"/>
                                 </StackPanel>
                             </Grid>
                         </DataTemplate>
@@ -207,7 +209,8 @@
                                                FontSize="10"
                                                Foreground="{ThemeResource SpanTextTertiaryBrush}"
                                                TextTrimming="CharacterEllipsis"
-                                               MaxLines="1"/>
+                                               MaxLines="1"
+                                               Visibility="{x:Bind helpers:VisibilityHelper.FromNonEmpty(SizeDescription)}"/>
                                 </StackPanel>
                             </Grid>
                         </DataTemplate>
