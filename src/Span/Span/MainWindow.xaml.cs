@@ -1585,10 +1585,16 @@ namespace Span
                         ApplyIconFontScaleToSidebar(itemFont, iconFont);
                     });
                 }
-                // 프리뷰 패널 복원 (활성화 상태에 따라)
-                if (ViewModel.IsLeftPreviewEnabled)
+                // 프리뷰 패널 복원 (활성화 상태에 따라, Home/ActionLog에서는 숨김)
+                bool hidePreview = mode == ViewMode.Home || mode == ViewMode.ActionLog;
+                if (!hidePreview && ViewModel.IsLeftPreviewEnabled)
                 {
                     LeftPreviewSplitterCol.Width = new GridLength(2, GridUnitType.Pixel);
+                }
+                else if (hidePreview)
+                {
+                    LeftPreviewSplitterCol.Width = new GridLength(0);
+                    LeftPreviewCol.Width = new GridLength(0);
                 }
             }
 
