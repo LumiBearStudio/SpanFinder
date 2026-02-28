@@ -3166,20 +3166,24 @@ namespace Span
                 ViewModel.UpdateStatusBar();
             }
 
-            if (sender is FrameworkElement fe && fe.DataContext is FolderViewModel folderVm)
+            try
             {
-                // Detect which pane and set ActivePane + SetActiveColumn
-                if (ViewModel.IsSplitViewEnabled && IsDescendant(RightPaneContainer, fe))
+                if (sender is FrameworkElement fe && fe.DataContext is FolderViewModel folderVm)
                 {
-                    ViewModel.ActivePane = ActivePane.Right;
-                    ViewModel.RightExplorer.SetActiveColumn(folderVm);
-                }
-                else
-                {
-                    ViewModel.ActivePane = ActivePane.Left;
-                    ViewModel.LeftExplorer.SetActiveColumn(folderVm);
+                    // Detect which pane and set ActivePane + SetActiveColumn
+                    if (ViewModel.IsSplitViewEnabled && IsDescendant(RightPaneContainer, fe))
+                    {
+                        ViewModel.ActivePane = ActivePane.Right;
+                        ViewModel.RightExplorer.SetActiveColumn(folderVm);
+                    }
+                    else
+                    {
+                        ViewModel.ActivePane = ActivePane.Left;
+                        ViewModel.LeftExplorer.SetActiveColumn(folderVm);
+                    }
                 }
             }
+            catch (System.Runtime.InteropServices.COMException) { }
         }
 
         /// <summary>
@@ -3190,23 +3194,27 @@ namespace Span
         private void OnMillerColumnPointerPressed(object sender, PointerRoutedEventArgs e)
         {
             if (sender is not Grid grid) return;
-            // Walk up to find the FolderViewModel DataContext (on the ItemTemplate root Grid)
-            var parent = grid;
-            while (parent != null && parent.DataContext is not FolderViewModel)
-                parent = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(parent) as Grid;
-            if (parent?.DataContext is FolderViewModel folderVm)
+            try
             {
-                if (ViewModel.IsSplitViewEnabled && IsDescendant(RightPaneContainer, grid))
+                // Walk up to find the FolderViewModel DataContext (on the ItemTemplate root Grid)
+                var parent = grid;
+                while (parent != null && parent.DataContext is not FolderViewModel)
+                    parent = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(parent) as Grid;
+                if (parent?.DataContext is FolderViewModel folderVm)
                 {
-                    ViewModel.ActivePane = ActivePane.Right;
-                    ViewModel.RightExplorer.SetActiveColumn(folderVm);
-                }
-                else
-                {
-                    ViewModel.ActivePane = ActivePane.Left;
-                    ViewModel.LeftExplorer.SetActiveColumn(folderVm);
+                    if (ViewModel.IsSplitViewEnabled && IsDescendant(RightPaneContainer, grid))
+                    {
+                        ViewModel.ActivePane = ActivePane.Right;
+                        ViewModel.RightExplorer.SetActiveColumn(folderVm);
+                    }
+                    else
+                    {
+                        ViewModel.ActivePane = ActivePane.Left;
+                        ViewModel.LeftExplorer.SetActiveColumn(folderVm);
+                    }
                 }
             }
+            catch (System.Runtime.InteropServices.COMException) { }
         }
 
         /// <summary>
