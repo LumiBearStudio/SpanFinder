@@ -189,6 +189,9 @@ namespace Span.ViewModels
         [ObservableProperty]
         private bool _isToastVisible = false;
 
+        [ObservableProperty]
+        private bool _isToastError = false;
+
         private System.Threading.Timer? _toastTimer;
 
         [ObservableProperty]
@@ -1001,6 +1004,36 @@ namespace Span.ViewModels
             Tabs.Add(tab);
             SwitchToTab(Tabs.Count - 1);
             Helpers.DebugLogger.Log($"[MainViewModel] Settings tab opened (total: {Tabs.Count})");
+        }
+
+        /// <summary>
+        /// 작업 로그 탭을 열거나, 이미 열려있으면 해당 탭으로 전환.
+        /// ActionLog 탭은 Explorer가 null이며, 최대 1개만 허용.
+        /// </summary>
+        public void OpenOrSwitchToActionLogTab()
+        {
+            for (int i = 0; i < Tabs.Count; i++)
+            {
+                if (Tabs[i].ViewMode == ViewMode.ActionLog)
+                {
+                    if (i != ActiveTabIndex)
+                        SwitchToTab(i);
+                    return;
+                }
+            }
+
+            var tab = new TabItem
+            {
+                Header = "작업 로그",
+                Path = "",
+                ViewMode = ViewMode.ActionLog,
+                IconSize = ViewMode.IconMedium,
+                IsActive = false,
+                Explorer = null
+            };
+            Tabs.Add(tab);
+            SwitchToTab(Tabs.Count - 1);
+            Helpers.DebugLogger.Log($"[MainViewModel] ActionLog tab opened (total: {Tabs.Count})");
         }
 
     }

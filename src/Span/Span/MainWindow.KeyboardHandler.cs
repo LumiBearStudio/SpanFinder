@@ -57,12 +57,18 @@ namespace Span
                 return;
             }
 
-            // Settings/Home 모드: 파일 조작 단축키 차단, 뷰 전환/탭/Escape만 허용
-            if (ViewModel.CurrentViewMode == ViewMode.Settings || ViewModel.CurrentViewMode == ViewMode.Home)
+            // Settings/Home/ActionLog 모드: 파일 조작 단축키 차단, 뷰 전환/탭/Escape만 허용
+            if (ViewModel.CurrentViewMode == ViewMode.Settings || ViewModel.CurrentViewMode == ViewMode.Home || ViewModel.CurrentViewMode == ViewMode.ActionLog)
             {
                 if (e.Key == Windows.System.VirtualKey.Escape && ViewModel.CurrentViewMode == ViewMode.Settings)
                 {
                     CloseCurrentSettingsTab();
+                    e.Handled = true;
+                    return;
+                }
+                if (e.Key == Windows.System.VirtualKey.Escape && ViewModel.CurrentViewMode == ViewMode.ActionLog)
+                {
+                    CloseCurrentLogTab();
                     e.Handled = true;
                     return;
                 }
@@ -182,6 +188,10 @@ namespace Span
                         if (ViewModel.ActiveTab?.ViewMode == ViewMode.Settings)
                         {
                             CloseCurrentSettingsTab();
+                        }
+                        else if (ViewModel.ActiveTab?.ViewMode == ViewMode.ActionLog)
+                        {
+                            CloseCurrentLogTab();
                         }
                         else
                         {

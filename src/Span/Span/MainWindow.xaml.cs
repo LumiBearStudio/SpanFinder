@@ -255,6 +255,7 @@ namespace Span
             IconView.ViewModel = ViewModel.Explorer;
             HomeView.MainViewModel = ViewModel;
             SettingsView.BackRequested += (s, e) => CloseCurrentSettingsTab();
+            LogView.BackRequested += (s, e) => CloseCurrentLogTab();
 
             // AddressBarControl에 PathSegments/CurrentPath 바인딩
             SyncAddressBarControls(ViewModel.Explorer);
@@ -449,12 +450,10 @@ namespace Span
                                 _hwnd, Helpers.NativeMethods.DWMWA_CLOAK, ref cloakOff, sizeof(int));
                         }
 
-                        // Re-apply icon/font scale after sidebar items are materialized
-                        if (_iconFontScaleLevel > 0)
-                        {
-                            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
-                                () => ApplyIconFontScale(_settings.IconFontScale));
-                        }
+                        // Re-apply icon/font scale after visual tree is fully ready
+                        // level 0에서도 baseline 저장을 위해 반드시 실행 (idempotent)
+                        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+                            () => ApplyIconFontScale(_settings.IconFontScale));
 
                         DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
                             () => FocusActiveView());
@@ -536,12 +535,10 @@ namespace Span
                             () => ApplyMillerCheckboxMode(true));
                     }
 
-                    // Re-apply icon/font scale after sidebar items are materialized
-                    if (_iconFontScaleLevel > 0)
-                    {
-                        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
-                            () => ApplyIconFontScale(_settings.IconFontScale));
-                    }
+                    // Re-apply icon/font scale after visual tree is fully ready
+                    // level 0에서도 실행: baseline 저장을 위해 반드시 필요 (idempotent)
+                    DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+                        () => ApplyIconFontScale(_settings.IconFontScale));
 
                     // Apply MillerClickBehavior on startup
                     if (_settings.MillerClickBehavior == "double")
@@ -566,11 +563,83 @@ namespace Span
                     }
                     catch { }
 
+                    // Restore saved sidebar width
+                    RestoreSidebarWidth();
+
+                    // Tab ElementPrepared: apply scale to newly created tabs
+                    TabRepeater.ElementPrepared += OnTabElementPrepared;
+
                     // FileSystemWatcher 초기화
                     InitializeFileSystemWatcher();
                 };
             }
         }
+
+        #region Sidebar Resize
+
+        private double _sidebarSplitterStartWidth;
+
+        private void RestoreSidebarWidth()
+        {
+            try
+            {
+                var appSettings = Windows.Storage.ApplicationData.Current.LocalSettings;
+                if (appSettings.Values.TryGetValue("CustomSidebarWidth", out var saved) && saved is double w)
+                {
+                    w = Math.Clamp(w, 150, 400);
+                    SidebarCol.Width = new GridLength(w);
+                    _savedSidebarWidth = w;
+                }
+            }
+            catch { }
+        }
+
+        private void SaveSidebarWidth(double width)
+        {
+            try
+            {
+                var appSettings = Windows.Storage.ApplicationData.Current.LocalSettings;
+                appSettings.Values["CustomSidebarWidth"] = width;
+            }
+            catch { }
+        }
+
+        private void OnSidebarSplitterPointerEntered(object sender, PointerRoutedEventArgs e)
+        {
+            if (sender is UIElement el)
+                Helpers.CursorHelper.SetCursor(el, InputSystemCursorShape.SizeWestEast);
+        }
+
+        private void OnSidebarSplitterPointerExited(object sender, PointerRoutedEventArgs e)
+        {
+            if (sender is UIElement el)
+                Helpers.CursorHelper.SetCursor(el, InputSystemCursorShape.Arrow);
+        }
+
+        private void OnSidebarSplitterManipulationStarted(object sender, Microsoft.UI.Xaml.Input.ManipulationStartedRoutedEventArgs e)
+        {
+            _sidebarSplitterStartWidth = SidebarCol.Width.Value;
+        }
+
+        private void OnSidebarSplitterManipulationDelta(object sender, Microsoft.UI.Xaml.Input.ManipulationDeltaRoutedEventArgs e)
+        {
+            double newWidth = Math.Clamp(_sidebarSplitterStartWidth + e.Cumulative.Translation.X, 150, 400);
+            SidebarCol.Width = new GridLength(newWidth);
+            _savedSidebarWidth = newWidth;
+            SaveSidebarWidth(newWidth);
+        }
+
+        private void OnTabElementPrepared(ItemsRepeater sender, ItemsRepeaterElementPreparedEventArgs args)
+        {
+            // 리사이클/신규 탭 요소에 ConditionalWeakTable 기반 절대값 스케일 적용
+            // level 0에서도 실행: 리사이클된 요소의 폰트를 XAML 기본값으로 복원
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+            {
+                ApplyAbsoluteScaleToTree(args.Element, _iconFontScaleLevel, 8, 20);
+            });
+        }
+
+        #endregion Sidebar Resize
 
         #region Window Placement Persistence
 
@@ -1286,6 +1355,18 @@ namespace Span
                         ToastText.Text = ViewModel.ToastMessage;
                 });
             }
+            else if (e.PropertyName == nameof(MainViewModel.HasCloudDrives) ||
+                     e.PropertyName == nameof(MainViewModel.HasNetworkDrives))
+            {
+                // 클라우드/네트워크 드라이브가 비동기 로딩 후 나타나면 사이드바 스케일 재적용
+                if (_iconFontScaleLevel > 0)
+                {
+                    DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+                    {
+                        ApplyIconFontScaleToSidebar(13.0 + _iconFontScaleLevel, 16.0 + _iconFontScaleLevel);
+                    });
+                }
+            }
             else if (e.PropertyName == nameof(MainViewModel.IsToastError))
             {
                 DispatcherQueue.TryEnqueue(() =>
@@ -1436,7 +1517,7 @@ namespace Span
         /// <param name="mode">적용할 뷰 모드.</param>
         private void SetViewModeVisibility(ViewMode mode)
         {
-            bool isSpecialMode = mode == ViewMode.Settings;
+            bool isSpecialMode = mode == ViewMode.Settings || mode == ViewMode.ActionLog;
 
             // HOST 단위 Visibility
             MillerTabsHost.Visibility = mode == ViewMode.MillerColumns ? Visibility.Visible : Visibility.Collapsed;
@@ -1445,7 +1526,22 @@ namespace Span
             IconTabsHost.Visibility = Helpers.ViewModeExtensions.IsIconMode(mode) ? Visibility.Visible : Visibility.Collapsed;
             HomeView.Visibility = mode == ViewMode.Home ? Visibility.Visible : Visibility.Collapsed;
             SettingsView.Visibility = mode == ViewMode.Settings ? Visibility.Visible : Visibility.Collapsed;
-            if (mode == ViewMode.Settings) SettingsView.RefreshSettings();
+            LogView.Visibility = mode == ViewMode.ActionLog ? Visibility.Visible : Visibility.Collapsed;
+            if (mode == ViewMode.Settings)
+            {
+                SettingsView.RefreshSettings();
+                // Settings가 Visible이 된 직후 → 절대값 기반이므로 항상 정확
+                SettingsView.ApplyIconFontScale(_iconFontScaleLevel);
+            }
+            else if (mode == ViewMode.ActionLog)
+            {
+                LogView.Refresh();
+            }
+            else if (mode == ViewMode.Home)
+            {
+                // Home이 Visible이 된 직후 → 폰트 스케일 적용
+                HomeView.ApplyIconFontScale(_iconFontScaleLevel);
+            }
 
             // Settings 모드: 스플릿뷰 강제 해제
             if (isSpecialMode && ViewModel.IsSplitViewEnabled)
@@ -1465,6 +1561,8 @@ namespace Span
                     _sidebarHiddenForSpecialMode = true;
                 }
                 SidebarBorder.Visibility = Visibility.Collapsed;
+                SidebarSplitter.Visibility = Visibility.Collapsed;
+                SidebarCol.MinWidth = 0;
                 SidebarCol.Width = new GridLength(0);
                 LeftPreviewSplitterCol.Width = new GridLength(0);
                 LeftPreviewCol.Width = new GridLength(0);
@@ -1474,8 +1572,19 @@ namespace Span
                 if (_sidebarHiddenForSpecialMode)
                 {
                     SidebarBorder.Visibility = Visibility.Visible;
+                    SidebarSplitter.Visibility = Visibility.Visible;
                     SidebarCol.Width = new GridLength(_savedSidebarWidth);
+                    SidebarCol.MinWidth = 150;
                     _sidebarHiddenForSpecialMode = false;
+
+                    // Settings 모드에서 사이드바가 Collapsed → ItemsPanelRoot null → 스케일 누락.
+                    // Visible 복원 직후 사이드바 폰트 스케일 재적용.
+                    DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+                    {
+                        double itemFont = 13.0 + _iconFontScaleLevel;
+                        double iconFont = 16.0 + _iconFontScaleLevel;
+                        ApplyIconFontScaleToSidebar(itemFont, iconFont);
+                    });
                 }
                 // 프리뷰 패널 복원 (활성화 상태에 따라)
                 if (ViewModel.IsLeftPreviewEnabled)

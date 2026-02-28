@@ -48,6 +48,11 @@ namespace Span.Models
         /// <summary>
         /// List: 고밀도 멀티컬럼 리스트 (세로 흐름, Windows Explorer List 스타일)
         /// </summary>
-        List = 8
+        List = 8,
+
+        /// <summary>
+        /// ActionLog: 파일 작업 로그 뷰
+        /// </summary>
+        ActionLog = 9
     }
 }

@@ -114,8 +114,8 @@ namespace Span.ViewModels
         {
             try
             {
-                // Don't persist Home or Settings as startup mode
-                if (CurrentViewMode == ViewMode.Home || CurrentViewMode == ViewMode.Settings) return;
+                // Don't persist Home, Settings or ActionLog as startup mode
+                if (CurrentViewMode == ViewMode.Home || CurrentViewMode == ViewMode.Settings || CurrentViewMode == ViewMode.ActionLog) return;
 
                 var settings = Windows.Storage.ApplicationData.Current.LocalSettings;
                 settings.Values["ViewMode"] = (int)CurrentViewMode;

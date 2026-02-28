@@ -47,7 +47,7 @@
             <!-- App Icon & Title -->
             <StackPanel Orientation="Horizontal" Grid.Column="0" VerticalAlignment="Center" Margin="16,0,16,0" Spacing="8">
                 <Image Source="/Assets/Square44x44Logo.png" Height="16" Width="16"/>
-                <TextBlock Text="SPAN Finder" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
+                <TextBlock x:Name="AppTitleText" Text="SPAN Finder" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
             </StackPanel>
             
             <!-- Dynamic Tabs -->
@@ -90,6 +90,7 @@
                                                   Visibility="{x:Bind IsNotHomeModeVisible, Mode=OneWay}"/>
                                         <TextBlock Text="{x:Bind Header, Mode=OneWay}"
                                                    FontSize="12" Foreground="{ThemeResource SpanTextPrimaryBrush}"
+                                                   VerticalAlignment="Center"
                                                    TextTrimming="CharacterEllipsis" MaxLines="1"
                                                    MaxWidth="120"/>
                                     </StackPanel>
@@ -347,10 +348,11 @@
             </StackPanel>
         </Grid>
 
-        <!-- 3. Main Area (Sidebar + Content) -->
+        <!-- 3. Main Area (Sidebar + Splitter + Content) -->
         <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition x:Name="SidebarCol" Width="200"/> <!-- Sidebar -->
+                <ColumnDefinition x:Name="SidebarSplitterCol" Width="Auto"/> <!-- Splitter -->
                 <ColumnDefinition Width="*"/>   <!-- Content -->
             </Grid.ColumnDefinitions>
 
@@ -375,7 +377,8 @@
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
                             <FontIcon Grid.Column="0" Glyph="&#xE80F;" FontSize="16" Foreground="{ThemeResource SpanAccentBrush}" Margin="0,0,12,0"/>
-                            <TextBlock x:Name="SidebarHomeText" Grid.Column="1" Text="홈" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="SidebarHomeText" Grid.Column="1" Text="홈" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis"/>
                         </Grid>
 
                         <!-- Separator -->
@@ -414,6 +417,7 @@
                                 <DataTemplate x:DataType="models:FavoriteItem">
                                     <Grid Height="26" Padding="12,0,8,0"
                                           Background="Transparent"
+                                          ToolTipService.ToolTip="{x:Bind Path}"
                                           PointerEntered="OnSidebarItemPointerEntered"
                                           PointerExited="OnSidebarItemPointerExited">
                                         <Grid.ColumnDefinitions>
@@ -430,7 +434,8 @@
                                         <TextBlock Grid.Column="1"
                                                    Text="{x:Bind Name}"
                                                    FontSize="13"
-                                                   VerticalAlignment="Center"/>
+                                                   VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis"/>
                                     </Grid>
                                 </DataTemplate>
                             </ListView.ItemTemplate>
@@ -455,7 +460,8 @@
                             </TreeView.ItemContainerStyle>
                             <TreeView.ItemTemplate>
                                 <DataTemplate x:DataType="TreeViewNode">
-                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <StackPanel Orientation="Horizontal" Spacing="8"
+                                                ToolTipService.ToolTip="{Binding Content.Path}">
                                         <TextBlock Text="{Binding Content.IconGlyph}"
                                                    FontFamily="{StaticResource RemixIcons}"
                                                    FontSize="16"
@@ -463,7 +469,8 @@
                                                    VerticalAlignment="Center"/>
                                         <TextBlock Text="{Binding Content.Name}"
                                                    FontSize="13"
-                                                   VerticalAlignment="Center"/>
+                                                   VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis"/>
                                     </StackPanel>
                                 </DataTemplate>
                             </TreeView.ItemTemplate>
@@ -496,6 +503,7 @@
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="models:DriveItem">
                                     <Grid Height="26" Padding="12,0,8,0" Background="Transparent"
+                                          ToolTipService.ToolTip="{x:Bind TooltipText}"
                                           Tapped="OnDriveItemTapped" RightTapped="OnSidebarDriveRightTapped"
                                           PointerEntered="OnSidebarItemPointerEntered" PointerExited="OnSidebarItemPointerExited">
                                         <Grid.ColumnDefinitions>
@@ -507,7 +515,8 @@
                                                    Foreground="{ThemeResource SpanTextSecondaryBrush}"
                                                    VerticalAlignment="Center" Margin="0,0,12,0"/>
                                         <TextBlock Grid.Column="1" Text="{x:Bind Name}" FontSize="13"
-                                                   VerticalAlignment="Center"/>
+                                                   VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis"/>
                                     </Grid>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
@@ -540,6 +549,7 @@
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="models:DriveItem">
                                         <Grid Height="26" Padding="12,0,8,0" Background="Transparent"
+                                              ToolTipService.ToolTip="{x:Bind TooltipText}"
                                               Tapped="OnDriveItemTapped" RightTapped="OnSidebarDriveRightTapped"
                                               PointerEntered="OnSidebarItemPointerEntered" PointerExited="OnSidebarItemPointerExited">
                                             <Grid.ColumnDefinitions>
@@ -551,7 +561,8 @@
                                                        Foreground="{ThemeResource SpanTextSecondaryBrush}"
                                                        VerticalAlignment="Center" Margin="0,0,12,0"/>
                                             <TextBlock Grid.Column="1" Text="{x:Bind Name}" FontSize="13"
-                                                       VerticalAlignment="Center"/>
+                                                       VerticalAlignment="Center"
+                                                       TextTrimming="CharacterEllipsis"/>
                                         </Grid>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
@@ -585,6 +596,7 @@
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="models:DriveItem">
                                         <Grid Height="26" Padding="12,0,8,0" Background="Transparent"
+                                              ToolTipService.ToolTip="{x:Bind TooltipText}"
                                               Tapped="OnDriveItemTapped" RightTapped="OnSidebarDriveRightTapped"
                                               PointerEntered="OnSidebarItemPointerEntered" PointerExited="OnSidebarItemPointerExited">
                                             <Grid.ColumnDefinitions>
@@ -596,7 +608,8 @@
                                                        Foreground="{ThemeResource SpanTextSecondaryBrush}"
                                                        VerticalAlignment="Center" Margin="0,0,12,0"/>
                                             <TextBlock Grid.Column="1" Text="{x:Bind Name}" FontSize="13"
-                                                       VerticalAlignment="Center"/>
+                                                       VerticalAlignment="Center"
+                                                       TextTrimming="CharacterEllipsis"/>
                                         </Grid>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
@@ -632,8 +645,16 @@
                 </Grid>
             </Border>
 
+            <!-- Sidebar Resize Splitter -->
+            <Border x:Name="SidebarSplitter" Grid.Column="1" Width="6" Background="Transparent"
+                    ManipulationMode="TranslateX" ManipulationStarted="OnSidebarSplitterManipulationStarted"
+                    ManipulationDelta="OnSidebarSplitterManipulationDelta"
+                    PointerEntered="OnSidebarSplitterPointerEntered" PointerExited="OnSidebarSplitterPointerExited">
+                <Rectangle Width="2" Fill="{ThemeResource SpanBorderSubtleBrush}" HorizontalAlignment="Center"/>
+            </Border>
+
             <!-- Content (Split View Container) -->
-            <Grid Grid.Column="1" Background="Transparent">
+            <Grid Grid.Column="2" Background="Transparent">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition x:Name="SplitterCol" Width="0"/>
@@ -1080,6 +1101,10 @@
                             <!-- Settings View (Left only) -->
                             <views:SettingsModeView x:Name="SettingsView"
                                                     Visibility="Collapsed"/>
+
+                            <!-- Action Log View (Left only) -->
+                            <views:LogModeView x:Name="LogView"
+                                               Visibility="Collapsed"/>
                         </Grid>
 
                         <!-- Preview Splitter (Left) -->
@@ -1429,7 +1454,7 @@
             </Grid>
 
             <!-- Sidebar edge shadow (renders on top of content for depth) -->
-            <Rectangle Grid.Column="1" Width="8" HorizontalAlignment="Left" IsHitTestVisible="False"
+            <Rectangle Grid.Column="2" Width="8" HorizontalAlignment="Left" IsHitTestVisible="False"
                        Fill="{ThemeResource SpanSidebarShadowBrush}"/>
         </Grid>
 

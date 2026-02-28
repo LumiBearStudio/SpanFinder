@@ -73,12 +73,16 @@ namespace Span.ViewModels
                 Tabs[index].IsActive = true;
                 OnPropertyChanged(nameof(ActiveTab));
 
-                // Settings 탭은 Explorer가 null — Explorer 바인딩 스킵
+                // Settings/ActionLog 탭은 Explorer가 null — Explorer 바인딩 스킵
                 if (Tabs[index].ViewMode == ViewMode.Settings)
                 {
-                    // ★ ViewMode만 설정, LeftExplorer 교체 안 함
                     _currentViewMode = ViewMode.Settings;
                     _leftViewMode = ViewMode.Settings;
+                }
+                else if (Tabs[index].ViewMode == ViewMode.ActionLog)
+                {
+                    _currentViewMode = ViewMode.ActionLog;
+                    _leftViewMode = ViewMode.ActionLog;
                 }
                 else
                 {
@@ -251,7 +255,7 @@ namespace Span.ViewModels
         {
             var tab = ActiveTab;
             if (tab == null) return;
-            if (tab.ViewMode == ViewMode.Settings) return; // Settings 탭은 상태 저장 불필요
+            if (tab.ViewMode == ViewMode.Settings || tab.ViewMode == ViewMode.ActionLog) return; // 특수 탭은 상태 저장 불필요
 
             if (tab.ViewMode != CurrentViewMode)
                 tab.ViewMode = CurrentViewMode;
@@ -350,7 +354,7 @@ namespace Span.ViewModels
         {
             var tab = ActiveTab;
             if (tab == null) return;
-            if (tab.ViewMode == ViewMode.Settings) return; // Settings 탭 헤더 보호
+            if (tab.ViewMode == ViewMode.Settings || tab.ViewMode == ViewMode.ActionLog) return; // 특수 탭 헤더 보호
 
             if (CurrentViewMode == ViewMode.Home)
             {
@@ -373,7 +377,7 @@ namespace Span.ViewModels
             {
                 var settings = App.Current.Services.GetRequiredService<SettingsService>();
                 var dtos = Tabs
-                    .Where(t => t.ViewMode != ViewMode.Settings) // Settings 탭은 세션 저장 제외
+                    .Where(t => t.ViewMode != ViewMode.Settings && t.ViewMode != ViewMode.ActionLog) // 특수 탭은 세션 저장 제외
                     .Select(t => new TabStateDto(
                         t.Id, t.Header, t.Path, (int)t.ViewMode, (int)t.IconSize
                     )).ToList();

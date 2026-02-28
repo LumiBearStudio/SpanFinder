@@ -994,44 +994,54 @@ namespace Span
             OpenSettingsTab();
         }
 
-        private Views.LogFlyoutContent? _logFlyout;
-        private bool _isLogOpen = false;
-
         private void OnLogClick(object sender, RoutedEventArgs e)
         {
-            if (_isLogOpen)
-            {
-                LogButton.Flyout?.Hide();
-                _isLogOpen = false;
-                return;
-            }
+            OpenLogTab();
+        }
 
-            var logService = App.Current.Services.GetRequiredService<Services.ActionLogService>();
-            if (LogButton.Flyout == null)
+        /// <summary>
+        /// 작업 로그 탭을 열거나 기존 탭으로 전환 (UI 연동 포함).
+        /// </summary>
+        private void OpenLogTab()
+        {
+            ViewModel.OpenOrSwitchToActionLogTab();
+            ResubscribeLeftExplorer();
+            UpdateViewModeVisibility();
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, UpdateTitleBarRegions);
+        }
+
+        /// <summary>
+        /// 작업 로그 탭을 닫고 이전 탭으로 복귀.
+        /// 유일한 탭이면 Home 탭을 먼저 생성.
+        /// </summary>
+        private void CloseCurrentLogTab()
+        {
+            var tab = ViewModel.ActiveTab;
+            if (tab == null || tab.ViewMode != ViewMode.ActionLog) return;
+
+            int index = ViewModel.ActiveTabIndex;
+
+            if (ViewModel.Tabs.Count <= 1)
             {
-                _logFlyout = new Views.LogFlyoutContent(logService);
-                var flyout = new Flyout
+                ViewModel.AddNewTab();
+                var newTab = ViewModel.ActiveTab;
+                if (newTab != null)
                 {
-                    Content = _logFlyout,
-                    Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.BottomEdgeAlignedRight,
-                    ShouldConstrainToRootBounds = false
-                };
-                flyout.Closed += (s, args) => _isLogOpen = false;
-                flyout.Opening += (s, args) =>
-                {
-                    _logFlyout.UpdateWidth(this.AppWindow.Size.Width / (this.Content.XamlRoot?.RasterizationScale ?? 1.0));
-                    _logFlyout.Refresh();
-                };
-                LogButton.Flyout = flyout;
+                    CreateMillerPanelForTab(newTab);
+                    SwitchMillerPanel(newTab.Id);
+                }
+                ViewModel.CloseTab(0);
             }
             else
             {
-                _logFlyout?.UpdateWidth(this.AppWindow.Size.Width / (this.Content.XamlRoot?.RasterizationScale ?? 1.0));
-                _logFlyout?.Refresh();
+                ViewModel.CloseTab(index);
+                if (ViewModel.ActiveTab != null)
+                    SwitchMillerPanel(ViewModel.ActiveTab.Id);
             }
 
-            LogButton.Flyout.ShowAt(LogButton);
-            _isLogOpen = true;
+            ResubscribeLeftExplorer();
+            UpdateViewModeVisibility();
+            FocusActiveView();
         }
 
         // #endregion Help Overlay, Settings/Log Button Handlers
