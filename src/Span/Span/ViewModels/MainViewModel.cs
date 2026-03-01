@@ -270,6 +270,13 @@ namespace Span.ViewModels
                 UpdateStatusBar();
             }
 
+            // 재귀 검색 상태 변경 → 상태바 업데이트
+            if (e.PropertyName == nameof(ExplorerViewModel.SearchStatusText) ||
+                e.PropertyName == nameof(ExplorerViewModel.IsRecursiveSearching))
+            {
+                UpdateStatusBar();
+            }
+
             // Forward navigation history state from ActiveExplorer
             if (e.PropertyName == nameof(ExplorerViewModel.CanGoBack) ||
                 e.PropertyName == nameof(ExplorerViewModel.CanGoForward))
@@ -311,7 +318,15 @@ namespace Span.ViewModels
                     selCount = 1;
             }
 
-            StatusItemCountText = $"{itemCount}개 항목";
+            // 재귀 검색 중이면 검색 상태 표시
+            if (!string.IsNullOrEmpty(explorer?.SearchStatusText))
+            {
+                StatusItemCountText = explorer.SearchStatusText;
+            }
+            else
+            {
+                StatusItemCountText = $"{itemCount}개 항목";
+            }
             StatusSelectionText = selCount > 0 ? $"{selCount}개 선택됨" : "";
 
             var mode = (IsSplitViewEnabled && ActivePane == ActivePane.Right)

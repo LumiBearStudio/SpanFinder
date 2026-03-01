@@ -30,6 +30,13 @@ namespace Span.ViewModels
         [ObservableProperty]
         private string _editableName = string.Empty;
 
+        /// <summary>
+        /// 재귀 검색 결과에서 검색 루트 기준 상대 부모 경로.
+        /// 일반 탐색에서는 빈 문자열 → UI 영향 없음.
+        /// </summary>
+        [ObservableProperty]
+        private string _locationPath = string.Empty;
+
         [ObservableProperty]
         private BitmapImage? _thumbnailSource;
 

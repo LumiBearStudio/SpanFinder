@@ -63,12 +63,14 @@ namespace Span.Views
         private SettingsService? _settings;
 
         // Current column widths (read from header ColumnDefinitions)
+        private double _locationColumnWidth = 0;
         private double _dateColumnWidth = 200;
         private double _typeColumnWidth = 150;
         private double _sizeColumnWidth = 100;
         private double _gitColumnWidth = 50;
 
         // Callback tokens for ColumnDefinition.WidthProperty change tracking
+        private long _locationCallbackToken;
         private long _dateCallbackToken;
         private long _typeCallbackToken;
         private long _sizeCallbackToken;
@@ -159,6 +161,8 @@ namespace Span.Views
                 // CRITICAL: HeaderGrid.SizeChanged does NOT fire when GridSplitter rearranges
                 // internal columns — the Grid's total size stays the same. We must watch
                 // each ColumnDefinition individually.
+                _locationCallbackToken = LocationColumnDef.RegisterPropertyChangedCallback(
+                    ColumnDefinition.WidthProperty, OnColumnWidthChanged);
                 _dateCallbackToken = DateColumnDef.RegisterPropertyChangedCallback(
                     ColumnDefinition.WidthProperty, OnColumnWidthChanged);
                 _typeCallbackToken = TypeColumnDef.RegisterPropertyChangedCallback(
@@ -227,6 +231,7 @@ namespace Span.Views
         /// </summary>
         private void OnColumnWidthChanged(DependencyObject sender, DependencyProperty dp)
         {
+            _locationColumnWidth = LocationColumnDef.ActualWidth;
             _dateColumnWidth = DateColumnDef.ActualWidth;
             _typeColumnWidth = TypeColumnDef.ActualWidth;
             _sizeColumnWidth = SizeColumnDef.ActualWidth;
@@ -312,19 +317,24 @@ namespace Span.Views
                     int col = Grid.GetColumn(border);
                     switch (col)
                     {
-                        case 3: // Date
+                        case 3: // Location (검색 결과에서만 표시)
+                            bool locVisible = _locationColumnWidth > 0;
+                            border.Width = locVisible ? _locationColumnWidth : 0;
+                            border.Visibility = locVisible ? Visibility.Visible : Visibility.Collapsed;
+                            break;
+                        case 5: // Date
                             border.Width = _dateColumnVisible ? _dateColumnWidth : 0;
                             border.Visibility = _dateColumnVisible ? Visibility.Visible : Visibility.Collapsed;
                             break;
-                        case 5: // Type
+                        case 7: // Type
                             border.Width = _typeColumnVisible ? _typeColumnWidth : 0;
                             border.Visibility = _typeColumnVisible ? Visibility.Visible : Visibility.Collapsed;
                             break;
-                        case 7: // Size
+                        case 9: // Size
                             border.Width = _sizeColumnVisible ? _sizeColumnWidth : 0;
                             border.Visibility = _sizeColumnVisible ? Visibility.Visible : Visibility.Collapsed;
                             break;
-                        case 9: // Git Status
+                        case 11: // Git Status
                             border.Width = _gitColumnVisible ? _gitColumnWidth : 0;
                             border.Visibility = _gitColumnVisible ? Visibility.Visible : Visibility.Collapsed;
                             break;
@@ -896,6 +906,21 @@ namespace Span.Views
 
         #region Feature #30: Column Visibility
 
+        /// <summary>
+        /// 검색 결과 모드에서 Location 컬럼을 표시/숨김.
+        /// MainWindow에서 재귀 검색 시작/취소 시 호출.
+        /// </summary>
+        public void ShowLocationColumn(bool show)
+        {
+            LocationColumnDef.Width = show ? new GridLength(180) : new GridLength(0);
+            LocationColumnDef.MinWidth = show ? 100 : 0;
+            LocationHeaderContainer.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+            Splitter1a.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+            Splitter1b.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+            _locationColumnWidth = show ? 180 : 0;
+            UpdateAllVisibleContainerWidths();
+        }
+
         private void ToggleColumnVisibility(string column, bool visible)
         {
             switch (column)
@@ -906,7 +931,7 @@ namespace Span.Views
                     DateColumnDef.Width = visible ? _savedDateWidth : new GridLength(0);
                     DateColumnDef.MinWidth = visible ? 140 : 0;
                     DateHeaderContainer.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
-                    Splitter1.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+                    Splitter1b.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
                     DateFilterButton.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
                     break;
 
@@ -1457,6 +1482,7 @@ namespace Span.Views
                 // Unregister column width callbacks (only if Loaded fired and registered them)
                 if (_isLoaded)
                 {
+                    LocationColumnDef.UnregisterPropertyChangedCallback(ColumnDefinition.WidthProperty, _locationCallbackToken);
                     DateColumnDef.UnregisterPropertyChangedCallback(ColumnDefinition.WidthProperty, _dateCallbackToken);
                     TypeColumnDef.UnregisterPropertyChangedCallback(ColumnDefinition.WidthProperty, _typeCallbackToken);
                     SizeColumnDef.UnregisterPropertyChangedCallback(ColumnDefinition.WidthProperty, _sizeCallbackToken);

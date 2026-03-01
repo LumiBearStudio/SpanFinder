@@ -103,6 +103,16 @@ namespace Span.ViewModels
         /// </summary>
         public bool IsAlreadyLoaded => _isLoaded;
 
+        /// <summary>
+        /// 검색 결과용 가상 폴더로 표시하여 EnsureChildrenLoadedAsync()에서
+        /// 디스크 I/O를 시도하지 않도록 함.
+        /// </summary>
+        internal void MarkAsManuallyPopulated()
+        {
+            _isLoaded = true;
+            IsLoading = false;
+        }
+
         public override string IconGlyph => Services.IconService.Current.FolderIcon;
         public override Microsoft.UI.Xaml.Media.Brush IconBrush => Services.IconService.Current.FolderBrush;
 

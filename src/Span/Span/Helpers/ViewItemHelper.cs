@@ -20,8 +20,18 @@ namespace Span.Helpers
 
             if (selected is FolderViewModel folder)
             {
-                explorer!.NavigateIntoFolder(folder);
-                DebugLogger.Log($"[{viewName}] Opening folder {folder.Name}");
+                // 검색 결과에서 폴더 더블클릭 → 검색 취소 + 해당 경로로 이동
+                if (explorer!.HasActiveSearchResults)
+                {
+                    explorer.CancelRecursiveSearch();
+                    _ = explorer.NavigateToPath(folder.Path);
+                    DebugLogger.Log($"[{viewName}] Search → navigate to folder {folder.Name}");
+                }
+                else
+                {
+                    explorer.NavigateIntoFolder(folder);
+                    DebugLogger.Log($"[{viewName}] Opening folder {folder.Name}");
+                }
             }
             else if (selected is FileViewModel file)
             {

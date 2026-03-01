@@ -45,11 +45,21 @@ namespace Span.Helpers
         /// </summary>
         public static bool Matches(SearchQuery query, FileSystemViewModel item)
         {
-            // Name filter: case-insensitive contains match
+            // Name filter: wildcard → Regex full match, plain text → contains
             if (!string.IsNullOrEmpty(query.NameFilter))
             {
-                if (!item.Name.Contains(query.NameFilter, StringComparison.OrdinalIgnoreCase))
-                    return false;
+                if (query.NameRegex != null)
+                {
+                    // 와일드카드 패턴: 전체 이름 매칭 (*.exe, report*, test?.doc)
+                    if (!query.NameRegex.IsMatch(item.Name))
+                        return false;
+                }
+                else
+                {
+                    // 일반 텍스트: 부분 일치 (대소문자 무시)
+                    if (!item.Name.Contains(query.NameFilter, StringComparison.OrdinalIgnoreCase))
+                        return false;
+                }
             }
 
             // Kind filter: match by file extension category
@@ -124,6 +134,19 @@ namespace Span.Helpers
                 return false;
 
             var itemExt = Path.GetExtension(item.Name);
+
+            // 다중 확장자: ext:jpg;png;gif → ".jpg;.png;.gif"
+            if (extension.Contains(';'))
+            {
+                var exts = extension.Split(';');
+                foreach (var ext in exts)
+                {
+                    if (string.Equals(itemExt, ext, StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+                return false;
+            }
+
             return string.Equals(itemExt, extension, StringComparison.OrdinalIgnoreCase);
         }
 

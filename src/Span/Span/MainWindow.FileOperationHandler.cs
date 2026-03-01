@@ -1060,8 +1060,15 @@ namespace Span
         {
             if (e.Key == Windows.System.VirtualKey.Escape)
             {
-                // Clear search and restore original column contents if filtered
-                if (_isSearchFiltered)
+                // 재귀 검색 중이면 취소+복원
+                var explorer = ViewModel.ActiveExplorer;
+                if (explorer?.HasActiveSearchResults == true)
+                {
+                    explorer.CancelRecursiveSearch();
+                    ViewModel.UpdateStatusBar();
+                }
+                // 기존 인라인 필터 복원
+                else if (_isSearchFiltered)
                 {
                     RestoreSearchFilter();
                 }
@@ -1074,49 +1081,37 @@ namespace Span
                 string queryText = SearchBox.Text.Trim();
                 if (string.IsNullOrEmpty(queryText)) return;
 
-                var columns = ViewModel.ActiveExplorer.Columns;
-                int activeIndex = GetActiveColumnIndex();
-                if (activeIndex < 0) activeIndex = columns.Count - 1;
-                if (activeIndex < 0 || activeIndex >= columns.Count) return;
-
-                var column = columns[activeIndex];
-
                 // Parse the query using Advanced Query Syntax
                 var query = Helpers.SearchQueryParser.Parse(queryText);
-
                 if (query.IsEmpty) return;
 
-                // Check if query has advanced filters (kind:, size:, date:, ext:)
-                bool hasAdvancedFilters = query.KindFilter.HasValue ||
-                                          query.SizeFilter.HasValue ||
-                                          query.DateFilter.HasValue ||
-                                          !string.IsNullOrEmpty(query.ExtensionFilter);
+                var explorer = ViewModel.ActiveExplorer;
+                if (explorer == null) return;
 
-                if (hasAdvancedFilters)
+                // 기존 인라인 필터 복원 (재귀 검색 전)
+                if (_isSearchFiltered)
                 {
-                    // Advanced search: filter the column's children in-place
-                    ApplySearchFilter(column, query, activeIndex);
+                    RestoreSearchFilter();
                 }
-                else
-                {
-                    // Simple name search: find first match and select it (existing behavior)
-                    var source = _isSearchFiltered && _searchOriginalChildren != null
-                        ? _searchOriginalChildren
-                        : column.Children.ToList();
 
-                    var match = Helpers.SearchFilter.FindFirst(query, source);
-                    if (match != null)
-                    {
-                        // If filtered, restore first so we can select the match
-                        if (_isSearchFiltered)
-                        {
-                            RestoreSearchFilter();
-                        }
-                        column.SelectedChild = match;
-                        var listView = GetListViewForColumn(activeIndex);
-                        listView?.ScrollIntoView(match);
-                    }
+                // 검색 루트 결정: 첫 번째 컬럼 = 네비게이션 루트 (macOS Finder 방식)
+                // Miller Columns에서 D:\ → Projects → src 로 진입해도
+                // Columns[0].Path = "D:\" 이므로 드라이브 전체 검색 가능.
+                var rootFolder = explorer.Columns.FirstOrDefault();
+                string rootPath = rootFolder?.Path ?? explorer.CurrentPath;
+                if (string.IsNullOrEmpty(rootPath) || rootPath == "PC") return;
+
+                // 숨김 파일 설정 확인
+                bool showHidden = false;
+                try
+                {
+                    var settings = App.Current.Services.GetService(typeof(Services.SettingsService)) as Services.SettingsService;
+                    if (settings != null) showHidden = settings.ShowHiddenFiles;
                 }
+                catch { }
+
+                // 재귀 검색 시작
+                _ = explorer.StartRecursiveSearchAsync(query, rootPath, showHidden);
 
                 e.Handled = true;
             }

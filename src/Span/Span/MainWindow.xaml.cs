@@ -1464,14 +1464,25 @@ namespace Span
         /// </summary>
         private void OnLeftExplorerCurrentPathChanged(object? sender, PropertyChangedEventArgs e)
         {
-            if (e.PropertyName != nameof(ExplorerViewModel.CurrentPath)) return;
             if (sender is not ExplorerViewModel explorer) return;
 
-            DispatcherQueue.TryEnqueue(() =>
+            if (e.PropertyName == nameof(ExplorerViewModel.CurrentPath))
             {
-                MainAddressBar.CurrentPath = explorer.CurrentPath ?? string.Empty;
-                LeftAddressBar.CurrentPath = explorer.CurrentPath ?? string.Empty;
-            });
+                DispatcherQueue.TryEnqueue(() =>
+                {
+                    MainAddressBar.CurrentPath = explorer.CurrentPath ?? string.Empty;
+                    LeftAddressBar.CurrentPath = explorer.CurrentPath ?? string.Empty;
+                });
+            }
+            else if (e.PropertyName == nameof(ExplorerViewModel.HasActiveSearchResults) ||
+                     e.PropertyName == nameof(ExplorerViewModel.IsRecursiveSearching))
+            {
+                DispatcherQueue.TryEnqueue(() =>
+                {
+                    bool showLoc = explorer.HasActiveSearchResults;
+                    GetActiveDetailsView()?.ShowLocationColumn(showLoc);
+                });
+            }
         }
 
         /// <summary>

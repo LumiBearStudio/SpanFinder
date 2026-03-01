@@ -1,9 +1,12 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
+using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using Span.Models;
 using Span.Services;
@@ -1002,6 +1005,182 @@ namespace Span.ViewModels
             return folder.GetSelectedItemsList();
         }
 
+        // ── Recursive Search ──
+
+        [ObservableProperty]
+        private bool _isRecursiveSearching;
+
+        [ObservableProperty]
+        private string _searchStatusText = "";
+
+        private FolderViewModel? _searchResultFolder;
+        private List<FolderViewModel>? _preSearchColumns;
+        private string _preSearchPath = "";
+        private CancellationTokenSource? _searchCts;
+
+        /// <summary>
+        /// 재귀 검색 시작: 현재 Columns/Path를 저장하고 가상 폴더에 결과를 스트리밍.
+        /// </summary>
+        public async Task StartRecursiveSearchAsync(SearchQuery query, string rootPath, bool showHidden)
+        {
+            // 1. 기존 검색 취소
+            CancelRecursiveSearchInternal(restoreColumns: false);
+
+            // 2. 현재 Columns/Path 저장 (Escape 복원용)
+            _preSearchColumns = Columns.ToList();
+            _preSearchPath = CurrentPath;
+
+            // 3. 가상 FolderViewModel 생성
+            var searchRootName = System.IO.Path.GetFileName(rootPath);
+            if (string.IsNullOrEmpty(searchRootName))
+                searchRootName = rootPath;
+
+            var virtualFolder = new FolderItem
+            {
+                Name = $"검색 결과: {searchRootName}",
+                Path = rootPath
+            };
+            _searchResultFolder = new FolderViewModel(virtualFolder, _fileService);
+            _searchResultFolder.MarkAsManuallyPopulated();
+
+            // 4. Columns 교체 → 가상 폴더 하나만
+            foreach (var col in Columns)
+            {
+                col.PropertyChanged -= FolderVm_PropertyChanged;
+                col.LoadError -= OnColumnLoadError;
+                col.CancelLoading();
+                col.SelectedChild = null;
+            }
+            Columns.Clear();
+
+            AddColumn(_searchResultFolder);
+            CurrentPath = rootPath;
+            SelectedFile = null;
+            OnPropertyChanged(nameof(HasActiveSearchResults));
+
+            // 5. 검색 시작 (백그라운드 스레드에서 실행)
+            IsRecursiveSearching = true;
+            SearchStatusText = "검색 중...";
+
+            _searchCts = new CancellationTokenSource();
+            var ct = _searchCts.Token;
+
+            var searchService = new RecursiveSearchService(_fileService);
+            var progress = new Progress<RecursiveSearchService.SearchProgress>(p =>
+            {
+                SearchStatusText = $"검색 중... {p.FilesFound}개 발견 ({p.FoldersScanned}개 폴더)";
+            });
+
+            // Channel 기반: 백그라운드에서 검색, UI 스레드에서 배치 수신
+            var reader = searchService.SearchInBackground(rootPath, query, showHidden, progress, ct);
+
+            int count = 0;
+            bool limitReached = false;
+
+            try
+            {
+                await foreach (var batch in reader.ReadAllAsync(ct))
+                {
+                    if (ct.IsCancellationRequested) break;
+                    if (_searchResultFolder == null) break;
+
+                    foreach (var item in batch)
+                    {
+                        _searchResultFolder.Children.Add(item);
+                        count++;
+
+                        if (count >= RecursiveSearchService.MaxResults)
+                        {
+                            limitReached = true;
+                            break;
+                        }
+                    }
+
+                    if (limitReached) break;
+
+                    // 배치 처리 후 UI 양보
+                    await Task.Yield();
+                }
+            }
+            catch (OperationCanceledException) { }
+            catch (System.Threading.Channels.ChannelClosedException) { }
+
+            if (!ct.IsCancellationRequested)
+            {
+                if (limitReached)
+                    SearchStatusText = $"검색 완료: {count}개 발견 (결과 제한: 최대 {RecursiveSearchService.MaxResults}개)";
+                else
+                    SearchStatusText = count > 0
+                        ? $"검색 완료: {count}개 발견"
+                        : "검색 결과 없음";
+
+                IsRecursiveSearching = false;
+            }
+        }
+
+        /// <summary>
+        /// 재귀 검색 취소 + 원래 Columns/Path 복원.
+        /// </summary>
+        public void CancelRecursiveSearch()
+        {
+            CancelRecursiveSearchInternal(restoreColumns: true);
+        }
+
+        private void CancelRecursiveSearchInternal(bool restoreColumns)
+        {
+            // CTS 취소
+            if (_searchCts != null)
+            {
+                _searchCts.Cancel();
+                _searchCts.Dispose();
+                _searchCts = null;
+            }
+
+            IsRecursiveSearching = false;
+            SearchStatusText = "";
+
+            // 가상 폴더 정리
+            bool hadSearchResults = _searchResultFolder != null;
+            if (_searchResultFolder != null)
+            {
+                _searchResultFolder.PropertyChanged -= FolderVm_PropertyChanged;
+                _searchResultFolder.LoadError -= OnColumnLoadError;
+                _searchResultFolder.CancelLoading();
+                _searchResultFolder = null;
+            }
+            if (hadSearchResults)
+                OnPropertyChanged(nameof(HasActiveSearchResults));
+
+            // 원래 Columns/Path 복원
+            if (restoreColumns && _preSearchColumns != null)
+            {
+                foreach (var col in Columns)
+                {
+                    col.PropertyChanged -= FolderVm_PropertyChanged;
+                    col.LoadError -= OnColumnLoadError;
+                    col.CancelLoading();
+                    col.SelectedChild = null;
+                }
+                Columns.Clear();
+
+                foreach (var col in _preSearchColumns)
+                {
+                    AddColumn(col);
+                }
+
+                CurrentPath = _preSearchPath;
+                SelectedFile = null;
+
+                _preSearchColumns = null;
+                _preSearchPath = "";
+            }
+        }
+
+        /// <summary>
+        /// 현재 재귀 검색 결과 폴더인지 확인.
+        /// </summary>
+        public bool HasActiveSearchResults => _searchResultFolder != null;
+
         /// <summary>
         /// Clean up all resources when closing the application.
         /// </summary>
@@ -1018,6 +1197,10 @@ namespace Span.ViewModels
             _selectionDebounce?.Cancel();
             _selectionDebounce?.Dispose();
             _selectionDebounce = null;
+
+            // Cancel any active recursive search
+            CancelRecursiveSearchInternal(restoreColumns: false);
+            _preSearchColumns = null;
 
             // Clean up all columns — release thumbnails and child references
             if (Columns != null)

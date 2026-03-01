@@ -169,7 +169,14 @@ namespace Span.Helpers
 
             if (nameTokens.Count > 0)
             {
-                query.NameFilter = string.Join(" ", nameTokens);
+                var nameFilter = string.Join(" ", nameTokens);
+                query.NameFilter = nameFilter;
+
+                // 와일드카드 감지: * 또는 ? 포함 시 Regex로 변환 (전체 이름 매칭)
+                if (nameFilter.Contains('*') || nameFilter.Contains('?'))
+                {
+                    query.NameRegex = WildcardToRegex(nameFilter);
+                }
             }
 
             return query;
@@ -384,7 +391,23 @@ namespace Span.Helpers
             if (string.IsNullOrEmpty(value))
                 return false;
 
-            // Normalize: ensure leading dot
+            // 다중 확장자 지원: ext:jpg;png;gif → ".jpg;.png;.gif"
+            if (value.Contains(';'))
+            {
+                var parts = value.Split(';', StringSplitOptions.RemoveEmptyEntries);
+                var normalized = new List<string>();
+                foreach (var p in parts)
+                {
+                    var trimmed = p.Trim();
+                    if (!string.IsNullOrEmpty(trimmed))
+                        normalized.Add(trimmed.StartsWith(".") ? trimmed : "." + trimmed);
+                }
+                if (normalized.Count == 0) return false;
+                ext = string.Join(";", normalized);
+                return true;
+            }
+
+            // 단일 확장자: ensure leading dot
             ext = value.StartsWith(".") ? value : "." + value;
             return true;
         }
@@ -400,6 +423,19 @@ namespace Span.Helpers
                 "=" => CompareOp.Equals,
                 _ => CompareOp.GreaterOrEqual // default for no operator (e.g., size:1MB means >= 1MB)
             };
+        }
+
+        /// <summary>
+        /// 와일드카드 패턴을 정규식으로 변환.
+        /// * → .* (0개 이상 문자), ? → . (정확히 1개 문자)
+        /// 전체 이름 매칭을 위해 ^...$ 앵커 적용.
+        /// </summary>
+        private static Regex WildcardToRegex(string pattern)
+        {
+            // Regex 특수문자 이스케이프 후 와일드카드만 복원
+            var escaped = Regex.Escape(pattern);
+            escaped = escaped.Replace("\\*", ".*").Replace("\\?", ".");
+            return new Regex("^" + escaped + "$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         }
     }
 }

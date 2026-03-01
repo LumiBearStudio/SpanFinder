@@ -1,4 +1,5 @@
 using System;
+using System.Text.RegularExpressions;
 
 namespace Span.Models
 {
@@ -31,15 +32,23 @@ namespace Span.Models
 
     /// <summary>
     /// Parsed search query representing the user's search intent.
-    /// Supports advanced query syntax: kind:, size:, date:, ext:, and plain text name filtering.
+    /// Supports advanced query syntax: kind:, size:, date:, ext:, wildcards (*, ?), and plain text name filtering.
     /// Multiple filters are combined with AND logic.
     /// </summary>
     public class SearchQuery
     {
         /// <summary>
         /// Plain text name filter (case-insensitive contains match).
+        /// When wildcards (* or ?) are present, NameRegex is also set for full-name matching.
         /// </summary>
         public string? NameFilter { get; set; }
+
+        /// <summary>
+        /// Compiled regex for wildcard name matching (* → .*, ? → .).
+        /// Anchored (^...$) so wildcards match the full filename.
+        /// null when NameFilter has no wildcards (use Contains instead).
+        /// </summary>
+        public Regex? NameRegex { get; set; }
 
         /// <summary>
         /// File type category filter (e.g., kind:image, kind:document).

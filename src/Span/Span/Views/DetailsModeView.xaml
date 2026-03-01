@@ -29,6 +29,8 @@
                 <ColumnDefinition Width="40"/>
                 <ColumnDefinition Width="*" MinWidth="180"/>
                 <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition x:Name="LocationColumnDef" Width="0" MinWidth="0"/>
+                <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition x:Name="DateColumnDef" Width="200" MinWidth="140"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition x:Name="TypeColumnDef" Width="150" MinWidth="90"/>
@@ -76,8 +78,39 @@
                 </Button>
             </Grid>
 
-            <!-- Splitter 1: between Name and Date -->
-            <controls:GridSplitter x:Name="Splitter1" Grid.Column="2"
+            <!-- Splitter 1a: between Name and Location -->
+            <controls:GridSplitter x:Name="Splitter1a" Grid.Column="2"
+                                   Width="1"
+                                   Padding="0"
+                                   Margin="0"
+                                   ResizeDirection="Columns"
+                                   HorizontalAlignment="Center"
+                                   Background="Transparent"/>
+
+            <!-- Location Header (검색 결과에서만 표시) -->
+            <Grid Grid.Column="3" x:Name="LocationHeaderContainer">
+                <Button x:Name="LocationHeaderButton"
+                        Content="Location"
+                        Click="OnHeaderClick"
+                        Tag="Location"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Left"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Padding="6,0"
+                        Height="20"
+                        FontSize="11"
+                        FontWeight="SemiBold"
+                        Foreground="{ThemeResource SpanTextSecondaryBrush}">
+                    <Button.Resources>
+                        <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Transparent"/>
+                        <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent"/>
+                    </Button.Resources>
+                </Button>
+            </Grid>
+
+            <!-- Splitter 1b: between Location and Date -->
+            <controls:GridSplitter x:Name="Splitter1b" Grid.Column="4"
                                    Width="1"
                                    Padding="0"
                                    Margin="0"
@@ -86,7 +119,7 @@
                                    Background="Transparent"/>
 
             <!-- Date Modified Header -->
-            <Grid Grid.Column="3" x:Name="DateHeaderContainer">
+            <Grid Grid.Column="5" x:Name="DateHeaderContainer">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
@@ -124,7 +157,7 @@
             </Grid>
 
             <!-- Splitter 2: between Date and Type -->
-            <controls:GridSplitter x:Name="Splitter2" Grid.Column="4"
+            <controls:GridSplitter x:Name="Splitter2" Grid.Column="6"
                                    Width="1"
                                    Padding="0"
                                    Margin="0"
@@ -133,7 +166,7 @@
                                    Background="Transparent"/>
 
             <!-- Type Header -->
-            <Grid Grid.Column="5" x:Name="TypeHeaderContainer">
+            <Grid Grid.Column="7" x:Name="TypeHeaderContainer">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
@@ -171,7 +204,7 @@
             </Grid>
 
             <!-- Splitter 3: between Type and Size -->
-            <controls:GridSplitter x:Name="Splitter3" Grid.Column="6"
+            <controls:GridSplitter x:Name="Splitter3" Grid.Column="8"
                                    Width="1"
                                    Padding="0"
                                    Margin="0"
@@ -180,7 +213,7 @@
                                    Background="Transparent"/>
 
             <!-- Size Header -->
-            <Grid Grid.Column="7" x:Name="SizeHeaderContainer">
+            <Grid Grid.Column="9" x:Name="SizeHeaderContainer">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
@@ -218,7 +251,7 @@
             </Grid>
 
             <!-- Splitter 4: between Size and Git -->
-            <controls:GridSplitter x:Name="Splitter4" Grid.Column="8"
+            <controls:GridSplitter x:Name="Splitter4" Grid.Column="10"
                                    Width="1"
                                    Padding="0"
                                    Margin="0"
@@ -227,7 +260,7 @@
                                    Background="Transparent"/>
 
             <!-- Git Status Header -->
-            <Grid Grid.Column="9" x:Name="GitHeaderContainer">
+            <Grid Grid.Column="11" x:Name="GitHeaderContainer">
                 <Button x:Name="GitHeaderButton" Content="Git"
                         Click="OnHeaderClick"
                         Tag="Git"
@@ -306,6 +339,8 @@
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="1"/>
                             <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="1"/>
+                            <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
                         <!-- Icon / Thumbnail -->
@@ -328,8 +363,18 @@
                                    FontSize="13"
                                    Padding="6,0"/>
 
+                        <!-- Location (검색 결과에서만 표시) - Width set by ContainerContentChanging -->
+                        <Border Grid.Column="3" x:Name="LocationCell" Width="0">
+                            <TextBlock Text="{x:Bind LocationPath, Mode=OneWay}"
+                                       VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis"
+                                       FontSize="12"
+                                       Foreground="{ThemeResource SpanTextSecondaryBrush}"
+                                       Padding="6,0"/>
+                        </Border>
+
                         <!-- Date Modified - Width set by ContainerContentChanging -->
-                        <Border Grid.Column="3" x:Name="DateCell" Width="200">
+                        <Border Grid.Column="5" x:Name="DateCell" Width="200">
                             <TextBlock Text="{x:Bind DateModified, Mode=OneWay}"
                                        VerticalAlignment="Center"
                                        FontSize="12"
@@ -337,7 +382,7 @@
                         </Border>
 
                         <!-- Type - Width set by ContainerContentChanging -->
-                        <Border Grid.Column="5" x:Name="TypeCell" Width="150">
+                        <Border Grid.Column="7" x:Name="TypeCell" Width="150">
                             <TextBlock Text="{x:Bind FileType, Mode=OneWay}"
                                        VerticalAlignment="Center"
                                        FontSize="12"
@@ -345,7 +390,7 @@
                         </Border>
 
                         <!-- Size - Width set by ContainerContentChanging -->
-                        <Border Grid.Column="7" x:Name="SizeCell" Width="100">
+                        <Border Grid.Column="9" x:Name="SizeCell" Width="100">
                             <TextBlock Text="{x:Bind Size, Mode=OneWay}"
                                        VerticalAlignment="Center"
                                        FontSize="12"
@@ -353,7 +398,7 @@
                         </Border>
 
                         <!-- Git Status - Width set by ContainerContentChanging -->
-                        <Border Grid.Column="9" x:Name="GitCell" Width="50">
+                        <Border Grid.Column="11" x:Name="GitCell" Width="50">
                             <TextBlock Text="{x:Bind GitStatusText, Mode=OneWay}"
                                        Foreground="{x:Bind GitStatusBrush, Mode=OneWay}"
                                        VerticalAlignment="Center"
