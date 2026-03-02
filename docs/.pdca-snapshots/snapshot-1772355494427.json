@@ -1,9 +1,9 @@
 {
-  "timestamp": "2026-02-27T14:33:33.978Z",
+  "timestamp": "2026-03-01T08:58:14.392Z",
   "reason": "compaction",
   "status": {
     "version": "2.0",
-    "lastUpdated": "2026-02-27T14:31:18.717Z",
+    "lastUpdated": "2026-03-01T08:58:06.797Z",
     "activeFeatures": [
       "Span",
       "Services",
@@ -22,7 +22,8 @@
       "Desktop",
       "Span.Tests",
       "Integration",
-      "Stress"
+      "Stress",
+      "claude"
     ],
     "primaryFeature": "Span",
     "features": {
@@ -37,9 +38,9 @@
         },
         "timestamps": {
           "started": "2026-02-24T03:03:36.447Z",
-          "lastUpdated": "2026-02-27T14:30:59.689Z"
+          "lastUpdated": "2026-03-01T01:12:48.948Z"
         },
-        "lastFile": "D:\\11.AI\\Span\\src\\Span\\Span\\MainWindow.SettingsHandler.cs"
+        "lastFile": "D:\\11.AI\\Span\\src\\Span\\Span\\MainWindow.KeyboardHandler.cs"
       },
       "Services": {
         "phase": "do",
@@ -50,9 +51,9 @@
         "documents": {},
         "timestamps": {
           "started": "2026-02-24T04:14:00.889Z",
-          "lastUpdated": "2026-02-27T13:11:59.744Z"
+          "lastUpdated": "2026-02-28T13:25:25.130Z"
         },
-        "lastFile": "D:\\11.AI\\Span\\src\\Span\\Span\\Services\\SftpProvider.cs"
+        "lastFile": "D:\\11.AI\\Span\\src\\Span\\Span\\Services\\RecursiveSearchService.cs"
       },
       "ViewModels": {
         "phase": "do",
@@ -63,9 +64,9 @@
         "documents": {},
         "timestamps": {
           "started": "2026-02-24T04:14:10.006Z",
-          "lastUpdated": "2026-02-27T13:11:31.483Z"
+          "lastUpdated": "2026-02-28T07:55:31.645Z"
         },
-        "lastFile": "D:\\11.AI\\Span\\src\\Span\\Span\\ViewModels\\FolderViewModel.cs"
+        "lastFile": "D:\\11.AI\\Span\\src\\Span\\Span\\ViewModels\\ExplorerViewModel.cs"
       },
       "Models": {
         "phase": "do",
@@ -76,9 +77,9 @@
         "documents": {},
         "timestamps": {
           "started": "2026-02-24T06:19:27.501Z",
-          "lastUpdated": "2026-02-26T06:39:50.526Z"
+          "lastUpdated": "2026-02-28T11:19:21.847Z"
         },
-        "lastFile": "D:\\11.AI\\Span\\src\\Span\\Span\\Models\\TabItem.cs"
+        "lastFile": "D:\\11.AI\\Span\\src\\Span\\Span\\Models\\SearchQuery.cs"
       },
       "Helpers": {
         "phase": "do",
@@ -89,9 +90,9 @@
         "documents": {},
         "timestamps": {
           "started": "2026-02-24T07:18:44.995Z",
-          "lastUpdated": "2026-02-27T14:22:34.999Z"
+          "lastUpdated": "2026-03-01T00:16:01.896Z"
         },
-        "lastFile": "D:\\11.AI\\Span\\src\\Span\\Span\\Helpers\\NativeMethods.cs"
+        "lastFile": "D:\\11.AI\\Span\\src\\Span\\Span.Tests\\Helpers\\SearchFilterTests.cs"
       },
       "Views": {
         "phase": "do",
@@ -102,9 +103,9 @@
         "documents": {},
         "timestamps": {
           "started": "2026-02-24T07:34:27.798Z",
-          "lastUpdated": "2026-02-27T14:31:18.717Z"
+          "lastUpdated": "2026-02-28T07:41:49.546Z"
         },
-        "lastFile": "D:\\11.AI\\Span\\src\\Span\\Span\\Views\\IconModeView.xaml.cs"
+        "lastFile": "D:\\11.AI\\Span\\src\\Span\\Span\\Views\\DetailsModeView.xaml.cs"
       },
       "FileOperations": {
         "phase": "do",
@@ -115,9 +116,9 @@
         "documents": {},
         "timestamps": {
           "started": "2026-02-25T04:31:56.151Z",
-          "lastUpdated": "2026-02-26T06:25:54.500Z"
+          "lastUpdated": "2026-02-28T05:14:59.524Z"
         },
-        "lastFile": "D:\\11.AI\\Span\\src\\Span\\Span\\Services\\FileOperations\\MoveFileOperation.cs"
+        "lastFile": "D:\\11.AI\\Span\\src\\Span\\Span\\Services\\FileOperations\\DeleteFileOperation.cs"
       },
       "test_reserved": {
         "phase": "do",
@@ -141,9 +142,9 @@
         "documents": {},
         "timestamps": {
           "started": "2026-02-25T23:05:56.654Z",
-          "lastUpdated": "2026-02-27T10:14:42.241Z"
+          "lastUpdated": "2026-03-01T08:58:06.797Z"
         },
-        "lastFile": "D:\\11.AI\\Span\\src\\Span\\Span.UITests\\Tests\\UIStressTests.cs"
+        "lastFile": "D:\\11.AI\\Span\\src\\Span\\Span.UITests\\Tests\\FileOperationUITests.cs"
       },
       "Stubs": {
         "phase": "do",
@@ -167,7 +168,7 @@
         "documents": {},
         "timestamps": {
           "started": "2026-02-25T23:53:20.300Z",
-          "lastUpdated": "2026-02-25T23:53:25.271Z"
+          "lastUpdated": "2026-03-01T08:53:16.539Z"
         },
         "lastFile": "D:\\11.AI\\Span\\src\\Span\\Span.UITests\\SpanAppFixture.cs"
       },
@@ -193,7 +194,7 @@
         "documents": {},
         "timestamps": {
           "started": "2026-02-26T13:07:01.433Z",
-          "lastUpdated": "2026-02-26T13:07:01.433Z"
+          "lastUpdated": "2026-02-28T04:37:42.989Z"
         },
         "lastFile": "D:\\11.AI\\Span\\src\\Span\\Span\\Controls\\AddressBarControl.xaml.cs"
       },
@@ -258,9 +259,22 @@
         "documents": {},
         "timestamps": {
           "started": "2026-02-27T10:12:49.118Z",
-          "lastUpdated": "2026-02-27T10:23:05.355Z"
+          "lastUpdated": "2026-03-01T00:16:43.391Z"
         },
         "lastFile": "D:\\11.AI\\Span\\src\\Span\\Span.Tests\\Stress\\StressTests.cs"
+      },
+      "claude": {
+        "phase": "do",
+        "phaseNumber": 3,
+        "matchRate": null,
+        "iterationCount": 0,
+        "requirements": [],
+        "documents": {},
+        "timestamps": {
+          "started": "2026-03-01T08:32:05.020Z",
+          "lastUpdated": "2026-03-01T08:32:41.213Z"
+        },
+        "lastFile": "C:/Users/JK_KANG/AppData/Local/Temp/claude/cleanup.ps1"
       }
     },
     "pipeline": {
@@ -271,7 +285,7 @@
     "session": {
       "startedAt": "2026-02-24T01:52:07.894Z",
       "onboardingCompleted": false,
-      "lastActivity": "2026-02-27T14:31:18.717Z"
+      "lastActivity": "2026-03-01T08:58:06.797Z"
     },
     "history": [
       {
@@ -4609,6 +4623,1230 @@
       {
         "timestamp": "2026-02-27T14:31:18.717Z",
         "feature": "Views",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-27T14:36:21.739Z",
+        "feature": "Views",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-27T14:36:28.737Z",
+        "feature": "Views",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-27T14:36:36.519Z",
+        "feature": "Views",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-27T14:36:43.229Z",
+        "feature": "Views",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-27T14:37:36.490Z",
+        "feature": "Services",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-27T23:00:29.261Z",
+        "feature": "Helpers",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-27T23:03:00.594Z",
+        "feature": "Views",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-27T23:03:06.664Z",
+        "feature": "Views",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-27T23:03:13.518Z",
+        "feature": "Views",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-27T23:03:19.083Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-27T23:44:39.204Z",
+        "feature": "Services",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-27T23:44:44.210Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-27T23:44:50.097Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-27T23:45:22.087Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-27T23:45:34.712Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-27T23:45:52.878Z",
+        "feature": "Views",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-27T23:46:14.422Z",
+        "feature": "Views",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-27T23:47:03.070Z",
+        "feature": "Views",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-27T23:47:11.114Z",
+        "feature": "Views",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-27T23:49:10.842Z",
+        "feature": "Views",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-27T23:49:12.880Z",
+        "feature": "Views",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-27T23:49:42.904Z",
+        "feature": "Services",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-27T23:49:53.199Z",
+        "feature": "Views",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-27T23:51:20.786Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T00:03:00.281Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T00:03:28.435Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T00:04:50.088Z",
+        "feature": "Views",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T00:04:55.684Z",
+        "feature": "Views",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T00:05:06.370Z",
+        "feature": "Views",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T00:05:29.384Z",
+        "feature": "Views",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T00:05:34.950Z",
+        "feature": "Views",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T00:15:37.802Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T00:15:45.331Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T00:16:58.928Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T00:17:21.007Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T00:20:26.372Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T00:20:37.757Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T00:20:45.995Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T00:27:58.350Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T00:28:10.909Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T00:42:21.662Z",
+        "feature": "Models",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T00:44:01.972Z",
+        "feature": "Views",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T00:44:16.707Z",
+        "feature": "Views",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T00:44:23.058Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T00:44:31.742Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T00:44:45.555Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T00:45:17.865Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T00:45:32.043Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T00:45:56.637Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T00:46:17.628Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T00:58:53.704Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T00:59:14.230Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T01:16:12.777Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T01:16:30.470Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T01:16:53.385Z",
+        "feature": "Views",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T01:17:08.229Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T01:17:18.610Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T01:17:29.354Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T01:34:58.370Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T01:35:09.887Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T01:44:52.298Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T01:45:07.179Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T01:45:20.441Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T01:45:49.448Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T01:46:04.303Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T01:46:18.260Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T01:46:32.924Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T01:46:46.128Z",
+        "feature": "Views",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T01:47:04.968Z",
+        "feature": "Views",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T01:47:22.920Z",
+        "feature": "Views",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T04:06:58.912Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T04:07:04.921Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T04:07:10.650Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T04:26:40.030Z",
+        "feature": "Controls",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T04:26:46.894Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T04:37:23.974Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T04:37:42.989Z",
+        "feature": "Controls",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T04:51:21.619Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T04:55:44.460Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T04:56:04.938Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T04:59:48.757Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T05:14:55.289Z",
+        "feature": "FileOperations",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T05:14:57.334Z",
+        "feature": "FileOperations",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T05:14:59.524Z",
+        "feature": "FileOperations",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T05:15:04.202Z",
+        "feature": "ViewModels",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T05:16:18.117Z",
+        "feature": "Views",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T05:16:56.305Z",
+        "feature": "Views",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T05:22:46.557Z",
+        "feature": "Views",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T05:22:58.898Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T05:29:44.407Z",
+        "feature": "Models",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T05:29:57.202Z",
+        "feature": "ViewModels",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T05:30:44.157Z",
+        "feature": "Views",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T05:31:22.541Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T05:31:32.215Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T05:31:52.363Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T05:32:02.451Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T05:32:10.648Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T05:32:28.810Z",
+        "feature": "ViewModels",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T05:32:34.537Z",
+        "feature": "ViewModels",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T05:32:38.703Z",
+        "feature": "ViewModels",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T05:32:44.357Z",
+        "feature": "ViewModels",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T05:33:01.635Z",
+        "feature": "ViewModels",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T05:33:23.364Z",
+        "feature": "Views",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T05:43:19.117Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T05:44:14.125Z",
+        "feature": "Views",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T05:44:19.224Z",
+        "feature": "Views",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T05:44:23.453Z",
+        "feature": "Views",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T05:44:33.917Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T05:52:29.407Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T05:59:42.210Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T06:00:01.721Z",
+        "feature": "ViewModels",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T06:00:06.696Z",
+        "feature": "ViewModels",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T06:00:13.220Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T06:00:18.282Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T06:29:06.057Z",
+        "feature": "ViewModels",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T06:29:20.573Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T06:29:36.944Z",
+        "feature": "ViewModels",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T06:29:50.341Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T06:29:54.931Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T06:30:05.321Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T06:30:15.711Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T07:14:28.672Z",
+        "feature": "Helpers",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T07:14:32.965Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T07:18:56.980Z",
+        "feature": "Helpers",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T07:24:29.936Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T07:24:40.828Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T07:36:43.456Z",
+        "feature": "Services",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T07:36:50.523Z",
+        "feature": "ViewModels",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T07:36:58.463Z",
+        "feature": "ViewModels",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T07:37:08.055Z",
+        "feature": "ViewModels",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T07:37:34.791Z",
+        "feature": "ViewModels",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T07:37:49.092Z",
+        "feature": "ViewModels",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T07:38:11.358Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T07:38:18.667Z",
+        "feature": "ViewModels",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T07:38:24.972Z",
+        "feature": "ViewModels",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T07:40:19.516Z",
+        "feature": "Views",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T07:40:28.373Z",
+        "feature": "Views",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T07:40:38.425Z",
+        "feature": "Views",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T07:40:57.962Z",
+        "feature": "Views",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T07:41:09.897Z",
+        "feature": "Views",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T07:41:15.945Z",
+        "feature": "Views",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T07:41:49.546Z",
+        "feature": "Views",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T07:42:20.218Z",
+        "feature": "Helpers",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T07:43:06.058Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T07:43:22.019Z",
+        "feature": "ViewModels",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T07:43:30.192Z",
+        "feature": "ViewModels",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T07:44:33.283Z",
+        "feature": "Services",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T07:54:41.003Z",
+        "feature": "Services",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T07:55:06.924Z",
+        "feature": "ViewModels",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T07:55:22.098Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T07:55:31.645Z",
+        "feature": "ViewModels",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T11:19:21.848Z",
+        "feature": "Models",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T11:19:28.847Z",
+        "feature": "Helpers",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T11:19:45.268Z",
+        "feature": "Helpers",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T11:19:55.238Z",
+        "feature": "Helpers",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T11:48:16.449Z",
+        "feature": "Helpers",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T11:48:24.626Z",
+        "feature": "Helpers",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T13:05:06.907Z",
+        "feature": "Services",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T13:14:19.612Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T13:24:57.895Z",
+        "feature": "Services",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-02-28T13:25:25.130Z",
+        "feature": "Services",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-01T00:02:08.276Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-01T00:15:31.842Z",
+        "feature": "Helpers",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-01T00:16:01.896Z",
+        "feature": "Helpers",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-01T00:16:43.391Z",
+        "feature": "Stress",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-01T00:19:07.051Z",
+        "feature": "Tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-01T00:19:22.277Z",
+        "feature": "Tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-01T00:40:27.248Z",
+        "feature": "Tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-01T00:40:42.757Z",
+        "feature": "Tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-01T00:40:47.673Z",
+        "feature": "Tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-01T00:41:03.223Z",
+        "feature": "Tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-01T00:41:10.100Z",
+        "feature": "Tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-01T00:41:10.212Z",
+        "feature": "Tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-01T00:41:29.933Z",
+        "feature": "Tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-01T00:41:44.163Z",
+        "feature": "Tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-01T00:41:58.653Z",
+        "feature": "Tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-01T00:42:00.958Z",
+        "feature": "Tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-01T01:12:14.678Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-01T01:12:42.536Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-01T01:12:48.948Z",
+        "feature": "Span",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-01T01:13:12.961Z",
+        "feature": "Span.UITests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-01T01:13:45.464Z",
+        "feature": "Tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-01T01:14:09.972Z",
+        "feature": "Tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-01T01:14:42.290Z",
+        "feature": "Tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-01T01:15:12.221Z",
+        "feature": "Tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-01T01:15:46.147Z",
+        "feature": "Tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-01T01:16:35.613Z",
+        "feature": "Tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-01T01:17:04.223Z",
+        "feature": "Tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-01T01:17:41.679Z",
+        "feature": "Tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-01T08:32:05.020Z",
+        "feature": "claude",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-01T08:32:41.213Z",
+        "feature": "claude",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-01T08:53:16.539Z",
+        "feature": "Span.UITests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-01T08:55:02.936Z",
+        "feature": "Tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-01T08:55:12.867Z",
+        "feature": "Tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-01T08:55:33.562Z",
+        "feature": "Tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-01T08:55:45.640Z",
+        "feature": "Tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-01T08:56:03.632Z",
+        "feature": "Tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-01T08:56:14.102Z",
+        "feature": "Tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-01T08:56:50.812Z",
+        "feature": "Tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-01T08:57:02.029Z",
+        "feature": "Tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-01T08:57:22.116Z",
+        "feature": "Tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-01T08:57:36.955Z",
+        "feature": "Tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-01T08:57:51.718Z",
+        "feature": "Tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-03-01T08:58:06.797Z",
+        "feature": "Tests",
         "phase": "do",
         "action": "updated"
       }

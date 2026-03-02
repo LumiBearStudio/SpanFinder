@@ -1,7 +1,7 @@
 # SPAN Finder - Feature Reference
 
 > Windows용 고성능 Miller Columns 파일 탐색기
-> 최종 업데이트: 2026-02-28
+> 최종 업데이트: 2026-03-01
 
 ---
 
@@ -249,31 +249,66 @@
 ## 검색
 
 - **Type-Ahead**: 밀러 컬럼 내 문자 입력 즉시 필터링 (800ms 버퍼)
-- **검색 박스**: `Ctrl+F`로 포커스, `Enter`로 검색 실행, `Esc`로 취소/초기화
-- **재귀 검색** (RecursiveSearchService):
-  - 현재 폴더 하위 **모든 폴더를 BFS로 순회**하며 검색
-  - `IAsyncEnumerable` 스트리밍 — 결과 발견 즉시 UI에 표시
-  - 최대 **10,000개** 결과 제한 (메모리 보호)
-  - 50폴더마다 `Task.Yield()`로 UI 양보 (반응성 유지)
-  - `UnauthorizedAccessException`, `PathTooLongException` 자동 스킵
-  - 검색 중 상태바에 "검색 중... N개 발견 (M개 폴더 탐색)" 실시간 표시
-  - `Escape`로 검색 취소 → 원래 폴더 상태 즉시 복원
-  - Details 뷰에서 **Location 컬럼** 자동 표시 (검색 루트 기준 상대 경로)
-  - 검색 결과에서 폴더 더블클릭 → 검색 취소 + 해당 경로로 이동
-  - 검색 결과에서 파일 더블클릭 → 파일 실행 (검색 유지)
-- **와일드카드 검색**: `*.exe`, `*.mp3`, `report*`, `test?.doc` 등 (`*` = 0개 이상 문자, `?` = 1개 문자)
-- **정확 구문 검색**: `"quarterly report"` — 따옴표 안 텍스트를 하나의 구문으로 검색
-- **고급 검색 쿼리 문법** (SearchQueryParser):
-  - `kind:folder`, `kind:file` — 항목 타입 필터
-  - `kind:image`, `kind:video`, `kind:audio`, `kind:document`, `kind:archive`, `kind:code`, `kind:exe`, `kind:font` — 파일 종류별 필터
-  - `size:>1MB`, `size:<100KB`, `size:>=500B` — 크기 비교 (B/KB/MB/GB/TB 단위)
-  - `size:empty`, `size:tiny`, `size:small`, `size:medium`, `size:large`, `size:huge` — 크기 프리셋
-  - `date:>2024-01-01`, `date:<2024-12-31` — 수정일 비교
-  - `date:today`, `date:yesterday`, `date:thisweek`, `date:lastweek`, `date:thismonth`, `date:lastmonth`, `date:thisyear`, `date:lastyear` — 날짜 키워드
-  - `ext:.txt`, `ext:.pdf` — 단일 확장자 필터
-  - `ext:jpg;png;gif` — 다중 확장자 필터 (세미콜론 구분)
-  - 일반 텍스트 = 이름 부분일치 (대소문자 무시)
-  - 복합 쿼리: 여러 조건 AND 결합 가능 (예: `kind:image size:>1MB`, `*.pdf date:thisweek`)
+- **검색 박스**: `Ctrl+F`로 포커스, `Enter`로 재귀 검색 실행, `Esc`로 취소/초기화
+
+### 재귀 검색 (RecursiveSearchService)
+
+- **검색 범위**: 네비게이션 루트(Columns[0]) 하위 전체 폴더를 BFS로 순회 (macOS Finder 방식)
+  - Miller Columns에서 D:\ → Projects → src 로 깊이 진입해도 D:\ 전체 검색
+- **Channel 기반 Producer-Consumer 패턴**: UI 프리징 없는 백그라운드 검색
+  - Producer: `Task.Run`으로 백그라운드 스레드에서 BFS 파일 시스템 순회
+  - Consumer: UI 스레드에서 `ReadAllAsync`로 배치 수신 → `ObservableCollection`에 추가
+  - `BoundedChannel(16)`: 배압(backpressure) 제어로 메모리 보호
+  - 배치 크기 50개: 매 배치 후 `Task.Yield()`로 UI 양보
+- **`EnumerationOptions.IgnoreInaccessible = true`**: 접근 불가 항목 자동 건너뜀 (전체 루프 중단 방지)
+- **`AttributesToSkip`**: 숨김 파일 필터링을 열거자 레벨에서 처리
+- 최대 **10,000개** 결과 제한 (메모리 보호)
+- 20폴더마다 진행 상황 보고 (`IProgress<SearchProgress>`)
+- 검색 중 상태바에 "검색 중... N개 발견 (M개 폴더 탐색)" 실시간 표시
+- `Escape`로 검색 취소 → 원래 Columns/Path 상태 즉시 복원 (`_preSearchColumns` 저장/복원)
+- Details 뷰에서 **Location 컬럼** 자동 표시/숨김 (검색 루트 기준 상대 경로)
+- 검색 결과에서 폴더 더블클릭 → 검색 취소 + 해당 경로로 이동
+- 검색 결과에서 파일 더블클릭 → 파일 실행 (검색 유지)
+- 가상 FolderViewModel "검색 결과: {폴더명}" 동적 생성 (`MarkAsManuallyPopulated()`)
+
+### 와일드카드 검색
+
+- `*.exe`, `*.mp3`, `report*`, `test?.doc` 등
+- `*` = 0개 이상 문자, `?` = 정확히 1개 문자
+- 내부적으로 `Regex` 변환: `Regex.Escape` → `\*` → `.*`, `\?` → `.` → `^...$` 앵커 (전체 파일명 매칭)
+- 와일드카드 없는 일반 텍스트 = `String.Contains` 부분일치 (대소문자 무시)
+
+### 고급 검색 쿼리 문법 (SearchQueryParser)
+
+- **정확 구문 검색**: `"quarterly report"`, `'hello world'` — 단일/이중 따옴표 모두 지원
+- **kind: 필터** — 파일 종류별 필터 (30개+ 별칭 지원)
+  - `kind:image` (= photo, photos, picture, pictures, pic, img, images)
+  - `kind:video` (= videos, movie, movies, film)
+  - `kind:audio` (= music, sound, sounds, song, songs)
+  - `kind:document` (= documents, doc, docs, text)
+  - `kind:archive` (= archives, zip, compressed)
+  - `kind:code` (= source, script, scripts, program)
+  - `kind:exe` (= executable, executables, app, application)
+  - `kind:font` (= fonts)
+  - 폴더는 kind 필터에서 자동 제외 (파일만 매칭)
+- **size: 필터** — 크기 비교
+  - 연산자: `size:>1MB`, `size:<100KB`, `size:>=500B`, `size:<=2GB`, `size:=10MB`
+  - 단위: B / KB / MB / GB / TB (대소문자 무시)
+  - 연산자 생략 시 `>=` 기본값 (예: `size:1GB` = `size:>=1GB`)
+  - 소수점 지원: `size:>1.5MB`
+  - 프리셋: `empty`(=0B), `tiny`(<16KB), `small`(<1MB), `medium`(≥1MB), `large`(>128MB), `huge`/`gigantic`(>1GB)
+  - 폴더는 size 필터에서 자동 제외
+- **date: 필터** — 수정일 비교
+  - 연산자: `date:>2024-01-01`, `date:<2024-12-31`, `date:>=`, `date:<=`, `date:=`
+  - 연산자 생략 시 `>=` 기본값
+  - `date:=` 는 날짜 부분만 비교 (시간 무시)
+  - 프리셋: `today`, `yesterday`, `thisweek`(월요일 기준), `lastweek`, `thismonth`, `lastmonth`, `thisyear`, `lastyear`
+- **ext: 필터** — 확장자
+  - 단일: `ext:.pdf`, `ext:txt` (점 자동 추가)
+  - 다중: `ext:jpg;png;gif` (세미콜론 구분, 하나라도 일치 시 통과)
+  - 폴더는 ext 필터에서 자동 제외
+- **복합 쿼리**: 여러 조건 AND 결합 (예: `kind:image size:>1MB`, `*.pdf date:thisweek`)
+- **엣지 케이스**: `kind:`, `size:`, `ext:` 빈 값은 일반 텍스트로 처리, `date:notadate`도 이름 토큰으로 폴백
 
 ---
 

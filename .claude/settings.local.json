@@ -126,7 +126,12 @@
       "WebFetch(domain:forum.latenightsw.com)",
       "Bash(done)",
       "Bash(certutil:*)",
-      "Bash(MSYS_NO_PATHCONV=1 \"C:\\\\Program Files\\\\Microsoft Visual Studio\\\\2022\\\\Professional\\\\MSBuild\\\\Current\\\\Bin\\\\MSBuild.exe\":*)"
+      "Bash(MSYS_NO_PATHCONV=1 \"C:\\\\Program Files\\\\Microsoft Visual Studio\\\\2022\\\\Professional\\\\MSBuild\\\\Current\\\\Bin\\\\MSBuild.exe\":*)",
+      "WebFetch(domain:www.voidtools.com)",
+      "Bash(powershell:*)",
+      "Bash(wmic logicaldisk:*)",
+      "Bash(du:*)",
+      "Bash(mount:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
