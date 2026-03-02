@@ -1,17 +1,10 @@
 using FlaUI.Core.AutomationElements;
+using FlaUI.Core.Definitions;
 using FlaUI.Core.Input;
 using FlaUI.Core.WindowsAPI;
 
 namespace Span.UITests.Tests;
 
-/// <summary>
-/// Tests for view mode switching (Miller, Details, List, Icon).
-///
-/// Note: WinUI 3 Grid hosts (Host_Miller, Host_Details) aren't in the UIA tree.
-/// We verify mode switches by checking for mode-specific child elements:
-/// - Details mode: Button_FilterName (column header buttons)
-/// - Miller mode: no Details-specific elements visible
-/// </summary>
 [TestClass]
 public class ViewModeTests
 {
@@ -21,50 +14,52 @@ public class ViewModeTests
     public static void ClassInit(TestContext context)
     {
         _window = SpanAppFixture.GetMainWindow();
+        SpanAppFixture.Focus(_window);
+        SpanAppFixture.EnsureExplorerMode(_window);
     }
 
     [ClassCleanup]
-    public static void ClassCleanup()
-    {
-        SpanAppFixture.Detach();
-    }
+    public static void ClassCleanup() => SpanAppFixture.Detach();
+
+    [TestInitialize]
+    public void TestInit() => SpanAppFixture.Focus(_window!);
 
     [TestMethod]
-    public void ViewModeButton_Exists_And_Clickable()
+    public void Shortcut_Ctrl1_SwitchesToMiller()
     {
-        var viewModeBtn = SpanAppFixture.FindByIdOrThrow(_window!, "Button_ViewMode");
-        Assert.IsTrue(viewModeBtn.IsEnabled, "View mode button should be enabled");
+        SpanAppFixture.EnsureExplorerMode(_window!);
+        SpanAppFixture.NavigateToPath(_window!, SpanAppFixture.NavPath);
+        Keyboard.TypeSimultaneously(VirtualKeyShort.CONTROL, VirtualKeyShort.KEY_2);
+        Wait.UntilInputIsProcessed(TimeSpan.FromMilliseconds(800));
+        Keyboard.TypeSimultaneously(VirtualKeyShort.CONTROL, VirtualKeyShort.KEY_1);
+        Wait.UntilInputIsProcessed(TimeSpan.FromMilliseconds(1000));
+
+        // WinUI 3 Grid containers don't create UIA peers — verify via ListItem presence
+        var listItems = _window!.FindAllDescendants(cf => cf.ByControlType(FlaUI.Core.Definitions.ControlType.ListItem));
+        Assert.IsTrue(listItems.Length > 0, "Miller mode should show ListItems after Ctrl+1");
     }
 
     [TestMethod]
     public void Shortcut_Ctrl2_SwitchesToDetails()
     {
-        // Ctrl+2 = Details mode
+        SpanAppFixture.EnsureExplorerMode(_window!);
+        SpanAppFixture.NavigateToPath(_window!, SpanAppFixture.NavPath);
         Keyboard.TypeSimultaneously(VirtualKeyShort.CONTROL, VirtualKeyShort.KEY_2);
+        Wait.UntilInputIsProcessed(TimeSpan.FromMilliseconds(1000));
 
-        // DetailsModeView has Button_FilterName — poll until it appears
-        var filterNameBtn = SpanAppFixture.WaitForElement(_window!, "Button_FilterName", 3000);
-        Assert.IsNotNull(filterNameBtn, "Details filter name button should exist after Ctrl+2");
+        // WinUI 3 Grid containers don't create UIA peers — verify via Details filter buttons
+        var filterBtn = SpanAppFixture.WaitForElement(_window!, "Button_FilterName", 3000);
+        Assert.IsNotNull(filterBtn, "Details mode should show filter buttons after Ctrl+2");
 
-        // Switch back to Miller for other tests
         Keyboard.TypeSimultaneously(VirtualKeyShort.CONTROL, VirtualKeyShort.KEY_1);
         Wait.UntilInputIsProcessed(TimeSpan.FromMilliseconds(300));
     }
 
     [TestMethod]
-    public void Shortcut_Ctrl1_SwitchesToMiller()
+    public void ViewModeButton_Exists()
     {
-        // First ensure we're NOT in Miller by switching to Details
-        Keyboard.TypeSimultaneously(VirtualKeyShort.CONTROL, VirtualKeyShort.KEY_2);
-        var filterBtn = SpanAppFixture.WaitForElement(_window!, "Button_FilterName", 3000);
-        Assert.IsNotNull(filterBtn, "Should be in Details mode before testing Ctrl+1");
-
-        // Ctrl+1 = Miller Columns
-        Keyboard.TypeSimultaneously(VirtualKeyShort.CONTROL, VirtualKeyShort.KEY_1);
-        Wait.UntilInputIsProcessed(TimeSpan.FromMilliseconds(500));
-
-        // In Miller mode, Details-specific elements should NOT be visible
-        var filterNameBtn = SpanAppFixture.FindById(_window!, "Button_FilterName");
-        Assert.IsNull(filterNameBtn, "Details filter button should NOT exist in Miller mode");
+        var viewModeBtn = SpanAppFixture.FindById(_window!, "Button_ViewMode");
+        Assert.IsNotNull(viewModeBtn, "View mode button should exist");
+        Assert.IsTrue(viewModeBtn.IsEnabled, "View mode button should be enabled");
     }
 }

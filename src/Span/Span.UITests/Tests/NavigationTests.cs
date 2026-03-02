@@ -19,13 +19,15 @@ public class NavigationTests
     public static void ClassInit(TestContext context)
     {
         _window = SpanAppFixture.GetMainWindow();
+        SpanAppFixture.Focus(_window);
+        SpanAppFixture.EnsureExplorerMode(_window);
     }
 
     [ClassCleanup]
-    public static void ClassCleanup()
-    {
-        SpanAppFixture.Detach();
-    }
+    public static void ClassCleanup() => SpanAppFixture.Detach();
+
+    [TestInitialize]
+    public void TestInit() => SpanAppFixture.Focus(_window!);
 
     [TestMethod]
     public void NewTab_Click_CreatesAndCloses()
