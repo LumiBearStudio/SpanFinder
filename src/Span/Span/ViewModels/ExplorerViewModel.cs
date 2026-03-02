@@ -510,6 +510,10 @@ namespace Span.ViewModels
         {
             if (string.IsNullOrWhiteSpace(path)) return;
 
+            // \\?\ 접두사 제거 (.NET 8은 long path를 네이티브 지원)
+            if (path.StartsWith(@"\\?\"))
+                path = path.Substring(4);
+
             // 원격 경로: Directory.Exists 스킵, URI 그대로 사용
             if (FileSystemRouter.IsRemotePath(path))
             {
@@ -518,7 +522,7 @@ namespace Span.ViewModels
             }
 
             // UNC 경로: Directory.Exists가 30초+ 블로킹하므로 비동기 처리
-            // 로컬 경로: 즉시 확인
+            // 로컬 경로: 즉시 확인 (긴 경로는 비동기 처리)
             if (path.StartsWith(@"\\"))
             {
                 var exists = await Task.Run(() => System.IO.Directory.Exists(path));
@@ -528,10 +532,16 @@ namespace Span.ViewModels
                     return;
                 }
             }
-            else if (!System.IO.Directory.Exists(path))
+            else
             {
-                NavigationError?.Invoke($"폴더를 찾을 수 없습니다: {System.IO.Path.GetFileName(path)}");
-                return;
+                var exists = path.Length > 240
+                    ? await Task.Run(() => System.IO.Directory.Exists(path))
+                    : System.IO.Directory.Exists(path);
+                if (!exists)
+                {
+                    NavigationError?.Invoke($"폴더를 찾을 수 없습니다: {System.IO.Path.GetFileName(path)}");
+                    return;
+                }
             }
 
             // Normalize path (guard against PathTooLongException)
@@ -572,7 +582,25 @@ namespace Span.ViewModels
                 return;
             }
 
-            Helpers.DebugLogger.Log($"[NavigateToPath] Building full hierarchy for: {path} ({parts.Length + 1} levels)");
+            // 깊은 경로 최적화: 세그먼트가 MaxMillerColumns를 초과하면
+            // 마지막 N개 레벨만 Miller 컬럼으로 구축 (35단계 → 8컬럼, ~30초 → ~2초)
+            const int MaxMillerColumns = 8;
+            int startIndex = 0;
+            string startPath = root;
+
+            if (parts.Length > MaxMillerColumns)
+            {
+                startIndex = parts.Length - MaxMillerColumns;
+                // 스킵된 세그먼트까지의 경로를 조합
+                for (int i = 0; i < startIndex; i++)
+                    startPath = System.IO.Path.Combine(startPath, parts[i]);
+
+                Helpers.DebugLogger.Log($"[NavigateToPath] Deep path optimization: {parts.Length + 1} levels → showing last {MaxMillerColumns + 1} columns from '{startPath}'");
+            }
+            else
+            {
+                Helpers.DebugLogger.Log($"[NavigateToPath] Building full hierarchy for: {path} ({parts.Length + 1} levels)");
+            }
 
             // Suppress auto-navigation while building column hierarchy
             var previousAutoNav = EnableAutoNavigation;
@@ -590,40 +618,37 @@ namespace Span.ViewModels
                 }
                 Columns.Clear();
 
-                // Create root column (drive) — 컬럼 먼저 배치 후 로딩 (ProgressRing 표시)
-                var rootFolder = new FolderItem { Name = root.TrimEnd('\\'), Path = root };
-                var currentVm = new FolderViewModel(rootFolder, _fileService);
-                AddColumn(currentVm);
-                await currentVm.EnsureChildrenLoadedAsync();
+                // ── Phase 1: 경로에서 직접 FolderViewModel 배열 생성 (I/O 없음) ──
+                var startName = startIndex > 0 ? parts[startIndex - 1] : root.TrimEnd('\\');
+                int columnCount = parts.Length - startIndex + 1;
+                var columnVms = new FolderViewModel[columnCount];
 
-                // Build columns for each path segment
-                for (int i = 0; i < parts.Length; i++)
+                columnVms[0] = new FolderViewModel(
+                    new FolderItem { Name = startName, Path = startPath }, _fileService);
+
+                string accumulatedPath = startPath;
+                for (int i = startIndex; i < parts.Length; i++)
                 {
-                    // Find matching child folder in current column
-                    var childVm = currentVm.Children.OfType<FolderViewModel>()
-                        .FirstOrDefault(c => string.Equals(c.Name, parts[i], System.StringComparison.OrdinalIgnoreCase));
-
-                    if (childVm == null)
-                    {
-                        Helpers.DebugLogger.Log($"[NavigateToPath] Segment '{parts[i]}' not found in '{currentVm.Path}' - stopping");
-                        break;
-                    }
-
-                    // Select child in parent column (visual highlight)
-                    currentVm.SelectedChild = childVm;
-
-                    // 컬럼 먼저 배치 후 로딩 (ProgressRing 표시)
-                    AddColumn(childVm);
-                    await childVm.EnsureChildrenLoadedAsync();
-
-                    currentVm = childVm;
+                    accumulatedPath = System.IO.Path.Combine(accumulatedPath, parts[i]);
+                    columnVms[i - startIndex + 1] = new FolderViewModel(
+                        new FolderItem { Name = parts[i], Path = accumulatedPath }, _fileService);
                 }
 
-                // Set current path to the last successfully loaded column
-                CurrentPath = currentVm.Path;
+                // ── Phase 2: 모든 컬럼을 즉시 UI에 추가 (ProgressRing 즉시 표시) ──
+                for (int i = 0; i < columnVms.Length; i++)
+                {
+                    if (i > 0)
+                        columnVms[i - 1].SelectedChild = columnVms[i];
+                    AddColumn(columnVms[i]);
+                }
+
+                CurrentPath = columnVms[columnVms.Length - 1].Path;
                 SelectedFile = null;
 
-                Helpers.DebugLogger.Log($"[NavigateToPath] Hierarchy built: {string.Join(" > ", Columns.Select(c => c.Name))}");
+                // ── Phase 3: 모든 폴더 내용을 병렬 로딩 (UI 행 해소) ──
+                await Task.WhenAll(columnVms.Select(vm => vm.EnsureChildrenLoadedAsync()));
+
+                Helpers.DebugLogger.Log($"[NavigateToPath] Hierarchy built (parallel): {string.Join(" > ", Columns.Select(c => c.Name))}");
             }
             finally
             {
