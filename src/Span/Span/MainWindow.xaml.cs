@@ -1105,9 +1105,15 @@ namespace Span
             if (_isClosed || ViewModel?.LeftExplorer == null) return;
             // 뷰포트 너비가 변경되었을 때만 (높이 변경은 무시)
             if (Math.Abs(e.PreviousSize.Width - e.NewSize.Width) < 1) return;
-            var scrollViewer = GetActiveMillerScrollViewer();
-            if (sender == scrollViewer)
-                ScrollToLastColumn(ViewModel.LeftExplorer, scrollViewer);
+            // 좌측 패인 전용 핸들러: 활성 탭의 좌측 ScrollViewer와 sender를 비교.
+            // GetActiveMillerScrollViewer()는 Split View에서 우측 패인을 반환할 수 있으므로 사용 불가.
+            ScrollViewer leftScrollViewer;
+            if (_activeMillerTabId != null && _tabMillerPanels.TryGetValue(_activeMillerTabId, out var panel))
+                leftScrollViewer = panel.scroller;
+            else
+                leftScrollViewer = MillerScrollViewer;
+            if (sender == leftScrollViewer)
+                ScrollToLastColumn(ViewModel.LeftExplorer, leftScrollViewer);
         }
 
         /// <summary>
@@ -1638,7 +1644,7 @@ namespace Span
             SortButton.IsEnabled = !isNonExplorerMode;
             ViewModeButton.IsEnabled = !isNonExplorerMode;
             PreviewToggleButton.IsEnabled = !isNonExplorerMode;
-            SplitViewButton.IsEnabled = !isNonExplorerMode;
+            SplitViewButton.IsEnabled = true; // 홈에서도 분할뷰 토글 가능
             CopyPathButton.IsEnabled = !isNonExplorerMode;
             SearchBox.IsEnabled = !isNonExplorerMode;
             ToolbarCutButton.IsEnabled = false;

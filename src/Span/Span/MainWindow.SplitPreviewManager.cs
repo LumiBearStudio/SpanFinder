@@ -385,8 +385,11 @@ namespace Span
                 RightPaneCol.Width = new GridLength(1, GridUnitType.Star);
 
                 // Sync left pane breadcrumb — 비활성 상태에서 탭 전환 시 갱신 안 된 경우 보정
-                LeftAddressBar.PathSegments = ViewModel.Explorer.PathSegments;
-                LeftAddressBar.CurrentPath = ViewModel.Explorer.CurrentPath;
+                if (ViewModel.Explorer?.PathSegments != null)
+                {
+                    LeftAddressBar.PathSegments = ViewModel.Explorer.PathSegments;
+                    LeftAddressBar.CurrentPath = ViewModel.Explorer.CurrentPath;
+                }
 
                 // Initialize right pane with a real filesystem path
                 if (ViewModel.RightExplorer.Columns.Count == 0 ||
@@ -411,8 +414,11 @@ namespace Span
                 RightPaneCol.Width = new GridLength(0);
 
                 // Sync main address bar — Split 모드에서 갱신 안 된 경우 보정
-                MainAddressBar.PathSegments = ViewModel.Explorer.PathSegments;
-                MainAddressBar.CurrentPath = ViewModel.Explorer.CurrentPath;
+                if (ViewModel.Explorer?.PathSegments != null)
+                {
+                    MainAddressBar.PathSegments = ViewModel.Explorer.PathSegments;
+                    MainAddressBar.CurrentPath = ViewModel.Explorer.CurrentPath;
+                }
 
                 // RightExplorer 구독 해제
                 UnsubscribeRightExplorerForAddressBar();

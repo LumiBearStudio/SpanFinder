@@ -23,6 +23,9 @@
             <helpers:BoolToThicknessConverter x:Key="BoolToThicknessConverter"
                                               TrueThickness="0,2,1,0"
                                               FalseThickness="0,2,1,0"/>
+            <helpers:BoolToThicknessConverter x:Key="MillerColumnBorderConverter"
+                                              TrueThickness="1"
+                                              FalseThickness="0"/>
         </Grid.Resources>
 
         <Grid.RowDefinitions>
@@ -852,7 +855,7 @@
                                                 </Grid.ColumnDefinitions>
                                                 <Border Grid.Column="0"
                                                         BorderBrush="{Binding IsActive, Converter={StaticResource BoolToBrushConverter}}"
-                                                        BorderThickness="1"
+                                                        BorderThickness="{Binding IsActive, Converter={StaticResource MillerColumnBorderConverter}}"
                                                         Background="{ThemeResource SpanBgMicaBrush}">
                                                     <Grid Loaded="OnMillerColumnContentGridLoaded" Unloaded="OnMillerColumnContentGridUnloaded"
                                                           PointerPressed="OnMillerColumnPointerPressed">
@@ -1006,9 +1009,6 @@
                                                            PointerMoved="OnColumnResizeGripPointerMoved"
                                                            PointerReleased="OnColumnResizeGripPointerReleased"
                                                            DoubleTapped="OnColumnResizeGripDoubleTapped"/>
-                                                <!-- Column border line -->
-                                                <Rectangle Grid.Column="1" Width="1" HorizontalAlignment="Center"
-                                                           Fill="{ThemeResource SpanBorderSubtleBrush}" IsHitTestVisible="False"/>
                                             </Grid>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
@@ -1320,7 +1320,7 @@
                                                 </Grid.ColumnDefinitions>
                                                 <Border Grid.Column="0"
                                                         BorderBrush="{Binding IsActive, Converter={StaticResource BoolToBrushConverter}}"
-                                                        BorderThickness="1"
+                                                        BorderThickness="{Binding IsActive, Converter={StaticResource MillerColumnBorderConverter}}"
                                                         Background="{ThemeResource SpanBgMicaBrush}">
                                                     <Grid Loaded="OnMillerColumnContentGridLoaded" Unloaded="OnMillerColumnContentGridUnloaded"
                                                           PointerPressed="OnMillerColumnPointerPressed">
@@ -1474,9 +1474,6 @@
                                                            PointerMoved="OnColumnResizeGripPointerMoved"
                                                            PointerReleased="OnColumnResizeGripPointerReleased"
                                                            DoubleTapped="OnColumnResizeGripDoubleTapped"/>
-                                                <!-- Column border line -->
-                                                <Rectangle Grid.Column="1" Width="1" HorizontalAlignment="Center"
-                                                           Fill="{ThemeResource SpanBorderSubtleBrush}" IsHitTestVisible="False"/>
                                             </Grid>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
