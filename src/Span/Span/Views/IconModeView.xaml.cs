@@ -309,6 +309,19 @@ namespace Span.Views
         }
 
         /// <summary>
+        /// On-demand cloud state injection for visible items.
+        /// </summary>
+        private void OnContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
+        {
+            if (args.InRecycleQueue) return;
+
+            if (args.Item is ViewModels.FileSystemViewModel fsVm)
+            {
+                _viewModel?.CurrentFolder?.InjectCloudStateIfNeeded(fsVm);
+            }
+        }
+
+        /// <summary>
         /// Focus the Icon GridView (called from MainWindow on view switch)
         /// </summary>
         public void FocusGridView()

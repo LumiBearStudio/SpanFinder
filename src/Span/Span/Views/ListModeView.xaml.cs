@@ -852,6 +852,20 @@ namespace Span.Views
 
         #endregion
 
+        #region Cloud State Injection
+
+        private void OnContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
+        {
+            if (args.InRecycleQueue) return;
+
+            if (args.Item is ViewModels.FileSystemViewModel fsVm)
+            {
+                _viewModel?.CurrentFolder?.InjectCloudStateIfNeeded(fsVm);
+            }
+        }
+
+        #endregion
+
         #region Rubber Band Selection
 
         private Helpers.RubberBandSelectionHelper? _rubberBandHelper;

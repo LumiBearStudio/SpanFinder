@@ -294,11 +294,13 @@ namespace Span.Views
                 folderVm.RequestFolderSizeCalculation();
             }
 
-            // Git 상태 on-demand 주입 (캐시된 값만, I/O 없음)
-            if (_gitColumnVisible && args.Item is ViewModels.FileSystemViewModel fsVm)
+            // Git/Cloud 상태 on-demand 주입 (캐시된 값만, I/O 없음)
+            if (args.Item is ViewModels.FileSystemViewModel fsVm)
             {
                 var currentFolder = _viewModel?.CurrentFolder;
-                currentFolder?.InjectGitStateIfNeeded(fsVm);
+                if (_gitColumnVisible)
+                    currentFolder?.InjectGitStateIfNeeded(fsVm);
+                currentFolder?.InjectCloudStateIfNeeded(fsVm);
             }
         }
 

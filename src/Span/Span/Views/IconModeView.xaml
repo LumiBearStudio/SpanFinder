@@ -26,6 +26,15 @@
                               Foreground="{x:Bind IconBrush, Mode=OneWay}"
                               FontSize="14"
                               Visibility="{x:Bind vm:FileSystemViewModel.ShowIfFalse(HasThumbnail), Mode=OneWay}"/>
+                    <!-- Cloud sync badge -->
+                    <Border Visibility="{x:Bind vm:FileSystemViewModel.ShowIfTrue(HasCloudBadge), Mode=OneWay}"
+                            HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-3,-3"
+                            Width="10" Height="10" CornerRadius="5"
+                            Background="{x:Bind CloudBadgeBrush, Mode=OneWay}">
+                        <FontIcon Glyph="{x:Bind CloudStateGlyph, Mode=OneWay}" FontSize="7"
+                                  Foreground="{ThemeResource SpanTextSecondaryBrush}"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
                 </Grid>
 
                 <TextBlock Grid.Column="1"
@@ -54,6 +63,15 @@
                               Foreground="{x:Bind IconBrush, Mode=OneWay}"
                               FontSize="40"
                               Visibility="{x:Bind vm:FileSystemViewModel.ShowIfFalse(HasThumbnail), Mode=OneWay}"/>
+                    <!-- Cloud sync badge -->
+                    <Border Visibility="{x:Bind vm:FileSystemViewModel.ShowIfTrue(HasCloudBadge), Mode=OneWay}"
+                            HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-4,-4"
+                            Width="14" Height="14" CornerRadius="7"
+                            Background="{x:Bind CloudBadgeBrush, Mode=OneWay}">
+                        <FontIcon Glyph="{x:Bind CloudStateGlyph, Mode=OneWay}" FontSize="9"
+                                  Foreground="{ThemeResource SpanTextSecondaryBrush}"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
                 </Grid>
 
                 <TextBlock Grid.Column="1"
@@ -84,6 +102,15 @@
                               Foreground="{x:Bind IconBrush, Mode=OneWay}"
                               FontSize="80"
                               Visibility="{x:Bind vm:FileSystemViewModel.ShowIfFalse(HasThumbnail), Mode=OneWay}"/>
+                    <!-- Cloud sync badge -->
+                    <Border Visibility="{x:Bind vm:FileSystemViewModel.ShowIfTrue(HasCloudBadge), Mode=OneWay}"
+                            HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-2,-2"
+                            Width="16" Height="16" CornerRadius="8"
+                            Background="{x:Bind CloudBadgeBrush, Mode=OneWay}">
+                        <FontIcon Glyph="{x:Bind CloudStateGlyph, Mode=OneWay}" FontSize="10"
+                                  Foreground="{ThemeResource SpanTextSecondaryBrush}"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
                 </Grid>
 
                 <TextBlock Grid.Row="1"
@@ -116,6 +143,15 @@
                               Foreground="{x:Bind IconBrush, Mode=OneWay}"
                               FontSize="180"
                               Visibility="{x:Bind vm:FileSystemViewModel.ShowIfFalse(HasThumbnail), Mode=OneWay}"/>
+                    <!-- Cloud sync badge -->
+                    <Border Visibility="{x:Bind vm:FileSystemViewModel.ShowIfTrue(HasCloudBadge), Mode=OneWay}"
+                            HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-2,-2"
+                            Width="20" Height="20" CornerRadius="10"
+                            Background="{x:Bind CloudBadgeBrush, Mode=OneWay}">
+                        <FontIcon Glyph="{x:Bind CloudStateGlyph, Mode=OneWay}" FontSize="12"
+                                  Foreground="{ThemeResource SpanTextSecondaryBrush}"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
                 </Grid>
 
                 <TextBlock Grid.Row="1"
@@ -153,6 +189,7 @@
             DoubleTapped="OnItemDoubleClick"
             KeyDown="OnIconKeyDown"
             SelectionChanged="OnIconSelectionChanged"
+            ContainerContentChanging="OnContainerContentChanging"
             RightTapped="OnItemRightTapped"
             Padding="16">
 

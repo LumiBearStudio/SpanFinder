@@ -353,6 +353,15 @@
                                       Foreground="{x:Bind IconBrush, Mode=OneWay}"
                                       FontSize="16"
                                       Visibility="{x:Bind vm:FileSystemViewModel.ShowIfFalse(HasThumbnail), Mode=OneWay}"/>
+                            <!-- Cloud sync badge -->
+                            <Border Visibility="{x:Bind vm:FileSystemViewModel.ShowIfTrue(HasCloudBadge), Mode=OneWay}"
+                                    HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-4,-4"
+                                    Width="12" Height="12" CornerRadius="6"
+                                    Background="{x:Bind CloudBadgeBrush, Mode=OneWay}">
+                                <FontIcon Glyph="{x:Bind CloudStateGlyph, Mode=OneWay}" FontSize="8"
+                                          Foreground="{ThemeResource SpanTextSecondaryBrush}"
+                                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
                         </Grid>
 
                         <!-- Name -->
