@@ -40,6 +40,15 @@ namespace Span.ViewModels
         private ObservableCollection<FileSystemViewModel> _children = new();
 
         /// <summary>
+        /// Children을 원자적으로 교체. Clear+Add 대신 새 컬렉션을 할당하여
+        /// 28K CollectionChanged 이벤트를 단일 Reset으로 줄인다.
+        /// </summary>
+        public void ReplaceChildren(System.Collections.Generic.IList<FileSystemViewModel> newItems)
+        {
+            Children = new ObservableCollection<FileSystemViewModel>(newItems);
+        }
+
+        /// <summary>
         /// 필터링 전 전체 아이템 목록. 필터 활성 시 Children은 이 리스트의 부분집합.
         /// </summary>
         private List<FileSystemViewModel>? _allChildren;
@@ -212,18 +221,19 @@ namespace Span.ViewModels
             }
         }
 
+        private static readonly string[] SizeUnits = { "B", "KB", "MB", "GB", "TB" };
+
         private static string FormatFolderSize(long bytes)
         {
             if (bytes == 0) return "0 B";
-            string[] sizes = { "B", "KB", "MB", "GB", "TB" };
             int order = 0;
             double size = bytes;
-            while (size >= 1024 && order < sizes.Length - 1)
+            while (size >= 1024 && order < SizeUnits.Length - 1)
             {
                 order++;
                 size /= 1024;
             }
-            return $"{size:0.##} {sizes[order]}";
+            return $"{size:0.##} {SizeUnits[order]}";
         }
 
         /// <summary>

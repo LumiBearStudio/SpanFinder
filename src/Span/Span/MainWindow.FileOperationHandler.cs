@@ -883,16 +883,31 @@ namespace Span
         {
             var explorer = ViewModel?.ActiveExplorer;
             if (explorer == null) return;
+
+            // 최적화: _renameTargetPath가 있으면 해당 아이템만 찾아 취소 (14K 전수 순회 방지)
+            if (_renameTargetPath != null)
+            {
+                foreach (var col in explorer.Columns)
+                {
+                    var child = col.SelectedChild;
+                    if (child != null && child.IsRenaming)
+                    {
+                        child.CancelRename();
+                        _justFinishedRename = true;
+                        _renameTargetPath = null;
+                        return;
+                    }
+                }
+            }
+
+            // Fallback: 경로 없으면 컬럼별 selectedChild만 확인
             bool cancelled = false;
             foreach (var col in explorer.Columns)
             {
-                foreach (var child in col.Children)
+                if (col.SelectedChild?.IsRenaming == true)
                 {
-                    if (child.IsRenaming)
-                    {
-                        child.CancelRename();
-                        cancelled = true;
-                    }
+                    col.SelectedChild.CancelRename();
+                    cancelled = true;
                 }
             }
             if (cancelled)

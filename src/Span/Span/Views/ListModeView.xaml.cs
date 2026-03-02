@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using Span.Models;
 using Span.Services;
 using Span.ViewModels;
@@ -800,11 +801,13 @@ namespace Span.Views
 
         private void UpdateColumnVisibility()
         {
-            if (ListGridView?.ItemsPanelRoot == null) return;
+            var panel = ListGridView?.ItemsPanelRoot;
+            if (panel == null) return;
 
-            for (int i = 0; i < ListGridView.Items.Count; i++)
+            // ItemsPanelRoot 자식만 순회 — Items.Count(14K) 전수 순회 방지
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(panel); i++)
             {
-                if (ListGridView.ContainerFromIndex(i) is GridViewItem container &&
+                if (VisualTreeHelper.GetChild(panel, i) is GridViewItem container &&
                     container.ContentTemplateRoot is Grid grid)
                 {
                     ApplyColumnVisibility(grid);
@@ -982,11 +985,12 @@ namespace Span.Views
             style.Setters.Add(new Setter(GridViewItem.MinHeightProperty, _densityRowHeight));
             ListGridView.ItemContainerStyle = style;
 
-            // Update existing realized containers
-            if (ListGridView.ItemsPanelRoot == null) return;
-            for (int i = 0; i < ListGridView.Items.Count; i++)
+            // Update existing realized containers (ItemsPanelRoot 자식만 — 14K 전수 순회 방지)
+            var densityPanel = ListGridView.ItemsPanelRoot;
+            if (densityPanel == null) return;
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(densityPanel); i++)
             {
-                if (ListGridView.ContainerFromIndex(i) is GridViewItem container &&
+                if (VisualTreeHelper.GetChild(densityPanel, i) is GridViewItem container &&
                     container.ContentTemplateRoot is Grid grid)
                 {
                     grid.Height = _densityRowHeight;
@@ -1004,10 +1008,12 @@ namespace Span.Views
             double itemFont = 13.0 + level;
             double iconFont = 16.0 + level;
 
-            if (ListGridView?.ItemsPanelRoot == null) return;
-            for (int i = 0; i < ListGridView.Items.Count; i++)
+            // ItemsPanelRoot 자식만 순회 — 14K 전수 순회 방지
+            var scalePanel = ListGridView?.ItemsPanelRoot;
+            if (scalePanel == null) return;
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(scalePanel); i++)
             {
-                if (ListGridView.ContainerFromIndex(i) is GridViewItem container &&
+                if (VisualTreeHelper.GetChild(scalePanel, i) is GridViewItem container &&
                     container.ContentTemplateRoot is Grid grid)
                 {
                     foreach (var child in grid.Children)

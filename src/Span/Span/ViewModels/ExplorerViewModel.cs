@@ -1191,16 +1191,16 @@ namespace Span.ViewModels
                     if (ct.IsCancellationRequested) break;
                     if (_searchResultFolder == null) break;
 
+                    // 배치 단위로 추가 — 개별 Add보다 UI 갱신 빈도가 낮아짐
                     foreach (var item in batch)
                     {
-                        _searchResultFolder.Children.Add(item);
-                        count++;
-
                         if (count >= RecursiveSearchService.MaxResults)
                         {
                             limitReached = true;
                             break;
                         }
+                        _searchResultFolder.Children.Add(item);
+                        count++;
                     }
 
                     if (limitReached) break;

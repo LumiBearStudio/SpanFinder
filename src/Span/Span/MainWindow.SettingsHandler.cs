@@ -374,6 +374,8 @@ namespace Span
 
                 case "ShowHiddenFiles":
                 case "ShowFileExtensions":
+                    // Invalidate cached setting before refreshing
+                    ViewModels.FileSystemViewModel.InvalidateDisplayNameCache();
                     // Refresh current folder contents to apply filter change
                     DispatcherQueue.TryEnqueue(() =>
                     {

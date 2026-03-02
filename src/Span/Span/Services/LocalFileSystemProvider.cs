@@ -49,21 +49,25 @@ namespace Span.Services
                     foreach (var d in dirInfo.EnumerateDirectories())
                     {
                         ct.ThrowIfCancellationRequested();
-                        if (!_settings.ShowHiddenFiles && (d.Attributes & FileAttributes.Hidden) != 0) continue;
+                        var attrs = d.Attributes;
+                        bool isHidden = (attrs & FileAttributes.Hidden) != 0;
+                        if (!_settings.ShowHiddenFiles && isHidden) continue;
 
                         items.Add(new FolderItem
                         {
                             Name = d.Name,
                             Path = d.FullName,
                             DateModified = d.LastWriteTime,
-                            IsHidden = (d.Attributes & FileAttributes.Hidden) != 0
+                            IsHidden = isHidden
                         });
                     }
 
                     foreach (var f in dirInfo.EnumerateFiles())
                     {
                         ct.ThrowIfCancellationRequested();
-                        if (!_settings.ShowHiddenFiles && (f.Attributes & FileAttributes.Hidden) != 0) continue;
+                        var attrs = f.Attributes;
+                        bool isHidden = (attrs & FileAttributes.Hidden) != 0;
+                        if (!_settings.ShowHiddenFiles && isHidden) continue;
 
                         items.Add(new FileItem
                         {
@@ -72,7 +76,7 @@ namespace Span.Services
                             Size = f.Length,
                             DateModified = f.LastWriteTime,
                             FileType = f.Extension,
-                            IsHidden = (f.Attributes & FileAttributes.Hidden) != 0
+                            IsHidden = isHidden
                         });
                     }
                 }

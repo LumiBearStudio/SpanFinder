@@ -180,7 +180,15 @@ namespace Span.ViewModels
         /// <summary>
         /// Display name that respects ShowFileExtensions setting.
         /// Folders always show full name; files strip extension when setting is off.
+        /// DI 해석을 static 캐시하여 14K 아이템 로드 시 반복 해석 방지.
         /// </summary>
+        private static bool? _cachedShowFileExtensions;
+
+        /// <summary>
+        /// 설정 변경 시 캐시 무효화. SettingsService에서 호출.
+        /// </summary>
+        internal static void InvalidateDisplayNameCache() => _cachedShowFileExtensions = null;
+
         public virtual string DisplayName
         {
             get
@@ -188,8 +196,8 @@ namespace Span.ViewModels
                 if (this is FolderViewModel) return Name;
                 try
                 {
-                    var settings = App.Current.Services.GetService(typeof(Services.SettingsService)) as Services.SettingsService;
-                    if (settings != null && !settings.ShowFileExtensions)
+                    _cachedShowFileExtensions ??= (App.Current.Services.GetService(typeof(Services.SettingsService)) as Services.SettingsService)?.ShowFileExtensions ?? true;
+                    if (!_cachedShowFileExtensions.Value)
                         return System.IO.Path.GetFileNameWithoutExtension(Name);
                 }
                 catch { /* fallback to full name */ }
@@ -255,22 +263,31 @@ namespace Span.ViewModels
         }
 
         public virtual string IconGlyph => _model.IconGlyph;
-        public virtual Microsoft.UI.Xaml.Media.Brush IconBrush => new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White);
+        private static readonly Microsoft.UI.Xaml.Media.SolidColorBrush _whiteIconBrush = new(Microsoft.UI.Colors.White);
+        public virtual Microsoft.UI.Xaml.Media.Brush IconBrush => _whiteIconBrush;
         public IFileSystemItem Model => _model;
 
         /// <summary>
         /// Rich tooltip text: Name + Type + Size + DateModified.
+        /// 지연 계산으로 14K 아이템 로드 시 42K 불필요 문자열 할당 방지.
         /// </summary>
+        private string? _cachedTooltip;
+
         public string TooltipText
         {
             get
             {
-                if (this is FolderViewModel)
-                    return $"{Name}\n종류: 폴더\n수정한 날짜: {DateModified}";
-                if (this is FileViewModel)
-                    return $"{Name}\n종류: {FileType}\n크기: {Size}\n수정한 날짜: {DateModified}";
-                return Name;
+                return _cachedTooltip ??= BuildTooltipText();
             }
+        }
+
+        private string BuildTooltipText()
+        {
+            if (this is FolderViewModel)
+                return $"{Name}\n종류: 폴더\n수정한 날짜: {DateModified}";
+            if (this is FileViewModel)
+                return $"{Name}\n종류: {FileType}\n크기: {Size}\n수정한 날짜: {DateModified}";
+            return Name;
         }
 
         /// <summary>
@@ -349,18 +366,19 @@ namespace Span.ViewModels
             }
         }
 
+        private static readonly string[] SizeUnits = { "B", "KB", "MB", "GB", "TB" };
+
         private static string FormatFileSize(long bytes)
         {
             if (bytes == 0) return "0 B";
-            string[] sizes = { "B", "KB", "MB", "GB", "TB" };
             int order = 0;
             double size = bytes;
-            while (size >= 1024 && order < sizes.Length - 1)
+            while (size >= 1024 && order < SizeUnits.Length - 1)
             {
                 order++;
                 size /= 1024;
             }
-            return $"{size:0.##} {sizes[order]}";
+            return $"{size:0.##} {SizeUnits[order]}";
         }
 
         public FileSystemViewModel(IFileSystemItem model)
@@ -420,23 +438,30 @@ namespace Span.ViewModels
 
                     _model.Name = fullNewName;
                     _model.Path = newPath;
+                    _cachedTooltip = null; // 이름 변경 후 툴팁 캐시 무효화
                     OnPropertyChanged(nameof(Name));
                     OnPropertyChanged(nameof(Path));
                     return true;
                 }
                 else
                 {
-                    // ── 로컬 이름 변경 ──
+                    // ── 로컬 이름 변경 (Task.Run으로 UI 프리즈 방지) ──
                     string dir = System.IO.Path.GetDirectoryName(Path)!;
                     string newPath = System.IO.Path.Combine(dir, fullNewName);
+                    string currentPath = Path;
+                    bool isFolder = this is FolderViewModel;
 
-                    if (this is FolderViewModel)
-                        System.IO.Directory.Move(Path, newPath);
-                    else
-                        System.IO.File.Move(Path, newPath);
+                    System.Threading.Tasks.Task.Run(() =>
+                    {
+                        if (isFolder)
+                            System.IO.Directory.Move(currentPath, newPath);
+                        else
+                            System.IO.File.Move(currentPath, newPath);
+                    }).GetAwaiter().GetResult();
 
                     _model.Name = fullNewName;
                     _model.Path = newPath;
+                    _cachedTooltip = null; // 이름 변경 후 툴팁 캐시 무효화
                     OnPropertyChanged(nameof(Name));
                     OnPropertyChanged(nameof(Path));
                     return true;

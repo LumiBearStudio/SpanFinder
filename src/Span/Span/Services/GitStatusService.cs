@@ -182,7 +182,10 @@ namespace Span.Services
 
         /// <summary>
         /// 네트워크 경로 또는 이동식 드라이브 여부 확인.
+        /// DriveInfo 생성 비용을 줄이기 위해 드라이브 문자별 결과를 캐시한다.
         /// </summary>
+        private static readonly ConcurrentDictionary<char, bool> _driveTypeCache = new();
+
         public static bool IsNetworkOrRemovable(string path)
         {
             try
@@ -191,12 +194,18 @@ namespace Span.Services
                     return true;
 
                 var root = Path.GetPathRoot(path);
-                if (string.IsNullOrEmpty(root)) return false;
+                if (string.IsNullOrEmpty(root) || root.Length < 1) return false;
 
-                var driveInfo = new DriveInfo(root);
-                return driveInfo.DriveType == DriveType.Network
-                    || driveInfo.DriveType == DriveType.Removable
-                    || driveInfo.DriveType == DriveType.CDRom;
+                var driveLetter = char.ToUpperInvariant(root[0]);
+                if (driveLetter < 'A' || driveLetter > 'Z') return false;
+
+                return _driveTypeCache.GetOrAdd(driveLetter, letter =>
+                {
+                    var driveInfo = new DriveInfo(letter.ToString());
+                    return driveInfo.DriveType == DriveType.Network
+                        || driveInfo.DriveType == DriveType.Removable
+                        || driveInfo.DriveType == DriveType.CDRom;
+                });
             }
             catch
             {

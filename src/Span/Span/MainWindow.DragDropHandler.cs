@@ -25,6 +25,12 @@ namespace Span
     /// </summary>
     public sealed partial class MainWindow
     {
+        // 드래그 시각 피드백용 브러시 캐시 (매 이벤트 할당 방지)
+        private static readonly SolidColorBrush _dragHighlightBrush = new(Microsoft.UI.Colors.White) { Opacity = 0.08 };
+        private static readonly SolidColorBrush _transparentBrush = new(Microsoft.UI.Colors.Transparent);
+        private static readonly SolidColorBrush _sidebarHoverBrush = new(Microsoft.UI.Colors.White) { Opacity = 0.05 };
+        private static readonly SolidColorBrush _gripHighlightBrush = new(Microsoft.UI.Colors.Gray) { Opacity = 0.3 };
+
         #region Drag & Drop: Drag start and Favorites
 
         /// <summary>
@@ -208,8 +214,8 @@ namespace Span
                 : $"{_loc.Get("Copy")} → {targetFolder.Name}";
             e.DragUIOverride.IsCaptionVisible = true;
 
-            // Visual feedback: highlight background
-            grid.Background = new SolidColorBrush(Microsoft.UI.Colors.White) { Opacity = 0.08 };
+            // Visual feedback: highlight background (캐시된 브러시 사용)
+            grid.Background = _dragHighlightBrush;
 
             // Spring-loaded folder: start timer if hovering over a new folder
             if (_springLoadTarget != targetFolder)
@@ -235,7 +241,7 @@ namespace Span
             try
             {
                 // Reset highlight and cancel spring-load
-                grid.Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+                grid.Background = _transparentBrush;
                 StopSpringLoadTimer();
 
                 var paths = await ExtractDropPaths(e);
@@ -257,7 +263,7 @@ namespace Span
         {
             if (sender is Grid grid)
             {
-                grid.Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+                grid.Background = _transparentBrush;
             }
 
             // Cancel spring-loaded timer when leaving the target folder
@@ -700,9 +706,7 @@ namespace Span
         {
             if (sender is Grid grid)
             {
-                grid.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
-                    Microsoft.UI.Colors.White)
-                { Opacity = 0.05 };
+                grid.Background = _sidebarHoverBrush;
                 Helpers.CursorHelper.SetHandCursor(grid);
             }
         }
@@ -714,8 +718,7 @@ namespace Span
         {
             if (sender is Grid grid)
             {
-                grid.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
-                    Microsoft.UI.Colors.Transparent);
+                grid.Background = _transparentBrush;
             }
         }
 
@@ -730,7 +733,7 @@ namespace Span
         {
             if (sender is Microsoft.UI.Xaml.Shapes.Rectangle rect)
             {
-                rect.Fill = new SolidColorBrush(Microsoft.UI.Colors.Gray) { Opacity = 0.3 };
+                rect.Fill = _gripHighlightBrush;
                 // Set resize cursor via InputSystemCursor (reliable in WinUI 3)
                 SetGripCursor(rect, true);
             }
@@ -743,7 +746,7 @@ namespace Span
         {
             if (!_isResizingColumn && sender is Microsoft.UI.Xaml.Shapes.Rectangle rect)
             {
-                rect.Fill = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+                rect.Fill = _transparentBrush;
                 SetGripCursor(rect, false);
             }
         }
@@ -814,7 +817,7 @@ namespace Span
                 if (sender is Microsoft.UI.Xaml.Shapes.Rectangle rect)
                 {
                     rect.ReleasePointerCapture(e.Pointer);
-                    rect.Fill = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+                    rect.Fill = _transparentBrush;
                     SetGripCursor(rect, false);
                 }
 
@@ -929,17 +932,18 @@ namespace Span
 
         /// <summary>
         /// Measure the pixel width of a string using WinUI text rendering.
+        /// 단일 TextBlock을 재사용하여 14K 아이템 폴더에서 대량 할당 방지.
         /// </summary>
+        [ThreadStatic]
+        private static TextBlock? _measureTextBlock;
+
         private static double MeasureTextWidth(string text, double fontSize)
         {
             if (string.IsNullOrEmpty(text)) return 0;
 
-            var tb = new TextBlock
-            {
-                Text = text,
-                FontSize = fontSize,
-                TextWrapping = TextWrapping.NoWrap
-            };
+            var tb = _measureTextBlock ??= new TextBlock { TextWrapping = TextWrapping.NoWrap };
+            tb.Text = text;
+            tb.FontSize = fontSize;
             tb.Measure(new Windows.Foundation.Size(double.PositiveInfinity, double.PositiveInfinity));
             return tb.DesiredSize.Width;
         }

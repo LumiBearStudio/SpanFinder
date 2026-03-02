@@ -351,11 +351,13 @@ namespace Span.Views
         /// </summary>
         private void UpdateAllVisibleContainerWidths()
         {
-            if (DetailsListView?.ItemsPanelRoot == null) return;
+            var panel = DetailsListView?.ItemsPanelRoot;
+            if (panel == null) return;
 
-            for (int i = 0; i < DetailsListView.Items.Count; i++)
+            // ItemsPanelRoot의 자식만 순회 (실제 표시된 30-50개) — Items.Count(14K) 전수 순회 방지
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(panel); i++)
             {
-                if (DetailsListView.ContainerFromIndex(i) is ListViewItem container &&
+                if (VisualTreeHelper.GetChild(panel, i) is ListViewItem container &&
                     container.ContentTemplateRoot is Grid grid)
                 {
                     ApplyCellWidths(grid);
@@ -392,11 +394,12 @@ namespace Span.Views
                 DetailsListView.ItemContainerStyle = CreateDetailsItemStyle(_densityRowHeight);
             }
 
-            // Update existing realized containers
-            if (DetailsListView?.ItemsPanelRoot == null) return;
-            for (int i = 0; i < DetailsListView.Items.Count; i++)
+            // Update existing realized containers (ItemsPanelRoot 자식만 — 14K 전수 순회 방지)
+            var panel = DetailsListView?.ItemsPanelRoot;
+            if (panel == null) return;
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(panel); i++)
             {
-                if (DetailsListView.ContainerFromIndex(i) is ListViewItem container &&
+                if (VisualTreeHelper.GetChild(panel, i) is ListViewItem container &&
                     container.ContentTemplateRoot is Grid grid)
                 {
                     grid.Height = _densityRowHeight;
@@ -423,10 +426,12 @@ namespace Span.Views
             double iconFont = 16.0 + level;
             double secondaryFont = 12.0 + level;
 
-            if (DetailsListView?.ItemsPanelRoot == null) return;
-            for (int i = 0; i < DetailsListView.Items.Count; i++)
+            // ItemsPanelRoot 자식만 순회 — 14K 전수 순회 방지
+            var scalePanel = DetailsListView?.ItemsPanelRoot;
+            if (scalePanel == null) return;
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(scalePanel); i++)
             {
-                if (DetailsListView.ContainerFromIndex(i) is ListViewItem container &&
+                if (VisualTreeHelper.GetChild(scalePanel, i) is ListViewItem container &&
                     container.ContentTemplateRoot is Grid grid)
                 {
                     foreach (var child in grid.Children)
@@ -640,11 +645,9 @@ namespace Span.Views
                 }
 
                 var sortedList = sorted.ToList();
-                column.Children.Clear();
-                foreach (var item in sortedList)
-                {
-                    column.Children.Add(item);
-                }
+
+                // 원자적 교체: Clear+Add 대신 새 컬렉션 할당으로 28K CollectionChanged 이벤트 → 1회 Reset
+                column.ReplaceChildren(sortedList);
 
                 if (savedSelection != null)
                 {
@@ -652,7 +655,7 @@ namespace Span.Views
                 }
 
                 // Cache unfiltered items after sorting
-                _unfilteredItems = sortedList.ToList();
+                _unfilteredItems = new System.Collections.Generic.List<FileSystemViewModel>(sortedList);
 
                 // Re-apply filters and grouping
                 ApplyFiltersAndGrouping();
