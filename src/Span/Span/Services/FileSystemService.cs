@@ -107,7 +107,7 @@ namespace Span.Services
                 }
 
                 // Set icon based on drive type (uses current icon pack)
-                driveItem.IconGlyph = IconService.Current?.GetDriveGlyph(driveItem.DriveType) ?? "\uEC65";
+                driveItem.IconGlyph = IconService.Current?.GetDriveGlyph(driveItem.DriveType) ?? "\uEDFA";
 
                 // Generate display name based on drive type
                 var driveLetter = driveItem.Path.TrimEnd('\\');

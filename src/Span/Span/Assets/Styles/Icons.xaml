@@ -5,15 +5,38 @@
     <!-- Remix Icons (Unicode) -->
 
     <!-- Folders -->
-    <!-- Folders -->
     <x:String x:Key="Icon_Folder">&#xED53;</x:String> <!-- ri-folder-3-fill -->
     <x:String x:Key="Icon_FolderOpen">&#xED6F;</x:String> <!-- ri-folder-open-fill -->
+    <x:String x:Key="Icon_SharedFolder">&#xED77;</x:String> <!-- ri-folder-shared-fill -->
 
     <!-- Drives -->
-    <x:String x:Key="Icon_Drive">&#xEC65;</x:String> <!-- ri-drive-fill (Verified) -->
+    <x:String x:Key="Icon_Drive">&#xEDFA;</x:String> <!-- ri-hard-drive-fill -->
+    <x:String x:Key="Icon_USB">&#xF251;</x:String> <!-- ri-usb-fill -->
+    <x:String x:Key="Icon_CdRom">&#xECA4;</x:String> <!-- ri-disc-fill -->
+    <x:String x:Key="Icon_Cloud">&#xEB9C;</x:String> <!-- ri-cloud-fill -->
 
     <!-- UI Elements -->
     <x:String x:Key="Icon_ChevronRight">&#xEA6E;</x:String> <!-- ri-arrow-right-s-line -->
+
+    <!-- Toolbar Actions -->
+    <x:String x:Key="Icon_Cut">&#xF0C1;</x:String> <!-- ri-scissors-cut-line -->
+    <x:String x:Key="Icon_Copy">&#xECD5;</x:String> <!-- ri-file-copy-line -->
+    <x:String x:Key="Icon_Paste">&#xEB91;</x:String> <!-- ri-clipboard-line -->
+    <x:String x:Key="Icon_Rename">&#xEFE0;</x:String> <!-- ri-pencil-line -->
+    <x:String x:Key="Icon_Delete">&#xEC2A;</x:String> <!-- ri-delete-bin-line -->
+
+    <!-- Navigation -->
+    <x:String x:Key="Icon_Back">&#xEA60;</x:String> <!-- ri-arrow-left-line -->
+    <x:String x:Key="Icon_Forward">&#xEA6C;</x:String> <!-- ri-arrow-right-line -->
+    <x:String x:Key="Icon_Up">&#xEA76;</x:String> <!-- ri-arrow-up-line -->
+    <x:String x:Key="Icon_Home">&#xEE26;</x:String> <!-- ri-home-fill -->
+
+    <!-- View/Sort -->
+    <x:String x:Key="Icon_Sort">&#xF15F;</x:String> <!-- ri-sort-asc -->
+    <x:String x:Key="Icon_ViewMode">&#xEDDE;</x:String> <!-- ri-grid-fill -->
+    <x:String x:Key="Icon_Preview">&#xECB5;</x:String> <!-- ri-eye-line -->
+    <x:String x:Key="Icon_Calendar">&#xEB27;</x:String> <!-- ri-calendar-line -->
+    <x:String x:Key="Icon_ListCheck">&#xEEBA;</x:String> <!-- ri-list-check -->
 
     <!-- File Type Icons -->
     <x:String x:Key="Icon_File_Default">&#xECE0;</x:String> <!-- ri-file-fill -->
@@ -24,11 +47,11 @@
     <x:String x:Key="Icon_File_Audio">&#xEF84;</x:String> <!-- ri-music-fill -->
     <x:String x:Key="Icon_File_Archive">&#xED1E;</x:String> <!-- ri-file-zip-fill -->
     <x:String x:Key="Icon_File_PDF">&#xECFC;</x:String> <!-- ri-file-pdf-fill -->
-    <x:String x:Key="Icon_File_Config">&#xF0E5;</x:String> <!-- ri-settings-3-fill (Verified) -->
-    <x:String x:Key="Icon_File_Database">&#xEC15;</x:String> <!-- ri-database-2-fill (Verified) -->
+    <x:String x:Key="Icon_File_Config">&#xF0E5;</x:String> <!-- ri-settings-3-fill -->
+    <x:String x:Key="Icon_File_Database">&#xEC15;</x:String> <!-- ri-database-2-fill -->
     <x:String x:Key="Icon_File_Font">&#xEF44;</x:String> <!-- ri-font-size -->
-    <x:String x:Key="Icon_File_Executable">&#xEF57;</x:String> <!-- ri-microsoft-fill (Windows Logo - Verified) -->
-    <x:String x:Key="Icon_File_Web">&#xEDD4;</x:String> <!-- ri-global-line -->
+    <x:String x:Key="Icon_File_Executable">&#xEF57;</x:String> <!-- ri-microsoft-fill -->
+    <x:String x:Key="Icon_File_Web">&#xEDCF;</x:String> <!-- ri-global-line (fixed) -->
     <x:String x:Key="Icon_File_Document">&#xED0E;</x:String> <!-- ri-file-text-fill -->
     <x:String x:Key="Icon_File_Spreadsheet">&#xECDE;</x:String> <!-- ri-file-excel-fill -->
     <x:String x:Key="Icon_File_Presentation">&#xED00;</x:String> <!-- ri-file-ppt-fill -->
@@ -36,7 +59,7 @@
     <!-- Structural UI Icons (overridden per icon pack in App.xaml.cs) -->
     <x:String x:Key="Icon_NewFolder">&#xED59;</x:String> <!-- ri-folder-add-fill -->
     <x:String x:Key="Icon_SplitView">&#xEE8C;</x:String> <!-- ri-layout-column-fill -->
-    <x:String x:Key="Icon_Network">&#xEDD4;</x:String> <!-- ri-global-line -->
-    <x:String x:Key="Icon_Server">&#xEE71;</x:String> <!-- ri-server-fill -->
+    <x:String x:Key="Icon_Network">&#xEDCF;</x:String> <!-- ri-global-line (fixed) -->
+    <x:String x:Key="Icon_Server">&#xF0DF;</x:String> <!-- ri-server-fill (fixed) -->
 
 </ResourceDictionary>

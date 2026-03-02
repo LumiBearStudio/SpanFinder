@@ -185,7 +185,7 @@ namespace Span.Services
                             Name = share.shi1_netname,
                             Path = $@"{serverName}\{share.shi1_netname}",
                             Type = NetworkItemType.Share,
-                            IconGlyph = IconService.Current?.FolderGlyph ?? "\uED53",
+                            IconGlyph = "\uED77", // ri-folder-shared-fill
                             Comment = share.shi1_remark ?? string.Empty
                         });
                     }

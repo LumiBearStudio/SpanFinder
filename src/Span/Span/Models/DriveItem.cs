@@ -16,7 +16,7 @@ namespace Span.Models
         public long AvailableFreeSpace { get; set; }
         public string DriveFormat { get; set; } = string.Empty;
         public string DriveType { get; set; } = string.Empty;
-        public string IconGlyph { get; set; } = "\uEC65"; // default, always overridden by FileSystemService/IconService
+        public string IconGlyph { get; set; } = "\uEDFA"; // ri-hard-drive-fill, always overridden by FileSystemService/IconService
 
         /// <summary>
         /// SFTP/FTP 원격 연결 여부
@@ -69,8 +69,8 @@ namespace Span.Models
                 ? conn.UncPath ?? string.Empty
                 : conn.ToUri(),
             IconGlyph = conn.Protocol == RemoteProtocol.SMB
-                ? Span.Services.IconService.Current?.NetworkGlyph ?? "\uEDD4"
-                : Span.Services.IconService.Current?.ServerGlyph ?? "\uEE71",
+                ? Span.Services.IconService.Current?.NetworkGlyph ?? "\uEDCF"
+                : Span.Services.IconService.Current?.ServerGlyph ?? "\uF0DF",
             IsRemoteConnection = true,
             ConnectionId = conn.Id
         };

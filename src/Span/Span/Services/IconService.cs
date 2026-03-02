@@ -56,11 +56,11 @@ namespace Span.Services
         public string FolderGlyph { get; private set; } = "\uED53";
         public string FolderOpenGlyph { get; private set; } = "\uED6F";
         public string FileDefaultGlyph { get; private set; } = "\uECE0";
-        public string DriveGlyph { get; private set; } = "\uEC65";
-        public string RemovableGlyph { get; private set; } = "\uF285"; // ri-usb-fill
+        public string DriveGlyph { get; private set; } = "\uEDFA";
+        public string RemovableGlyph { get; private set; } = "\uF251"; // ri-usb-fill
         public string CdRomGlyph { get; private set; } = "\uECA4"; // ri-disc-fill
-        public string NetworkGlyph { get; private set; } = "\uEDD4";
-        public string ServerGlyph { get; private set; } = "\uEE71";
+        public string NetworkGlyph { get; private set; } = "\uEDCF"; // ri-global-line
+        public string ServerGlyph { get; private set; } = "\uF0DF"; // ri-server-fill
         public string ChevronRightGlyph { get; private set; } = "\uEA6E";
         public string NewFolderGlyph { get; private set; } = "\uED59";
         public string SplitViewGlyph { get; private set; } = "\uEE8C";
@@ -108,7 +108,7 @@ namespace Span.Services
             {
                 "phosphor" => ("\ue24a", "\ue256", "\ue23a", "\ue2a0", "\ue28e", "\ue2a0", "\ue0a4", "\ue258", "\ue1b0"),
                 "tabler" => ("\uf749", "\ufaf7", "\ueaa2", "\ueb1f", "\ueb54", "\ueb1f", "\uea6e", "\ueaae", "\ueebc"),
-                _ => ("\uED53", "\uED6F", "\uECE0", "\uEC65", "\uEDD4", "\uEE71", "\uEA6E", "\uED59", "\uEE8C")
+                _ => ("\uED53", "\uED6F", "\uECE0", "\uEDFA", "\uEDCF", "\uF0DF", "\uEA6E", "\uED59", "\uEE8C")
             };
 
             // Additional structural glyphs per pack (Removable/USB, CD-ROM, Cloud)
@@ -116,7 +116,7 @@ namespace Span.Services
             {
                 "phosphor" => ("\ue2a0", "\ue0e0", "\ue288"),  // hard-drives, disc, globe
                 "tabler" => ("\ueb1f", "\ueb3d", "\uf673"),  // device-floppy, disc, cloud-filled
-                _ => ("\uEDFA", "\uECA4", "\uEB9C")   // ri-hard-drive-fill, ri-disc-fill, ri-cloud-fill
+                _ => ("\uF251", "\uECA4", "\uEB9C")   // ri-usb-fill, ri-disc-fill, ri-cloud-fill
             };
 
             try

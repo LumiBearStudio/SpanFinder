@@ -731,7 +731,7 @@ namespace Span.ViewModels
                             AvailableFreeSpace = d.AvailableFreeSpace,
                             DriveFormat = d.DriveFormat ?? "",
                             DriveType = d.DriveType ?? "",
-                            IconGlyph = Services.IconService.Current?.DriveGlyph ?? "\uEC65"
+                            IconGlyph = Services.IconService.Current?.DriveGlyph ?? "\uEDFA"
                         }).ToList();
                     }
                 }

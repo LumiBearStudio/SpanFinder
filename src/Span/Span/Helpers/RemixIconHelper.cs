@@ -106,7 +106,7 @@ namespace Span.Helpers
             { "font-sans", "\uEF45" },
             { "font-mono", "\uEF46" },
             { "links-fill", "\uEEF1" },
-            { "global-line", "\uEDD4" },
+            { "global-line", "\uEDCF" },
             { "settings-5-fill", "\uF0E9" }, // Verified \f0e9
             { "settings-4-fill", "\uF0E7" },
             { "file-reduce-fill", "\uED02" },
@@ -115,7 +115,10 @@ namespace Span.Helpers
             { "file-copy-2-fill", "\uECD2" },
             { "file-download-fill", "\uECD8" },
             { "file-fill", "\uECE0" },
-            { "folder-3-fill", "\uED53" }
+            { "folder-3-fill", "\uED53" },
+            { "folder-shared-fill", "\uED77" },
+            { "usb-fill", "\uF251" },
+            { "server-fill", "\uF0DF" }
         };
     }
 }
