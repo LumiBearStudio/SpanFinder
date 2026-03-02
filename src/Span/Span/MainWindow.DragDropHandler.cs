@@ -98,7 +98,10 @@ namespace Span
                         else if (System.IO.File.Exists(p))
                             storageItems.Add(await Windows.Storage.StorageFile.GetFileFromPathAsync(p));
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        Helpers.DebugLogger.Log($"[DragDrop] StorageItem resolve failed ({p}): {ex.Message}");
+                    }
                 }
                 request.SetData(storageItems);
             }
@@ -131,26 +134,33 @@ namespace Span
         /// </summary>
         private async void OnFavoritesDrop(object sender, DragEventArgs e)
         {
-            if (e.DataView.Contains(StandardDataFormats.Text))
+            try
             {
-                var path = await e.DataView.GetTextAsync();
-                if (!string.IsNullOrEmpty(path) && System.IO.Directory.Exists(path))
+                if (e.DataView.Contains(StandardDataFormats.Text))
                 {
-                    ViewModel.AddToFavorites(path);
-                    Helpers.DebugLogger.Log($"[Sidebar] Folder dropped to favorites: {path}");
-                }
-            }
-            else if (e.DataView.Contains(StandardDataFormats.StorageItems))
-            {
-                var items = await e.DataView.GetStorageItemsAsync();
-                foreach (var item in items)
-                {
-                    if (!string.IsNullOrEmpty(item.Path) && System.IO.Directory.Exists(item.Path))
+                    var path = await e.DataView.GetTextAsync();
+                    if (!string.IsNullOrEmpty(path) && System.IO.Directory.Exists(path))
                     {
-                        ViewModel.AddToFavorites(item.Path);
-                        Helpers.DebugLogger.Log($"[Sidebar] External folder dropped to favorites: {item.Path}");
+                        ViewModel.AddToFavorites(path);
+                        Helpers.DebugLogger.Log($"[Sidebar] Folder dropped to favorites: {path}");
                     }
                 }
+                else if (e.DataView.Contains(StandardDataFormats.StorageItems))
+                {
+                    var items = await e.DataView.GetStorageItemsAsync();
+                    foreach (var item in items)
+                    {
+                        if (!string.IsNullOrEmpty(item.Path) && System.IO.Directory.Exists(item.Path))
+                        {
+                            ViewModel.AddToFavorites(item.Path);
+                            Helpers.DebugLogger.Log($"[Sidebar] External folder dropped to favorites: {item.Path}");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[DragDrop] OnFavoritesDrop error: {ex.Message}");
             }
         }
 
@@ -222,15 +232,22 @@ namespace Span
             if (sender is not Grid grid || grid.DataContext is not FolderViewModel targetFolder) return;
             e.Handled = true; // Prevent bubbling BEFORE await (avoid duplicate execution)
 
-            // Reset highlight and cancel spring-load
-            grid.Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
-            StopSpringLoadTimer();
+            try
+            {
+                // Reset highlight and cancel spring-load
+                grid.Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+                StopSpringLoadTimer();
 
-            var paths = await ExtractDropPaths(e);
-            if (paths.Count == 0) return;
+                var paths = await ExtractDropPaths(e);
+                if (paths.Count == 0) return;
 
-            bool isMove = ResolveDragDropOperation(e, targetFolder.Path);
-            await HandleDropAsync(paths, targetFolder.Path, isMove: isMove);
+                bool isMove = ResolveDragDropOperation(e, targetFolder.Path);
+                await HandleDropAsync(paths, targetFolder.Path, isMove: isMove);
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[DragDrop] OnFolderItemDrop error: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -356,11 +373,18 @@ namespace Span
             if (sender is not ListView listView || listView.DataContext is not FolderViewModel folderVm) return;
             e.Handled = true; // Prevent bubbling to OnPaneDrop (duplicate execution)
 
-            var paths = await ExtractDropPaths(e);
-            if (paths.Count == 0) return;
+            try
+            {
+                var paths = await ExtractDropPaths(e);
+                if (paths.Count == 0) return;
 
-            bool isMove = ResolveDragDropOperation(e, folderVm.Path);
-            await HandleDropAsync(paths, folderVm.Path, isMove: isMove);
+                bool isMove = ResolveDragDropOperation(e, folderVm.Path);
+                await HandleDropAsync(paths, folderVm.Path, isMove: isMove);
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[DragDrop] OnColumnDrop error: {ex.Message}");
+            }
         }
 
         #endregion
@@ -612,37 +636,44 @@ namespace Span
         {
             if (sender is not FrameworkElement fe) return;
 
-            // External drags (Windows Explorer etc.) won't have "SourcePane" property
-            bool isInternalDrag = e.DataView.Properties.TryGetValue("SourcePane", out var sp) && sp is string s;
-            var sourcePane = isInternalDrag ? (string)sp! : "";
-
-            bool isLeftTarget = fe.Name == "LeftPaneContainer";
-            string targetPane = isLeftTarget ? "Left" : "Right";
-
-            // Same-pane Move is blocked (only Copy allowed) — only for internal drags
-            bool isMove = false;
+            try
             {
-                var targetExplorer2 = isLeftTarget ? ViewModel.Explorer : ViewModel.RightExplorer;
-                var destFolder2 = targetExplorer2?.CurrentFolder?.Path ?? "";
-                isMove = ResolveDragDropOperation(e, destFolder2);
+                // External drags (Windows Explorer etc.) won't have "SourcePane" property
+                bool isInternalDrag = e.DataView.Properties.TryGetValue("SourcePane", out var sp) && sp is string s;
+                var sourcePane = isInternalDrag ? (string)sp! : "";
+
+                bool isLeftTarget = fe.Name == "LeftPaneContainer";
+                string targetPane = isLeftTarget ? "Left" : "Right";
+
+                // Same-pane Move is blocked (only Copy allowed) — only for internal drags
+                bool isMove = false;
+                {
+                    var targetExplorer2 = isLeftTarget ? ViewModel.Explorer : ViewModel.RightExplorer;
+                    var destFolder2 = targetExplorer2?.CurrentFolder?.Path ?? "";
+                    isMove = ResolveDragDropOperation(e, destFolder2);
+                }
+                if (isInternalDrag && sourcePane == targetPane && isMove) return;
+
+                // Hide overlay
+                var overlay = isLeftTarget ? LeftDropOverlay : RightDropOverlay;
+                overlay.Opacity = 0;
+
+                var paths = await ExtractDropPaths(e);
+                if (paths.Count == 0) return;
+
+                // Destination = target pane's current folder
+                var targetExplorer = isLeftTarget ? ViewModel.Explorer : ViewModel.RightExplorer;
+                var destFolder = targetExplorer?.CurrentFolder?.Path;
+                if (string.IsNullOrEmpty(destFolder)) return;
+
+                // isMove already resolved above (same-pane Move was early-returned)
+                await HandleDropAsync(paths, destFolder, isMove: isMove);
+                e.Handled = true;
             }
-            if (isInternalDrag && sourcePane == targetPane && isMove) return;
-
-            // Hide overlay
-            var overlay = isLeftTarget ? LeftDropOverlay : RightDropOverlay;
-            overlay.Opacity = 0;
-
-            var paths = await ExtractDropPaths(e);
-            if (paths.Count == 0) return;
-
-            // Destination = target pane's current folder
-            var targetExplorer = isLeftTarget ? ViewModel.Explorer : ViewModel.RightExplorer;
-            var destFolder = targetExplorer?.CurrentFolder?.Path;
-            if (string.IsNullOrEmpty(destFolder)) return;
-
-            // isMove already resolved above (same-pane Move was early-returned)
-            await HandleDropAsync(paths, destFolder, isMove: isMove);
-            e.Handled = true;
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[DragDrop] OnPaneDrop error: {ex.Message}");
+            }
         }
 
         /// <summary>

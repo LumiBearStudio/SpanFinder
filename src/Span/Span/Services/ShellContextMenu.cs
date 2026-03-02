@@ -14,6 +14,9 @@ namespace Span.Services
     /// </summary>
     public static class ShellContextMenu
     {
+        // Limit concurrent STA threads to prevent resource exhaustion on repeated timeouts
+        private static readonly SemaphoreSlim s_staThrottle = new(2, 2);
+
         #region COM Interfaces
 
         [ComImport, Guid("000214E6-0000-0000-C000-000000000046"),
@@ -449,43 +452,57 @@ namespace Span.Services
         /// </summary>
         public static async Task<Session?> CreateSessionAsync(IntPtr hwnd, string path, int timeoutMs = 3000)
         {
-            Session? result = null;
-            Exception? caught = null;
-
-            // Shell COM objects require STA — use a dedicated STA thread
-            var staThread = new Thread(() =>
+            // Throttle concurrent STA threads to prevent resource exhaustion
+            if (!await s_staThrottle.WaitAsync(timeoutMs))
             {
-                try
-                {
-                    result = CreateSession(hwnd, path);
-                }
-                catch (Exception ex)
-                {
-                    caught = ex;
-                }
-            });
-            staThread.SetApartmentState(ApartmentState.STA);
-            staThread.IsBackground = true;
-            staThread.Start();
-
-            // Wait with timeout
-            var completed = await Task.Run(() => staThread.Join(timeoutMs));
-
-            if (!completed)
-            {
-                Helpers.DebugLogger.Log($"[ShellContextMenu] CreateSession timed out ({timeoutMs}ms) for: {path}");
-                // Thread is still blocked in QueryContextMenu — it will eventually finish
-                // and the Session will be orphaned (COM cleanup on thread exit).
+                Helpers.DebugLogger.Log($"[ShellContextMenu] STA throttle timeout for: {path}");
                 return null;
             }
 
-            if (caught != null)
+            try
             {
-                Helpers.DebugLogger.Log($"[ShellContextMenu] CreateSessionAsync error: {caught.Message}");
-                return null;
-            }
+                Session? result = null;
+                Exception? caught = null;
 
-            return result;
+                // Shell COM objects require STA — use a dedicated STA thread
+                var staThread = new Thread(() =>
+                {
+                    try
+                    {
+                        result = CreateSession(hwnd, path);
+                    }
+                    catch (Exception ex)
+                    {
+                        caught = ex;
+                    }
+                });
+                staThread.SetApartmentState(ApartmentState.STA);
+                staThread.IsBackground = true;
+                staThread.Start();
+
+                // Wait with timeout
+                var completed = await Task.Run(() => staThread.Join(timeoutMs));
+
+                if (!completed)
+                {
+                    Helpers.DebugLogger.Log($"[ShellContextMenu] CreateSession timed out ({timeoutMs}ms) for: {path}");
+                    // Thread is still blocked in QueryContextMenu — it will eventually finish
+                    // and the Session will be orphaned (COM cleanup on thread exit).
+                    return null;
+                }
+
+                if (caught != null)
+                {
+                    Helpers.DebugLogger.Log($"[ShellContextMenu] CreateSessionAsync error: {caught.Message}");
+                    return null;
+                }
+
+                return result;
+            }
+            finally
+            {
+                s_staThrottle.Release();
+            }
         }
 
         /// <summary>

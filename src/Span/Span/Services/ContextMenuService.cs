@@ -865,50 +865,57 @@ namespace Span.Services
 
         private async void ShowRemotePropertiesDialog(FileSystemViewModel item)
         {
-            var xamlRoot = XamlRootProvider?.Invoke();
-            if (xamlRoot == null) return;
-
-            var infoPanel = new Microsoft.UI.Xaml.Controls.StackPanel { Spacing = 8 };
-
-            void AddRow(string label, string value)
+            try
             {
-                if (string.IsNullOrEmpty(value)) return;
-                var row = new Microsoft.UI.Xaml.Controls.StackPanel
+                var xamlRoot = XamlRootProvider?.Invoke();
+                if (xamlRoot == null) return;
+
+                var infoPanel = new Microsoft.UI.Xaml.Controls.StackPanel { Spacing = 8 };
+
+                void AddRow(string label, string value)
                 {
-                    Orientation = Microsoft.UI.Xaml.Controls.Orientation.Horizontal,
-                    Spacing = 8
+                    if (string.IsNullOrEmpty(value)) return;
+                    var row = new Microsoft.UI.Xaml.Controls.StackPanel
+                    {
+                        Orientation = Microsoft.UI.Xaml.Controls.Orientation.Horizontal,
+                        Spacing = 8
+                    };
+                    row.Children.Add(new Microsoft.UI.Xaml.Controls.TextBlock
+                    {
+                        Text = label,
+                        Width = 80,
+                        Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Gray)
+                    });
+                    row.Children.Add(new Microsoft.UI.Xaml.Controls.TextBlock
+                    {
+                        Text = value,
+                        IsTextSelectionEnabled = true
+                    });
+                    infoPanel.Children.Add(row);
+                }
+
+                AddRow(_loc.Get("FileName") ?? "이름", item.Name);
+                AddRow(_loc.Get("FileType") ?? "종류", item.FileType);
+                if (item is FileViewModel)
+                    AddRow(_loc.Get("FileSize") ?? "크기", item.Size);
+                AddRow(_loc.Get("DateModified") ?? "수정일", item.DateModified);
+                AddRow(_loc.Get("FilePath") ?? "경로", item.Path);
+
+                var dialog = new ContentDialog
+                {
+                    Title = _loc.Get("Properties"),
+                    Content = infoPanel,
+                    CloseButtonText = _loc.Get("OK") ?? "확인",
+                    XamlRoot = xamlRoot
                 };
-                row.Children.Add(new Microsoft.UI.Xaml.Controls.TextBlock
-                {
-                    Text = label,
-                    Width = 80,
-                    Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Gray)
-                });
-                row.Children.Add(new Microsoft.UI.Xaml.Controls.TextBlock
-                {
-                    Text = value,
-                    IsTextSelectionEnabled = true
-                });
-                infoPanel.Children.Add(row);
+
+                try { await dialog.ShowAsync(); }
+                catch { /* ignore if another dialog is open */ }
             }
-
-            AddRow(_loc.Get("FileName") ?? "이름", item.Name);
-            AddRow(_loc.Get("FileType") ?? "종류", item.FileType);
-            if (item is FileViewModel)
-                AddRow(_loc.Get("FileSize") ?? "크기", item.Size);
-            AddRow(_loc.Get("DateModified") ?? "수정일", item.DateModified);
-            AddRow(_loc.Get("FilePath") ?? "경로", item.Path);
-
-            var dialog = new ContentDialog
+            catch (Exception ex)
             {
-                Title = _loc.Get("Properties"),
-                Content = infoPanel,
-                CloseButtonText = _loc.Get("OK") ?? "확인",
-                XamlRoot = xamlRoot
-            };
-
-            try { await dialog.ShowAsync(); }
-            catch { /* ignore if another dialog is open */ }
+                Helpers.DebugLogger.Log($"[ContextMenu] ShowRemotePropertiesDialog error: {ex.Message}");
+            }
         }
 
         private static readonly Microsoft.UI.Xaml.Thickness CompactPadding = new(10, 2, 10, 2);

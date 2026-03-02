@@ -172,7 +172,15 @@ namespace Span.Services
 
         private static void CopyDirectoryRecursive(string sourceDir, string destDir, CancellationToken ct)
         {
-            Directory.CreateDirectory(destDir);
+            try
+            {
+                Directory.CreateDirectory(destDir);
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[LocalFileSystemProvider] CreateDirectory failed '{destDir}': {ex.Message}");
+                return; // Cannot proceed without destination directory
+            }
 
             foreach (var file in Directory.GetFiles(sourceDir))
             {

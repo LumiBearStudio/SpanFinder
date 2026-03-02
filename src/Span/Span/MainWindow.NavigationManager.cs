@@ -125,54 +125,61 @@ namespace Span
         /// </summary>
         private async void FocusColumnAsync(int columnIndex)
         {
-            if (_isClosed) return;
-
-            // Task.Delay(50) 대신 DispatcherQueue Low 우선순위로 XAML 레이아웃 완료 대기
-            // — 50ms 고정 지연을 제거하여 탭 전환 속도 개선
-            var tcs = new System.Threading.Tasks.TaskCompletionSource();
-            if (!DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
-                () => tcs.TrySetResult()))
+            try
             {
-                return; // 큐가 종료됨 — 창이 닫히는 중
-            }
-            await tcs.Task;
-            if (_isClosed) return;
+                if (_isClosed) return;
 
-            var listView = GetListViewForColumn(columnIndex);
-            if (listView == null) return;
-
-            var columns = ViewModel.ActiveExplorer.Columns;
-            if (columnIndex >= columns.Count) return;
-
-            var column = columns[columnIndex];
-
-            // 포커스용 자동 선택 시 auto-navigation 일시 억제
-            // — 선택이 없을 때 첫 항목을 선택하면 FolderVm_PropertyChanged가 발동하여
-            //   하위 폴더가 자동으로 열리는 부작용 방지
-            if (column.SelectedChild == null && column.Children.Count > 0)
-            {
-                var explorer = ViewModel.ActiveExplorer;
-                var savedAutoNav = explorer.EnableAutoNavigation;
-                explorer.EnableAutoNavigation = false;
-                column.SelectedChild = column.Children[0];
-                explorer.EnableAutoNavigation = savedAutoNav;
-            }
-
-            if (column.SelectedChild != null)
-            {
-                int selectedIndex = column.Children.IndexOf(column.SelectedChild);
-                if (selectedIndex >= 0)
+                // Task.Delay(50) 대신 DispatcherQueue Low 우선순위로 XAML 레이아웃 완료 대기
+                // — 50ms 고정 지연을 제거하여 탭 전환 속도 개선
+                var tcs = new System.Threading.Tasks.TaskCompletionSource();
+                if (!DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+                    () => tcs.TrySetResult()))
                 {
-                    var container = listView.ContainerFromIndex(selectedIndex) as UIElement;
-                    container?.Focus(FocusState.Keyboard);
+                    return; // 큐가 종료됨 — 창이 닫히는 중
                 }
-            }
-            else
-            {
-                listView.Focus(FocusState.Keyboard);
-            }
+                await tcs.Task;
+                if (_isClosed) return;
 
-            EnsureColumnVisible(columnIndex);
+                var listView = GetListViewForColumn(columnIndex);
+                if (listView == null) return;
+
+                var columns = ViewModel.ActiveExplorer.Columns;
+                if (columnIndex >= columns.Count) return;
+
+                var column = columns[columnIndex];
+
+                // 포커스용 자동 선택 시 auto-navigation 일시 억제
+                // — 선택이 없을 때 첫 항목을 선택하면 FolderVm_PropertyChanged가 발동하여
+                //   하위 폴더가 자동으로 열리는 부작용 방지
+                if (column.SelectedChild == null && column.Children.Count > 0)
+                {
+                    var explorer = ViewModel.ActiveExplorer;
+                    var savedAutoNav = explorer.EnableAutoNavigation;
+                    explorer.EnableAutoNavigation = false;
+                    column.SelectedChild = column.Children[0];
+                    explorer.EnableAutoNavigation = savedAutoNav;
+                }
+
+                if (column.SelectedChild != null)
+                {
+                    int selectedIndex = column.Children.IndexOf(column.SelectedChild);
+                    if (selectedIndex >= 0)
+                    {
+                        var container = listView.ContainerFromIndex(selectedIndex) as UIElement;
+                        container?.Focus(FocusState.Keyboard);
+                    }
+                }
+                else
+                {
+                    listView.Focus(FocusState.Keyboard);
+                }
+
+                EnsureColumnVisible(columnIndex);
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[Navigation] FocusColumnAsync error: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -250,9 +257,16 @@ namespace Span
         /// </summary>
         private async void OnGoBackClick(object sender, RoutedEventArgs e)
         {
-            await ViewModel.GoBackAsync();
-            FocusLastColumnAfterNavigation();
-            Helpers.DebugLogger.Log("[MainWindow] Back button clicked");
+            try
+            {
+                await ViewModel.GoBackAsync();
+                FocusLastColumnAfterNavigation();
+                Helpers.DebugLogger.Log("[MainWindow] Back button clicked");
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[Navigation] OnGoBackClick error: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -260,9 +274,16 @@ namespace Span
         /// </summary>
         private async void OnGoForwardClick(object sender, RoutedEventArgs e)
         {
-            await ViewModel.GoForwardAsync();
-            FocusLastColumnAfterNavigation();
-            Helpers.DebugLogger.Log("[MainWindow] Forward button clicked");
+            try
+            {
+                await ViewModel.GoForwardAsync();
+                FocusLastColumnAfterNavigation();
+                Helpers.DebugLogger.Log("[MainWindow] Forward button clicked");
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[Navigation] OnGoForwardClick error: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -270,15 +291,22 @@ namespace Span
         /// </summary>
         private async void OnPaneGoBackClick(object sender, RoutedEventArgs e)
         {
-            var tag = (sender as FrameworkElement)?.Tag as string;
-            var explorer = (tag == "Right") ? ViewModel.RightExplorer : ViewModel.ActiveExplorer;
-            if (explorer != null && explorer.CanGoBack)
+            try
             {
-                await explorer.GoBack();
-                ViewModel.SyncNavigationHistoryState();
+                var tag = (sender as FrameworkElement)?.Tag as string;
+                var explorer = (tag == "Right") ? ViewModel.RightExplorer : ViewModel.ActiveExplorer;
+                if (explorer != null && explorer.CanGoBack)
+                {
+                    await explorer.GoBack();
+                    ViewModel.SyncNavigationHistoryState();
+                }
+                FocusLastColumnAfterNavigation();
+                Helpers.DebugLogger.Log($"[MainWindow] Pane back button clicked (pane: {tag})");
             }
-            FocusLastColumnAfterNavigation();
-            Helpers.DebugLogger.Log($"[MainWindow] Pane back button clicked (pane: {tag})");
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[Navigation] OnPaneGoBackClick error: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -286,15 +314,22 @@ namespace Span
         /// </summary>
         private async void OnPaneGoForwardClick(object sender, RoutedEventArgs e)
         {
-            var tag = (sender as FrameworkElement)?.Tag as string;
-            var explorer = (tag == "Right") ? ViewModel.RightExplorer : ViewModel.ActiveExplorer;
-            if (explorer != null && explorer.CanGoForward)
+            try
             {
-                await explorer.GoForward();
-                ViewModel.SyncNavigationHistoryState();
+                var tag = (sender as FrameworkElement)?.Tag as string;
+                var explorer = (tag == "Right") ? ViewModel.RightExplorer : ViewModel.ActiveExplorer;
+                if (explorer != null && explorer.CanGoForward)
+                {
+                    await explorer.GoForward();
+                    ViewModel.SyncNavigationHistoryState();
+                }
+                FocusLastColumnAfterNavigation();
+                Helpers.DebugLogger.Log($"[MainWindow] Pane forward button clicked (pane: {tag})");
             }
-            FocusLastColumnAfterNavigation();
-            Helpers.DebugLogger.Log($"[MainWindow] Pane forward button clicked (pane: {tag})");
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[Navigation] OnPaneGoForwardClick error: {ex.Message}");
+            }
         }
 
         #endregion

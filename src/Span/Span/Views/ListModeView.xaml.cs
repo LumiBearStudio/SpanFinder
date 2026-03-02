@@ -116,7 +116,7 @@ namespace Span.Views
                         LoadListSettings();
                     }
                 }
-                catch { }
+                catch (Exception ex) { Helpers.DebugLogger.Log($"[ListModeView] Settings init error: {ex.Message}"); }
 
                 try
                 {
@@ -124,7 +124,7 @@ namespace Span.Views
                     LocalizeUI();
                     if (_loc != null) _loc.LanguageChanged += LocalizeUI;
                 }
-                catch { }
+                catch (Exception ex) { Helpers.DebugLogger.Log($"[ListModeView] Localization init error: {ex.Message}"); }
 
                 // Build initial items with ".." prepended
                 RebuildListItems();
@@ -420,41 +420,48 @@ namespace Span.Views
 
         private async void OnItemRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
         {
-            if (_settings != null && !_settings.ShowContextMenu) return;
-            if (sender is Grid grid && ContextMenuService != null && ContextMenuHost != null)
+            try
             {
-                // ".." → show empty area menu (same as right-clicking background)
-                if (grid.DataContext is FolderViewModel folder && IsParentDotDot(folder))
+                if (_settings != null && !_settings.ShowContextMenu) return;
+                if (sender is Grid grid && ContextMenuService != null && ContextMenuHost != null)
                 {
-                    var folderPath = ViewModel?.CurrentFolder?.Path;
-                    if (!string.IsNullOrEmpty(folderPath))
+                    // ".." → show empty area menu (same as right-clicking background)
+                    if (grid.DataContext is FolderViewModel folder && IsParentDotDot(folder))
                     {
-                        var emptyFlyout = ContextMenuService.BuildEmptyAreaMenu(folderPath, ContextMenuHost);
-                        emptyFlyout.ShowAt(grid, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
+                        var folderPath = ViewModel?.CurrentFolder?.Path;
+                        if (!string.IsNullOrEmpty(folderPath))
+                        {
+                            var emptyFlyout = ContextMenuService.BuildEmptyAreaMenu(folderPath, ContextMenuHost);
+                            emptyFlyout.ShowAt(grid, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
+                            {
+                                Position = e.GetPosition(grid)
+                            });
+                        }
+                        e.Handled = true;
+                        return;
+                    }
+
+                    e.Handled = true; // Prevent bubbling to empty area handler during await
+
+                    MenuFlyout? flyout = null;
+
+                    if (grid.DataContext is FolderViewModel realFolder)
+                        flyout = await ContextMenuService.BuildFolderMenuAsync(realFolder, ContextMenuHost);
+                    else if (grid.DataContext is FileViewModel file)
+                        flyout = await ContextMenuService.BuildFileMenuAsync(file, ContextMenuHost);
+
+                    if (flyout != null)
+                    {
+                        flyout.ShowAt(grid, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
                         {
                             Position = e.GetPosition(grid)
                         });
                     }
-                    e.Handled = true;
-                    return;
                 }
-
-                e.Handled = true; // Prevent bubbling to empty area handler during await
-
-                MenuFlyout? flyout = null;
-
-                if (grid.DataContext is FolderViewModel realFolder)
-                    flyout = await ContextMenuService.BuildFolderMenuAsync(realFolder, ContextMenuHost);
-                else if (grid.DataContext is FileViewModel file)
-                    flyout = await ContextMenuService.BuildFileMenuAsync(file, ContextMenuHost);
-
-                if (flyout != null)
-                {
-                    flyout.ShowAt(grid, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
-                    {
-                        Position = e.GetPosition(grid)
-                    });
-                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[ListModeView] OnItemRightTapped error: {ex.Message}");
             }
         }
 
@@ -483,7 +490,7 @@ namespace Span.Views
                     var shellService = App.Current.Services.GetRequiredService<Services.ShellService>();
                     shellService.OpenFile(file.Path);
                 }
-                catch { }
+                catch (Exception ex) { Helpers.DebugLogger.Log($"[ListModeView] OpenFile error (double-tap): {ex.Message}"); }
             }
         }
 
@@ -561,7 +568,7 @@ namespace Span.Views
                     var shellService = App.Current.Services.GetRequiredService<Services.ShellService>();
                     shellService.OpenFile(file.Path);
                 }
-                catch { }
+                catch (Exception ex) { Helpers.DebugLogger.Log($"[ListModeView] OpenFile error (enter key): {ex.Message}"); }
             }
         }
 

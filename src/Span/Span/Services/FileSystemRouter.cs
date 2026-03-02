@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Span.Services
@@ -10,8 +12,8 @@ namespace Span.Services
     /// </summary>
     public class FileSystemRouter
     {
-        private readonly Dictionary<string, IFileSystemProvider> _providers = new(StringComparer.OrdinalIgnoreCase);
-        private readonly Dictionary<string, IFileSystemProvider> _activeConnections = new(StringComparer.OrdinalIgnoreCase);
+        private readonly ConcurrentDictionary<string, IFileSystemProvider> _providers = new(StringComparer.OrdinalIgnoreCase);
+        private readonly ConcurrentDictionary<string, IFileSystemProvider> _activeConnections = new(StringComparer.OrdinalIgnoreCase);
         private IFileSystemProvider? _defaultProvider;
 
         public void RegisterProvider(IFileSystemProvider provider)
@@ -42,7 +44,7 @@ namespace Span.Services
             return _defaultProvider;
         }
 
-        public IReadOnlyCollection<IFileSystemProvider> GetAllProviders() => _providers.Values;
+        public IReadOnlyCollection<IFileSystemProvider> GetAllProviders() => _providers.Values.ToList().AsReadOnly();
 
         // ── 활성 연결 관리 (URI prefix 키) ──
 
@@ -54,9 +56,8 @@ namespace Span.Services
         public void UnregisterConnection(string uriPrefix)
         {
             var key = uriPrefix.TrimEnd('/');
-            if (_activeConnections.TryGetValue(key, out var provider))
+            if (_activeConnections.TryRemove(key, out var provider))
             {
-                _activeConnections.Remove(key);
                 DisposeProvider(provider);
             }
         }

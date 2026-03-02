@@ -22,6 +22,7 @@ namespace Span.ViewModels
         private readonly FolderItem _folderModel;
         private bool _isLoaded = false;
         private string? _calculatedSize;
+        private Microsoft.UI.Dispatching.DispatcherQueue? _uiDispatcher;
 
         /// <summary>
         /// 이 폴더가 클라우드 경로인지 캐시 (on-demand cloud state 주입용).
@@ -172,6 +173,8 @@ namespace Span.ViewModels
                 return;
             }
 
+            // UI 스레드의 DispatcherQueue를 캡처 (콜백은 백그라운드 스레드에서 호출됨)
+            _uiDispatcher ??= Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
             svc.SizeCalculated += OnFolderSizeCalculated;
             svc.RequestCalculation(Path);
         }
@@ -186,18 +189,26 @@ namespace Span.ViewModels
             _calculatedSize = bytes >= 0 ? FormatFolderSize(bytes) : string.Empty;
 
             // UI 스레드에서 PropertyChanged 발생
+            // OnFolderSizeCalculated는 FolderSizeService의 백그라운드 스레드에서 호출되므로
+            // 반드시 캡처된 UI DispatcherQueue를 사용해야 함 (GetForCurrentThread()는 항상 null)
             try
             {
-                Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread()?.TryEnqueue(() =>
+                if (_uiDispatcher != null)
                 {
-                    OnPropertyChanged(nameof(Size));
-                    OnPropertyChanged(nameof(SizeValue));
-                });
+                    _uiDispatcher.TryEnqueue(() =>
+                    {
+                        OnPropertyChanged(nameof(Size));
+                        OnPropertyChanged(nameof(SizeValue));
+                    });
+                }
+                else
+                {
+                    Helpers.DebugLogger.Log("[FolderViewModel] UI dispatcher not captured, size update skipped");
+                }
             }
-            catch
+            catch (Exception ex)
             {
-                OnPropertyChanged(nameof(Size));
-                OnPropertyChanged(nameof(SizeValue));
+                Helpers.DebugLogger.Log($"[FolderViewModel] Size update dispatch error: {ex.Message}");
             }
         }
 
@@ -811,6 +822,15 @@ namespace Span.ViewModels
                 if (svc != null) svc.SizeCalculated -= OnFolderSizeCalculated;
             }
             catch (Exception ex) { Helpers.DebugLogger.Log($"[FolderViewModel] FolderSize unsubscribe failed: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Set error state from NavigateIntoFolder exception (async void crash prevention).
+        /// </summary>
+        internal void SetNavigationError(string message)
+        {
+            ErrorMessage = message;
+            ErrorIcon = "\uE783"; // generic error icon
         }
 
         /// <summary>

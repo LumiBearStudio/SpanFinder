@@ -500,6 +500,10 @@ namespace Span.Services
             };
 
             process.Start();
+
+            // Read stdout and stderr concurrently to avoid deadlock
+            // (if either buffer fills, the process blocks and ReadToEnd never returns)
+            var stderrTask = Task.Run(() => process.StandardError.ReadToEnd());
             var stdout = process.StandardOutput.ReadToEnd();
             process.WaitForExit(timeoutMs);
 
@@ -509,7 +513,8 @@ namespace Span.Services
                 return new ProcessResult(-1, "", "timeout");
             }
 
-            return new ProcessResult(process.ExitCode, stdout, "");
+            var stderr = stderrTask.GetAwaiter().GetResult();
+            return new ProcessResult(process.ExitCode, stdout, stderr);
         }
 
         private record ProcessResult(int ExitCode, string StdOut, string StdErr);

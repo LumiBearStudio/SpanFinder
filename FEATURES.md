@@ -1,7 +1,7 @@
 # SPAN Finder - Feature Reference
 
 > Windows용 고성능 Miller Columns 파일 탐색기
-> 최종 업데이트: 2026-03-01
+> 최종 업데이트: 2026-03-02
 
 ---
 
@@ -250,6 +250,7 @@
 
 - **Type-Ahead**: 밀러 컬럼 내 문자 입력 즉시 필터링 (800ms 버퍼)
 - **검색 박스**: `Ctrl+F`로 포커스, `Enter`로 재귀 검색 실행, `Esc`로 취소/초기화
+- **실시간 필터 바**: `Ctrl+Shift+F`로 토글, 와일드카드 지원 (*.exe, *.mp3), 모든 Miller 컬럼에 동시 적용
 
 ### 재귀 검색 (RecursiveSearchService)
 
@@ -344,7 +345,7 @@
 | 레이아웃 밀도 | Compact / Comfortable / Spacious |
 | 폰트 | Segoe UI Variable (기본) + 시스템 폰트 선택 가능 |
 | 아이콘 팩 | Remix / Phosphor / Tabler |
-| 언어 | System / English / 한국어 / 日本語 |
+| 언어 | System / EN / KO / JA / ZH-CN / ZH-TW / DE / ES / FR / PT-BR |
 
 ### 탐색 동작
 
@@ -385,8 +386,9 @@
 
 ## 다국어 지원
 
-- 한국어, 일본어, 영어 UI
-- Shell 컨텍스트 메뉴 Verb/Text 번역
+- **9개 언어**: English, 한국어, 日本語, 简体中文, 繁體中文, Deutsch, Español, Français, Português (BR)
+- Shell 컨텍스트 메뉴 Verb/Text 번역 (한국어, 일본어, 독일어, 스페인어, 프랑스어, 포르투갈어)
+- 런타임 언어 전환 (재시작 불필요)
 - 한국어 키보드 스캔코드 폴백 (Ctrl+`, Ctrl+')
 
 ---
@@ -455,6 +457,38 @@
 - 네트워크 연결 끊김 감지
 - 에러 재시도 버튼
 - 탭 복원 시 경로 존재 검증
+
+---
+
+## 액션 로그
+
+- 파일 작업 이력 자동 기록 (ActionLogService)
+- JSON 기반 영속화 (최대 1,000 항목, FIFO)
+- 비동기 디스크 기록 (UI 블로킹 없음)
+- 로그 뷰어 (LogModeView/LogFlyoutContent)
+- 히스토리 삭제 기능
+
+---
+
+## 크래시 리포팅 (Sentry)
+
+- 비동기 지연 초기화 (앱 시작 속도 무영향)
+- 사용자 경로 스크러빙 (개인정보 보호)
+- UI 미처리 예외, AppDomain 미처리 예외, Task 미관찰 예외 자동 수집
+- Debug/Release 모드 조건부 활성화
+
+---
+
+## 안정성 강화 (v1.0)
+
+- **async void 보호**: 14개 async void 이벤트 핸들러에 try-catch 추가 (크래시 방지)
+- **이벤트 누수 방지**: PropertyChanged/LoadError 핸들러 -= before += 패턴 적용
+- **스레드 안전성**: DispatcherQueue UI 스레드 마샬링 확보 (FolderSizeService 콜백)
+- **에러 전파**: 파일 작업 실패 시 DebugLogger + 사용자 알림 전달
+- **Dead code 정리**: 미사용 CopyDirectory 메서드 제거
+- **Directory.CreateDirectory 보호**: 대상 폴더 생성 실패 시 조기 반환 + 로깅
+- **빈 catch 블록 로깅**: 재귀 검색, 드래그 앤 드롭 등 파일 I/O 관련 5곳 로깅 추가
+- **ContinueWith → async/await**: ThreadPool에서 DispatcherQueue 접근 문제 해결
 
 ---
 

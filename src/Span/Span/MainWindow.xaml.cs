@@ -1852,21 +1852,28 @@ namespace Span
         /// </summary>
         private async void OnDriveItemTapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
         {
-            if (sender is Grid grid && grid.DataContext is DriveItem drive)
+            try
             {
-                if (drive.IsRemoteConnection && drive.ConnectionId != null)
+                if (sender is Grid grid && grid.DataContext is DriveItem drive)
                 {
-                    // 원격 연결: 비밀번호 확인 → 연결
-                    await HandleRemoteConnectionTapped(drive.ConnectionId);
+                    if (drive.IsRemoteConnection && drive.ConnectionId != null)
+                    {
+                        // 원격 연결: 비밀번호 확인 → 연결
+                        await HandleRemoteConnectionTapped(drive.ConnectionId);
+                    }
+                    else
+                    {
+                        if (ViewModel.CurrentViewMode == ViewMode.ActionLog)
+                            ConvertLogTabToExplorer();
+                        ViewModel.OpenDrive(drive);
+                        FocusColumnAsync(0);
+                    }
+                    Helpers.DebugLogger.Log($"[Sidebar] Drive tapped: {drive.Name}");
                 }
-                else
-                {
-                    if (ViewModel.CurrentViewMode == ViewMode.ActionLog)
-                        ConvertLogTabToExplorer();
-                    ViewModel.OpenDrive(drive);
-                    FocusColumnAsync(0);
-                }
-                Helpers.DebugLogger.Log($"[Sidebar] Drive tapped: {drive.Name}");
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[Sidebar] OnDriveItemTapped error: {ex.Message}");
             }
         }
 
@@ -1876,6 +1883,8 @@ namespace Span
         /// </summary>
         private async void OnBrowseNetworkTapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
         {
+            try
+            {
             var networkService = App.Current.Services.GetRequiredService<NetworkBrowserService>();
             var connService = App.Current.Services.GetRequiredService<ConnectionManagerService>();
 
@@ -2038,6 +2047,11 @@ namespace Span
                     await ViewModel.ActiveExplorer.NavigateToPath(targetPath);
                     FocusColumnAsync(0);
                 }
+            }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[Network] OnBrowseNetworkTapped error: {ex.Message}");
             }
         }
 
@@ -2312,10 +2326,17 @@ namespace Span
         /// </summary>
         private async void OnSavedConnectionTapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
         {
-            if (sender is Grid grid && grid.DataContext is Models.ConnectionInfo connInfo)
+            try
             {
-                Helpers.DebugLogger.Log($"[Sidebar] 저장된 연결 탭: {connInfo.DisplayName}");
-                await HandleRemoteConnectionTapped(connInfo.Id);
+                if (sender is Grid grid && grid.DataContext is Models.ConnectionInfo connInfo)
+                {
+                    Helpers.DebugLogger.Log($"[Sidebar] 저장된 연결 탭: {connInfo.DisplayName}");
+                    await HandleRemoteConnectionTapped(connInfo.Id);
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[Sidebar] OnSavedConnectionTapped error: {ex.Message}");
             }
         }
 
@@ -2580,22 +2601,29 @@ namespace Span
         /// <param name="fav">탐색할 즐겨찾기 항목.</param>
         private async void NavigateToFavorite(FavoriteItem fav)
         {
-            if (!string.IsNullOrEmpty(fav.Path) && System.IO.Directory.Exists(fav.Path))
+            try
             {
-                var activeViewMode = (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
-                    ? ViewModel.RightViewMode : ViewModel.CurrentViewMode;
-                if (activeViewMode == ViewMode.ActionLog)
-                    ConvertLogTabToExplorer();
-                if (activeViewMode == ViewMode.Home || activeViewMode == ViewMode.ActionLog)
-                    ViewModel.SwitchViewMode(ViewMode.MillerColumns);
-
-                var folder = new FolderItem
+                if (!string.IsNullOrEmpty(fav.Path) && System.IO.Directory.Exists(fav.Path))
                 {
-                    Name = System.IO.Path.GetFileName(fav.Path) ?? fav.Path,
-                    Path = fav.Path
-                };
-                _ = ViewModel.ActiveExplorer.NavigateTo(folder);
-                FocusColumnAsync(0);
+                    var activeViewMode = (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
+                        ? ViewModel.RightViewMode : ViewModel.CurrentViewMode;
+                    if (activeViewMode == ViewMode.ActionLog)
+                        ConvertLogTabToExplorer();
+                    if (activeViewMode == ViewMode.Home || activeViewMode == ViewMode.ActionLog)
+                        ViewModel.SwitchViewMode(ViewMode.MillerColumns);
+
+                    var folder = new FolderItem
+                    {
+                        Name = System.IO.Path.GetFileName(fav.Path) ?? fav.Path,
+                        Path = fav.Path
+                    };
+                    _ = ViewModel.ActiveExplorer.NavigateTo(folder);
+                    FocusColumnAsync(0);
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[Navigation] NavigateToFavorite error: {ex.Message}");
             }
         }
 
@@ -3061,15 +3089,22 @@ namespace Span
         /// </summary>
         private async void OnFolderRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
         {
-            if (!_settings.ShowContextMenu) return;
-            if (sender is Grid grid && grid.DataContext is FolderViewModel folder)
+            try
             {
-                e.Handled = true; // Prevent bubbling to empty area handler during await
-                var flyout = await _contextMenuService.BuildFolderMenuAsync(folder, this);
-                flyout.ShowAt(grid, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
+                if (!_settings.ShowContextMenu) return;
+                if (sender is Grid grid && grid.DataContext is FolderViewModel folder)
                 {
-                    Position = e.GetPosition(grid)
-                });
+                    e.Handled = true; // Prevent bubbling to empty area handler during await
+                    var flyout = await _contextMenuService.BuildFolderMenuAsync(folder, this);
+                    flyout.ShowAt(grid, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
+                    {
+                        Position = e.GetPosition(grid)
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[ContextMenu] OnFolderRightTapped error: {ex.Message}");
             }
         }
 
@@ -3079,15 +3114,22 @@ namespace Span
         /// </summary>
         private async void OnFileRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
         {
-            if (!_settings.ShowContextMenu) return;
-            if (sender is Grid grid && grid.DataContext is FileViewModel file)
+            try
             {
-                e.Handled = true; // Prevent bubbling to empty area handler during await
-                var flyout = await _contextMenuService.BuildFileMenuAsync(file, this);
-                flyout.ShowAt(grid, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
+                if (!_settings.ShowContextMenu) return;
+                if (sender is Grid grid && grid.DataContext is FileViewModel file)
                 {
-                    Position = e.GetPosition(grid)
-                });
+                    e.Handled = true; // Prevent bubbling to empty area handler during await
+                    var flyout = await _contextMenuService.BuildFileMenuAsync(file, this);
+                    flyout.ShowAt(grid, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
+                    {
+                        Position = e.GetPosition(grid)
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[ContextMenu] OnFileRightTapped error: {ex.Message}");
             }
         }
 

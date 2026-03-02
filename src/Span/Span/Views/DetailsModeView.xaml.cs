@@ -136,7 +136,7 @@ namespace Span.Views
                         _settings.SettingChanged += OnSettingChanged;
                     }
                 }
-                catch { }
+                catch (Exception ex) { Helpers.DebugLogger.Log($"[DetailsModeView] Settings init error: {ex.Message}"); }
 
                 try
                 {
@@ -144,7 +144,7 @@ namespace Span.Views
                     LocalizeUI();
                     if (_loc != null) _loc.LanguageChanged += LocalizeUI;
                 }
-                catch { }
+                catch (Exception ex) { Helpers.DebugLogger.Log($"[DetailsModeView] Localization init error: {ex.Message}"); }
 
                 // Ctrl+Wheel view mode cycling is handled globally by MainWindow.OnGlobalPointerWheelChanged
 
@@ -515,25 +515,32 @@ namespace Span.Views
 
         private async void OnItemRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
         {
-            if (_settings != null && !_settings.ShowContextMenu) return;
-            if (sender is Grid grid && ContextMenuService != null && ContextMenuHost != null)
+            try
             {
-                e.Handled = true; // Prevent bubbling to empty area handler during await
-
-                Microsoft.UI.Xaml.Controls.MenuFlyout? flyout = null;
-
-                if (grid.DataContext is FolderViewModel folder)
-                    flyout = await ContextMenuService.BuildFolderMenuAsync(folder, ContextMenuHost);
-                else if (grid.DataContext is FileViewModel file)
-                    flyout = await ContextMenuService.BuildFileMenuAsync(file, ContextMenuHost);
-
-                if (flyout != null)
+                if (_settings != null && !_settings.ShowContextMenu) return;
+                if (sender is Grid grid && ContextMenuService != null && ContextMenuHost != null)
                 {
-                    flyout.ShowAt(grid, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
+                    e.Handled = true; // Prevent bubbling to empty area handler during await
+
+                    Microsoft.UI.Xaml.Controls.MenuFlyout? flyout = null;
+
+                    if (grid.DataContext is FolderViewModel folder)
+                        flyout = await ContextMenuService.BuildFolderMenuAsync(folder, ContextMenuHost);
+                    else if (grid.DataContext is FileViewModel file)
+                        flyout = await ContextMenuService.BuildFileMenuAsync(file, ContextMenuHost);
+
+                    if (flyout != null)
                     {
-                        Position = e.GetPosition(grid)
-                    });
+                        flyout.ShowAt(grid, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
+                        {
+                            Position = e.GetPosition(grid)
+                        });
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[DetailsModeView] OnItemRightTapped error: {ex.Message}");
             }
         }
 

@@ -278,6 +278,8 @@ namespace Span
         /// </summary>
         private async void HandlePaste()
         {
+            try
+            {
             var columns = ViewModel.ActiveExplorer.Columns;
             int activeIndex = GetActiveColumnIndex();
             if (activeIndex < 0) activeIndex = columns.Count - 1;
@@ -425,6 +427,11 @@ namespace Span
 
             if (isCut && _clipboardPaths.Count > 0) _clipboardPaths.Clear();
             UpdateToolbarButtonStates();
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[FileOp] HandlePaste error: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -433,6 +440,8 @@ namespace Span
         /// </summary>
         private async void HandlePasteAsShortcut()
         {
+            try
+            {
             var columns = ViewModel.ActiveExplorer.Columns;
             int activeIndex = GetActiveColumnIndex();
             if (activeIndex < 0) activeIndex = columns.Count - 1;
@@ -498,16 +507,11 @@ namespace Span
                 ViewModel.ShowToast(string.Format(_loc.Get("Toast_ShortcutsCreated"), created));
                 HandleRefresh();
             }
-        }
-
-        private static void CopyDirectory(string src, string dest)
-        {
-            var dir = new System.IO.DirectoryInfo(src);
-            System.IO.Directory.CreateDirectory(dest);
-            foreach (var file in dir.GetFiles())
-                file.CopyTo(System.IO.Path.Combine(dest, file.Name), true);
-            foreach (var subDir in dir.GetDirectories())
-                CopyDirectory(subDir.FullName, System.IO.Path.Combine(dest, subDir.Name));
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[FileOp] HandlePasteAsShortcut error: {ex.Message}");
+            }
         }
 
         #endregion
@@ -524,46 +528,53 @@ namespace Span
         /// </summary>
         private async void HandleNewFolder()
         {
-            var columns = ViewModel.ActiveExplorer.Columns;
-            int activeIndex = GetActiveColumnIndex();
-            if (activeIndex < 0) activeIndex = columns.Count - 1;
-            if (activeIndex < 0 || activeIndex >= columns.Count) return;
-
-            var currentFolder = columns[activeIndex];
-            string baseName = _loc.Get("NewFolderBaseName");
-            bool isRemote = Services.FileSystemRouter.IsRemotePath(currentFolder.Path);
-
-            string newPath;
-            if (isRemote)
+            try
             {
-                // 원격 경로: URI 호환 경로 조합 (Path.Combine 사용 불가)
-                newPath = currentFolder.Path.TrimEnd('/') + "/" + baseName;
-                // 원격 폴더 충돌 검사 스킵 — 서버에서 자동 처리
-            }
-            else
-            {
-                newPath = System.IO.Path.Combine(currentFolder.Path, baseName);
-                int count = 1;
-                while (System.IO.Directory.Exists(newPath))
+                var columns = ViewModel.ActiveExplorer.Columns;
+                int activeIndex = GetActiveColumnIndex();
+                if (activeIndex < 0) activeIndex = columns.Count - 1;
+                if (activeIndex < 0 || activeIndex >= columns.Count) return;
+
+                var currentFolder = columns[activeIndex];
+                string baseName = _loc.Get("NewFolderBaseName");
+                bool isRemote = Services.FileSystemRouter.IsRemotePath(currentFolder.Path);
+
+                string newPath;
+                if (isRemote)
                 {
-                    newPath = System.IO.Path.Combine(currentFolder.Path, $"{baseName} ({count})");
-                    count++;
+                    // 원격 경로: URI 호환 경로 조합 (Path.Combine 사용 불가)
+                    newPath = currentFolder.Path.TrimEnd('/') + "/" + baseName;
+                    // 원격 폴더 충돌 검사 스킵 — 서버에서 자동 처리
+                }
+                else
+                {
+                    newPath = System.IO.Path.Combine(currentFolder.Path, baseName);
+                    int count = 1;
+                    while (System.IO.Directory.Exists(newPath))
+                    {
+                        newPath = System.IO.Path.Combine(currentFolder.Path, $"{baseName} ({count})");
+                        count++;
+                    }
+                }
+
+                var router = App.Current.Services.GetRequiredService<Services.FileSystemRouter>();
+                var op = new Span.Services.FileOperations.NewFolderOperation(newPath, router);
+                await ViewModel.ExecuteFileOperationAsync(op, activeIndex);
+
+                // Select the new folder and start inline rename
+                var newFolder = currentFolder.Children.FirstOrDefault(c =>
+                    c.Path.Equals(newPath, StringComparison.OrdinalIgnoreCase));
+                if (newFolder != null)
+                {
+                    currentFolder.SelectedChild = newFolder;
+                    newFolder.BeginRename();
+                    await System.Threading.Tasks.Task.Delay(100);
+                    FocusRenameTextBox(activeIndex);
                 }
             }
-
-            var router = App.Current.Services.GetRequiredService<Services.FileSystemRouter>();
-            var op = new Span.Services.FileOperations.NewFolderOperation(newPath, router);
-            await ViewModel.ExecuteFileOperationAsync(op, activeIndex);
-
-            // Select the new folder and start inline rename
-            var newFolder = currentFolder.Children.FirstOrDefault(c =>
-                c.Path.Equals(newPath, StringComparison.OrdinalIgnoreCase));
-            if (newFolder != null)
+            catch (Exception ex)
             {
-                currentFolder.SelectedChild = newFolder;
-                newFolder.BeginRename();
-                await System.Threading.Tasks.Task.Delay(100);
-                FocusRenameTextBox(activeIndex);
+                Helpers.DebugLogger.Log($"[FileOp] HandleNewFolder error: {ex.Message}");
             }
         }
 
@@ -581,23 +592,30 @@ namespace Span
         /// </summary>
         private async void HandleRefresh()
         {
-            var columns = ViewModel.ActiveExplorer.Columns;
-            int activeIndex = GetActiveColumnIndex();
-            if (activeIndex < 0) activeIndex = columns.Count - 1;
-            if (activeIndex < 0 || activeIndex >= columns.Count) return;
-
-            var column = columns[activeIndex];
-            var previousSelection = column.SelectedChild;
-
-            await column.ReloadAsync();
-
-            // 이전 선택 복원 (이름 기준)
-            if (previousSelection != null)
+            try
             {
-                var restored = column.Children.FirstOrDefault(c =>
-                    c.Name.Equals(previousSelection.Name, StringComparison.OrdinalIgnoreCase));
-                if (restored != null)
-                    column.SelectedChild = restored;
+                var columns = ViewModel.ActiveExplorer.Columns;
+                int activeIndex = GetActiveColumnIndex();
+                if (activeIndex < 0) activeIndex = columns.Count - 1;
+                if (activeIndex < 0 || activeIndex >= columns.Count) return;
+
+                var column = columns[activeIndex];
+                var previousSelection = column.SelectedChild;
+
+                await column.ReloadAsync();
+
+                // 이전 선택 복원 (이름 기준)
+                if (previousSelection != null)
+                {
+                    var restored = column.Children.FirstOrDefault(c =>
+                        c.Name.Equals(previousSelection.Name, StringComparison.OrdinalIgnoreCase));
+                    if (restored != null)
+                        column.SelectedChild = restored;
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[FileOp] HandleRefresh error: {ex.Message}");
             }
         }
 
@@ -898,6 +916,8 @@ namespace Span
         /// </summary>
         private async void HandleDelete()
         {
+            try
+            {
             // ★ Save activeIndex BEFORE showing dialog (modal dialog steals focus)
             var columns = ViewModel.ActiveExplorer.Columns;
             int activeIndex = GetCurrentColumnIndex();
@@ -982,6 +1002,11 @@ namespace Span
             Helpers.DebugLogger.Log($"[HandleDelete] Restoring focus to column {activeIndex}");
             FocusColumnAsync(activeIndex);
             Helpers.DebugLogger.Log($"[HandleDelete] ===== COMPLETE =====");
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[FileOp] HandleDelete error: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -989,6 +1014,8 @@ namespace Span
         /// </summary>
         private async void HandlePermanentDelete()
         {
+            try
+            {
             var columns = ViewModel.ActiveExplorer.Columns;
             int activeIndex = GetActiveColumnIndex();
             if (activeIndex < 0) activeIndex = columns.Count - 1;
@@ -1046,6 +1073,11 @@ namespace Span
 
             // Restore focus
             FocusColumnAsync(activeIndex);
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[FileOp] HandlePermanentDelete error: {ex.Message}");
+            }
         }
 
         #endregion
@@ -1108,7 +1140,7 @@ namespace Span
                     var settings = App.Current.Services.GetService(typeof(Services.SettingsService)) as Services.SettingsService;
                     if (settings != null) showHidden = settings.ShowHiddenFiles;
                 }
-                catch { }
+                catch (Exception ex) { Helpers.DebugLogger.Log($"[FileOp] Settings access error: {ex.Message}"); }
 
                 // 재귀 검색 시작
                 _ = explorer.StartRecursiveSearchAsync(query, rootPath, showHidden);
@@ -1372,7 +1404,7 @@ namespace Span
                             destPath = System.IO.Path.Combine(dir, $"{nameWithoutExt}{suffix} ({counter})");
                             counter++;
                         }
-                        await System.Threading.Tasks.Task.Run(() => CopyDirectoryRecursive(srcPath, destPath));
+                        await System.Threading.Tasks.Task.Run(() => CopyDirectoryRecursive(NormalizeLongPath(srcPath), NormalizeLongPath(destPath)));
                     }
                     else
                     {
@@ -1383,7 +1415,7 @@ namespace Span
                             destPath = System.IO.Path.Combine(dir, $"{nameWithoutExt}{suffix} ({counter}){ext}");
                             counter++;
                         }
-                        await System.Threading.Tasks.Task.Run(() => System.IO.File.Copy(srcPath, destPath));
+                        await System.Threading.Tasks.Task.Run(() => System.IO.File.Copy(NormalizeLongPath(srcPath), NormalizeLongPath(destPath)));
                     }
 
                     Helpers.DebugLogger.Log($"[Duplicate] {srcPath} → {destPath}");
@@ -1409,15 +1441,56 @@ namespace Span
 
         private static void CopyDirectoryRecursive(string sourceDir, string destDir)
         {
-            System.IO.Directory.CreateDirectory(destDir);
+            try
+            {
+                System.IO.Directory.CreateDirectory(destDir);
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[CopyDirectoryRecursive] CreateDirectory failed '{destDir}': {ex.Message}");
+                return; // Cannot proceed without destination directory
+            }
             foreach (var file in System.IO.Directory.GetFiles(sourceDir))
             {
-                System.IO.File.Copy(file, System.IO.Path.Combine(destDir, System.IO.Path.GetFileName(file)));
+                try
+                {
+                    System.IO.File.Copy(file, System.IO.Path.Combine(destDir, System.IO.Path.GetFileName(file)));
+                }
+                catch (Exception ex)
+                {
+                    Helpers.DebugLogger.Log($"[CopyDirectoryRecursive] Failed: '{file}': {ex.Message}");
+                }
             }
             foreach (var dir in System.IO.Directory.GetDirectories(sourceDir))
             {
-                CopyDirectoryRecursive(dir, System.IO.Path.Combine(destDir, System.IO.Path.GetFileName(dir)));
+                try
+                {
+                    CopyDirectoryRecursive(dir, System.IO.Path.Combine(destDir, System.IO.Path.GetFileName(dir)));
+                }
+                catch (Exception ex)
+                {
+                    Helpers.DebugLogger.Log($"[CopyDirectoryRecursive] Failed dir: '{dir}': {ex.Message}");
+                }
             }
+        }
+
+        /// <summary>
+        /// Normalize path for long path support. .NET 8 handles long paths natively,
+        /// but this ensures the \\?\ prefix is applied for paths exceeding MAX_PATH (260).
+        /// </summary>
+        private static string NormalizeLongPath(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return path;
+            // Already has long path prefix or is a UNC path with prefix
+            if (path.StartsWith(@"\\?\") || path.StartsWith(@"\\.\")) return path;
+            // Only apply prefix for paths that exceed MAX_PATH
+            if (path.Length >= 260)
+            {
+                if (path.StartsWith(@"\\"))
+                    return @"\\?\UNC\" + path.Substring(2); // UNC path
+                return @"\\?\" + path;
+            }
+            return path;
         }
 
         // =================================================================

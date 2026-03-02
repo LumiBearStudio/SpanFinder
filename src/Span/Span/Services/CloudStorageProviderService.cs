@@ -145,7 +145,7 @@ namespace Span.Services
 
                     drives.Add(CreateCloudDriveItem(displayName, targetPath, cloudGlyph));
                 }
-                catch { /* 개별 CLSID 오류 무시 */ }
+                catch (Exception ex) { Helpers.DebugLogger.Log($"[CloudStorage] CLSID '{clsidStr}' error: {ex.Message}"); }
             }
         }
 
@@ -190,7 +190,7 @@ namespace Span.Services
                         }
                     }
                 }
-                catch { /* JSON 파싱 오류 무시 */ }
+                catch (Exception ex) { Helpers.DebugLogger.Log($"[CloudStorage] Dropbox info.json parse error: {ex.Message}"); }
             }
 
             // 기본 경로 폴백

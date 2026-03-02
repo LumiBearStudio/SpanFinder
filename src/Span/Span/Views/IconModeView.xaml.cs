@@ -78,7 +78,7 @@ namespace Span.Views
                         _settings.SettingChanged += OnSettingChanged;
                     }
                 }
-                catch { }
+                catch (Exception ex) { Helpers.DebugLogger.Log($"[IconModeView] Loaded init error: {ex.Message}"); }
             };
 
             this.Unloaded += OnUnloaded;
@@ -158,41 +158,48 @@ namespace Span.Views
 
         private async void OnItemRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
         {
-            if (_settings != null && !_settings.ShowContextMenu) return;
-            if (e.OriginalSource is FrameworkElement fe && ContextMenuService != null && ContextMenuHost != null)
+            try
             {
-                // Check if this is actually a file/folder item (not empty area)
-                bool isItem = fe.DataContext is FolderViewModel || fe.DataContext is FileViewModel;
-                if (isItem)
-                    e.Handled = true; // Prevent bubbling during await
-
-                Microsoft.UI.Xaml.Controls.MenuFlyout? flyout = null;
-
-                if (fe.DataContext is FolderViewModel folder)
-                    flyout = await ContextMenuService.BuildFolderMenuAsync(folder, ContextMenuHost);
-                else if (fe.DataContext is FileViewModel file)
-                    flyout = await ContextMenuService.BuildFileMenuAsync(file, ContextMenuHost);
-
-                if (flyout != null)
+                if (_settings != null && !_settings.ShowContextMenu) return;
+                if (e.OriginalSource is FrameworkElement fe && ContextMenuService != null && ContextMenuHost != null)
                 {
-                    flyout.ShowAt(fe, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
+                    // Check if this is actually a file/folder item (not empty area)
+                    bool isItem = fe.DataContext is FolderViewModel || fe.DataContext is FileViewModel;
+                    if (isItem)
+                        e.Handled = true; // Prevent bubbling during await
+
+                    Microsoft.UI.Xaml.Controls.MenuFlyout? flyout = null;
+
+                    if (fe.DataContext is FolderViewModel folder)
+                        flyout = await ContextMenuService.BuildFolderMenuAsync(folder, ContextMenuHost);
+                    else if (fe.DataContext is FileViewModel file)
+                        flyout = await ContextMenuService.BuildFileMenuAsync(file, ContextMenuHost);
+
+                    if (flyout != null)
                     {
-                        Position = e.GetPosition(fe)
-                    });
-                }
-                else
-                {
-                    // Empty area fallback
-                    var folderPath = ViewModel?.CurrentFolder?.Path;
-                    if (!string.IsNullOrEmpty(folderPath))
-                    {
-                        flyout = ContextMenuService.BuildEmptyAreaMenu(folderPath, ContextMenuHost);
                         flyout.ShowAt(fe, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
                         {
                             Position = e.GetPosition(fe)
                         });
                     }
+                    else
+                    {
+                        // Empty area fallback
+                        var folderPath = ViewModel?.CurrentFolder?.Path;
+                        if (!string.IsNullOrEmpty(folderPath))
+                        {
+                            flyout = ContextMenuService.BuildEmptyAreaMenu(folderPath, ContextMenuHost);
+                            flyout.ShowAt(fe, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
+                            {
+                                Position = e.GetPosition(fe)
+                            });
+                        }
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[IconModeView] OnItemRightTapped error: {ex.Message}");
             }
         }
 

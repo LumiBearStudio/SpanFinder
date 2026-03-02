@@ -69,7 +69,7 @@ namespace Span.Views
                     LocalizeUI();
                     if (_loc != null) _loc.LanguageChanged += LocalizeUI;
                 }
-                catch { }
+                catch (Exception ex) { Helpers.DebugLogger.Log($"[HomeModeView] Loaded init error: {ex.Message}"); }
             };
 
             this.Unloaded += (s, e) =>

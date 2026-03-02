@@ -196,7 +196,10 @@ namespace Span.Services
                             batch.Add(folderVm);
                         }
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        DebugLogger.Log($"[RecursiveSearch] 폴더 항목 처리 실패 ({sub.FullName}): {ex.Message}");
+                    }
                 }
             }
             catch (Exception ex)
@@ -231,7 +234,10 @@ namespace Span.Services
                             batch.Add(fileVm);
                         }
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        DebugLogger.Log($"[RecursiveSearch] 파일 항목 처리 실패 ({f.FullName}): {ex.Message}");
+                    }
                 }
             }
             catch (Exception ex)

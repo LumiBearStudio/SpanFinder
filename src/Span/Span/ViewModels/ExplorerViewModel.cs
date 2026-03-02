@@ -763,47 +763,61 @@ namespace Span.ViewModels
         {
             if (folder == null) return;
 
-            Helpers.DebugLogger.Log($"[NavigateIntoFolder] Manual navigation to: {folder.Name}");
-
-            // Push current path to history before navigating
-            PushToHistory(folder.Path);
-
-            // Find parent column index
-            var parentFolder = fromColumn ?? CurrentFolder;
-            if (parentFolder == null) return;
-
-            int parentIndex = Columns.IndexOf(parentFolder);
-            if (parentIndex == -1) return;
-
-            int nextIndex = parentIndex + 1;
-
-            // Remove columns after current
-            RemoveColumnsFrom(nextIndex + 1);
-
-            // Replace or add the new column FIRST → ProgressRing 즉시 표시
-            if (nextIndex < Columns.Count)
+            try
             {
-                var oldColumn = Columns[nextIndex];
-                oldColumn.PropertyChanged -= FolderVm_PropertyChanged;
-                oldColumn.LoadError -= OnColumnLoadError;
-                oldColumn.CancelLoading();
-                oldColumn.SelectedChild = null;
+                Helpers.DebugLogger.Log($"[NavigateIntoFolder] Manual navigation to: {folder.Name}");
 
-                folder.PropertyChanged += FolderVm_PropertyChanged;
-                folder.LoadError += OnColumnLoadError;
-                Columns[nextIndex] = folder;
+                // Push current path to history before navigating
+                PushToHistory(folder.Path);
+
+                // Find parent column index
+                var parentFolder = fromColumn ?? CurrentFolder;
+                if (parentFolder == null) return;
+
+                int parentIndex = Columns.IndexOf(parentFolder);
+                if (parentIndex == -1) return;
+
+                int nextIndex = parentIndex + 1;
+
+                // Remove columns after current
+                RemoveColumnsFrom(nextIndex + 1);
+
+                // Replace or add the new column FIRST → ProgressRing 즉시 표시
+                if (nextIndex < Columns.Count)
+                {
+                    var oldColumn = Columns[nextIndex];
+                    oldColumn.PropertyChanged -= FolderVm_PropertyChanged;
+                    oldColumn.LoadError -= OnColumnLoadError;
+                    oldColumn.CancelLoading();
+                    oldColumn.SelectedChild = null;
+
+                    // Defensive unsubscribe to prevent handler accumulation if folder instance is reused
+                    folder.PropertyChanged -= FolderVm_PropertyChanged;
+                    folder.LoadError -= OnColumnLoadError;
+                    folder.PropertyChanged += FolderVm_PropertyChanged;
+                    folder.LoadError += OnColumnLoadError;
+                    Columns[nextIndex] = folder;
+                }
+                else
+                {
+                    AddColumn(folder);
+                }
+
+                CurrentPath = folder.Path;
+                SelectedFile = null;
+
+                // 로딩 중 ProgressRing 표시, 완료 시 항목 표시
+                await folder.EnsureChildrenLoadedAsync();
+                Helpers.DebugLogger.Log($"[NavigateIntoFolder] Navigation complete to: {folder.Path}");
             }
-            else
+            catch (Exception ex)
             {
-                AddColumn(folder);
+                Helpers.DebugLogger.Log($"[NavigateIntoFolder] Error navigating to '{folder.Name}': {ex.Message}");
+                // Propagate error to the folder's error state so UI can display it.
+                // SetNavigationError → OnErrorMessageChanged → LoadError → OnColumnLoadError → NavigationError
+                // 경로로 자동 전파되므로 NavigationError 직접 호출 불필요 (중복 토스트 방지)
+                folder.SetNavigationError(ex.Message);
             }
-
-            CurrentPath = folder.Path;
-            SelectedFile = null;
-
-            // 로딩 중 ProgressRing 표시, 완료 시 항목 표시
-            await folder.EnsureChildrenLoadedAsync();
-            Helpers.DebugLogger.Log($"[NavigateIntoFolder] Navigation complete to: {folder.Path}");
         }
 
         /// <summary>
@@ -846,6 +860,9 @@ namespace Span.ViewModels
 
         private void AddColumn(FolderViewModel folderVm)
         {
+            // Defensive unsubscribe to prevent handler accumulation if re-added
+            folderVm.PropertyChanged -= FolderVm_PropertyChanged;
+            folderVm.LoadError -= OnColumnLoadError;
             folderVm.PropertyChanged += FolderVm_PropertyChanged;
             folderVm.LoadError += OnColumnLoadError;
             Columns.Add(folderVm);
@@ -936,54 +953,61 @@ namespace Span.ViewModels
 
         private async void FolderVm_PropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
-            // When a column's Children collection is replaced (ReloadAsync / PopulateChildren),
-            // notify CurrentItems so Details/List/Icon views rebind to the new collection.
-            if (e.PropertyName == nameof(FolderViewModel.Children))
+            try
             {
-                // 정렬/필터 중에는 ApplyFilter 재적용만 차단 (연쇄 필터 방지)
-                // CurrentItems 통지는 항상 허용 — Details/List/Icon 뷰 바인딩에 필수
-                var isBulk = sender is FolderViewModel fvm && (fvm.IsSorting || fvm.IsBulkUpdating);
-
-                if (!isBulk && !string.IsNullOrEmpty(_filterText) && sender is FolderViewModel folderVm
-                    && folderVm.CurrentFilterText != _filterText)
+                // When a column's Children collection is replaced (ReloadAsync / PopulateChildren),
+                // notify CurrentItems so Details/List/Icon views rebind to the new collection.
+                if (e.PropertyName == nameof(FolderViewModel.Children))
                 {
-                    folderVm.ApplyFilter(_filterText);
+                    // 정렬/필터 중에는 ApplyFilter 재적용만 차단 (연쇄 필터 방지)
+                    // CurrentItems 통지는 항상 허용 — Details/List/Icon 뷰 바인딩에 필수
+                    var isBulk = sender is FolderViewModel fvm && (fvm.IsSorting || fvm.IsBulkUpdating);
+
+                    if (!isBulk && !string.IsNullOrEmpty(_filterText) && sender is FolderViewModel folderVm
+                        && folderVm.CurrentFilterText != _filterText)
+                    {
+                        folderVm.ApplyFilter(_filterText);
+                    }
+
+                    if (sender == CurrentFolder)
+                    {
+                        OnPropertyChanged(nameof(CurrentItems));
+                    }
+                    return;
                 }
 
-                if (sender == CurrentFolder)
+                if (e.PropertyName != nameof(FolderViewModel.SelectedChild)) return;
+                if (sender is not FolderViewModel parentFolder) return;
+
+                // CRITICAL: Ignore selection changes during sorting to prevent tab flickering
+                if (parentFolder.IsSorting) return;
+
+                // CRITICAL: In Details/Icon mode, disable auto-navigation (only allow double-click)
+                if (!EnableAutoNavigation) return;
+
+                // CRITICAL: Suppress navigation when multiple items are selected
+                if (parentFolder.HasMultiSelection) return;
+
+                int parentIndex = Columns.IndexOf(parentFolder);
+                if (parentIndex == -1) return;
+                int nextIndex = parentIndex + 1;
+
+                if (parentFolder.SelectedChild is FileViewModel fileVm)
                 {
-                    OnPropertyChanged(nameof(CurrentItems));
+                    HandleFileSelection(fileVm, nextIndex);
                 }
-                return;
+                else if (parentFolder.SelectedChild == null)
+                {
+                    HandleNullSelection(parentFolder, nextIndex);
+                }
+                else if (parentFolder.SelectedChild is FolderViewModel selectedFolder)
+                {
+                    await HandleFolderSelectionAsync(parentFolder, selectedFolder, parentIndex, nextIndex);
+                }
             }
-
-            if (e.PropertyName != nameof(FolderViewModel.SelectedChild)) return;
-            if (sender is not FolderViewModel parentFolder) return;
-
-            // CRITICAL: Ignore selection changes during sorting to prevent tab flickering
-            if (parentFolder.IsSorting) return;
-
-            // CRITICAL: In Details/Icon mode, disable auto-navigation (only allow double-click)
-            if (!EnableAutoNavigation) return;
-
-            // CRITICAL: Suppress navigation when multiple items are selected
-            if (parentFolder.HasMultiSelection) return;
-
-            int parentIndex = Columns.IndexOf(parentFolder);
-            if (parentIndex == -1) return;
-            int nextIndex = parentIndex + 1;
-
-            if (parentFolder.SelectedChild is FileViewModel fileVm)
+            catch (Exception ex)
             {
-                HandleFileSelection(fileVm, nextIndex);
-            }
-            else if (parentFolder.SelectedChild == null)
-            {
-                HandleNullSelection(parentFolder, nextIndex);
-            }
-            else if (parentFolder.SelectedChild is FolderViewModel selectedFolder)
-            {
-                await HandleFolderSelectionAsync(parentFolder, selectedFolder, parentIndex, nextIndex);
+                Helpers.DebugLogger.Log($"[ExplorerViewModel] FolderVm_PropertyChanged error: {ex.Message}");
             }
         }
 
@@ -1046,6 +1070,9 @@ namespace Span.ViewModels
                     oldColumn.CancelLoading();
                     oldColumn.SelectedChild = null;
 
+                    // Defensive unsubscribe to prevent handler accumulation if folder instance is reused
+                    selectedFolder.PropertyChanged -= FolderVm_PropertyChanged;
+                    selectedFolder.LoadError -= OnColumnLoadError;
                     selectedFolder.PropertyChanged += FolderVm_PropertyChanged;
                     selectedFolder.LoadError += OnColumnLoadError;
                     Columns[nextIndex] = selectedFolder;

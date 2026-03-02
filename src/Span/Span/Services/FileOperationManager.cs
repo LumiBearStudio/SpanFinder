@@ -63,10 +63,10 @@ public class FileOperationManager
             pausable.SetPauseEvent(pauseEvent);
         }
 
-        lock (_lock)
+        dispatcherQueue.TryEnqueue(() =>
         {
-            ActiveOperations.Add(entry);
-        }
+            lock (_lock) { ActiveOperations.Add(entry); }
+        });
 
         // Launch the operation on a background thread
         entry.Task = Task.Run(async () =>
@@ -254,8 +254,15 @@ public class FileOperationManager
     private void RemoveCompletedOperation(FileOperationEntry entry)
     {
         // Remove after a short delay so the user can see the final state
-        _ = Task.Delay(2000).ContinueWith(_ =>
+        _ = SafeDelayedRemoveAsync(entry);
+    }
+
+    private async Task SafeDelayedRemoveAsync(FileOperationEntry entry)
+    {
+        try
         {
+            await Task.Delay(2000);
+
             var dq = entry.DispatcherQueue;
             if (dq == null) return;
 
@@ -277,7 +284,16 @@ public class FileOperationManager
                     ActiveOperations.Clear();
                 }
             }
-        });
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[FileOperationManager] Delayed remove error: {ex.Message}");
+            // Ensure cleanup even on error
+            lock (_lock)
+            {
+                ActiveOperations.Remove(entry);
+            }
+        }
     }
 }
 

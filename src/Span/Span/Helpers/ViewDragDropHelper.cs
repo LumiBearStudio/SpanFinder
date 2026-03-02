@@ -58,11 +58,17 @@ namespace Span.Helpers
                         else if (System.IO.File.Exists(p))
                             storageItems.Add(await Windows.Storage.StorageFile.GetFileFromPathAsync(p));
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        DebugLogger.Log($"[DragDrop] StorageItem resolve failed ({p}): {ex.Message}");
+                    }
                 }
                 request.SetData(storageItems);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[DragDrop] SetData error: {ex.Message}");
+            }
             finally
             {
                 deferral.Complete();

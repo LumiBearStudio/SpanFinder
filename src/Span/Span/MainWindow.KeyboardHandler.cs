@@ -119,16 +119,12 @@ namespace Span
                 switch (e.Key)
                 {
                     case Windows.System.VirtualKey.Left:
-                        _ = ViewModel.GoBackAsync().ContinueWith(_ =>
-                            DispatcherQueue.TryEnqueue(() => FocusLastColumnAfterNavigation()),
-                            System.Threading.Tasks.TaskScheduler.Default);
+                        _ = GoBackAndFocusAsync();
                         e.Handled = true;
                         return;
 
                     case Windows.System.VirtualKey.Right:
-                        _ = ViewModel.GoForwardAsync().ContinueWith(_ =>
-                            DispatcherQueue.TryEnqueue(() => FocusLastColumnAfterNavigation()),
-                            System.Threading.Tasks.TaskScheduler.Default);
+                        _ = GoForwardAndFocusAsync();
                         e.Handled = true;
                         return;
 
@@ -472,17 +468,13 @@ namespace Span
             if (properties.IsXButton1Pressed)
             {
                 // Mouse Back button (XButton1)
-                _ = ViewModel.GoBackAsync().ContinueWith(_ =>
-                    DispatcherQueue.TryEnqueue(() => FocusLastColumnAfterNavigation()),
-                    System.Threading.Tasks.TaskScheduler.Default);
+                _ = GoBackAndFocusAsync();
                 e.Handled = true;
             }
             else if (properties.IsXButton2Pressed)
             {
                 // Mouse Forward button (XButton2)
-                _ = ViewModel.GoForwardAsync().ContinueWith(_ =>
-                    DispatcherQueue.TryEnqueue(() => FocusLastColumnAfterNavigation()),
-                    System.Threading.Tasks.TaskScheduler.Default);
+                _ = GoForwardAndFocusAsync();
                 e.Handled = true;
             }
             else if (properties.IsLeftButtonPressed)
@@ -789,6 +781,43 @@ namespace Span
             else
             {
                 this.AppWindow.SetPresenter(AppWindowPresenterKind.Default);
+            }
+        }
+
+        #endregion
+
+        #region Back/Forward Async Helpers
+
+        /// <summary>
+        /// GoBack + focus — async/await 패턴으로 UI 스레드 유지.
+        /// ContinueWith(ThreadPool) → DispatcherQueue 접근 패턴의 간헐적 포커스 유실 방지.
+        /// </summary>
+        private async Task GoBackAndFocusAsync()
+        {
+            try
+            {
+                await ViewModel.GoBackAsync();
+                FocusLastColumnAfterNavigation();
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[Navigation] GoBack error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// GoForward + focus — async/await 패턴으로 UI 스레드 유지.
+        /// </summary>
+        private async Task GoForwardAndFocusAsync()
+        {
+            try
+            {
+                await ViewModel.GoForwardAsync();
+                FocusLastColumnAfterNavigation();
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[Navigation] GoForward error: {ex.Message}");
             }
         }
 

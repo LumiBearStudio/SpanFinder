@@ -590,6 +590,11 @@ namespace Span
             var rightVm = new PreviewPanelViewModel(previewService);
             RightPreviewPanel.Initialize(rightVm);
 
+            // Defensive unsubscribe before subscribe to prevent handler accumulation
+            ViewModel.LeftExplorer.Columns.CollectionChanged -= OnLeftColumnsChangedForPreview;
+            ViewModel.RightExplorer.Columns.CollectionChanged -= OnRightColumnsChangedForPreview;
+            ViewModel.PropertyChanged -= OnViewModelPropertyChangedForPreview;
+
             // Subscribe to LeftExplorer column changes for preview updates
             ViewModel.LeftExplorer.Columns.CollectionChanged += OnLeftColumnsChangedForPreview;
             ViewModel.RightExplorer.Columns.CollectionChanged += OnRightColumnsChangedForPreview;
@@ -816,6 +821,9 @@ namespace Span
         private void InitializeInlinePreview()
         {
             _inlinePreviewService ??= App.Current.Services.GetRequiredService<PreviewService>();
+
+            // Defensive unsubscribe before subscribe to prevent handler accumulation
+            ViewModel.LeftExplorer.PropertyChanged -= OnExplorerSelectedFileChanged;
 
             // Subscribe to SelectedFile changes on the left explorer
             ViewModel.LeftExplorer.PropertyChanged += OnExplorerSelectedFileChanged;

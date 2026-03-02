@@ -275,9 +275,13 @@ namespace Span.ViewModels
             IsToastError = isError;
             IsToastVisible = true;
 
+            var dq = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
             _toastTimer = new System.Threading.Timer(_ =>
             {
-                IsToastVisible = false;
+                if (dq != null)
+                    dq.TryEnqueue(() => { IsToastVisible = false; });
+                else
+                    IsToastVisible = false;
             }, null, durationMs, System.Threading.Timeout.Infinite);
         }
 

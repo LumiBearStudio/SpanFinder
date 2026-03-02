@@ -15,6 +15,7 @@ public sealed partial class FileOperationProgressControl : UserControl
     public FileOperationProgressViewModel ViewModel { get; set; }
 
     private LocalizationService? _loc;
+    private FileOperationManager? _boundManager;
 
     public FileOperationProgressControl()
     {
@@ -29,6 +30,8 @@ public sealed partial class FileOperationProgressControl : UserControl
         this.Unloaded += (s, e) =>
         {
             if (_loc != null) _loc.LanguageChanged -= LocalizeUI;
+            if (_boundManager != null)
+                _boundManager.ActiveOperations.CollectionChanged -= OnActiveOperationsChanged;
         };
     }
 
@@ -45,6 +48,8 @@ public sealed partial class FileOperationProgressControl : UserControl
         this.Unloaded += (s, e) =>
         {
             if (_loc != null) _loc.LanguageChanged -= LocalizeUI;
+            if (_boundManager != null)
+                _boundManager.ActiveOperations.CollectionChanged -= OnActiveOperationsChanged;
         };
     }
 
@@ -54,22 +59,29 @@ public sealed partial class FileOperationProgressControl : UserControl
     /// </summary>
     public void SetOperationManager(FileOperationManager manager)
     {
+        // Unsubscribe from previous manager if any
+        if (_boundManager != null)
+            _boundManager.ActiveOperations.CollectionChanged -= OnActiveOperationsChanged;
+
+        _boundManager = manager;
         ViewModel.OperationManager = manager;
         OperationsList.ItemsSource = manager.ActiveOperations;
 
         // Show/hide based on whether there are active operations
-        manager.ActiveOperations.CollectionChanged += (s, e) =>
-        {
-            DispatcherQueue.TryEnqueue(() =>
-            {
-                MultiOperationPanel.Visibility = manager.ActiveOperations.Count > 0
-                    ? Visibility.Visible
-                    : Visibility.Collapsed;
-            });
-        };
+        manager.ActiveOperations.CollectionChanged += OnActiveOperationsChanged;
 
         // Initially hidden
         MultiOperationPanel.Visibility = Visibility.Collapsed;
+    }
+
+    private void OnActiveOperationsChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            MultiOperationPanel.Visibility = _boundManager?.ActiveOperations.Count > 0
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+        });
     }
 
     private void OnPauseResumeClick(object sender, RoutedEventArgs e)
