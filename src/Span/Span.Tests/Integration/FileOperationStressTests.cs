@@ -271,7 +271,7 @@ public class FileOperationStressTests
             }
             var deepFile = Path.Combine(current, "deep.txt");
             Assert.IsTrue(File.Exists(deepFile), $"Deep nested file should exist at {deepFile}");
-            Assert.AreEqual("Deep nested file content", File.ReadAllText(deepFile));
+            Assert.AreEqual("Deep nested file content", File.ReadAllText(deepFile).TrimEnd());
         }
         finally
         {

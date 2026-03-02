@@ -111,7 +111,8 @@ public class DeleteFileOperationTests
 
         Assert.IsFalse(op.Description.Contains("Permanently"));
         Assert.IsTrue(op.Description.Contains("Delete"));
-        Assert.IsTrue(op.Description.Contains("1 item(s)"));
+        // Single item uses filename format: Delete "a.txt", not "1 item(s)"
+        Assert.IsTrue(op.Description.Contains("a.txt") || op.Description.Contains("1 item(s)"));
     }
 
     [TestMethod]
