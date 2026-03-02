@@ -23,6 +23,16 @@ namespace Span.Services
         public string Scheme => "file";
         public string DisplayName => "Local File System";
 
+        /// <summary>
+        /// 경로를 정규화하고 Path Traversal (..) 공격을 방지.
+        /// </summary>
+        private static string SanitizePath(string path)
+        {
+            if (string.IsNullOrEmpty(path))
+                throw new ArgumentException("Path cannot be null or empty.", nameof(path));
+            return Path.GetFullPath(path);
+        }
+
         public Task<IReadOnlyList<IFileSystemItem>> GetItemsAsync(string path, CancellationToken ct = default)
         {
             return Task.Run(() =>
@@ -36,7 +46,7 @@ namespace Span.Services
                 {
                     var dirInfo = new DirectoryInfo(path);
 
-                    foreach (var d in dirInfo.GetDirectories())
+                    foreach (var d in dirInfo.EnumerateDirectories())
                     {
                         ct.ThrowIfCancellationRequested();
                         if (!_settings.ShowHiddenFiles && (d.Attributes & FileAttributes.Hidden) != 0) continue;
@@ -50,7 +60,7 @@ namespace Span.Services
                         });
                     }
 
-                    foreach (var f in dirInfo.GetFiles())
+                    foreach (var f in dirInfo.EnumerateFiles())
                     {
                         ct.ThrowIfCancellationRequested();
                         if (!_settings.ShowHiddenFiles && (f.Attributes & FileAttributes.Hidden) != 0) continue;
@@ -97,45 +107,52 @@ namespace Span.Services
 
         public Task DeleteAsync(string path, bool recursive, CancellationToken ct = default)
         {
+            var safePath = SanitizePath(path);
             return Task.Run(() =>
             {
-                if (Directory.Exists(path))
-                    Directory.Delete(path, recursive);
-                else if (File.Exists(path))
-                    File.Delete(path);
+                if (Directory.Exists(safePath))
+                    Directory.Delete(safePath, recursive);
+                else if (File.Exists(safePath))
+                    File.Delete(safePath);
             }, ct);
         }
 
         public Task RenameAsync(string oldPath, string newPath, CancellationToken ct = default)
         {
+            var safeOld = SanitizePath(oldPath);
+            var safeNew = SanitizePath(newPath);
             return Task.Run(() =>
             {
-                if (Directory.Exists(oldPath))
-                    Directory.Move(oldPath, newPath);
-                else if (File.Exists(oldPath))
-                    File.Move(oldPath, newPath);
+                if (Directory.Exists(safeOld))
+                    Directory.Move(safeOld, safeNew);
+                else if (File.Exists(safeOld))
+                    File.Move(safeOld, safeNew);
             }, ct);
         }
 
         public Task CopyAsync(string sourcePath, string destPath, CancellationToken ct = default)
         {
+            var safeSrc = SanitizePath(sourcePath);
+            var safeDst = SanitizePath(destPath);
             return Task.Run(() =>
             {
-                if (Directory.Exists(sourcePath))
-                    CopyDirectoryRecursive(sourcePath, destPath, ct);
-                else if (File.Exists(sourcePath))
-                    File.Copy(sourcePath, destPath, overwrite: true);
+                if (Directory.Exists(safeSrc))
+                    CopyDirectoryRecursive(safeSrc, safeDst, ct);
+                else if (File.Exists(safeSrc))
+                    File.Copy(safeSrc, safeDst, overwrite: true);
             }, ct);
         }
 
         public Task MoveAsync(string sourcePath, string destPath, CancellationToken ct = default)
         {
+            var safeSrc = SanitizePath(sourcePath);
+            var safeDst = SanitizePath(destPath);
             return Task.Run(() =>
             {
-                if (Directory.Exists(sourcePath))
-                    Directory.Move(sourcePath, destPath);
-                else if (File.Exists(sourcePath))
-                    File.Move(sourcePath, destPath, overwrite: true);
+                if (Directory.Exists(safeSrc))
+                    Directory.Move(safeSrc, safeDst);
+                else if (File.Exists(safeSrc))
+                    File.Move(safeSrc, safeDst, overwrite: true);
             }, ct);
         }
 

@@ -89,14 +89,14 @@ namespace Span.ViewModels
                     // Explorer가 없으면 생성, 있지만 경로가 미로드이면 탐색 실행
                     if (Tabs[index].Explorer == null)
                     {
-                        InitializeTabExplorer(Tabs[index]);
+                        _ = InitializeTabExplorerAsync(Tabs[index]);
                     }
                     else if (!string.IsNullOrEmpty(Tabs[index].Path)
                         && Tabs[index].ViewMode != ViewMode.Home
                         && string.IsNullOrEmpty(Tabs[index].Explorer.CurrentPath))
                     {
                         // H4: 비활성 탭에서 지연된 NavigateToPath 실행
-                        LoadDeferredTabPath(Tabs[index]);
+                        _ = LoadDeferredTabPathAsync(Tabs[index]);
                     }
 
                     // ★ LeftExplorer 필드 직접 설정 — PropertyChanged 미발생 (SetProperty 우회)
@@ -124,7 +124,7 @@ namespace Span.ViewModels
         }
 
         /// <summary>
-        /// Close a tab by index. If it's the last tab, raises LastTabClosed event.
+        /// Close a tab by index. If it's the last tab, resets to a new Home tab.
         /// </summary>
         public event EventHandler? LastTabClosed;
 
@@ -132,9 +132,12 @@ namespace Span.ViewModels
         {
             if (Tabs.Count <= 1)
             {
-                // Last tab — notify view to close window
+                // Last tab — reset to Home tab instead of closing window
                 Tabs[0].Explorer?.Cleanup();
-                LastTabClosed?.Invoke(this, EventArgs.Empty);
+                Tabs.RemoveAt(0);
+                _activeTabIndex = -1;
+                AddNewTab();
+                Helpers.DebugLogger.Log("[MainViewModel] Last tab closed — reset to Home");
                 return;
             }
             if (index < 0 || index >= Tabs.Count) return;
@@ -274,7 +277,7 @@ namespace Span.ViewModels
         /// 탭에 ExplorerViewModel을 최초 생성 (앱 시작/세션 복원 시).
         /// 이미 Explorer가 있으면 아무것도 하지 않음.
         /// </summary>
-        private async void InitializeTabExplorer(TabItem tab)
+        private async Task InitializeTabExplorerAsync(TabItem tab)
         {
             if (tab.Explorer != null) return;
 
@@ -310,7 +313,7 @@ namespace Span.ViewModels
         /// <summary>
         /// H4: 비활성 탭의 지연된 NavigateToPath 실행 (최초 전환 시)
         /// </summary>
-        private async void LoadDeferredTabPath(TabItem tab)
+        private async Task LoadDeferredTabPathAsync(TabItem tab)
         {
             if (tab.Explorer == null || string.IsNullOrEmpty(tab.Path)) return;
 
@@ -521,7 +524,7 @@ namespace Span.ViewModels
         /// Load a single tab from a tear-off DTO. Replaces all existing tabs.
         /// Used when creating a new window from a torn-off tab.
         /// </summary>
-        public async void LoadSingleTabFromDto(TabStateDto dto)
+        public async Task LoadSingleTabFromDtoAsync(TabStateDto dto)
         {
             try
             {
@@ -598,7 +601,7 @@ namespace Span.ViewModels
                         return path;
                 }
             }
-            catch { }
+            catch (Exception ex) { Helpers.DebugLogger.Log($"[MainViewModel] RightPanePath load failed: {ex.Message}"); }
 
             // Fallback: first available drive
             if (Drives.Count > 0)

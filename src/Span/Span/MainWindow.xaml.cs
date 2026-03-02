@@ -397,7 +397,7 @@ namespace Span
                         var dto = _pendingTearOff;
                         _pendingTearOff = null;
 
-                        ViewModel.LoadSingleTabFromDto(dto);
+                        _ = ViewModel.LoadSingleTabFromDtoAsync(dto);
 
                         // Re-bind MillerColumnsControl to the new explorer
                         MillerColumnsControl.ItemsSource = ViewModel.Explorer.Columns;

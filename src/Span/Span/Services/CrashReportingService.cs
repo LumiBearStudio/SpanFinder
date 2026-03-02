@@ -2,29 +2,35 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
 using Sentry;
 
 namespace Span.Services;
 
 /// <summary>
 /// Sentry 기반 크래시 리포팅 서비스.
+/// - 지연 초기화: 백그라운드 스레드에서 SDK 초기화 (앱 시작 차단 없음)
 /// - 경로 스크러빙: 사용자 폴더 경로를 해시로 치환
 /// - 디버깅 필수 정보: OS, .NET, 앱 버전, 스택 트레이스, 메모리, 뷰 상태
 /// - 설정 ON/OFF: EnableCrashReporting 토글로 제어
 /// </summary>
 public sealed class CrashReportingService : IDisposable
 {
-    // ★ TODO: Sentry 프로젝트 생성 후 실제 DSN으로 교체
-    private const string SentryDsn = "https://a7e1e9d16763c38024a495176e723b2a@o4510949994266624.ingest.de.sentry.io/4510950010191952";
+    // Sentry DSN: 환경변수 SPAN_SENTRY_DSN 또는 앱 설정에서 로드
+    // 빌드 시 CI/CD에서 주입하거나 로컬 개발 시 환경변수로 설정
+    private static readonly string? SentryDsn =
+        Environment.GetEnvironmentVariable("SPAN_SENTRY_DSN")
+        ?? GetDsnFromAppSettings();
 
-    private IDisposable? _sentryDisposable;
-    private bool _isEnabled;
+    private volatile IDisposable? _sentryDisposable;
+    private volatile bool _isEnabled;
     private readonly SettingsService _settings;
+    private int _initializing; // 0 = idle, 1 = in progress (interlocked guard)
 
-    // 경로 스크러빙용 패턴
-    private static readonly Regex UserPathRegex = new(
-        @"(?i)([A-Z]:\\Users\\)[^\\""]+",
-        RegexOptions.Compiled);
+    // 경로 스크러빙용 패턴 — Lazy로 JIT 컴파일 비용을 첫 크래시 시점까지 지연
+    private static readonly Lazy<Regex> UserPathRegex = new(
+        () => new Regex(@"(?i)([A-Z]:\\Users\\)[^\\""]+", RegexOptions.Compiled));
 
     public CrashReportingService(SettingsService settings)
     {
@@ -35,12 +41,27 @@ public sealed class CrashReportingService : IDisposable
     }
 
     /// <summary>
-    /// Sentry SDK 초기화. App 생성자에서 호출.
+    /// Sentry SDK 비동기 초기화. App 생성자에서 호출.
+    /// 백그라운드에서 SDK를 초기화하므로 앱 시작을 차단하지 않는다.
+    /// 초기화 완료 전 발생하는 예외는 캡처 누락될 수 있으나,
+    /// 앱 시작 속도가 우선이므로 허용 가능한 트레이드오프.
     /// </summary>
     public void Initialize()
     {
         if (!_isEnabled) return;
-        StartSentry();
+        if (string.IsNullOrEmpty(SentryDsn))
+        {
+            Helpers.DebugLogger.Log("[CrashReporting] Skipped — DSN not configured (set SPAN_SENTRY_DSN env var)");
+            return;
+        }
+
+#if DEBUG
+        // DEBUG 빌드에서는 Sentry 전송 불필요 — 로컬 디버거 사용
+        Helpers.DebugLogger.Log("[CrashReporting] Skipped in DEBUG build");
+        return;
+#else
+        Task.Run(() => StartSentry());
+#endif
     }
 
     /// <summary>
@@ -81,7 +102,7 @@ public sealed class CrashReportingService : IDisposable
         {
             SentrySdk.AddBreadcrumb(ScrubPaths(message), category);
         }
-        catch { }
+        catch (Exception ex) { Helpers.DebugLogger.Log($"[CrashReporting] AddBreadcrumb failed: {ex.Message}"); }
     }
 
     /// <summary>
@@ -99,12 +120,16 @@ public sealed class CrashReportingService : IDisposable
                 scope.SetTag("app.splitView", isSplitView.ToString());
             });
         }
-        catch { }
+        catch (Exception ex) { Helpers.DebugLogger.Log($"[CrashReporting] SetAppContext failed: {ex.Message}"); }
     }
 
     private void StartSentry()
     {
         if (_sentryDisposable != null) return;
+        if (string.IsNullOrEmpty(SentryDsn)) return;
+
+        // 동시 초기화 방지 (Task.Run + OnSettingChanged 경합)
+        if (Interlocked.CompareExchange(ref _initializing, 1, 0) != 0) return;
 
         try
         {
@@ -112,18 +137,15 @@ public sealed class CrashReportingService : IDisposable
             {
                 options.Dsn = SentryDsn;
                 options.Release = $"span@{GetAppVersion()}";
-                options.Environment =
-#if DEBUG
-                    "development";
-#else
-                    "production";
-#endif
-                // 오프라인 시 로컬 저장 → 온라인 복귀 시 전송
+                options.Environment = "production";
+
+                // 오프라인 캐시: 크래시 전송 실패 시 로컬 저장 → 다음 실행 시 재전송
                 options.CacheDirectoryPath = System.IO.Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                     "Span", "SentryCache");
 
-                options.AutoSessionTracking = true;
+                // 세션 추적 비활성화 — 파일 탐색기에 불필요한 HTTP 요청 제거
+                options.AutoSessionTracking = false;
                 options.IsGlobalModeEnabled = true;
 
                 // ── 디버깅에 필요한 정보 수집 ──
@@ -138,11 +160,15 @@ public sealed class CrashReportingService : IDisposable
                 });
             });
 
-            Helpers.DebugLogger.Log("[CrashReporting] Sentry initialized");
+            Helpers.DebugLogger.Log("[CrashReporting] Sentry initialized (background)");
         }
         catch (Exception ex)
         {
             Helpers.DebugLogger.Log($"[CrashReporting] Sentry init failed: {ex.Message}");
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _initializing, 0);
         }
     }
 
@@ -154,7 +180,7 @@ public sealed class CrashReportingService : IDisposable
             _sentryDisposable = null;
             Helpers.DebugLogger.Log("[CrashReporting] Sentry stopped");
         }
-        catch { }
+        catch (Exception ex) { Helpers.DebugLogger.Log($"[CrashReporting] StopSentry failed: {ex.Message}"); }
     }
 
     private void OnSettingChanged(string key, object? value)
@@ -216,7 +242,24 @@ public sealed class CrashReportingService : IDisposable
         if (string.IsNullOrEmpty(input)) return input;
 
         // C:\Users\{username}\ → C:\Users\***\
-        return UserPathRegex.Replace(input, "$1***");
+        return UserPathRegex.Value.Replace(input, "$1***");
+    }
+
+    /// <summary>
+    /// 앱 설정(LocalSettings)에서 Sentry DSN을 로드.
+    /// CI/CD 빌드에서 MSIX 패키지 설정으로 주입 가능.
+    /// </summary>
+    private static string? GetDsnFromAppSettings()
+    {
+        try
+        {
+            var settings = Windows.Storage.ApplicationData.Current.LocalSettings;
+            return settings.Values.TryGetValue("SentryDsn", out var dsn) ? dsn as string : null;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static string GetAppVersion()

@@ -165,5 +165,34 @@ namespace Span.Helpers
             public uint shi1_type;
             [MarshalAs(UnmanagedType.LPWStr)] public string? shi1_remark;
         }
+
+        // ── Safe Wrappers (IntPtr.Zero guard + return value check) ──
+
+        /// <summary>
+        /// DwmSetWindowAttribute를 안전하게 호출. hwnd가 IntPtr.Zero이면 무시.
+        /// </summary>
+        internal static bool SafeDwmSetWindowAttribute(IntPtr hwnd, int dwAttribute, ref int pvAttribute, int cbAttribute)
+        {
+            if (hwnd == IntPtr.Zero) return false;
+            return DwmSetWindowAttribute(hwnd, dwAttribute, ref pvAttribute, cbAttribute) == 0;
+        }
+
+        /// <summary>
+        /// SetWindowPos를 안전하게 호출. hwnd가 IntPtr.Zero이면 무시.
+        /// </summary>
+        internal static bool SafeSetWindowPos(IntPtr hwnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint uFlags)
+        {
+            if (hwnd == IntPtr.Zero) return false;
+            return SetWindowPos(hwnd, hWndInsertAfter, x, y, cx, cy, uFlags);
+        }
+
+        /// <summary>
+        /// SetForegroundWindow를 안전하게 호출. hwnd가 IntPtr.Zero이면 무시.
+        /// </summary>
+        internal static bool SafeSetForegroundWindow(IntPtr hwnd)
+        {
+            if (hwnd == IntPtr.Zero) return false;
+            return SetForegroundWindow(hwnd);
+        }
     }
 }

@@ -107,7 +107,7 @@ namespace Span.Services
                         return firstLine;
                 }
             }
-            catch { }
+            catch (Exception ex) { Helpers.DebugLogger.Log($"[GitStatus] where git detection failed: {ex.Message}"); }
 
             // 2. 기본 설치 경로 폴백
             var candidates = new[]
@@ -134,7 +134,7 @@ namespace Span.Services
                 if (result.ExitCode == 0)
                     return result.StdOut.Trim().Replace("git version ", "");
             }
-            catch { }
+            catch (Exception ex) { Helpers.DebugLogger.Log($"[GitStatus] git version check failed: {ex.Message}"); }
             return null;
         }
 
@@ -342,7 +342,7 @@ namespace Span.Services
                     return null;
                 }
             }
-            catch { }
+            catch (Exception ex) { Helpers.DebugLogger.Log($"[GitStatus] Index size check failed: {ex.Message}"); }
 
             // 캐시 확인 (30초 이내)
             if (_statusCache.TryGetValue(repoRoot, out var cached)

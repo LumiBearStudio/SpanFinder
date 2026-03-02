@@ -447,7 +447,7 @@ namespace Span.ViewModels
                     return _cachedPathHighlightBrush;
                 }
             }
-            catch { }
+            catch (Exception ex) { Helpers.DebugLogger.Log($"[FileSystemViewModel] PathHighlightBrush lookup failed: {ex.Message}"); }
             return TransparentBrush;
         }
 

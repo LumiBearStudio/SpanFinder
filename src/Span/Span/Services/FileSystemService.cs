@@ -147,8 +147,8 @@ namespace Span.Services
                 {
                     var dirInfo = new DirectoryInfo(path);
 
-                    // Get Directories
-                    foreach (var d in dirInfo.GetDirectories())
+                    // Enumerate (lazy) — 대용량 폴더에서 메모리 효율적
+                    foreach (var d in dirInfo.EnumerateDirectories())
                     {
                         bool isHidden = (d.Attributes & FileAttributes.Hidden) != 0;
                         if (!_settings.ShowHiddenFiles && isHidden) continue;
@@ -162,8 +162,7 @@ namespace Span.Services
                         });
                     }
 
-                    // Get Files
-                    foreach (var f in dirInfo.GetFiles())
+                    foreach (var f in dirInfo.EnumerateFiles())
                     {
                         bool isHidden = (f.Attributes & FileAttributes.Hidden) != 0;
                         if (!_settings.ShowHiddenFiles && isHidden) continue;

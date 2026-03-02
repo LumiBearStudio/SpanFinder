@@ -66,6 +66,10 @@
     <!-- Services - routing (pure C#) -->
     <Compile Include="..\Span\Services\FileSystemRouter.cs" Link="Sources\Services\FileSystemRouter.cs" />
     <Compile Include="..\Span\Services\IFileSystemProvider.cs" Link="Sources\Services\IFileSystemProvider.cs" />
+    <!-- Services - file watcher (pure C#) -->
+    <Compile Include="..\Span\Services\FileSystemWatcherService.cs" Link="Sources\Services\FileSystemWatcherService.cs" />
+    <!-- Helpers - P/Invoke (pure C#) -->
+    <Compile Include="..\Span\Helpers\NativeMethods.cs" Link="Sources\Helpers\NativeMethods.cs" />
   </ItemGroup>
 
   <ItemGroup>

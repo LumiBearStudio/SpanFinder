@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Span.Models;
 
 namespace Span.Services
@@ -19,10 +20,13 @@ namespace Span.Services
             List<FolderItem> Folders,
             List<FileItem> Files,
             DateTime DirectoryLastWriteTimeUtc,
-            bool IncludesHidden);
+            bool IncludesHidden,
+            long AccessTick);
 
         private readonly ConcurrentDictionary<string, CachedFolder> _cache
             = new(StringComparer.OrdinalIgnoreCase);
+
+        private long _accessCounter; // LRU 순서 추적용 단조 증가 카운터
 
         private const int MaxEntries = 500;
 
@@ -60,6 +64,10 @@ namespace Span.Services
                 return null;
             }
 
+            // LRU: 접근 시각 갱신
+            var tick = System.Threading.Interlocked.Increment(ref _accessCounter);
+            _cache[path] = cached with { AccessTick = tick };
+
             return cached;
         }
 
@@ -68,23 +76,24 @@ namespace Span.Services
         /// </summary>
         public void Set(string path, List<FolderItem> folders, List<FileItem> files, bool showHidden)
         {
-            // Evict oldest entries if over capacity
+            // LRU Eviction: 가장 오래된 항목부터 제거
             if (_cache.Count >= MaxEntries)
             {
-                // Simple eviction: remove ~10% of entries
                 int toRemove = MaxEntries / 10;
-                int removed = 0;
-                foreach (var key in _cache.Keys)
-                {
-                    if (removed >= toRemove) break;
-                    if (_cache.TryRemove(key, out _)) removed++;
-                }
+                var oldest = _cache
+                    .OrderBy(kvp => kvp.Value.AccessTick)
+                    .Take(toRemove)
+                    .Select(kvp => kvp.Key)
+                    .ToList();
+                foreach (var key in oldest)
+                    _cache.TryRemove(key, out _);
             }
 
             try
             {
                 var writeTime = Directory.GetLastWriteTimeUtc(path);
-                _cache[path] = new CachedFolder(folders, files, writeTime, showHidden);
+                var tick = System.Threading.Interlocked.Increment(ref _accessCounter);
+                _cache[path] = new CachedFolder(folders, files, writeTime, showHidden, tick);
             }
             catch
             {

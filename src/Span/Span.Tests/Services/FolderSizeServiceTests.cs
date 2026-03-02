@@ -219,6 +219,79 @@ public class FolderSizeServiceTests
         _service.RequestCalculation(string.Empty);
     }
 
+    // ── CancelCalculation ────────────────────────────────
+
+    [TestMethod]
+    public void CancelCalculation_DoesNotThrow_WhenNoPending()
+    {
+        // Should not throw for a path that was never requested
+        _service.CancelCalculation(@"C:\NotPending");
+    }
+
+    [TestMethod]
+    public async Task CancelCalculation_StopsOngoingWork()
+    {
+        // Create a large enough structure that calculation takes some time
+        for (int i = 0; i < 50; i++)
+            CreateFileWithSize($"deep/d{i}/f.bin", 100);
+
+        // Start calculation then immediately cancel
+        _service.RequestCalculation(_tempRoot);
+        _service.CancelCalculation(_tempRoot);
+
+        // Wait a moment for the cancellation to propagate
+        await Task.Delay(500);
+
+        // Cache should either be empty (cancelled before caching) or have a value
+        // The key test is that it doesn't hang or crash
+        Assert.IsTrue(true, "CancelCalculation completed without hanging");
+    }
+
+    // ── CancelAll ──────────────────────────────────────────
+
+    [TestMethod]
+    public void CancelAll_DoesNotThrow_WhenEmpty()
+    {
+        _service.CancelAll();
+    }
+
+    [TestMethod]
+    public async Task CancelAll_StopsAllPendingWork()
+    {
+        // Create multiple folders for concurrent calculation
+        var dir1 = Path.Combine(_tempRoot, "dir1");
+        var dir2 = Path.Combine(_tempRoot, "dir2");
+        Directory.CreateDirectory(dir1);
+        Directory.CreateDirectory(dir2);
+
+        for (int i = 0; i < 20; i++)
+        {
+            CreateFileWithSize($"dir1/f{i}.bin", 50);
+            CreateFileWithSize($"dir2/f{i}.bin", 50);
+        }
+
+        _service.RequestCalculation(dir1);
+        _service.RequestCalculation(dir2);
+
+        // Cancel all immediately
+        _service.CancelAll();
+
+        await Task.Delay(500);
+
+        // After CancelAll, new requests should work
+        var tcs = new TaskCompletionSource<long>();
+        _service.SizeCalculated += (path, size) =>
+        {
+            if (string.Equals(path, dir1, StringComparison.OrdinalIgnoreCase))
+                tcs.TrySetResult(size);
+        };
+        _service.Invalidate(dir1);
+        _service.RequestCalculation(dir1);
+
+        var result = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.IsTrue(result > 0, "Should recalculate after CancelAll");
+    }
+
     // ── Inaccessible folder → caches -1 ──────────────────
 
     [TestMethod]

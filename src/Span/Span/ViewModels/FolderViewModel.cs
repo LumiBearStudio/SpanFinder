@@ -240,7 +240,7 @@ namespace Span.ViewModels
                     if (settings != null) showHidden = settings.ShowHiddenFiles;
                     folderCache = App.Current.Services.GetService(typeof(Services.FolderContentCache)) as Services.FolderContentCache;
                 }
-                catch { }
+                catch (Exception ex) { Helpers.DebugLogger.Log($"[FolderViewModel] Service resolution failed: {ex.Message}"); }
 
                 var folderPath = _folderModel.Path;
 
@@ -435,29 +435,35 @@ namespace Span.ViewModels
         }
 
         /// <summary>
-        /// 현재 정렬 기준. 기본=Name.
+        /// 인스턴스별 정렬 기준. 멀티윈도우 간 독립 정렬 지원.
+        /// 초기값은 LocalSettings에서 복원 (앱 전체에서 한 번만 로드).
         /// </summary>
-        private static string _globalSortBy = "Name";
-        private static bool _globalSortAscending = true;
-        private static bool _sortSettingsLoaded = false;
+        private string _sortBy = s_defaultSortBy;
+        private bool _sortAscending = s_defaultSortAscending;
+
+        // 앱 전체 기본값 (LocalSettings에서 1회 로드)
+        private static string s_defaultSortBy = "Name";
+        private static bool s_defaultSortAscending = true;
+        private static bool s_sortSettingsLoaded = false;
 
         /// <summary>
         /// 저장된 정렬 설정을 LocalSettings에서 복원 (최초 1회).
+        /// 이후 생성되는 FolderViewModel의 기본 정렬값으로 사용.
         /// </summary>
         private static void EnsureSortSettingsLoaded()
         {
-            if (_sortSettingsLoaded) return;
-            _sortSettingsLoaded = true;
+            if (s_sortSettingsLoaded) return;
+            s_sortSettingsLoaded = true;
             try
             {
                 var settings = Windows.Storage.ApplicationData.Current.LocalSettings;
                 if (settings.Values.TryGetValue("MillerSortBy", out var sortObj) && sortObj is string sortBy)
-                    _globalSortBy = sortBy;
+                    s_defaultSortBy = sortBy;
                 if (settings.Values.TryGetValue("MillerSortAsc", out var ascObj) && ascObj is bool asc)
-                    _globalSortAscending = asc;
-                Helpers.DebugLogger.Log($"[FolderViewModel] Sort settings loaded: {_globalSortBy}, ascending={_globalSortAscending}");
+                    s_defaultSortAscending = asc;
+                Helpers.DebugLogger.Log($"[FolderViewModel] Sort settings loaded: {s_defaultSortBy}, ascending={s_defaultSortAscending}");
             }
-            catch { }
+            catch (Exception ex) { Helpers.DebugLogger.Log($"[FolderViewModel] Sort settings load failed: {ex.Message}"); }
         }
 
         /// <summary>
@@ -465,8 +471,8 @@ namespace Span.ViewModels
         /// </summary>
         public void SortChildren(string sortBy, bool ascending)
         {
-            _globalSortBy = sortBy;
-            _globalSortAscending = ascending;
+            _sortBy = sortBy;
+            _sortAscending = ascending;
 
             if (Children.Count == 0) return;
             IsSorting = true;
@@ -480,14 +486,16 @@ namespace Span.ViewModels
             }
             finally { IsSorting = false; }
 
-            // 설정 저장
+            // 설정 저장 (다음 앱 실행의 기본값으로 사용)
             try
             {
+                s_defaultSortBy = sortBy;
+                s_defaultSortAscending = ascending;
                 var settings = Windows.Storage.ApplicationData.Current.LocalSettings;
                 settings.Values["MillerSortBy"] = sortBy;
                 settings.Values["MillerSortAsc"] = ascending;
             }
-            catch { }
+            catch (Exception ex) { Helpers.DebugLogger.Log($"[FolderViewModel] Sort settings save failed: {ex.Message}"); }
         }
 
         private static List<FileSystemViewModel> ApplySort(
@@ -521,7 +529,13 @@ namespace Span.ViewModels
             if (token.IsCancellationRequested) return;
 
             EnsureSortSettingsLoaded();
-            var sortedItems = ApplySort(items, _globalSortBy, _globalSortAscending);
+            // 인스턴스 정렬 기준이 기본값에서 갱신되지 않았다면 기본값 적용
+            if (_sortBy == "Name" && s_defaultSortBy != "Name")
+            {
+                _sortBy = s_defaultSortBy;
+                _sortAscending = s_defaultSortAscending;
+            }
+            var sortedItems = ApplySort(items, _sortBy, _sortAscending);
 
             // 클라우드 폴더 여부 캐시 (on-demand 주입용)
             try
@@ -703,6 +717,23 @@ namespace Span.ViewModels
             _cts?.Dispose();
             _cts = null;
             IsLoading = false;
+
+            // FolderSizeService 이벤트 구독 누수 방지
+            UnsubscribeFolderSizeEvent();
+        }
+
+        /// <summary>
+        /// FolderSizeService.SizeCalculated 이벤트 구독 해제.
+        /// CancelLoading/ResetState에서 호출하여 메모리 누수 방지.
+        /// </summary>
+        private void UnsubscribeFolderSizeEvent()
+        {
+            try
+            {
+                var svc = App.Current.Services.GetService(typeof(FolderSizeService)) as FolderSizeService;
+                if (svc != null) svc.SizeCalculated -= OnFolderSizeCalculated;
+            }
+            catch (Exception ex) { Helpers.DebugLogger.Log($"[FolderViewModel] FolderSize unsubscribe failed: {ex.Message}"); }
         }
 
         /// <summary>
@@ -786,7 +817,7 @@ namespace Span.ViewModels
                 var cache = App.Current.Services.GetService(typeof(Services.FolderContentCache)) as Services.FolderContentCache;
                 cache?.Invalidate(Path);
             }
-            catch { }
+            catch (Exception ex) { Helpers.DebugLogger.Log($"[FolderViewModel] Cache invalidate failed: {ex.Message}"); }
 
             _isLoaded = false;
             ErrorMessage = null;

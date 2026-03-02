@@ -55,19 +55,19 @@ namespace Span.ViewModels
         partial void OnIsLocalDrivesExpandedChanged(bool value)
         {
             if (_isCleaningUp) return;
-            try { App.Current.Services.GetRequiredService<SettingsService>().Set("SidebarLocalExpanded", value); } catch { }
+            try { App.Current.Services.GetRequiredService<SettingsService>().Set("SidebarLocalExpanded", value); } catch (Exception ex) { Helpers.DebugLogger.Log($"[MainViewModel] SidebarLocalExpanded save failed: {ex.Message}"); }
         }
 
         partial void OnIsCloudDrivesExpandedChanged(bool value)
         {
             if (_isCleaningUp) return;
-            try { App.Current.Services.GetRequiredService<SettingsService>().Set("SidebarCloudExpanded", value); } catch { }
+            try { App.Current.Services.GetRequiredService<SettingsService>().Set("SidebarCloudExpanded", value); } catch (Exception ex) { Helpers.DebugLogger.Log($"[MainViewModel] SidebarCloudExpanded save failed: {ex.Message}"); }
         }
 
         partial void OnIsNetworkDrivesExpandedChanged(bool value)
         {
             if (_isCleaningUp) return;
-            try { App.Current.Services.GetRequiredService<SettingsService>().Set("SidebarNetworkExpanded", value); } catch { }
+            try { App.Current.Services.GetRequiredService<SettingsService>().Set("SidebarNetworkExpanded", value); } catch (Exception ex) { Helpers.DebugLogger.Log($"[MainViewModel] SidebarNetworkExpanded save failed: {ex.Message}"); }
         }
 
         public bool HasCloudDrives => CloudDrives.Count > 0;
@@ -153,6 +153,7 @@ namespace Span.ViewModels
         private readonly FileOperationManager _fileOperationManager;
         private readonly System.Threading.CancellationTokenSource _shutdownCts = new();
         private bool _isCleaningUp = false;
+        private Services.CloudStorageProviderService? _cloudStorageProvider;
         private const int MaxRecentFolders = 20;
 
         // Stored delegates for event unsubscription (memory leak prevention)
@@ -419,10 +420,10 @@ namespace Span.ViewModels
             RightExplorer = new ExplorerViewModel(rightRoot, _fileService);
 
             // Populate Sidebar
-            LoadDrives();
+            _ = LoadDrivesAsync();
             LoadFavorites();
             LoadRecentFolders();
-            LoadSavedConnections();
+            _ = LoadSavedConnectionsAsync();
 
             // Load ViewMode preference (includes split state)
             LoadViewModePreference();
@@ -435,7 +436,7 @@ namespace Span.ViewModels
                 _isCloudDrivesExpanded = settings.Get("SidebarCloudExpanded", true);
                 _isNetworkDrivesExpanded = settings.Get("SidebarNetworkExpanded", true);
             }
-            catch { }
+            catch (Exception ex) { Helpers.DebugLogger.Log($"[MainViewModel] Sidebar expand state load failed: {ex.Message}"); }
 
             // LeftExplorer PropertyChanged는 setter에서 자동 구독됨
             // RightExplorer는 탭과 무관하므로 별도 구독
@@ -466,11 +467,11 @@ namespace Span.ViewModels
         public void RefreshDrives()
         {
             if (_isCleaningUp || _shutdownCts.Token.IsCancellationRequested) return;
-            LoadDrives();
+            _ = LoadDrivesAsync();
             Helpers.DebugLogger.Log("[MainViewModel] RefreshDrives triggered by device change");
         }
 
-        private async void LoadDrives()
+        private async Task LoadDrivesAsync()
         {
             try
             {
@@ -523,8 +524,8 @@ namespace Span.ViewModels
                 SaveDrivesCache(drives);
 
                 // Step 6: Detect cloud storage providers (iCloud, OneDrive, Dropbox, etc.)
-                var cloudService = new CloudStorageProviderService();
-                var newCloudDrives = await Task.Run(() => cloudService.GetCloudStorageDrives());
+                _cloudStorageProvider ??= new CloudStorageProviderService();
+                var newCloudDrives = await Task.Run(() => _cloudStorageProvider.GetCloudStorageDrives());
 
                 // Filter out cloud drives that overlap with physical drives
                 var physicalPaths = new HashSet<string>(
@@ -645,7 +646,7 @@ namespace Span.ViewModels
                         var settings = App.Current.Services.GetRequiredService<Services.SettingsService>();
                         settings.SettingChanged -= _settingChangedHandler;
                     }
-                    catch { }
+                    catch (Exception ex) { Helpers.DebugLogger.Log($"[MainViewModel] Cleanup: SettingChanged unsubscribe failed: {ex.Message}"); }
                     _settingChangedHandler = null;
                 }
 
@@ -662,7 +663,7 @@ namespace Span.ViewModels
                         var connectionService = App.Current.Services.GetRequiredService<Services.ConnectionManagerService>();
                         connectionService.SavedConnections.CollectionChanged -= _savedConnectionsCollectionChangedHandler;
                     }
-                    catch { }
+                    catch (Exception ex) { Helpers.DebugLogger.Log($"[MainViewModel] Cleanup: ConnectionsChanged unsubscribe failed: {ex.Message}"); }
                     _savedConnectionsCollectionChangedHandler = null;
                 }
 
@@ -968,7 +969,7 @@ namespace Span.ViewModels
 
         #region Saved Connections
 
-        private async void LoadSavedConnections()
+        private async Task LoadSavedConnectionsAsync()
         {
             try
             {

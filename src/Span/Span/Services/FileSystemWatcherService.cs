@@ -168,21 +168,24 @@ namespace Span.Services
 
         private void DebouncedNotify(string folderPath, int delayMs = DebounceMs)
         {
-            if (_debounceTimers.TryGetValue(folderPath, out var existing))
-            {
-                existing.Change(delayMs, Timeout.Infinite);
-            }
-            else
-            {
-                var timer = new Timer(_ =>
+            _debounceTimers.AddOrUpdate(
+                folderPath,
+                // 신규: 타이머 생성
+                _ => new Timer(TimerCallback, folderPath, delayMs, Timeout.Infinite),
+                // 기존: 타이머 재설정 (원자적 교체로 경합 조건 방지)
+                (_, existing) =>
                 {
-                    // 타이머 실행 후 딕셔너리에서 제거 (메모리 누적 방지)
-                    if (_debounceTimers.TryRemove(folderPath, out var removed))
-                        removed.Dispose();
-                    PathChanged?.Invoke(folderPath);
-                }, null, delayMs, Timeout.Infinite);
-                _debounceTimers[folderPath] = timer;
-            }
+                    existing.Change(delayMs, Timeout.Infinite);
+                    return existing;
+                });
+        }
+
+        private void TimerCallback(object? state)
+        {
+            if (state is not string folderPath) return;
+            if (_debounceTimers.TryRemove(folderPath, out var removed))
+                removed.Dispose();
+            PathChanged?.Invoke(folderPath);
         }
 
         private static bool IsLocalPath(string path)
