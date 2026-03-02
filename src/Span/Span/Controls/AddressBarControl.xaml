@@ -65,7 +65,7 @@
         </Border>
 
         <!-- Edit mode AutoSuggestBox -->
-        <AutoSuggestBox x:Name="AutoSuggest" Visibility="Collapsed"
+        <AutoSuggestBox x:Name="AutoSuggest" AutomationProperties.AutomationId="TextBox_AddressBar" Visibility="Collapsed"
                  VerticalAlignment="Center" Height="24" FontSize="11"
                  BorderThickness="0"
                  TextChanged="OnAutoSuggestTextChanged"

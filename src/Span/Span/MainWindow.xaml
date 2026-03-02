@@ -1459,7 +1459,7 @@
         </Grid>
 
         <!-- 4. Status Bar -->
-        <Grid Grid.Row="3" Height="{StaticResource StatusBarHeight}" Background="{ThemeResource SpanBgMicaBrush}" BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="0,1,0,0">
+        <Grid Grid.Row="3" AutomationProperties.AutomationId="StatusBar" Height="{StaticResource StatusBarHeight}" Background="{ThemeResource SpanBgMicaBrush}" BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="0,1,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
@@ -1469,7 +1469,7 @@
                 <StackPanel Orientation="Horizontal" Spacing="6"
                             Visibility="{x:Bind helpers:StatusBarHelper.ShowIfNotEmpty(ViewModel.StatusItemCountText), Mode=OneWay}">
                     <FontIcon Glyph="&#xE8A5;" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}"/>
-                    <TextBlock Text="{x:Bind ViewModel.StatusItemCountText, Mode=OneWay}" FontSize="11" Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
+                    <TextBlock AutomationProperties.AutomationId="TextBlock_ItemCount" Text="{x:Bind ViewModel.StatusItemCountText, Mode=OneWay}" FontSize="11" Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
                 </StackPanel>
                 <Rectangle Width="1" Height="12" Fill="{ThemeResource SpanBorderSubtleBrush}"
                            Visibility="{x:Bind helpers:StatusBarHelper.ShowIfNotEmpty(ViewModel.StatusSelectionText), Mode=OneWay}"/>
@@ -1482,7 +1482,7 @@
                  <StackPanel Orientation="Horizontal" Spacing="6"
                              Visibility="{x:Bind helpers:StatusBarHelper.ShowIfNotEmpty(ViewModel.StatusDiskSpaceText), Mode=OneWay}">
                      <FontIcon Glyph="&#xEDA2;" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}"/>
-                     <TextBlock Text="{x:Bind ViewModel.StatusDiskSpaceText, Mode=OneWay}" FontSize="11" Foreground="{ThemeResource SpanTextSecondaryBrush}" VerticalAlignment="Center"/>
+                     <TextBlock AutomationProperties.AutomationId="TextBlock_DiskSpace" Text="{x:Bind ViewModel.StatusDiskSpaceText, Mode=OneWay}" FontSize="11" Foreground="{ThemeResource SpanTextSecondaryBrush}" VerticalAlignment="Center"/>
                  </StackPanel>
                  <Rectangle Width="1" Height="12" Fill="{ThemeResource SpanBorderSubtleBrush}"
                             Visibility="{x:Bind helpers:StatusBarHelper.ShowIfNotEmpty(ViewModel.StatusDiskSpaceText), Mode=OneWay}"/>

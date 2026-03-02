@@ -285,7 +285,7 @@
             <NavigationView.Content>
                 <Grid>
                     <!-- ===== General Section ===== -->
-                    <ScrollViewer x:Name="GeneralSection" Visibility="Visible">
+                    <ScrollViewer x:Name="GeneralSection" AutomationProperties.AutomationId="SettingsScrollViewer" Visibility="Visible">
                         <StackPanel Padding="20" Spacing="0">
                             <TextBlock x:Name="GeneralTitle" Text="일반" Style="{StaticResource SettingsSectionTitle}" />
 

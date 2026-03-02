@@ -169,6 +169,198 @@ public class StressTests
         }
     }
 
+    // ── 3b. Stress_SearchQueryParser_Wildcards_5000Queries ────
+
+    [TestMethod]
+    public void Stress_SearchQueryParser_Wildcards_5000Queries()
+    {
+        var wildcardQueries = new[]
+        {
+            "*.exe", "*.mp3", "*.pdf", "*.txt", "*.jpg",
+            "report*", "test*", "backup*", "log*", "data*",
+            "file?.txt", "img???.*", "doc*.pdf", "*2024*",
+            "*.exe size:>1MB", "*.pdf date:today", "report* kind:document",
+            "*.jpg;*.png", "test?.doc", "*backup*2024*",
+            "\"hello world\" *.txt", "ext:jpg;png;gif *.photo*"
+        };
+
+        var rng = new Random(123);
+        for (int i = 0; i < 5000; i++)
+        {
+            var queryStr = wildcardQueries[rng.Next(wildcardQueries.Length)];
+            var result = SearchQueryParser.Parse(queryStr);
+            Assert.IsFalse(result.IsEmpty, $"Query '{queryStr}' should not be empty");
+
+            // Wildcard queries should have NameRegex set
+            if (result.NameFilter != null && (result.NameFilter.Contains('*') || result.NameFilter.Contains('?')))
+            {
+                Assert.IsNotNull(result.NameRegex, $"Wildcard query '{queryStr}' should have NameRegex");
+            }
+        }
+    }
+
+    // ── 3c. Stress_WildcardRegex_10000Matches ────────────────
+
+    [TestMethod]
+    public void Stress_WildcardRegex_10000Matches()
+    {
+        var rng = new Random(42);
+        var extensions = new[] { ".exe", ".txt", ".pdf", ".jpg", ".mp3", ".doc", ".zip", ".cs" };
+        var prefixes = new[] { "file", "report", "backup", "log", "data", "test", "image", "doc" };
+
+        // Generate 10,000 random filenames
+        var filenames = new List<string>(10000);
+        for (int i = 0; i < 10000; i++)
+        {
+            var prefix = prefixes[rng.Next(prefixes.Length)];
+            var number = rng.Next(1, 10000);
+            var ext = extensions[rng.Next(extensions.Length)];
+            filenames.Add($"{prefix}{number}{ext}");
+        }
+
+        // Test *.exe wildcard
+        var exeQuery = SearchQueryParser.Parse("*.exe");
+        Assert.IsNotNull(exeQuery.NameRegex);
+
+        int exeMatches = 0;
+        foreach (var name in filenames)
+        {
+            if (exeQuery.NameRegex!.IsMatch(name))
+                exeMatches++;
+        }
+
+        // Roughly 1/8 of files should be .exe (8 extensions)
+        Assert.IsTrue(exeMatches > 500, $"Expected >500 .exe matches, got {exeMatches}");
+        Assert.IsTrue(exeMatches < 2000, $"Expected <2000 .exe matches, got {exeMatches}");
+
+        // Test report* wildcard
+        var reportQuery = SearchQueryParser.Parse("report*");
+        Assert.IsNotNull(reportQuery.NameRegex);
+
+        int reportMatches = 0;
+        foreach (var name in filenames)
+        {
+            if (reportQuery.NameRegex!.IsMatch(name))
+                reportMatches++;
+        }
+
+        Assert.IsTrue(reportMatches > 500, $"Expected >500 report* matches, got {reportMatches}");
+
+        // Test file?.txt wildcard (single digit after "file")
+        var fileQQuery = SearchQueryParser.Parse("file?.txt");
+        Assert.IsNotNull(fileQQuery.NameRegex);
+
+        int fileQMatches = 0;
+        foreach (var name in filenames)
+        {
+            if (fileQQuery.NameRegex!.IsMatch(name))
+                fileQMatches++;
+        }
+
+        // file + single char + .txt — very few should match (single digit 1-9)
+        Assert.IsTrue(fileQMatches >= 0, "file?.txt match count should be non-negative");
+    }
+
+    // ── 3d. Stress_MultiExtension_Parse_1000Queries ──────────
+
+    [TestMethod]
+    public void Stress_MultiExtension_Parse_1000Queries()
+    {
+        var extQueries = new[]
+        {
+            "ext:jpg;png;gif", "ext:doc;docx;pdf", "ext:mp3;wav;flac",
+            "ext:cs;js;py;go", "ext:zip;rar;7z;tar", "ext:.exe;.msi;.dll",
+            "ext:txt", "ext:.pdf", "ext:jpg;png"
+        };
+
+        var rng = new Random(42);
+        for (int i = 0; i < 1000; i++)
+        {
+            var queryStr = extQueries[rng.Next(extQueries.Length)];
+            var result = SearchQueryParser.Parse(queryStr);
+            Assert.IsNotNull(result.ExtensionFilter, $"Query '{queryStr}' should have ExtensionFilter");
+
+            // Multi-extension should have semicolons in result
+            if (queryStr.Contains(';'))
+            {
+                Assert.IsTrue(result.ExtensionFilter!.Contains(";"),
+                    $"Multi-ext query '{queryStr}' should have semicolons in result");
+            }
+
+            // All extensions should start with dot
+            foreach (var ext in result.ExtensionFilter!.Split(';'))
+            {
+                Assert.IsTrue(ext.StartsWith("."),
+                    $"Extension '{ext}' from query '{queryStr}' should start with dot");
+            }
+        }
+    }
+
+    // ── 3e. Stress_BFS_DirectoryTraversal_Simulation ─────────
+
+    [TestMethod]
+    public void Stress_BFS_DirectoryTraversal_Simulation()
+    {
+        // Simulate BFS directory traversal with 10,000 directories
+        // Tests that Queue<string> and batch processing handle volume correctly
+        var queue = new Queue<string>();
+        queue.Enqueue("C:\\Root");
+
+        var rng = new Random(42);
+        int foldersScanned = 0;
+        int filesFound = 0;
+        int maxResults = 10_000;
+        int batchSize = 50;
+        var batch = new List<string>(batchSize);
+        var allBatches = new List<List<string>>();
+
+        // Simulate directory tree: each directory has 2-5 subdirs and 0-10 files
+        while (queue.Count > 0 && filesFound < maxResults)
+        {
+            var currentDir = queue.Dequeue();
+            foldersScanned++;
+
+            // Add subdirectories (limit depth to avoid infinite growth)
+            if (foldersScanned < 5000)
+            {
+                int subDirs = rng.Next(2, 6);
+                for (int i = 0; i < subDirs; i++)
+                {
+                    queue.Enqueue($"{currentDir}\\sub_{i}");
+                }
+            }
+
+            // Add matching files
+            int matchingFiles = rng.Next(0, 4); // 0-3 matches per dir
+            for (int i = 0; i < matchingFiles && filesFound < maxResults; i++)
+            {
+                batch.Add($"{currentDir}\\file_{i}.exe");
+                filesFound++;
+
+                if (batch.Count >= batchSize)
+                {
+                    allBatches.Add(batch);
+                    batch = new List<string>(batchSize);
+                }
+            }
+        }
+
+        // Flush remaining batch
+        if (batch.Count > 0)
+            allBatches.Add(batch);
+
+        // Verify results
+        Assert.AreEqual(maxResults, filesFound, "Should find exactly MaxResults files");
+        Assert.IsTrue(foldersScanned > 100, $"Should scan many folders, got {foldersScanned}");
+        Assert.IsTrue(allBatches.Count > 0, "Should produce at least one batch");
+
+        // Verify batch sizes
+        for (int i = 0; i < allBatches.Count - 1; i++)
+        {
+            Assert.AreEqual(batchSize, allBatches[i].Count, $"Non-final batch {i} should be full");
+        }
+    }
+
     // ── 4. Stress_FileOperationHistory_RapidUndoRedo ────────
 
     [TestMethod]

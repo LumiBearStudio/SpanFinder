@@ -86,6 +86,7 @@ namespace Span
                         case Windows.System.VirtualKey.T:       // Ctrl+T: New Tab
                         case Windows.System.VirtualKey.W:       // Ctrl+W: Close Tab
                         case Windows.System.VirtualKey.L:       // Ctrl+L: Address Bar
+                        case Windows.System.VirtualKey.H:       // Ctrl+H: Toggle Hidden
                         case Windows.System.VirtualKey.N:       // Ctrl+N: New Window
                             break; // 허용 — fall through to main handler
                         default:
@@ -208,10 +209,13 @@ namespace Span
                         break;
 
                     case Windows.System.VirtualKey.L:
-                        if (ViewModel.CurrentViewMode != ViewMode.Home)
+                        // Home 모드에서도 Ctrl+L 허용: MillerColumns로 전환 후 주소바 편집
+                        if (ViewModel.CurrentViewMode == ViewMode.Home)
                         {
-                            ShowAddressBarEditMode();
+                            ViewModel.SwitchViewMode(ViewMode.MillerColumns);
+                            UpdateViewModeVisibility();
                         }
+                        ShowAddressBarEditMode();
                         e.Handled = true;
                         break;
 
@@ -265,6 +269,19 @@ namespace Span
                         else
                         {
                             HandleSelectAll();
+                        }
+                        e.Handled = true;
+                        break;
+
+                    case Windows.System.VirtualKey.H:
+                        // Ctrl+H: Toggle hidden files visibility
+                        {
+                            var settingsSvc = App.Current.Services.GetService<Services.ISettingsService>();
+                            if (settingsSvc != null)
+                            {
+                                settingsSvc.ShowHiddenFiles = !settingsSvc.ShowHiddenFiles;
+                                ViewModel.ShowToast(settingsSvc.ShowHiddenFiles ? "Hidden files shown" : "Hidden files hidden");
+                            }
                         }
                         e.Handled = true;
                         break;

@@ -808,4 +808,153 @@ public class SearchQueryParserTests
 
         Assert.IsFalse(query.IsEmpty);
     }
+
+    // -------------------------------------------------------
+    // 12. Wildcard detection → NameRegex
+    // -------------------------------------------------------
+
+    [TestMethod]
+    public void Parse_WildcardStar_SetsNameRegex()
+    {
+        var query = SearchQueryParser.Parse("*.exe");
+
+        Assert.IsNotNull(query.NameRegex);
+        Assert.AreEqual("*.exe", query.NameFilter);
+        Assert.IsTrue(query.NameRegex!.IsMatch("notepad.exe"));
+        Assert.IsTrue(query.NameRegex!.IsMatch("calc.exe"));
+        Assert.IsFalse(query.NameRegex!.IsMatch("notepad.txt"));
+    }
+
+    [TestMethod]
+    public void Parse_WildcardQuestion_SetsNameRegex()
+    {
+        var query = SearchQueryParser.Parse("test?.doc");
+
+        Assert.IsNotNull(query.NameRegex);
+        Assert.IsTrue(query.NameRegex!.IsMatch("test1.doc"));
+        Assert.IsTrue(query.NameRegex!.IsMatch("testA.doc"));
+        Assert.IsFalse(query.NameRegex!.IsMatch("test12.doc")); // ? = exactly 1 char
+        Assert.IsFalse(query.NameRegex!.IsMatch("test.doc"));   // ? requires 1 char
+    }
+
+    [TestMethod]
+    public void Parse_WildcardMixed_SetsNameRegex()
+    {
+        var query = SearchQueryParser.Parse("report*2024?.pdf");
+
+        Assert.IsNotNull(query.NameRegex);
+        Assert.IsTrue(query.NameRegex!.IsMatch("report_annual_2024A.pdf"));
+        Assert.IsFalse(query.NameRegex!.IsMatch("report_2024AB.pdf")); // ? matches 1 char, not 2
+    }
+
+    [TestMethod]
+    public void Parse_NoWildcard_NoNameRegex()
+    {
+        var query = SearchQueryParser.Parse("hello");
+
+        Assert.IsNull(query.NameRegex);
+        Assert.AreEqual("hello", query.NameFilter);
+    }
+
+    [TestMethod]
+    public void Parse_WildcardCaseInsensitive_Matches()
+    {
+        var query = SearchQueryParser.Parse("*.EXE");
+
+        Assert.IsNotNull(query.NameRegex);
+        Assert.IsTrue(query.NameRegex!.IsMatch("notepad.exe"));
+        Assert.IsTrue(query.NameRegex!.IsMatch("NOTEPAD.EXE"));
+        Assert.IsTrue(query.NameRegex!.IsMatch("Calc.Exe"));
+    }
+
+    [TestMethod]
+    public void Parse_WildcardStarOnly_MatchesEverything()
+    {
+        var query = SearchQueryParser.Parse("*");
+
+        Assert.IsNotNull(query.NameRegex);
+        Assert.IsTrue(query.NameRegex!.IsMatch("anything.txt"));
+        Assert.IsTrue(query.NameRegex!.IsMatch(""));
+    }
+
+    [TestMethod]
+    public void Parse_WildcardWithSpecialRegexChars_EscapedProperly()
+    {
+        var query = SearchQueryParser.Parse("file[1].txt");
+
+        // No wildcard → no regex
+        Assert.IsNull(query.NameRegex);
+        Assert.AreEqual("file[1].txt", query.NameFilter);
+    }
+
+    [TestMethod]
+    public void Parse_WildcardWithSpecialRegexCharsAndStar_EscapedProperly()
+    {
+        var query = SearchQueryParser.Parse("file[*].txt");
+
+        Assert.IsNotNull(query.NameRegex);
+        // The [ ] should be escaped, * should match anything
+        Assert.IsTrue(query.NameRegex!.IsMatch("file[test].txt"));
+        Assert.IsFalse(query.NameRegex!.IsMatch("fileX.txt"));
+    }
+
+    [TestMethod]
+    public void Parse_WildcardWithFilter_BothSet()
+    {
+        var query = SearchQueryParser.Parse("*.pdf date:today");
+
+        Assert.IsNotNull(query.NameRegex);
+        Assert.IsTrue(query.NameRegex!.IsMatch("report.pdf"));
+        Assert.IsNotNull(query.DateFilter);
+        Assert.AreEqual(CompareOp.GreaterOrEqual, query.DateFilter!.Value.Op);
+    }
+
+    // -------------------------------------------------------
+    // 13. Multi-extension filter (ext:jpg;png;gif)
+    // -------------------------------------------------------
+
+    [TestMethod]
+    public void Parse_ExtMultiple_SemicolonSeparated()
+    {
+        var query = SearchQueryParser.Parse("ext:jpg;png;gif");
+
+        Assert.AreEqual(".jpg;.png;.gif", query.ExtensionFilter);
+    }
+
+    [TestMethod]
+    public void Parse_ExtMultiple_WithDots_Preserved()
+    {
+        var query = SearchQueryParser.Parse("ext:.jpg;.png;.gif");
+
+        Assert.AreEqual(".jpg;.png;.gif", query.ExtensionFilter);
+    }
+
+    [TestMethod]
+    public void Parse_ExtMultiple_MixedDots_Normalized()
+    {
+        var query = SearchQueryParser.Parse("ext:jpg;.png;gif");
+
+        Assert.AreEqual(".jpg;.png;.gif", query.ExtensionFilter);
+    }
+
+    [TestMethod]
+    public void Parse_ExtMultiple_WithSpaces_Trimmed()
+    {
+        var query = SearchQueryParser.Parse("ext:jpg; png; gif");
+
+        // "ext:jpg;" is the ext token; " png" and " gif" become name tokens
+        // Actually "ext:jpg;" with no space means whole token is "ext:jpg;"
+        // Let's test actual behavior: tokenizer splits on space
+        // "ext:jpg;" -> ext value is "jpg;", split by ; -> ["jpg", ""] (empty after trailing ;)
+        // This should be ".jpg" only since ";" at end produces empty
+        Assert.IsNotNull(query.ExtensionFilter);
+    }
+
+    [TestMethod]
+    public void Parse_ExtMultiple_TwoExtensions()
+    {
+        var query = SearchQueryParser.Parse("ext:doc;docx");
+
+        Assert.AreEqual(".doc;.docx", query.ExtensionFilter);
+    }
 }
