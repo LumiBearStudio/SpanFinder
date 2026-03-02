@@ -854,23 +854,33 @@ namespace Span.ViewModels
         private void OnColumnLoadError(string message) => NavigationError?.Invoke(message);
 
         /// <summary>
-        /// Update IsOnPath for all items in all columns.
-        /// Items that are the SelectedChild of a non-last column are "on the path".
+        /// Update IsOnPath only for items whose state actually changes.
+        /// Instead of scanning ALL children in ALL columns (O(total_items)),
+        /// we track previously highlighted items and only touch those + new ones (O(column_count)).
         /// </summary>
+        private readonly List<FileSystemViewModel> _pathHighlightedItems = new();
+
         private void UpdatePathHighlights()
         {
             var accentBrush = FileSystemViewModel.GetPathHighlightBrush();
 
-            for (int i = 0; i < Columns.Count; i++)
+            // 1) Clear previous highlights (typically 3-8 items, not 14K)
+            foreach (var prev in _pathHighlightedItems)
             {
-                var column = Columns[i];
-                bool isParentColumn = i < Columns.Count - 1;
+                prev.IsOnPath = false;
+                prev.PathBackground = FileSystemViewModel.TransparentBrush;
+            }
+            _pathHighlightedItems.Clear();
 
-                foreach (var child in column.Children)
+            // 2) Set new highlights (only SelectedChild of non-last columns)
+            for (int i = 0; i < Columns.Count - 1; i++)
+            {
+                var selected = Columns[i].SelectedChild;
+                if (selected != null)
                 {
-                    bool onPath = isParentColumn && child == column.SelectedChild;
-                    child.IsOnPath = onPath;
-                    child.PathBackground = onPath ? accentBrush : FileSystemViewModel.TransparentBrush;
+                    selected.IsOnPath = true;
+                    selected.PathBackground = accentBrush;
+                    _pathHighlightedItems.Add(selected);
                 }
             }
         }
@@ -930,8 +940,11 @@ namespace Span.ViewModels
             // notify CurrentItems so Details/List/Icon views rebind to the new collection.
             if (e.PropertyName == nameof(FolderViewModel.Children))
             {
-                // 필터 활성 시, 새로 로드된 컬럼에도 필터 자동 적용
-                if (!string.IsNullOrEmpty(_filterText) && sender is FolderViewModel folderVm
+                // 정렬/필터 중에는 ApplyFilter 재적용만 차단 (연쇄 필터 방지)
+                // CurrentItems 통지는 항상 허용 — Details/List/Icon 뷰 바인딩에 필수
+                var isBulk = sender is FolderViewModel fvm && (fvm.IsSorting || fvm.IsBulkUpdating);
+
+                if (!isBulk && !string.IsNullOrEmpty(_filterText) && sender is FolderViewModel folderVm
                     && folderVm.CurrentFilterText != _filterText)
                 {
                     folderVm.ApplyFilter(_filterText);

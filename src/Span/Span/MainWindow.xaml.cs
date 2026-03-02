@@ -83,6 +83,9 @@ namespace Span
         private string _typeAheadBuffer = string.Empty;
         private DispatcherTimer? _typeAheadTimer;
 
+        // Filter bar debounce (300ms) — prevents 14K filter per keystroke
+        private DispatcherTimer? _filterDebounceTimer;
+
         // Prevents DispatcherQueue callbacks and async methods from accessing
         // disposed UI after OnClosed has started teardown
         private bool _isClosed = false;
@@ -2997,14 +3000,17 @@ namespace Span
 
                 // Apply density padding + min height to the DATA TEMPLATE Grid (inside ContentPresenter),
                 // NOT the template root Grid (ContentBorder).
+                // 값이 이미 동일하면 건너뛰어 불필요한 레이아웃 무효화 방지.
                 var cp = FindChild<ContentPresenter>(item);
                 if (cp != null)
                 {
                     var grid = FindChild<Grid>(cp);
                     if (grid != null)
                     {
-                        grid.Padding = _densityPadding;
-                        grid.MinHeight = _densityMinHeight;
+                        if (grid.Padding != _densityPadding)
+                            grid.Padding = _densityPadding;
+                        if (grid.MinHeight != _densityMinHeight)
+                            grid.MinHeight = _densityMinHeight;
 
                         // Apply icon/font scale to newly materialized containers
                         if (_iconFontScaleLevel > 0)
@@ -4389,6 +4395,8 @@ namespace Span
         private void CloseFilterBar()
         {
             if (_isClosed) return;
+            _filterDebounceTimer?.Stop();
+            _filterDebounceTimer = null;
             LeftFilterBar.Visibility = Visibility.Collapsed;
             LeftFilterTextBox.Text = string.Empty;
             LeftFilterCountText.Text = string.Empty;
@@ -4404,8 +4412,19 @@ namespace Span
             var explorer = ViewModel.ActiveExplorer;
             if (explorer == null) return;
 
-            explorer.FilterText = LeftFilterTextBox.Text;
-            UpdateFilterCount();
+            // Debounce: 14K+ 파일 폴더에서 키스트로크마다 전체 필터링 방지
+            _filterDebounceTimer?.Stop();
+            _filterDebounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
+            _filterDebounceTimer.Tick += (_, _) =>
+            {
+                _filterDebounceTimer.Stop();
+                if (_isClosed) return;
+                var exp = ViewModel.ActiveExplorer;
+                if (exp == null) return;
+                exp.FilterText = LeftFilterTextBox.Text;
+                UpdateFilterCount();
+            };
+            _filterDebounceTimer.Start();
         }
 
         private void OnFilterBarClose(object sender, RoutedEventArgs e)

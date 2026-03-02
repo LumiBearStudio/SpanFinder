@@ -41,6 +41,13 @@ namespace Span.ViewModels
         private BitmapImage? _thumbnailSource;
 
         /// <summary>
+        /// ContainerContentChanging에서 Cloud/Git 상태 주입 완료 플래그.
+        /// 스크롤 중 동일 아이템 재주입을 방지하여 PropertyChanged 폭포를 줄인다.
+        /// </summary>
+        internal bool CloudStateInjected;
+        internal bool GitStateInjected;
+
+        /// <summary>
         /// 클라우드 동기화 상태 글리프 (OneDrive 등).
         /// 빈 문자열이면 뱃지 숨김.
         /// </summary>
@@ -53,10 +60,18 @@ namespace Span.ViewModels
         [ObservableProperty]
         private Models.CloudState _cloudState = Models.CloudState.None;
 
-        partial void OnCloudStateChanged(Models.CloudState value)
+        partial void OnCloudStateChanged(Models.CloudState oldValue, Models.CloudState value)
         {
-            CloudStateGlyph = Services.CloudSyncService.GetCloudStateGlyph(value);
-            OnPropertyChanged(nameof(CloudBadgeBrush));
+            var newGlyph = Services.CloudSyncService.GetCloudStateGlyph(value);
+            if (CloudStateGlyph != newGlyph)
+                CloudStateGlyph = newGlyph;
+            // HasCloudBadge/CloudBadgeBrush 알림은 실제 뱃지 표시 여부가 변경될 때만 발생
+            bool wasBadge = oldValue != Models.CloudState.None;
+            bool isBadge = value != Models.CloudState.None;
+            if (wasBadge != isBadge)
+                OnPropertyChanged(nameof(HasCloudBadge));
+            if (wasBadge || isBadge) // 뱃지가 있었거나 있을 때만 브러시 알림
+                OnPropertyChanged(nameof(CloudBadgeBrush));
         }
 
         /// <summary>
@@ -65,37 +80,46 @@ namespace Span.ViewModels
         public bool HasCloudBadge => CloudState != Models.CloudState.None;
 
         /// <summary>
-        /// 클라우드 상태별 배지 배경색.
+        /// 클라우드 상태별 배지 배경색 (정적 캐싱으로 GC 압박 방지).
         /// CloudOnly=파랑, Synced=초록, PendingUpload=주황, Syncing=파랑.
         /// </summary>
+        private static readonly Microsoft.UI.Xaml.Media.SolidColorBrush _cloudBlueBrush
+            = new(Windows.UI.Color.FromArgb(255, 0, 120, 212));    // #0078D4 Blue
+        private static readonly Microsoft.UI.Xaml.Media.SolidColorBrush _cloudGreenBrush
+            = new(Windows.UI.Color.FromArgb(255, 16, 124, 16));    // #107C10 Green
+        private static readonly Microsoft.UI.Xaml.Media.SolidColorBrush _cloudOrangeBrush
+            = new(Windows.UI.Color.FromArgb(255, 255, 140, 0));    // #FF8C00 Orange
+
         public Microsoft.UI.Xaml.Media.Brush CloudBadgeBrush => CloudState switch
         {
-            Models.CloudState.CloudOnly => new Microsoft.UI.Xaml.Media.SolidColorBrush(
-                Windows.UI.Color.FromArgb(255, 0, 120, 212)),    // #0078D4 Blue
-            Models.CloudState.Synced => new Microsoft.UI.Xaml.Media.SolidColorBrush(
-                Windows.UI.Color.FromArgb(255, 16, 124, 16)),    // #107C10 Green
-            Models.CloudState.PendingUpload => new Microsoft.UI.Xaml.Media.SolidColorBrush(
-                Windows.UI.Color.FromArgb(255, 255, 140, 0)),    // #FF8C00 Orange
-            Models.CloudState.Syncing => new Microsoft.UI.Xaml.Media.SolidColorBrush(
-                Windows.UI.Color.FromArgb(255, 0, 120, 212)),    // #0078D4 Blue
-            _ => new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent),
+            Models.CloudState.CloudOnly => _cloudBlueBrush,
+            Models.CloudState.Synced => _cloudGreenBrush,
+            Models.CloudState.PendingUpload => _cloudOrangeBrush,
+            Models.CloudState.Syncing => _cloudBlueBrush,
+            _ => TransparentBrush,
         };
 
-        partial void OnCloudStateGlyphChanged(string value)
-        {
-            OnPropertyChanged(nameof(HasCloudBadge));
-        }
+        // HasCloudBadge 알림은 OnCloudStateChanged에서 조건부로 처리
+        // CloudStateGlyph 변경 시 추가 알림 불필요
 
         // --- Git 상태 ---
 
         [ObservableProperty]
         private Models.GitFileState _gitState = Models.GitFileState.None;
 
-        partial void OnGitStateChanged(Models.GitFileState value)
+        partial void OnGitStateChanged(Models.GitFileState oldValue, Models.GitFileState value)
         {
-            OnPropertyChanged(nameof(GitStatusText));
-            OnPropertyChanged(nameof(GitStatusBrush));
-            OnPropertyChanged(nameof(HasGitBadge));
+            bool wasBadge = oldValue != Models.GitFileState.None && oldValue != Models.GitFileState.Clean;
+            bool isBadge = value != Models.GitFileState.None && value != Models.GitFileState.Clean;
+            // 뱃지 표시 여부가 변경될 때만 HasGitBadge 알림
+            if (wasBadge != isBadge)
+                OnPropertyChanged(nameof(HasGitBadge));
+            // 뱃지가 있었거나 있을 때만 텍스트/브러시 알림
+            if (wasBadge || isBadge)
+            {
+                OnPropertyChanged(nameof(GitStatusText));
+                OnPropertyChanged(nameof(GitStatusBrush));
+            }
         }
 
         /// <summary>
@@ -120,23 +144,28 @@ namespace Span.ViewModels
         };
 
         /// <summary>
-        /// Git 상태별 텍스트 색상 (VS Code 스타일).
+        /// Git 상태별 텍스트 색상 (VS Code 스타일, 정적 캐싱으로 GC 압박 방지).
         /// </summary>
+        private static readonly Microsoft.UI.Xaml.Media.SolidColorBrush _gitModifiedBrush
+            = new(Windows.UI.Color.FromArgb(255, 226, 165, 46));     // #E2A52E 주황
+        private static readonly Microsoft.UI.Xaml.Media.SolidColorBrush _gitAddedBrush
+            = new(Windows.UI.Color.FromArgb(255, 115, 201, 145));    // #73C991 초록
+        private static readonly Microsoft.UI.Xaml.Media.SolidColorBrush _gitDeletedBrush
+            = new(Windows.UI.Color.FromArgb(255, 244, 71, 71));      // #F44747 빨강
+        private static readonly Microsoft.UI.Xaml.Media.SolidColorBrush _gitRenamedBrush
+            = new(Windows.UI.Color.FromArgb(255, 197, 134, 192));    // #C586C0 보라
+        private static readonly Microsoft.UI.Xaml.Media.SolidColorBrush _gitConflictBrush
+            = new(Windows.UI.Color.FromArgb(255, 255, 0, 0));        // #FF0000 빨강진
+
         public Microsoft.UI.Xaml.Media.Brush GitStatusBrush => GitState switch
         {
-            Models.GitFileState.Modified => new Microsoft.UI.Xaml.Media.SolidColorBrush(
-                Windows.UI.Color.FromArgb(255, 226, 165, 46)),     // #E2A52E 주황
-            Models.GitFileState.Added => new Microsoft.UI.Xaml.Media.SolidColorBrush(
-                Windows.UI.Color.FromArgb(255, 115, 201, 145)),    // #73C991 초록
-            Models.GitFileState.Deleted => new Microsoft.UI.Xaml.Media.SolidColorBrush(
-                Windows.UI.Color.FromArgb(255, 244, 71, 71)),      // #F44747 빨강
-            Models.GitFileState.Renamed => new Microsoft.UI.Xaml.Media.SolidColorBrush(
-                Windows.UI.Color.FromArgb(255, 197, 134, 192)),    // #C586C0 보라
-            Models.GitFileState.Untracked => new Microsoft.UI.Xaml.Media.SolidColorBrush(
-                Windows.UI.Color.FromArgb(255, 115, 201, 145)),    // #73C991 초록
-            Models.GitFileState.Conflicted => new Microsoft.UI.Xaml.Media.SolidColorBrush(
-                Windows.UI.Color.FromArgb(255, 255, 0, 0)),        // #FF0000 빨강진
-            _ => new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent),
+            Models.GitFileState.Modified => _gitModifiedBrush,
+            Models.GitFileState.Added => _gitAddedBrush,
+            Models.GitFileState.Deleted => _gitDeletedBrush,
+            Models.GitFileState.Renamed => _gitRenamedBrush,
+            Models.GitFileState.Untracked => _gitAddedBrush,
+            Models.GitFileState.Conflicted => _gitConflictBrush,
+            _ => TransparentBrush,
         };
 
         public string Name => _model.Name;
@@ -464,6 +493,18 @@ namespace Span.ViewModels
         /// </summary>
         public static Microsoft.UI.Xaml.Visibility ShowIfFalse(bool value)
             => value ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible;
+
+        /// <summary>
+        /// XAML x:Bind: Opacity 1 when true, 0 when false.
+        /// Visibility 대신 Opacity를 사용하면 레이아웃 패스 없이 렌더링만 변경되어
+        /// 대용량 리스트 스크롤 시 지터를 방지한다.
+        /// </summary>
+        public static double OpacityIfTrue(bool value) => value ? 1.0 : 0.0;
+
+        /// <summary>
+        /// XAML x:Bind: Opacity 1 when false, 0 when true.
+        /// </summary>
+        public static double OpacityIfFalse(bool value) => value ? 0.0 : 1.0;
 
         /// <summary>
         /// 이름 변경 취소 (Esc).

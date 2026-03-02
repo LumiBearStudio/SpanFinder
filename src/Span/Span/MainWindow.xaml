@@ -834,6 +834,7 @@
                                 <ScrollViewer x:Name="MillerScrollViewer"
                                               HorizontalScrollBarVisibility="Auto"
                                               VerticalScrollBarVisibility="Disabled"
+                                              VerticalScrollMode="Disabled"
                                               >
                                     <StackPanel Orientation="Horizontal">
                                     <ItemsControl x:Name="MillerColumnsControl">
@@ -867,6 +868,11 @@
                                                                       DoubleTapped="OnMillerColumnDoubleTapped"
                                                                       RightTapped="OnMillerColumnEmptyAreaRightTapped"
                                                                       ContainerContentChanging="OnMillerContainerContentChanging">
+                                                                <ListView.ItemsPanel>
+                                                                    <ItemsPanelTemplate>
+                                                                        <ItemsStackPanel CacheLength="2.0"/>
+                                                                    </ItemsPanelTemplate>
+                                                                </ListView.ItemsPanel>
                                                                 <ListView.ItemContainerTransitions>
                                                                     <TransitionCollection/>
                                                                 </ListView.ItemContainerTransitions>
@@ -919,22 +925,27 @@
                                                                                     <!-- Col0: path indicator placeholder (matches FolderTemplate column structure) -->
                                                                                     <Border Grid.Column="0" Width="1" CornerRadius="0.5" Margin="-8,2,0,2" Visibility="Collapsed"/>
                                                                                     <Grid Grid.Column="1" Width="16" Height="16" Margin="0,0,12,0" VerticalAlignment="Center">
+                                                                                        <!-- Opacity 전환: Visibility→Opacity로 레이아웃 패스 없이 렌더링만 전환 (14K 스크롤 지터 방지) -->
                                                                                         <Image Source="{x:Bind ThumbnailSource, Mode=OneWay}" Stretch="UniformToFill"
-                                                                                               Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfTrue(HasThumbnail), Mode=OneWay}"/>
+                                                                                               Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfTrue(HasThumbnail), Mode=OneWay}"
+                                                                                               IsHitTestVisible="False"/>
                                                                                         <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{x:Bind IconGlyph}" FontSize="16" Foreground="{x:Bind IconBrush}"
-                                                                                                  Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfFalse(HasThumbnail), Mode=OneWay}"/>
-                                                                                        <Border Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfTrue(HasCloudBadge), Mode=OneWay}"
+                                                                                                  Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfFalse(HasThumbnail), Mode=OneWay}"
+                                                                                                  IsHitTestVisible="False"/>
+                                                                                        <Border Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfTrue(HasCloudBadge), Mode=OneWay}"
                                                                                                 HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-4,-4"
                                                                                                 Width="12" Height="12" CornerRadius="6"
-                                                                                                Background="{x:Bind CloudBadgeBrush, Mode=OneWay}">
+                                                                                                Background="{x:Bind CloudBadgeBrush, Mode=OneWay}"
+                                                                                                IsHitTestVisible="False">
                                                                                             <FontIcon Glyph="{x:Bind CloudStateGlyph, Mode=OneWay}" FontSize="8"
                                                                                                       Foreground="{ThemeResource SpanTextSecondaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                                                         </Border>
                                                                                         <!-- Git 뱃지 (동일 위치, Git 우선 — 위에 렌더링) -->
-                                                                                        <Border Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfTrue(HasGitBadge), Mode=OneWay}"
+                                                                                        <Border Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfTrue(HasGitBadge), Mode=OneWay}"
                                                                                                 HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-4,-4"
                                                                                                 Width="12" Height="12" CornerRadius="6"
-                                                                                                Background="{x:Bind GitStatusBrush, Mode=OneWay}">
+                                                                                                Background="{x:Bind GitStatusBrush, Mode=OneWay}"
+                                                                                                IsHitTestVisible="False">
                                                                                             <TextBlock Text="{x:Bind GitStatusText, Mode=OneWay}" FontSize="7" FontWeight="Bold"
                                                                                                        Foreground="{ThemeResource SpanTextSecondaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"
                                                                                                        Margin="0,-1,0,0"/>
@@ -1325,6 +1336,11 @@
                                                                       DoubleTapped="OnMillerColumnDoubleTapped"
                                                                       RightTapped="OnMillerColumnEmptyAreaRightTapped"
                                                                       ContainerContentChanging="OnMillerContainerContentChanging">
+                                                                <ListView.ItemsPanel>
+                                                                    <ItemsPanelTemplate>
+                                                                        <ItemsStackPanel CacheLength="2.0"/>
+                                                                    </ItemsPanelTemplate>
+                                                                </ListView.ItemsPanel>
                                                                 <ListView.ItemContainerTransitions>
                                                                     <TransitionCollection/>
                                                                 </ListView.ItemContainerTransitions>
@@ -1377,22 +1393,27 @@
                                                                                     <!-- Col0: path indicator placeholder (matches FolderTemplate column structure) -->
                                                                                     <Border Grid.Column="0" Width="1" CornerRadius="0.5" Margin="-8,2,0,2" Visibility="Collapsed"/>
                                                                                     <Grid Grid.Column="1" Width="16" Height="16" Margin="0,0,12,0" VerticalAlignment="Center">
+                                                                                        <!-- Opacity 전환: Visibility→Opacity로 레이아웃 패스 없이 렌더링만 전환 (14K 스크롤 지터 방지) -->
                                                                                         <Image Source="{x:Bind ThumbnailSource, Mode=OneWay}" Stretch="UniformToFill"
-                                                                                               Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfTrue(HasThumbnail), Mode=OneWay}"/>
+                                                                                               Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfTrue(HasThumbnail), Mode=OneWay}"
+                                                                                               IsHitTestVisible="False"/>
                                                                                         <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{x:Bind IconGlyph}" FontSize="16" Foreground="{x:Bind IconBrush}"
-                                                                                                  Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfFalse(HasThumbnail), Mode=OneWay}"/>
-                                                                                        <Border Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfTrue(HasCloudBadge), Mode=OneWay}"
+                                                                                                  Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfFalse(HasThumbnail), Mode=OneWay}"
+                                                                                                  IsHitTestVisible="False"/>
+                                                                                        <Border Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfTrue(HasCloudBadge), Mode=OneWay}"
                                                                                                 HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-4,-4"
                                                                                                 Width="12" Height="12" CornerRadius="6"
-                                                                                                Background="{x:Bind CloudBadgeBrush, Mode=OneWay}">
+                                                                                                Background="{x:Bind CloudBadgeBrush, Mode=OneWay}"
+                                                                                                IsHitTestVisible="False">
                                                                                             <FontIcon Glyph="{x:Bind CloudStateGlyph, Mode=OneWay}" FontSize="8"
                                                                                                       Foreground="{ThemeResource SpanTextSecondaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                                                         </Border>
                                                                                         <!-- Git 뱃지 (동일 위치, Git 우선 — 위에 렌더링) -->
-                                                                                        <Border Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfTrue(HasGitBadge), Mode=OneWay}"
+                                                                                        <Border Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfTrue(HasGitBadge), Mode=OneWay}"
                                                                                                 HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-4,-4"
                                                                                                 Width="12" Height="12" CornerRadius="6"
-                                                                                                Background="{x:Bind GitStatusBrush, Mode=OneWay}">
+                                                                                                Background="{x:Bind GitStatusBrush, Mode=OneWay}"
+                                                                                                IsHitTestVisible="False">
                                                                                             <TextBlock Text="{x:Bind GitStatusText, Mode=OneWay}" FontSize="7" FontWeight="Bold"
                                                                                                        Foreground="{ThemeResource SpanTextSecondaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"
                                                                                                        Margin="0,-1,0,0"/>

@@ -45,6 +45,13 @@ namespace Span.ViewModels
         private string _currentFilterText = string.Empty;
 
         /// <summary>
+        /// 필터링/정렬 중 Children 교체로 인한 PropertyChanged 연쇄를 차단하기 위한 가드.
+        /// true일 때 ExplorerViewModel.FolderVm_PropertyChanged가 Children 변경을 무시.
+        /// </summary>
+        private bool _isBulkUpdating;
+        internal bool IsBulkUpdating => _isBulkUpdating;
+
+        /// <summary>
         /// 현재 적용 중인 필터 텍스트 (ExplorerViewModel에서 전파 확인용).
         /// </summary>
         internal string CurrentFilterText => _currentFilterText;
@@ -497,6 +504,7 @@ namespace Span.ViewModels
             var source = _allChildren ?? Children.ToList();
             if (source.Count == 0) return;
             IsSorting = true;
+            _isBulkUpdating = true;
             var saved = SelectedChild;
 
             try
@@ -516,7 +524,14 @@ namespace Span.ViewModels
                 }
                 if (saved != null) SelectedChild = saved;
             }
-            finally { IsSorting = false; }
+            finally
+            {
+                IsSorting = false;
+                _isBulkUpdating = false;
+                // 정렬 완료 후 한 번에 갱신
+                OnPropertyChanged(nameof(ChildCountText));
+                OnPropertyChanged(nameof(TotalChildCount));
+            }
 
             // 설정 저장 (다음 앱 실행의 기본값으로 사용)
             try
@@ -533,22 +548,48 @@ namespace Span.ViewModels
         private static List<FileSystemViewModel> ApplySort(
             List<FileSystemViewModel> items, string sortBy, bool ascending)
         {
-            IEnumerable<FileSystemViewModel> sorted = sortBy switch
+            // 폴더/파일 1회 분할 — 비교마다 `x is FileViewModel` 타입 체크 제거 (14K+ 성능 최적화)
+            var folders = new List<FileSystemViewModel>();
+            var files = new List<FileSystemViewModel>();
+            foreach (var item in items)
             {
-                "DateModified" => ascending
-                    ? items.OrderBy(x => x is FileViewModel ? 1 : 0).ThenBy(x => x.DateModifiedValue)
-                    : items.OrderBy(x => x is FileViewModel ? 1 : 0).ThenByDescending(x => x.DateModifiedValue),
-                "Type" => ascending
-                    ? items.OrderBy(x => x is FileViewModel ? 1 : 0).ThenBy(x => x.FileType)
-                    : items.OrderBy(x => x is FileViewModel ? 1 : 0).ThenByDescending(x => x.FileType),
-                "Size" => ascending
-                    ? items.OrderBy(x => x is FileViewModel ? 1 : 0).ThenBy(x => x.SizeValue)
-                    : items.OrderBy(x => x is FileViewModel ? 1 : 0).ThenByDescending(x => x.SizeValue),
-                _ => ascending
-                    ? items.OrderBy(x => x is FileViewModel ? 1 : 0).ThenBy(x => x.Name, Helpers.NaturalStringComparer.Instance)
-                    : items.OrderBy(x => x is FileViewModel ? 1 : 0).ThenByDescending(x => x.Name, Helpers.NaturalStringComparer.Instance),
-            };
-            return sorted.ToList();
+                if (item is FileViewModel)
+                    files.Add(item);
+                else
+                    folders.Add(item);
+            }
+
+            // 각 그룹 개별 정렬
+            IEnumerable<FileSystemViewModel> sortedFolders, sortedFiles;
+            switch (sortBy)
+            {
+                case "DateModified":
+                    sortedFolders = ascending ? folders.OrderBy(x => x.DateModifiedValue) : folders.OrderByDescending(x => x.DateModifiedValue);
+                    sortedFiles = ascending ? files.OrderBy(x => x.DateModifiedValue) : files.OrderByDescending(x => x.DateModifiedValue);
+                    break;
+                case "Type":
+                    sortedFolders = ascending ? folders.OrderBy(x => x.FileType) : folders.OrderByDescending(x => x.FileType);
+                    sortedFiles = ascending ? files.OrderBy(x => x.FileType) : files.OrderByDescending(x => x.FileType);
+                    break;
+                case "Size":
+                    sortedFolders = ascending ? folders.OrderBy(x => x.SizeValue) : folders.OrderByDescending(x => x.SizeValue);
+                    sortedFiles = ascending ? files.OrderBy(x => x.SizeValue) : files.OrderByDescending(x => x.SizeValue);
+                    break;
+                default: // "Name"
+                    sortedFolders = ascending
+                        ? folders.OrderBy(x => x.Name, Helpers.NaturalStringComparer.Instance)
+                        : folders.OrderByDescending(x => x.Name, Helpers.NaturalStringComparer.Instance);
+                    sortedFiles = ascending
+                        ? files.OrderBy(x => x.Name, Helpers.NaturalStringComparer.Instance)
+                        : files.OrderByDescending(x => x.Name, Helpers.NaturalStringComparer.Instance);
+                    break;
+            }
+
+            // 폴더 먼저, 파일 나중
+            var result = new List<FileSystemViewModel>(items.Count);
+            result.AddRange(sortedFolders);
+            result.AddRange(sortedFiles);
+            return result;
         }
 
         /// <summary>
@@ -601,22 +642,29 @@ namespace Span.ViewModels
             // _allChildren 저장 (필터 인프라)
             _allChildren = sortedItems;
 
-            // 필터 활성 시 → 필터 적용, 아닐 때 → 전체 표시
-            if (!string.IsNullOrEmpty(_currentFilterText))
+            _isBulkUpdating = true;
+            try
             {
-                var filtered = sortedItems.Where(item => MatchesFilter(item.Name, _currentFilterText)).ToList();
-                Children = new ObservableCollection<FileSystemViewModel>(filtered);
+                // 필터 활성 시 → 필터 적용, 아닐 때 → 전체 표시
+                if (!string.IsNullOrEmpty(_currentFilterText))
+                {
+                    var filtered = sortedItems.Where(item => MatchesFilter(item.Name, _currentFilterText)).ToList();
+                    Children = new ObservableCollection<FileSystemViewModel>(filtered);
+                }
+                else
+                {
+                    // 배치 교체: 1회 PropertyChanged("Children") → ListView 전체 리바인딩
+                    Children = new ObservableCollection<FileSystemViewModel>(sortedItems);
+                }
+
+                Helpers.DebugLogger.Log($"[FolderViewModel] Children populated: {sortedItems.Count} items (batch), filtered={Children.Count}");
             }
-            else
+            finally
             {
-                // 배치 교체: 1회 PropertyChanged("Children") → ListView 전체 리바인딩
-                Children = new ObservableCollection<FileSystemViewModel>(sortedItems);
+                _isBulkUpdating = false;
+                OnPropertyChanged(nameof(ChildCountText));
+                OnPropertyChanged(nameof(TotalChildCount));
             }
-
-            Helpers.DebugLogger.Log($"[FolderViewModel] Children populated: {sortedItems.Count} items (batch), filtered={Children.Count}");
-
-            OnPropertyChanged(nameof(ChildCountText));
-            OnPropertyChanged(nameof(TotalChildCount));
 
             // 썸네일은 ContainerContentChanging에서 on-demand 로드
             // (기존: 전체 순차 로드 제거)
@@ -651,26 +699,9 @@ namespace Span.ViewModels
 
                 if (ct.IsCancellationRequested) return;
 
-                // UI 스레드에서 Children에 Git 상태 주입
-                if (dispatcher != null)
-                {
-                    dispatcher.TryEnqueue(() =>
-                    {
-                        int injected = 0;
-                        foreach (var child in Children)
-                        {
-                            if (ct.IsCancellationRequested) break;
-                            var before = child.GitState;
-                            InjectGitStateIfNeeded(child);
-                            if (child.GitState != before) injected++;
-                        }
-                        Helpers.DebugLogger.Log($"[Git.Warm] UI inject done: {injected}/{Children.Count} items got git state");
-                    });
-                }
-                else
-                {
-                    Helpers.DebugLogger.Log("[Git.Warm] WARNING: dispatcher is null, cannot inject on UI thread");
-                }
+                // Git 캐시 워밍 완료 — 실제 UI 주입은 ContainerContentChanging에서 on-demand 수행.
+                // 14K+ 파일 폴더에서 전체 Children 루프를 방지하여 UI 스레드 부하 제거.
+                Helpers.DebugLogger.Log($"[Git.Warm] Cache warmed with {states?.Count ?? 0} entries, injection deferred to ContainerContentChanging");
             }
             catch (OperationCanceledException) { Helpers.DebugLogger.Log("[Git.Warm] Cancelled"); }
             catch (Exception ex)
@@ -685,9 +716,10 @@ namespace Span.ViewModels
         /// </summary>
         public void InjectCloudStateIfNeeded(FileSystemViewModel item)
         {
-            if (!_isCloudFolder || _cloudSvc == null) return;
-            if (item.CloudState != CloudState.None) return;
+            if (item.CloudStateInjected) return; // 이미 주입 완료 — 스크롤 시 재주입 방지
+            if (!_isCloudFolder || _cloudSvc == null) { item.CloudStateInjected = true; return; }
             item.CloudState = _cloudSvc.GetCloudState(item.Path);
+            item.CloudStateInjected = true;
         }
 
         /// <summary>
@@ -697,11 +729,12 @@ namespace Span.ViewModels
         /// </summary>
         public void InjectGitStateIfNeeded(FileSystemViewModel item)
         {
-            if (!_isGitFolder || _gitSvc == null) return;
-            if (item.GitState != Models.GitFileState.None) return;
+            if (item.GitStateInjected) return; // 이미 주입 완료 — 스크롤 시 재주입 방지
+            if (!_isGitFolder || _gitSvc == null) { item.GitStateInjected = true; return; }
             var state = _gitSvc.GetCachedState(item.Path);
             if (state.HasValue)
                 item.GitState = state.Value;
+            item.GitStateInjected = true;
         }
 
         /// <summary>
@@ -854,26 +887,30 @@ namespace Span.ViewModels
         public void ApplyFilter(string filterText)
         {
             _currentFilterText = filterText ?? string.Empty;
+            _isBulkUpdating = true;
 
-            if (_allChildren == null || _allChildren.Count == 0)
+            try
             {
+                if (_allChildren == null || _allChildren.Count == 0)
+                    return;
+
+                if (string.IsNullOrEmpty(_currentFilterText))
+                {
+                    Children = new ObservableCollection<FileSystemViewModel>(_allChildren);
+                }
+                else
+                {
+                    var filtered = _allChildren.Where(item => MatchesFilter(item.Name, _currentFilterText)).ToList();
+                    Children = new ObservableCollection<FileSystemViewModel>(filtered);
+                }
+            }
+            finally
+            {
+                _isBulkUpdating = false;
+                // 필터 완료 후 한 번에 갱신
                 OnPropertyChanged(nameof(ChildCountText));
                 OnPropertyChanged(nameof(TotalChildCount));
-                return;
             }
-
-            if (string.IsNullOrEmpty(_currentFilterText))
-            {
-                Children = new ObservableCollection<FileSystemViewModel>(_allChildren);
-            }
-            else
-            {
-                var filtered = _allChildren.Where(item => MatchesFilter(item.Name, _currentFilterText)).ToList();
-                Children = new ObservableCollection<FileSystemViewModel>(filtered);
-            }
-
-            OnPropertyChanged(nameof(ChildCountText));
-            OnPropertyChanged(nameof(TotalChildCount));
         }
 
         /// <summary>
@@ -882,6 +919,12 @@ namespace Span.ViewModels
         /// - * 또는 ? 포함 → wildcard 패턴 매칭 (Regex 변환)
         /// - 기본 → 대소문자 무시 substring 매칭
         /// </summary>
+        /// <summary>
+        /// Compiled Regex cache for wildcard filter patterns.
+        /// Avoids creating 14K+ Regex objects per filter application.
+        /// </summary>
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, System.Text.RegularExpressions.Regex?> _regexCache = new();
+
         internal static bool MatchesFilter(string name, string filter)
         {
             if (string.IsNullOrEmpty(filter)) return true;
@@ -889,19 +932,21 @@ namespace Span.ViewModels
 
             if (filter.Contains('*') || filter.Contains('?'))
             {
-                // Wildcard → Regex: * → .*, ? → ., 나머지는 escape
-                var pattern = "^" + System.Text.RegularExpressions.Regex.Escape(filter)
-                    .Replace("\\*", ".*")
-                    .Replace("\\?", ".") + "$";
-                try
+                var regex = _regexCache.GetOrAdd(filter, f =>
                 {
-                    return System.Text.RegularExpressions.Regex.IsMatch(
-                        name, pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-                }
-                catch
-                {
-                    return false; // 잘못된 패턴은 무시
-                }
+                    var pattern = "^" + System.Text.RegularExpressions.Regex.Escape(f)
+                        .Replace("\\*", ".*")
+                        .Replace("\\?", ".") + "$";
+                    try
+                    {
+                        return new System.Text.RegularExpressions.Regex(
+                            pattern,
+                            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
+                    }
+                    catch { return null; }
+                });
+
+                return regex?.IsMatch(name) ?? false;
             }
 
             return name.Contains(filter, StringComparison.OrdinalIgnoreCase);

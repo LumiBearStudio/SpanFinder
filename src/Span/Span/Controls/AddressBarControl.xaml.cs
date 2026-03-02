@@ -222,6 +222,11 @@ namespace Span.Controls
             ShowEditMode();
         }
 
+        private void OnRightPadTapped(object sender, TappedRoutedEventArgs e)
+        {
+            ShowEditMode();
+        }
+
         #endregion
 
         #region Event Handlers — Breadcrumb
@@ -366,11 +371,10 @@ namespace Span.Controls
 
         private void OnContentSizeChanged(object sender, SizeChangedEventArgs e)
         {
-            if (sender is FrameworkElement fe && fe.Parent is ScrollViewer sv)
-            {
-                sv.ChangeView(sv.ScrollableWidth, null, null, true);
-                DispatcherQueue.TryEnqueue(() => UpdateOverflow(sv));
-            }
+            // BreadcrumbRepeater is inside a StackPanel inside BreadcrumbScroller
+            var sv = BreadcrumbScroller;
+            sv.ChangeView(sv.ScrollableWidth, null, null, true);
+            DispatcherQueue.TryEnqueue(() => UpdateOverflow(sv));
         }
 
         private void OnScrollerViewChanged(object? sender, ScrollViewerViewChangedEventArgs e)
