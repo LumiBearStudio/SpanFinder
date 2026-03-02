@@ -38,6 +38,22 @@ namespace Span.ViewModels
         [ObservableProperty]
         private ObservableCollection<FileSystemViewModel> _children = new();
 
+        /// <summary>
+        /// 필터링 전 전체 아이템 목록. 필터 활성 시 Children은 이 리스트의 부분집합.
+        /// </summary>
+        private List<FileSystemViewModel>? _allChildren;
+        private string _currentFilterText = string.Empty;
+
+        /// <summary>
+        /// 현재 적용 중인 필터 텍스트 (ExplorerViewModel에서 전파 확인용).
+        /// </summary>
+        internal string CurrentFilterText => _currentFilterText;
+
+        /// <summary>
+        /// 전체 아이템 수 (필터 적용 전). 필터 비활성 시 Children.Count와 동일.
+        /// </summary>
+        public int TotalChildCount => _allChildren?.Count ?? Children.Count;
+
         [ObservableProperty]
         private FileSystemViewModel? _selectedChild;
 
@@ -202,6 +218,9 @@ namespace Span.ViewModels
             {
                 if (!_isLoaded || Children.Count == 0)
                     return string.Empty;
+                // 필터 활성 시 "X/Y" 형식 표시
+                if (!string.IsNullOrEmpty(_currentFilterText) && _allChildren != null)
+                    return $"{Children.Count}/{_allChildren.Count}";
                 return Children.Count.ToString();
             }
         }
@@ -474,14 +493,27 @@ namespace Span.ViewModels
             _sortBy = sortBy;
             _sortAscending = ascending;
 
-            if (Children.Count == 0) return;
+            // _allChildren 기준 정렬 (있으면), 없으면 Children 기준
+            var source = _allChildren ?? Children.ToList();
+            if (source.Count == 0) return;
             IsSorting = true;
             var saved = SelectedChild;
 
             try
             {
-                var sorted = ApplySort(Children.ToList(), sortBy, ascending);
-                Children = new ObservableCollection<FileSystemViewModel>(sorted);
+                var sorted = ApplySort(source, sortBy, ascending);
+                _allChildren = sorted;
+
+                // 필터 활성 시 → 필터 재적용
+                if (!string.IsNullOrEmpty(_currentFilterText))
+                {
+                    var filtered = sorted.Where(item => MatchesFilter(item.Name, _currentFilterText)).ToList();
+                    Children = new ObservableCollection<FileSystemViewModel>(filtered);
+                }
+                else
+                {
+                    Children = new ObservableCollection<FileSystemViewModel>(sorted);
+                }
                 if (saved != null) SelectedChild = saved;
             }
             finally { IsSorting = false; }
@@ -566,13 +598,25 @@ namespace Span.ViewModels
             }
             catch (Exception ex) { Helpers.DebugLogger.Log($"[Git.Detect] EXCEPTION: {ex.Message}"); _isGitFolder = false; }
 
-            // 배치 교체: 1회 PropertyChanged("Children") → ListView 전체 리바인딩
-            // (기존: 14,000회 CollectionChanged.Add 이벤트)
-            Children = new ObservableCollection<FileSystemViewModel>(sortedItems);
+            // _allChildren 저장 (필터 인프라)
+            _allChildren = sortedItems;
 
-            Helpers.DebugLogger.Log($"[FolderViewModel] Children populated: {sortedItems.Count} items (batch)");
+            // 필터 활성 시 → 필터 적용, 아닐 때 → 전체 표시
+            if (!string.IsNullOrEmpty(_currentFilterText))
+            {
+                var filtered = sortedItems.Where(item => MatchesFilter(item.Name, _currentFilterText)).ToList();
+                Children = new ObservableCollection<FileSystemViewModel>(filtered);
+            }
+            else
+            {
+                // 배치 교체: 1회 PropertyChanged("Children") → ListView 전체 리바인딩
+                Children = new ObservableCollection<FileSystemViewModel>(sortedItems);
+            }
+
+            Helpers.DebugLogger.Log($"[FolderViewModel] Children populated: {sortedItems.Count} items (batch), filtered={Children.Count}");
 
             OnPropertyChanged(nameof(ChildCountText));
+            OnPropertyChanged(nameof(TotalChildCount));
 
             // 썸네일은 ContainerContentChanging에서 on-demand 로드
             // (기존: 전체 순차 로드 제거)
@@ -763,6 +807,10 @@ namespace Span.ViewModels
             // Release thumbnails to free memory
             UnloadAllThumbnails();
 
+            // Clear filter state
+            _allChildren = null;
+            _currentFilterText = string.Empty;
+
             // Mark as not loaded so it reloads next time
             _isLoaded = false;
 
@@ -794,7 +842,69 @@ namespace Span.ViewModels
         {
             UnloadAllThumbnails();
             Children = new System.Collections.ObjectModel.ObservableCollection<FileSystemViewModel>();
+            _allChildren = null;
+            _currentFilterText = string.Empty;
             _isLoaded = false;
+        }
+
+        /// <summary>
+        /// 필터 텍스트를 적용하여 Children을 _allChildren의 부분집합으로 교체.
+        /// 빈 문자열이면 전체 복원.
+        /// </summary>
+        public void ApplyFilter(string filterText)
+        {
+            _currentFilterText = filterText ?? string.Empty;
+
+            if (_allChildren == null || _allChildren.Count == 0)
+            {
+                OnPropertyChanged(nameof(ChildCountText));
+                OnPropertyChanged(nameof(TotalChildCount));
+                return;
+            }
+
+            if (string.IsNullOrEmpty(_currentFilterText))
+            {
+                Children = new ObservableCollection<FileSystemViewModel>(_allChildren);
+            }
+            else
+            {
+                var filtered = _allChildren.Where(item => MatchesFilter(item.Name, _currentFilterText)).ToList();
+                Children = new ObservableCollection<FileSystemViewModel>(filtered);
+            }
+
+            OnPropertyChanged(nameof(ChildCountText));
+            OnPropertyChanged(nameof(TotalChildCount));
+        }
+
+        /// <summary>
+        /// 이름이 필터 패턴에 매칭되는지 확인.
+        /// - 빈 필터 → 항상 true
+        /// - * 또는 ? 포함 → wildcard 패턴 매칭 (Regex 변환)
+        /// - 기본 → 대소문자 무시 substring 매칭
+        /// </summary>
+        internal static bool MatchesFilter(string name, string filter)
+        {
+            if (string.IsNullOrEmpty(filter)) return true;
+            if (string.IsNullOrEmpty(name)) return false;
+
+            if (filter.Contains('*') || filter.Contains('?'))
+            {
+                // Wildcard → Regex: * → .*, ? → ., 나머지는 escape
+                var pattern = "^" + System.Text.RegularExpressions.Regex.Escape(filter)
+                    .Replace("\\*", ".*")
+                    .Replace("\\?", ".") + "$";
+                try
+                {
+                    return System.Text.RegularExpressions.Regex.IsMatch(
+                        name, pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                }
+                catch
+                {
+                    return false; // 잘못된 패턴은 무시
+                }
+            }
+
+            return name.Contains(filter, StringComparison.OrdinalIgnoreCase);
         }
 
         // LoadThumbnailsAsync 제거됨 — 썸네일은 ContainerContentChanging에서 on-demand 로드

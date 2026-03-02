@@ -667,11 +667,12 @@
                       AllowDrop="True" DragOver="OnPaneDragOver" Drop="OnPaneDrop" DragLeave="OnPaneDragLeave">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/> <!-- FilterBar -->
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
                     <!-- Drop overlay (cross-pane visual feedback) -->
-                    <Border x:Name="LeftDropOverlay" Grid.RowSpan="2" Opacity="0" IsHitTestVisible="False"
+                    <Border x:Name="LeftDropOverlay" Grid.RowSpan="3" Opacity="0" IsHitTestVisible="False"
                             Background="{ThemeResource SpanAccentBrush}" CornerRadius="4" Margin="4"/>
 
                     <!-- Left Pane Path Header (split mode, hidden in Home) -->
@@ -787,8 +788,38 @@
                         </StackPanel>
                     </Grid>
 
+                    <!-- Filter Bar (Ctrl+Shift+F) -->
+                    <Grid x:Name="LeftFilterBar" Grid.Row="1" Height="32" Visibility="Collapsed"
+                          Background="{ThemeResource SpanBgLayer2Brush}"
+                          BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="0,0,0,1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>  <!-- Filter icon -->
+                            <ColumnDefinition Width="*"/>     <!-- TextBox -->
+                            <ColumnDefinition Width="Auto"/>  <!-- Count -->
+                            <ColumnDefinition Width="Auto"/>  <!-- Close button -->
+                        </Grid.ColumnDefinitions>
+                        <FontIcon Grid.Column="0" Glyph="&#xE71C;" FontSize="12" Margin="10,0,6,0"
+                                  Foreground="{ThemeResource SpanTextSecondaryBrush}" VerticalAlignment="Center"/>
+                        <TextBox x:Name="LeftFilterTextBox" Grid.Column="1"
+                                 PlaceholderText="&#xD544;&#xD130;... (*.txt, keyword)"
+                                 Background="Transparent" BorderThickness="0"
+                                 FontSize="12" VerticalAlignment="Center"
+                                 TextChanged="OnFilterTextChanged"
+                                 KeyDown="OnFilterTextBoxKeyDown"/>
+                        <TextBlock x:Name="LeftFilterCountText" Grid.Column="2"
+                                   FontSize="11" Foreground="{ThemeResource SpanTextSecondaryBrush}"
+                                   VerticalAlignment="Center" Margin="4,0"/>
+                        <Button Grid.Column="3" Style="{StaticResource UnifiedButtonStyle}"
+                                ToolTipService.ToolTip="&#xD544;&#xD130; &#xB2EB;&#xAE30; (Esc)"
+                                Click="OnFilterBarClose"
+                                Padding="4" MinWidth="0" MinHeight="0" Width="26" Height="26"
+                                Margin="0,0,4,0" VerticalAlignment="Center">
+                            <FontIcon Glyph="&#xE711;" FontSize="10"/>
+                        </Button>
+                    </Grid>
+
                     <!-- Left Pane Content -->
-                    <Grid Grid.Row="1">
+                    <Grid Grid.Row="2">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition x:Name="LeftPreviewSplitterCol" Width="0"/>

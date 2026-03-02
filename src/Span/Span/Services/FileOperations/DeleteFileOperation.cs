@@ -194,6 +194,11 @@ public class DeleteFileOperation : IFileOperation
     }
 
     /// <inheritdoc/>
+    /// <remarks>
+    /// Shell.Application COM 객체를 통해 휴지통(NameSpace 10)에서 삭제된 항목을 찾아
+    /// 원래 위치로 복원한다. GetDetailsOf(item, 1)로 "Original Location"을 매칭하고,
+    /// Folder.MoveHere()로 이동한다.
+    /// </remarks>
     public async Task<OperationResult> UndoAsync(CancellationToken cancellationToken = default)
     {
         if (_permanent)
@@ -201,9 +206,124 @@ public class DeleteFileOperation : IFileOperation
             return OperationResult.CreateFailure("Cannot undo permanent deletion");
         }
 
-        return OperationResult.CreateFailure(
-            "Cannot restore from Recycle Bin programmatically. " +
-            "Please use Windows Recycle Bin to restore the deleted items.");
+        if (_recycledPaths.Count == 0)
+        {
+            return OperationResult.CreateFailure("No items to restore (undo information not available)");
+        }
+
+        return await Task.Run(() =>
+        {
+            var result = new OperationResult { Success = true };
+            var errors = new List<string>();
+            var restored = new List<string>();
+
+            try
+            {
+                // Shell.Application COM — Recycle Bin 접근
+                Type? shellType = Type.GetTypeFromProgID("Shell.Application");
+                if (shellType == null)
+                    return OperationResult.CreateFailure("Shell.Application COM not available");
+
+                dynamic shell = Activator.CreateInstance(shellType)!;
+                try
+                {
+                    // NameSpace(10) = CSIDL_BITBUCKET (Recycle Bin)
+                    dynamic? recycleBin = shell.NameSpace(10);
+                    if (recycleBin == null)
+                        return OperationResult.CreateFailure("Cannot access Recycle Bin");
+
+                    try
+                    {
+                        dynamic items = recycleBin.Items();
+
+                        foreach (var originalPath in _recycledPaths.Keys)
+                        {
+                            cancellationToken.ThrowIfCancellationRequested();
+
+                            string originalDir = Path.GetDirectoryName(originalPath) ?? "";
+                            string originalName = Path.GetFileName(originalPath);
+                            bool found = false;
+
+                            foreach (dynamic item in items)
+                            {
+                                try
+                                {
+                                    // Column 1 = "Original Location" (휴지통 항목의 원래 디렉토리)
+                                    string? itemOriginalDir = recycleBin.GetDetailsOf(item, 1)?.ToString();
+                                    string? itemName = item.Name?.ToString();
+
+                                    if (itemName != null && itemOriginalDir != null &&
+                                        string.Equals(itemName, originalName, StringComparison.OrdinalIgnoreCase) &&
+                                        string.Equals(itemOriginalDir, originalDir, StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        // 원래 디렉토리로 복원
+                                        dynamic? targetFolder = shell.NameSpace(originalDir);
+                                        if (targetFolder != null)
+                                        {
+                                            // 0x0014 = FOF_NOCONFIRMATION (0x10) | FOF_SILENT (0x04)
+                                            targetFolder.MoveHere(item, 0x0014);
+                                            restored.Add(originalPath);
+                                            found = true;
+                                            Marshal.ReleaseComObject(targetFolder);
+                                        }
+                                        break;
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    Debug.WriteLine($"[DeleteUndo] Error checking Recycle Bin item: {ex.Message}");
+                                }
+                            }
+
+                            if (!found)
+                            {
+                                // 이미 복원되었는지 확인 (원래 경로에 존재)
+                                if (File.Exists(originalPath) || Directory.Exists(originalPath))
+                                {
+                                    restored.Add(originalPath);
+                                }
+                                else
+                                {
+                                    errors.Add($"Recycle Bin에서 찾을 수 없음: {Path.GetFileName(originalPath)}");
+                                }
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        Marshal.ReleaseComObject(recycleBin);
+                    }
+                }
+                finally
+                {
+                    Marshal.ReleaseComObject(shell);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                return OperationResult.CreateFailure("Restore operation was cancelled");
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.CreateFailure($"Failed to restore from Recycle Bin: {ex.Message}");
+            }
+
+            result.AffectedPaths = restored;
+            if (errors.Count > 0)
+            {
+                if (restored.Count == 0)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = string.Join("\n", errors);
+                }
+                else
+                {
+                    result.ErrorMessage = $"Some items could not be restored:\n{string.Join("\n", errors)}";
+                }
+            }
+
+            return result;
+        }, cancellationToken);
     }
 
     // ────────────────────────────────────────────────────────────

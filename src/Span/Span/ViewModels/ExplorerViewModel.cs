@@ -58,6 +58,41 @@ namespace Span.ViewModels
         public ObservableCollection<FileSystemViewModel> CurrentItems =>
             CurrentFolder?.Children ?? new ObservableCollection<FileSystemViewModel>();
 
+        /// <summary>
+        /// 필터 바 텍스트. 설정 시 모든 컬럼에 ApplyFilter 전파.
+        /// </summary>
+        private string _filterText = string.Empty;
+        public string FilterText
+        {
+            get => _filterText;
+            set
+            {
+                if (SetProperty(ref _filterText, value ?? string.Empty))
+                {
+                    // 필터 적용 중 Children 교체 → SelectedChild 변경 → Columns 수정 연쇄를 방지
+                    // 1) Columns 스냅샷으로 순회 (ConcurrentModificationException 방지)
+                    // 2) AutoNavigation 억제 (필터로 인한 컬럼 추가/제거 방지)
+                    var prevAutoNav = EnableAutoNavigation;
+                    EnableAutoNavigation = false;
+                    try
+                    {
+                        foreach (var col in Columns.ToList())
+                            col.ApplyFilter(_filterText);
+                    }
+                    finally
+                    {
+                        EnableAutoNavigation = prevAutoNav;
+                    }
+                    OnPropertyChanged(nameof(IsFilterActive));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 필터가 활성화되어 있는지 여부.
+        /// </summary>
+        public bool IsFilterActive => !string.IsNullOrEmpty(_filterText);
+
         private readonly FileSystemService _fileService;
 
         // Debouncing for folder selection (Phase 1)
@@ -870,6 +905,13 @@ namespace Span.ViewModels
             // notify CurrentItems so Details/List/Icon views rebind to the new collection.
             if (e.PropertyName == nameof(FolderViewModel.Children))
             {
+                // 필터 활성 시, 새로 로드된 컬럼에도 필터 자동 적용
+                if (!string.IsNullOrEmpty(_filterText) && sender is FolderViewModel folderVm
+                    && folderVm.CurrentFilterText != _filterText)
+                {
+                    folderVm.ApplyFilter(_filterText);
+                }
+
                 if (sender == CurrentFolder)
                 {
                     OnPropertyChanged(nameof(CurrentItems));

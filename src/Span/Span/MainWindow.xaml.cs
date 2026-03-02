@@ -301,6 +301,18 @@ namespace Span
                 true
             );
 
+            // ★ CharacterReceived: 비라틴 문자(한글/일본어/중국어) 타입 어헤드 지원
+            MillerColumnsControl.AddHandler(
+                UIElement.CharacterReceivedEvent,
+                new Windows.Foundation.TypedEventHandler<UIElement, Microsoft.UI.Xaml.Input.CharacterReceivedRoutedEventArgs>(OnMillerCharacterReceived),
+                true
+            );
+            MillerColumnsControlRight.AddHandler(
+                UIElement.CharacterReceivedEvent,
+                new Windows.Foundation.TypedEventHandler<UIElement, Microsoft.UI.Xaml.Input.CharacterReceivedRoutedEventArgs>(OnMillerCharacterReceived),
+                true
+            );
+
             // ★ Window-level 단축키 (Ctrl 조합)
             this.Content.AddHandler(
                 UIElement.KeyDownEvent,
@@ -901,10 +913,14 @@ namespace Span
                     if (MillerColumnsControl != null)
                     {
                         MillerColumnsControl.RemoveHandler(UIElement.KeyDownEvent, (KeyEventHandler)OnMillerKeyDown);
+                        MillerColumnsControl.RemoveHandler(UIElement.CharacterReceivedEvent,
+                            (Windows.Foundation.TypedEventHandler<UIElement, Microsoft.UI.Xaml.Input.CharacterReceivedRoutedEventArgs>)OnMillerCharacterReceived);
                     }
                     if (MillerColumnsControlRight != null)
                     {
                         MillerColumnsControlRight.RemoveHandler(UIElement.KeyDownEvent, (KeyEventHandler)OnMillerKeyDown);
+                        MillerColumnsControlRight.RemoveHandler(UIElement.CharacterReceivedEvent,
+                            (Windows.Foundation.TypedEventHandler<UIElement, Microsoft.UI.Xaml.Input.CharacterReceivedRoutedEventArgs>)OnMillerCharacterReceived);
                     }
                 }
                 catch (Exception ex)
@@ -4347,6 +4363,95 @@ namespace Span
         //  P1 #18: Alt+Enter — Show Windows Properties dialog
         // =================================================================
 
+
+        // =================================================================
+        //  Filter Bar (Ctrl+Shift+F)
+        // =================================================================
+
+        private void ToggleFilterBar()
+        {
+            if (_isClosed) return;
+            var explorer = ViewModel.ActiveExplorer;
+            if (explorer == null) return;
+
+            if (LeftFilterBar.Visibility == Visibility.Visible)
+            {
+                CloseFilterBar();
+            }
+            else
+            {
+                LeftFilterBar.Visibility = Visibility.Visible;
+                LeftFilterTextBox.Focus(FocusState.Keyboard);
+                UpdateFilterCount();
+            }
+        }
+
+        private void CloseFilterBar()
+        {
+            if (_isClosed) return;
+            LeftFilterBar.Visibility = Visibility.Collapsed;
+            LeftFilterTextBox.Text = string.Empty;
+            LeftFilterCountText.Text = string.Empty;
+
+            var explorer = ViewModel.ActiveExplorer;
+            if (explorer != null)
+                explorer.FilterText = string.Empty;
+        }
+
+        private void OnFilterTextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (_isClosed) return;
+            var explorer = ViewModel.ActiveExplorer;
+            if (explorer == null) return;
+
+            explorer.FilterText = LeftFilterTextBox.Text;
+            UpdateFilterCount();
+        }
+
+        private void OnFilterBarClose(object sender, RoutedEventArgs e)
+        {
+            CloseFilterBar();
+        }
+
+        private void OnFilterTextBoxKeyDown(object sender, KeyRoutedEventArgs e)
+        {
+            if (e.Key == Windows.System.VirtualKey.Escape)
+            {
+                CloseFilterBar();
+                e.Handled = true;
+            }
+        }
+
+        private void UpdateFilterCount()
+        {
+            var explorer = ViewModel.ActiveExplorer;
+            if (explorer == null || !explorer.IsFilterActive)
+            {
+                LeftFilterCountText.Text = string.Empty;
+                return;
+            }
+
+            // 모든 컬럼의 필터 카운트 합산 (Miller Columns에서 여러 컬럼에 필터 적용됨)
+            int filteredTotal = 0;
+            int allTotal = 0;
+            foreach (var col in explorer.Columns)
+            {
+                if (!string.IsNullOrEmpty(col.CurrentFilterText))
+                {
+                    filteredTotal += col.Children.Count;
+                    allTotal += col.TotalChildCount;
+                }
+            }
+
+            if (allTotal > 0)
+            {
+                LeftFilterCountText.Text = $"{filteredTotal}/{allTotal}";
+            }
+            else
+            {
+                LeftFilterCountText.Text = string.Empty;
+            }
+        }
 
     }
 }

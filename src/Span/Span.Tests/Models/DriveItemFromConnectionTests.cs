@@ -53,8 +53,8 @@ public class DriveItemFromConnectionTests
 
         var drive = Span.Models.DriveItem.FromConnection(conn);
 
-        // IconService.Current is null → fallback \uEDD4
-        Assert.AreEqual("\uEDD4", drive.IconGlyph);
+        // IconService.Current is null → fallback \uEDCF (ri-global-line)
+        Assert.AreEqual("\uEDCF", drive.IconGlyph);
     }
 
     [TestMethod]
@@ -102,8 +102,8 @@ public class DriveItemFromConnectionTests
 
         var drive = Span.Models.DriveItem.FromConnection(conn);
 
-        // IconService.Current is null → fallback \uEE71
-        Assert.AreEqual("\uEE71", drive.IconGlyph);
+        // IconService.Current is null → fallback \uF0DF (ri-server-fill)
+        Assert.AreEqual("\uF0DF", drive.IconGlyph);
     }
 
     [TestMethod]
@@ -117,7 +117,7 @@ public class DriveItemFromConnectionTests
 
         var drive = Span.Models.DriveItem.FromConnection(conn);
 
-        Assert.AreEqual("\uEE71", drive.IconGlyph);
+        Assert.AreEqual("\uF0DF", drive.IconGlyph);
     }
 
     // ── Common fields ───────────────────────────────────

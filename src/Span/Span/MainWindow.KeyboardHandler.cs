@@ -1,6 +1,7 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Windowing;
 using Microsoft.Extensions.DependencyInjection;
 using Span.Models;
 using Span.ViewModels;
@@ -38,6 +39,14 @@ namespace Span
                         .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
             var alt = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Menu)
                       .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+
+            // F11: Toggle fullscreen (window-level, works in all modes)
+            if (e.Key == Windows.System.VirtualKey.F11 && !ctrl && !shift && !alt)
+            {
+                ToggleFullScreen();
+                e.Handled = true;
+                return;
+            }
 
             // Help 오버레이: 열려있으면 Esc/아무 키로 닫기
             if (_isHelpOpen)
@@ -120,6 +129,12 @@ namespace Span
                         _ = ViewModel.GoForwardAsync().ContinueWith(_ =>
                             DispatcherQueue.TryEnqueue(() => FocusLastColumnAfterNavigation()),
                             System.Threading.Tasks.TaskScheduler.Default);
+                        e.Handled = true;
+                        return;
+
+                    case Windows.System.VirtualKey.Up:
+                        // Alt+Up: Navigate to parent directory (Explorer/Finder 표준)
+                        ViewModel.ActiveExplorer?.NavigateUp();
                         e.Handled = true;
                         return;
 
@@ -220,7 +235,14 @@ namespace Span
                         break;
 
                     case Windows.System.VirtualKey.F:
-                        SearchBox.Focus(FocusState.Keyboard);
+                        if (shift)
+                        {
+                            ToggleFilterBar();  // Ctrl+Shift+F → 필터 바
+                        }
+                        else
+                        {
+                            SearchBox.Focus(FocusState.Keyboard);  // Ctrl+F → 검색
+                        }
                         e.Handled = true;
                         break;
 
@@ -416,6 +438,12 @@ namespace Span
 
                     case Windows.System.VirtualKey.F2:
                         HandleRename();
+                        e.Handled = true;
+                        break;
+
+                    case Windows.System.VirtualKey.F3:
+                        // F3: Focus search box (Explorer 표준 단축키)
+                        SearchBox.Focus(FocusState.Keyboard);
                         e.Handled = true;
                         break;
 
@@ -642,14 +670,69 @@ namespace Span
         #region Type-Ahead Search
 
         /// <summary>
-        /// 타입 어헤드 검색: 입력된 문자로 시작하는 항목을 찾아 선택한다.
-        /// 800ms 타이머로 버퍼를 초기화한다.
+        /// KeyDown에서 타입 어헤드를 처리한 경우 CharacterReceived에서 중복 처리 방지용 플래그.
+        /// </summary>
+        private bool _typeAheadHandledInKeyDown;
+
+        /// <summary>
+        /// 타입 어헤드 검색 (KeyDown 경로): Latin 문자를 VirtualKey에서 변환하여 검색한다.
+        /// 비라틴 문자(한글/일본어/중국어)는 KeyToChar가 '\0'을 반환하므로
+        /// CharacterReceived 핸들러에서 처리된다.
         /// </summary>
         private void HandleTypeAhead(KeyRoutedEventArgs e, int activeIndex)
         {
             char ch = KeyToChar(e.Key);
-            if (ch == '\0') return;
+            if (ch == '\0') return; // Non-Latin → CharacterReceived will handle
 
+            DoTypeAheadSearch(ch, activeIndex);
+            e.Handled = true;
+            _typeAheadHandledInKeyDown = true;
+        }
+
+        /// <summary>
+        /// CharacterReceived 핸들러: 비라틴 문자(한글, 일본어, 중국어 등) 타입 어헤드 지원.
+        /// IME 입력 완성 후 실제 유니코드 문자를 받아 검색한다.
+        /// Latin 문자는 HandleTypeAhead(KeyDown)에서 이미 처리되므로 플래그로 중복 방지.
+        /// </summary>
+        internal void OnMillerCharacterReceived(UIElement sender, CharacterReceivedRoutedEventArgs args)
+        {
+            // KeyDown에서 이미 처리된 Latin 문자면 건너뛰기
+            if (_typeAheadHandledInKeyDown)
+            {
+                _typeAheadHandledInKeyDown = false;
+                return;
+            }
+
+            char ch = args.Character;
+            if (char.IsControl(ch)) return;
+
+            // 이름 변경 중이면 무시
+            var currentSelected = GetCurrentSelected();
+            if (currentSelected?.IsRenaming == true) return;
+
+            // Help 오버레이 열려 있으면 무시
+            if (_isHelpOpen) return;
+
+            // Settings/Home/ActionLog 모드면 무시
+            if (ViewModel.CurrentViewMode == ViewMode.Settings ||
+                ViewModel.CurrentViewMode == ViewMode.Home ||
+                ViewModel.CurrentViewMode == ViewMode.ActionLog) return;
+
+            var columns = ViewModel?.ActiveExplorer?.Columns;
+            if (columns == null || columns.Count == 0) return;
+
+            int activeIndex = GetActiveColumnIndex();
+            if (activeIndex < 0) activeIndex = columns.Count - 1;
+
+            DoTypeAheadSearch(ch, activeIndex);
+            args.Handled = true;
+        }
+
+        /// <summary>
+        /// 타입 어헤드 공통 검색 로직: 문자를 버퍼에 추가하고 매칭 항목을 찾아 선택한다.
+        /// </summary>
+        private void DoTypeAheadSearch(char ch, int activeIndex)
+        {
             _typeAheadBuffer += ch;
             _typeAheadTimer?.Stop();
             _typeAheadTimer?.Start();
@@ -667,12 +750,11 @@ namespace Span
                 var listView = GetListViewForColumn(activeIndex);
                 listView?.ScrollIntoView(match);
             }
-
-            e.Handled = true;
         }
 
         /// <summary>
-        /// VirtualKey를 문자로 변환한다. 타입 어헤드 검색용.
+        /// VirtualKey를 문자로 변환한다. Latin 문자 전용 (A-Z, 0-9, 기호).
+        /// 비라틴 문자(한글/일본어/중국어)는 '\0'을 반환하며 CharacterReceived에서 처리된다.
         /// </summary>
         private static char KeyToChar(Windows.System.VirtualKey key)
         {
@@ -686,6 +768,28 @@ namespace Span
             if (key == (Windows.System.VirtualKey)190) return '.';
             if (key == (Windows.System.VirtualKey)189) return '-';
             return '\0';
+        }
+
+        #endregion
+
+        #region Fullscreen Toggle (F11)
+
+        private bool _isFullScreen = false;
+
+        /// <summary>
+        /// F11 전체 화면 토글. OverlappedPresenter(기본)와 FullScreen 간 전환.
+        /// </summary>
+        private void ToggleFullScreen()
+        {
+            _isFullScreen = !_isFullScreen;
+            if (_isFullScreen)
+            {
+                this.AppWindow.SetPresenter(AppWindowPresenterKind.FullScreen);
+            }
+            else
+            {
+                this.AppWindow.SetPresenter(AppWindowPresenterKind.Default);
+            }
         }
 
         #endregion

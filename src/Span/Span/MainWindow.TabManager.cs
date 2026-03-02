@@ -135,6 +135,12 @@ namespace Span
                 new KeyEventHandler(OnMillerKeyDown),
                 true
             );
+            // CharacterReceived: 비라틴 문자 타입 어헤드 지원
+            itemsControl.AddHandler(
+                UIElement.CharacterReceivedEvent,
+                new Windows.Foundation.TypedEventHandler<UIElement, Microsoft.UI.Xaml.Input.CharacterReceivedRoutedEventArgs>(OnMillerCharacterReceived),
+                true
+            );
 
             var scrollViewer = new ScrollViewer
             {
@@ -197,6 +203,8 @@ namespace Span
                 // 이벤트 해제
                 panel.scroller.SizeChanged -= OnMillerScrollViewerSizeChanged;
                 panel.items.RemoveHandler(UIElement.KeyDownEvent, new KeyEventHandler(OnMillerKeyDown));
+                panel.items.RemoveHandler(UIElement.CharacterReceivedEvent,
+                    new Windows.Foundation.TypedEventHandler<UIElement, Microsoft.UI.Xaml.Input.CharacterReceivedRoutedEventArgs>(OnMillerCharacterReceived));
                 panel.items.ItemsSource = null;
                 MillerTabsHost.Children.Remove(panel.scroller);
                 _tabMillerPanels.Remove(tabId);
