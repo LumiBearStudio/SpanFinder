@@ -1,7 +1,9 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml.Media.Imaging;
+using Microsoft.Extensions.DependencyInjection;
 using Span.Models;
+using Span.Services;
 
 namespace Span.ViewModels
 {
@@ -119,6 +121,7 @@ namespace Span.ViewModels
             {
                 OnPropertyChanged(nameof(GitStatusText));
                 OnPropertyChanged(nameof(GitStatusBrush));
+                OnPropertyChanged(nameof(GitBadgeTextBrush));
             }
         }
 
@@ -156,6 +159,8 @@ namespace Span.ViewModels
             = new(Windows.UI.Color.FromArgb(255, 197, 134, 192));    // #C586C0 보라
         private static readonly Microsoft.UI.Xaml.Media.SolidColorBrush _gitConflictBrush
             = new(Windows.UI.Color.FromArgb(255, 255, 0, 0));        // #FF0000 빨강진
+        private static readonly Microsoft.UI.Xaml.Media.SolidColorBrush _gitUntrackedBrush
+            = new(Windows.UI.Color.FromArgb(255, 106, 153, 220));    // #6A99DC 파랑 (Untracked 구분)
 
         public Microsoft.UI.Xaml.Media.Brush GitStatusBrush => GitState switch
         {
@@ -163,9 +168,28 @@ namespace Span.ViewModels
             Models.GitFileState.Added => _gitAddedBrush,
             Models.GitFileState.Deleted => _gitDeletedBrush,
             Models.GitFileState.Renamed => _gitRenamedBrush,
-            Models.GitFileState.Untracked => _gitAddedBrush,
+            Models.GitFileState.Untracked => _gitUntrackedBrush,
             Models.GitFileState.Conflicted => _gitConflictBrush,
             _ => TransparentBrush,
+        };
+
+        // 뱃지 배경 밝기에 따라 텍스트 색 자동 선택 (WCAG 대비 기준)
+        private static readonly Microsoft.UI.Xaml.Media.SolidColorBrush _badgeTextDark
+            = new(Windows.UI.Color.FromArgb(255, 30, 30, 30));     // 어두운 배경용 → 밝은 텍스트 아님, 밝은 배경용 → 어두운 텍스트
+        private static readonly Microsoft.UI.Xaml.Media.SolidColorBrush _badgeTextLight
+            = new(Windows.UI.Color.FromArgb(255, 255, 255, 255));  // 어두운 배경용 → 흰 텍스트
+
+        public Microsoft.UI.Xaml.Media.Brush GitBadgeTextBrush => GitState switch
+        {
+            // 밝은 배경(초록 L=0.46, 주황 L=0.39): 검정 텍스트
+            Models.GitFileState.Modified => _badgeTextDark,    // 주황 — 밝은 편
+            Models.GitFileState.Added => _badgeTextDark,       // 초록 — 밝은 편
+            Models.GitFileState.Renamed => _badgeTextDark,     // 보라 — 중간
+            Models.GitFileState.Untracked => _badgeTextDark,   // 파랑 — 중간
+            // 어두운 배경(빨강 L=0.16): 흰 텍스트
+            Models.GitFileState.Deleted => _badgeTextLight,    // 빨강 — 어두운 편
+            Models.GitFileState.Conflicted => _badgeTextLight, // 빨강진 — 어두운 편
+            _ => _badgeTextLight,
         };
 
         public string Name => _model.Name;
@@ -283,10 +307,11 @@ namespace Span.ViewModels
 
         private string BuildTooltipText()
         {
+            var loc = App.Current.Services.GetRequiredService<LocalizationService>();
             if (this is FolderViewModel)
-                return $"{Name}\n종류: 폴더\n수정한 날짜: {DateModified}";
+                return $"{Name}\n{loc.Get("Tooltip_TypeFolder") ?? "Type: Folder"}\n{string.Format(loc.Get("Tooltip_DateModified") ?? "Date modified: {0}", DateModified)}";
             if (this is FileViewModel)
-                return $"{Name}\n종류: {FileType}\n크기: {Size}\n수정한 날짜: {DateModified}";
+                return $"{Name}\n{string.Format(loc.Get("Tooltip_TypeFile") ?? "Type: {0}", FileType)}\n{string.Format(loc.Get("Tooltip_Size") ?? "Size: {0}", Size)}\n{string.Format(loc.Get("Tooltip_DateModified") ?? "Date modified: {0}", DateModified)}";
             return Name;
         }
 
@@ -441,6 +466,9 @@ namespace Span.ViewModels
                     _cachedTooltip = null; // 이름 변경 후 툴팁 캐시 무효화
                     OnPropertyChanged(nameof(Name));
                     OnPropertyChanged(nameof(Path));
+                    OnPropertyChanged(nameof(DisplayName));
+                    OnPropertyChanged(nameof(TruncatedDisplayName));
+                    OnPropertyChanged(nameof(TooltipText));
                     return true;
                 }
                 else
@@ -464,6 +492,9 @@ namespace Span.ViewModels
                     _cachedTooltip = null; // 이름 변경 후 툴팁 캐시 무효화
                     OnPropertyChanged(nameof(Name));
                     OnPropertyChanged(nameof(Path));
+                    OnPropertyChanged(nameof(DisplayName));
+                    OnPropertyChanged(nameof(TruncatedDisplayName));
+                    OnPropertyChanged(nameof(TooltipText));
                     return true;
                 }
             }

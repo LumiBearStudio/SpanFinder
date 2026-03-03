@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Span.Helpers;
 using Span.Services;
 using System;
 
@@ -202,6 +203,10 @@ public sealed partial class SettingsModeView : UserControl
             {
                 GitVersionLabel.Text = "";
             }
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"[SettingsModeView] LoadSettingsToUI error: {ex.Message}");
         }
         finally
         {
@@ -412,128 +417,139 @@ public sealed partial class SettingsModeView : UserControl
     {
         if (_loc == null) return;
 
-        // Header
-        SettingsTitle.Text = _loc.Get("Settings");
-        // Navigation
-        NavGeneral.Content = _loc.Get("Settings_General");
-        NavAppearance.Content = _loc.Get("Settings_Appearance");
-        NavBrowsing.Content = _loc.Get("Settings_Browsing");
-        NavTools.Content = _loc.Get("Settings_Tools");
-        NavAdvanced.Content = _loc.Get("Settings_Advanced");
-        NavAbout.Content = _loc.Get("Settings_AboutNav");
-        NavOpenSource.Content = _loc.Get("Settings_OpenSourceNav");
+        try
+        {
+            // Header
+            SettingsTitle.Text = _loc.Get("Settings");
+            // Navigation
+            NavGeneral.Content = _loc.Get("Settings_General");
+            NavAppearance.Content = _loc.Get("Settings_Appearance");
+            NavBrowsing.Content = _loc.Get("Settings_Browsing");
+            NavTools.Content = _loc.Get("Settings_Tools");
+            NavAdvanced.Content = _loc.Get("Settings_Advanced");
+            NavAbout.Content = _loc.Get("Settings_AboutNav");
+            NavOpenSource.Content = _loc.Get("Settings_OpenSourceNav");
 
-        // General
-        GeneralTitle.Text = _loc.Get("Settings_General");
-        LangLabel.Text = _loc.Get("Settings_Language");
-        LangDesc.Text = _loc.Get("Settings_LanguageDesc");
-        LangSystem.Content = _loc.Get("Settings_SystemDefault");
-        LangRestartText.Text = _loc.Get("Settings_RestartNotice");
-        StartupLabel.Text = _loc.Get("Settings_StartupBehavior");
-        StartupDesc.Text = _loc.Get("Settings_StartupBehaviorDesc");
-        RestoreSessionLabel.Text = _loc.Get("Settings_RestoreSession");
-        RestoreSessionDesc.Text = _loc.Get("Settings_RestoreSessionDesc");
-        StartupHome.Content = _loc.Get("Settings_OpenHome");
-        OpenFolderLabel.Text = _loc.Get("Settings_OpenSpecificFolder");
-        CustomPathDesc.Text = _loc.Get("Settings_CustomPath");
-        FavTreeLabel.Text = _loc.Get("Settings_FavoritesTree");
-        FavTreeDesc.Text = _loc.Get("Settings_FavoritesTreeDesc");
-        SysTrayLabel.Text = _loc.Get("Settings_SystemTray");
-        SysTrayDesc.Text = _loc.Get("Settings_SystemTrayDesc");
-        WinPosLabel.Text = _loc.Get("Settings_WindowPosition");
-        WinPosDesc.Text = _loc.Get("Settings_WindowPositionDesc");
+            // General
+            GeneralTitle.Text = _loc.Get("Settings_General");
+            LangLabel.Text = _loc.Get("Settings_Language");
+            LangDesc.Text = _loc.Get("Settings_LanguageDesc");
+            LangSystem.Content = _loc.Get("Settings_SystemDefault");
+            LangRestartText.Text = _loc.Get("Settings_RestartNotice");
+            StartupLabel.Text = _loc.Get("Settings_StartupBehavior");
+            StartupDesc.Text = _loc.Get("Settings_StartupBehaviorDesc");
+            RestoreSessionLabel.Text = _loc.Get("Settings_RestoreSession");
+            RestoreSessionDesc.Text = _loc.Get("Settings_RestoreSessionDesc");
+            StartupHome.Content = _loc.Get("Settings_OpenHome");
+            OpenFolderLabel.Text = _loc.Get("Settings_OpenSpecificFolder");
+            CustomPathDesc.Text = _loc.Get("Settings_CustomPath");
+            FavTreeLabel.Text = _loc.Get("Settings_FavoritesTree");
+            FavTreeDesc.Text = _loc.Get("Settings_FavoritesTreeDesc");
+            SysTrayLabel.Text = _loc.Get("Settings_SystemTray");
+            SysTrayDesc.Text = _loc.Get("Settings_SystemTrayDesc");
+            WinPosLabel.Text = _loc.Get("Settings_WindowPosition");
+            WinPosDesc.Text = _loc.Get("Settings_WindowPositionDesc");
 
-        // Appearance
-        AppearanceTitle.Text = _loc.Get("Settings_Appearance");
-        ThemeLabel.Text = _loc.Get("Settings_AppTheme");
-        ThemeDesc.Text = _loc.Get("Settings_ThemeDesc");
-        ThemeSystemText.Text = _loc.Get("Settings_System");
-        ThemeLightText.Text = _loc.Get("Settings_Light");
-        ThemeDarkText.Text = _loc.Get("Settings_Dark");
-        DensityLabel.Text = _loc.Get("Settings_LayoutDensity");
-        DensityDesc.Text = _loc.Get("Settings_LayoutDensityDesc");
-        IconFontScaleLabel.Text = _loc.Get("Settings_IconFontScale");
-        IconFontScaleDesc.Text = _loc.Get("Settings_IconFontScaleDesc");
-        IconPackLabel.Text = _loc.Get("Settings_IconPack");
-        IconPackDesc.Text = _loc.Get("Settings_IconPackDesc");
-        IconPackRestartText.Text = _loc.Get("Settings_IconPackRestart");
-        FontLabel.Text = _loc.Get("Settings_Font");
-        FontDesc.Text = _loc.Get("Settings_FontDesc");
-        // Custom themes
-        CustomThemesLabel.Text = _loc.Get("Settings_CustomThemes");
-        CustomThemesDesc.Text = _loc.Get("Settings_CustomThemesDesc");
-        DraculaDescText.Text = _loc.Get("Theme_DraculaDesc");
-        TokyoNightDescText.Text = _loc.Get("Theme_TokyoNightDesc");
-        CatppuccinDescText.Text = _loc.Get("Theme_CatppuccinDesc");
-        GruvboxDescText.Text = _loc.Get("Theme_GruvboxDesc");
-        SolarizedLightDescText.Text = _loc.Get("Theme_SolarizedLightDesc");
-        NordDescText.Text = _loc.Get("Theme_NordDesc");
-        OneDarkDescText.Text = _loc.Get("Theme_OneDarkDesc");
-        MonokaiDescText.Text = _loc.Get("Theme_MonokaiDesc");
+            // Appearance
+            AppearanceTitle.Text = _loc.Get("Settings_Appearance");
+            ThemeLabel.Text = _loc.Get("Settings_AppTheme");
+            ThemeDesc.Text = _loc.Get("Settings_ThemeDesc");
+            ThemeSystemText.Text = _loc.Get("Settings_System");
+            ThemeLightText.Text = _loc.Get("Settings_Light");
+            ThemeDarkText.Text = _loc.Get("Settings_Dark");
+            DensityLabel.Text = _loc.Get("Settings_LayoutDensity");
+            DensityDesc.Text = _loc.Get("Settings_LayoutDensityDesc");
+            IconFontScaleLabel.Text = _loc.Get("Settings_IconFontScale");
+            IconFontScaleDesc.Text = _loc.Get("Settings_IconFontScaleDesc");
+            IconPackLabel.Text = _loc.Get("Settings_IconPack");
+            IconPackDesc.Text = _loc.Get("Settings_IconPackDesc");
+            IconPackRestartText.Text = _loc.Get("Settings_IconPackRestart");
+            FontLabel.Text = _loc.Get("Settings_Font");
+            FontDesc.Text = _loc.Get("Settings_FontDesc");
+            // Custom themes
+            CustomThemesLabel.Text = _loc.Get("Settings_CustomThemes");
+            CustomThemesDesc.Text = _loc.Get("Settings_CustomThemesDesc");
+            DraculaDescText.Text = _loc.Get("Theme_DraculaDesc");
+            TokyoNightDescText.Text = _loc.Get("Theme_TokyoNightDesc");
+            CatppuccinDescText.Text = _loc.Get("Theme_CatppuccinDesc");
+            GruvboxDescText.Text = _loc.Get("Theme_GruvboxDesc");
+            SolarizedLightDescText.Text = _loc.Get("Theme_SolarizedLightDesc");
+            NordDescText.Text = _loc.Get("Theme_NordDesc");
+            OneDarkDescText.Text = _loc.Get("Theme_OneDarkDesc");
+            MonokaiDescText.Text = _loc.Get("Theme_MonokaiDesc");
 
-        // Browsing
-        BrowsingTitle.Text = _loc.Get("Settings_Browsing");
-        ViewOptionsLabel.Text = _loc.Get("Settings_ViewOptions");
-        ViewOptionsDesc.Text = _loc.Get("Settings_ViewOptionsDesc");
-        ShowHiddenLabel.Text = _loc.Get("Settings_ShowHidden");
-        ShowExtLabel.Text = _loc.Get("Settings_ShowExtensions");
-        CheckboxLabel.Text = _loc.Get("Settings_CheckboxSelection");
-        MillerLabel.Text = _loc.Get("Settings_MillerBehavior");
-        MillerDesc.Text = _loc.Get("Settings_MillerBehaviorDesc");
-        SingleClickItem.Content = _loc.Get("Settings_SingleClick");
-        DoubleClickItem.Content = _loc.Get("Settings_DoubleClick");
-        ThumbnailLabel.Text = _loc.Get("Settings_Thumbnails");
-        ThumbnailDesc.Text = _loc.Get("Settings_ThumbnailsDesc");
-        QuickLookLabel.Text = _loc.Get("Settings_QuickLook");
-        QuickLookDesc.Text = _loc.Get("Settings_QuickLookDesc");
-        DeleteConfirmLabel.Text = _loc.Get("Settings_DeleteConfirm");
-        DeleteConfirmDesc.Text = _loc.Get("Settings_DeleteConfirmDesc");
-        UndoLabel.Text = _loc.Get("Settings_UndoHistory");
-        UndoDesc.Text = _loc.Get("Settings_UndoHistoryDesc");
-        // Undo history items
-        Undo10.Content = string.Format(_loc.Get("Settings_UndoCount"), 10);
-        Undo20.Content = string.Format(_loc.Get("Settings_UndoCount"), 20);
-        Undo50.Content = string.Format(_loc.Get("Settings_UndoCount"), 50);
-        Undo100.Content = string.Format(_loc.Get("Settings_UndoCount"), 100);
+            // Browsing
+            BrowsingTitle.Text = _loc.Get("Settings_Browsing");
+            ViewOptionsLabel.Text = _loc.Get("Settings_ViewOptions");
+            ViewOptionsDesc.Text = _loc.Get("Settings_ViewOptionsDesc");
+            ShowHiddenLabel.Text = _loc.Get("Settings_ShowHidden");
+            ShowExtLabel.Text = _loc.Get("Settings_ShowExtensions");
+            CheckboxLabel.Text = _loc.Get("Settings_CheckboxSelection");
+            MillerLabel.Text = _loc.Get("Settings_MillerBehavior");
+            MillerDesc.Text = _loc.Get("Settings_MillerBehaviorDesc");
+            SingleClickItem.Content = _loc.Get("Settings_SingleClick");
+            DoubleClickItem.Content = _loc.Get("Settings_DoubleClick");
+            ThumbnailLabel.Text = _loc.Get("Settings_Thumbnails");
+            ThumbnailDesc.Text = _loc.Get("Settings_ThumbnailsDesc");
+            QuickLookLabel.Text = _loc.Get("Settings_QuickLook");
+            QuickLookDesc.Text = _loc.Get("Settings_QuickLookDesc");
+            DeleteConfirmLabel.Text = _loc.Get("Settings_DeleteConfirm");
+            DeleteConfirmDesc.Text = _loc.Get("Settings_DeleteConfirmDesc");
+            UndoLabel.Text = _loc.Get("Settings_UndoHistory");
+            UndoDesc.Text = _loc.Get("Settings_UndoHistoryDesc");
+            // Undo history items
+            Undo10.Content = string.Format(_loc.Get("Settings_UndoCount"), 10);
+            Undo20.Content = string.Format(_loc.Get("Settings_UndoCount"), 20);
+            Undo50.Content = string.Format(_loc.Get("Settings_UndoCount"), 50);
+            Undo100.Content = string.Format(_loc.Get("Settings_UndoCount"), 100);
 
-        // Tools
-        ToolsTitle.Text = _loc.Get("Settings_Tools");
-        ShellExtLabel.Text = _loc.Get("Settings_ShellExtras");
-        ShellExtDesc.Text = _loc.Get("Settings_ShellExtrasDesc");
-        CopilotLabel.Text = _loc.Get("Settings_CopilotMenu");
-        CopilotDesc.Text = _loc.Get("Settings_CopilotMenuDesc");
-        CtxMenuLabel.Text = _loc.Get("Settings_ContextMenu");
-        CtxMenuDesc.Text = _loc.Get("Settings_ContextMenuDesc");
+            // Tools
+            ToolsTitle.Text = _loc.Get("Settings_Tools");
+            ShellExtLabel.Text = _loc.Get("Settings_ShellExtras");
+            ShellExtDesc.Text = _loc.Get("Settings_ShellExtrasDesc");
+            CopilotLabel.Text = _loc.Get("Settings_CopilotMenu");
+            CopilotDesc.Text = _loc.Get("Settings_CopilotMenuDesc");
+            CtxMenuLabel.Text = _loc.Get("Settings_ContextMenu");
+            CtxMenuDesc.Text = _loc.Get("Settings_ContextMenuDesc");
 
-        // Advanced
-        AdvancedTitle.Text = _loc.Get("Settings_Advanced");
-        TerminalLabel.Text = _loc.Get("Settings_TerminalApp");
-        TerminalDesc.Text = _loc.Get("Settings_TerminalAppDesc");
-        DevMenuLabel.Text = _loc.Get("Settings_DeveloperMenu");
-        DevMenuDesc.Text = _loc.Get("Settings_DeveloperMenuDesc");
-        CrashReportLabel.Text = _loc.Get("Settings_CrashReport");
-        CrashReportDesc.Text = _loc.Get("Settings_CrashReportDesc");
+            // Advanced
+            AdvancedTitle.Text = _loc.Get("Settings_Advanced");
+            TerminalLabel.Text = _loc.Get("Settings_TerminalApp");
+            TerminalDesc.Text = _loc.Get("Settings_TerminalAppDesc");
+            DevMenuLabel.Text = _loc.Get("Settings_DeveloperMenu");
+            DevMenuDesc.Text = _loc.Get("Settings_DeveloperMenuDesc");
+            CrashReportLabel.Text = _loc.Get("Settings_CrashReport");
+            CrashReportDesc.Text = _loc.Get("Settings_CrashReportDesc");
+            GitIntegrationLabel.Text = _loc.Get("Settings_GitIntegration");
+            GitIntegrationDesc.Text = _loc.Get("Settings_GitIntegrationDesc");
+            HexPreviewLabel.Text = _loc.Get("Settings_HexPreview");
+            HexPreviewDesc.Text = _loc.Get("Settings_HexPreviewDesc");
 
-        // About
-        AboutTitle.Text = _loc.Get("Settings_AboutNav");
-        CopyrightLabel.Text = "© 2026 LumiBear Studio. All rights reserved.";
-        UpdateText.Text = _loc.Get("Settings_CheckUpdate");
-        LinksLabel.Text = _loc.Get("Settings_Links");
-        GitHubText.Text = _loc.Get("Settings_GitHub");
-        BugReportText.Text = _loc.Get("Settings_BugReport");
-        PrivacyText.Text = _loc.Get("Settings_Privacy");
-        CoffeeLabel.Text = _loc.Get("Settings_BuyMeCoffee");
-        CoffeeDesc.Text = _loc.Get("Settings_BuyMeCoffeeDesc");
+            // About
+            AboutTitle.Text = _loc.Get("Settings_AboutNav");
+            CopyrightLabel.Text = "© 2026 LumiBear Studio. All rights reserved.";
+            UpdateText.Text = _loc.Get("Settings_CheckUpdate");
+            LinksLabel.Text = _loc.Get("Settings_Links");
+            GitHubText.Text = _loc.Get("Settings_GitHub");
+            BugReportText.Text = _loc.Get("Settings_BugReport");
+            PrivacyText.Text = _loc.Get("Settings_Privacy");
+            CoffeeLabel.Text = _loc.Get("Settings_BuyMeCoffee");
+            CoffeeDesc.Text = _loc.Get("Settings_BuyMeCoffeeDesc");
 
-        // Open Source
-        OpenSourceTitle.Text = _loc.Get("Settings_OpenSourceNav");
-        OpenSourceDesc.Text = _loc.Get("Settings_OpenSourceDesc");
-        FullLicenseLink.Text = _loc.Get("Settings_FullLicenseLink");
-        LibraryLabel.Text = _loc.Get("OpenSource_Libraries");
-        IconFontLabel.Text = _loc.Get("OpenSource_IconFonts");
-        DefaultIconPackText.Text = _loc.Get("OpenSource_DefaultPack");
-        AvailableText1.Text = _loc.Get("OpenSource_Available");
-        AvailableText2.Text = _loc.Get("OpenSource_Available");
+            // Open Source
+            OpenSourceTitle.Text = _loc.Get("Settings_OpenSourceNav");
+            OpenSourceDesc.Text = _loc.Get("Settings_OpenSourceDesc");
+            FullLicenseLink.Text = _loc.Get("Settings_FullLicenseLink");
+            LibraryLabel.Text = _loc.Get("OpenSource_Libraries");
+            IconFontLabel.Text = _loc.Get("OpenSource_IconFonts");
+            DefaultIconPackText.Text = _loc.Get("OpenSource_DefaultPack");
+            AvailableText1.Text = _loc.Get("OpenSource_Available");
+            AvailableText2.Text = _loc.Get("OpenSource_Available");
+        }
+        catch (Exception ex)
+        {
+            Helpers.DebugLogger.Log($"[SettingsModeView] LocalizeUI error: {ex.Message}");
+        }
     }
 
     // ── Update check animation ──
@@ -556,21 +572,28 @@ public sealed partial class SettingsModeView : UserControl
 
     private void UpdateTimer_Tick(object? sender, object e)
     {
-        _updateStage++;
+        try
+        {
+            _updateStage++;
 
-        if (_updateStage == 1)
-        {
-            UpdateIcon.Glyph = "\uE73E";
-            UpdateText.Text = _loc?.Get("Settings_UpToDate") ?? "Up to date";
-            _updateTimer!.Interval = TimeSpan.FromMilliseconds(3000);
+            if (_updateStage == 1)
+            {
+                UpdateIcon.Glyph = "\uE73E";
+                UpdateText.Text = _loc?.Get("Settings_UpToDate") ?? "Up to date";
+                _updateTimer!.Interval = TimeSpan.FromMilliseconds(3000);
+            }
+            else
+            {
+                UpdateIcon.Glyph = "\uE72C";
+                UpdateText.Text = _loc?.Get("Settings_CheckUpdate") ?? "Check for updates";
+                UpdateButton.IsEnabled = true;
+                _updateTimer!.Stop();
+                _updateTimer = null;
+            }
         }
-        else
+        catch (Exception ex)
         {
-            UpdateIcon.Glyph = "\uE72C";
-            UpdateText.Text = _loc?.Get("Settings_CheckUpdate") ?? "Check for updates";
-            UpdateButton.IsEnabled = true;
-            _updateTimer!.Stop();
-            _updateTimer = null;
+            DebugLogger.Log($"[SettingsModeView] Timer error: {ex.Message}");
         }
     }
 

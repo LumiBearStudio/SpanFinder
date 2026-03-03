@@ -79,8 +79,10 @@ namespace Span.Services
         {
             try
             {
-                // Check if drive is ready
-                if (!drive.IsReady)
+                // Network drives may be disconnected but should still appear in sidebar.
+                // Only skip non-network drives that aren't ready.
+                bool isNetwork = drive.DriveType == DriveType.Network;
+                if (!drive.IsReady && !isNetwork)
                 {
                     return null;
                 }
@@ -88,20 +90,29 @@ namespace Span.Services
                 var driveItem = new DriveItem
                 {
                     Path = drive.Name,
-                    Label = drive.VolumeLabel ?? string.Empty,
-                    DriveFormat = drive.DriveFormat,
                     DriveType = drive.DriveType.ToString()
                 };
 
-                // Try to get size information (can be slow)
-                try
+                // Try to get volume/size info (may fail for disconnected network drives)
+                if (drive.IsReady)
                 {
-                    driveItem.TotalSize = drive.TotalSize;
-                    driveItem.AvailableFreeSpace = drive.AvailableFreeSpace;
+                    try { driveItem.Label = drive.VolumeLabel ?? string.Empty; } catch { }
+                    try { driveItem.DriveFormat = drive.DriveFormat; } catch { }
+                    try
+                    {
+                        driveItem.TotalSize = drive.TotalSize;
+                        driveItem.AvailableFreeSpace = drive.AvailableFreeSpace;
+                    }
+                    catch
+                    {
+                        driveItem.TotalSize = 0;
+                        driveItem.AvailableFreeSpace = 0;
+                    }
                 }
-                catch
+                else
                 {
-                    // Size info not available - continue without it
+                    // Disconnected network drive — show with minimal info
+                    driveItem.Label = string.Empty;
                     driveItem.TotalSize = 0;
                     driveItem.AvailableFreeSpace = 0;
                 }

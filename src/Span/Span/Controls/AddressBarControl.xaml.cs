@@ -70,12 +70,15 @@ namespace Span.Controls
         /// </summary>
         private void ApplyScaleToBreadcrumbs()
         {
-            // BreadcrumbRepeater visible elements
-            int count = VisualTreeHelper.GetChildrenCount(BreadcrumbRepeater);
-            for (int i = 0; i < count; i++)
+            // ItemsRepeater.TryGetElement()로 실제 realized element만 순회
+            if (BreadcrumbRepeater.ItemsSourceView != null)
             {
-                var child = VisualTreeHelper.GetChild(BreadcrumbRepeater, i);
-                MainWindow.ApplyAbsoluteScaleToTree(child, _scaleLevel, 8, 20);
+                for (int i = 0; i < BreadcrumbRepeater.ItemsSourceView.Count; i++)
+                {
+                    var element = BreadcrumbRepeater.TryGetElement(i);
+                    if (element != null)
+                        MainWindow.ApplyAbsoluteScaleToTree(element, _scaleLevel, 8, 20);
+                }
             }
 
             // AutoSuggestBox와 OverflowIndicator도 스케일 적용

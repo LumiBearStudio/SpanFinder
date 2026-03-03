@@ -829,6 +829,11 @@ namespace Span
                 e.Handled = true;
                 FocusSelectedItem();
             }
+            else if (e.Key == Windows.System.VirtualKey.Up || e.Key == Windows.System.VirtualKey.Down)
+            {
+                // Up/Down 화살표가 ListView로 버블링되어 선택 변경 → 리네임 취소되는 것을 방지
+                e.Handled = true;
+            }
         }
 
         private void OnRenameTextBoxLostFocus(object sender, RoutedEventArgs e)
@@ -837,11 +842,11 @@ namespace Span
             var vm = textBox.DataContext as FileSystemViewModel;
             if (vm == null) return;
 
-            // 포커스 잃으면 취소 (ESC와 동일)
-            // IsRenaming이 이미 false여도 정리 작업은 수행
+            // 포커스 잃으면 커밋 (ListModeView와 동일 동작)
+            // Enter 없이 다른 곳 클릭해도 변경사항 저장
             if (vm.IsRenaming)
             {
-                vm.CancelRename();
+                vm.CommitRename();
             }
             _justFinishedRename = true;
             _renameTargetPath = null; // Reset F2 cycle state

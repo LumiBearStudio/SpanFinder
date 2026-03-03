@@ -10,6 +10,7 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using Span.Models;
 using Span.Services;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Span.ViewModels
 {
@@ -20,6 +21,7 @@ namespace Span.ViewModels
     /// </summary>
     public partial class ExplorerViewModel : ObservableObject
     {
+        private readonly LocalizationService _loc = App.Current.Services.GetRequiredService<LocalizationService>();
         // Columns for Miller View
         public ObservableCollection<FolderViewModel> Columns { get; }
 
@@ -528,7 +530,7 @@ namespace Span.ViewModels
                 var exists = await Task.Run(() => System.IO.Directory.Exists(path));
                 if (!exists)
                 {
-                    NavigationError?.Invoke($"네트워크 경로에 접근할 수 없습니다: {path}");
+                    NavigationError?.Invoke(string.Format(_loc.Get("Error_NetworkPath") ?? "Cannot access network path: {0}", path));
                     return;
                 }
             }
@@ -539,7 +541,7 @@ namespace Span.ViewModels
                     : System.IO.Directory.Exists(path);
                 if (!exists)
                 {
-                    NavigationError?.Invoke($"폴더를 찾을 수 없습니다: {System.IO.Path.GetFileName(path)}");
+                    NavigationError?.Invoke(string.Format(_loc.Get("Error_FolderNotFound") ?? "Cannot find folder: {0}", System.IO.Path.GetFileName(path)));
                     return;
                 }
             }
@@ -548,7 +550,7 @@ namespace Span.ViewModels
             try { path = System.IO.Path.GetFullPath(path); }
             catch (System.IO.PathTooLongException)
             {
-                NavigationError?.Invoke("경로가 너무 깁니다 (260자 초과)");
+                NavigationError?.Invoke(_loc.Get("Error_PathTooLong") ?? "Path is too long (over 260 chars)");
                 return;
             }
 

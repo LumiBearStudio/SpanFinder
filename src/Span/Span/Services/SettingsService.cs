@@ -194,7 +194,7 @@ public class SettingsService : ISettingsService
 
     public bool ShowGitIntegration
     {
-        get => Get("ShowGitIntegration", false);
+        get => Get("ShowGitIntegration", true);
         set => Set("ShowGitIntegration", value);
     }
 

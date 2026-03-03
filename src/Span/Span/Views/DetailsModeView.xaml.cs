@@ -492,11 +492,11 @@ namespace Span.Views
         {
             if (key == "ShowCheckboxes" && value is bool show)
             {
-                DispatcherQueue.TryEnqueue(() => ApplyCheckboxMode(show));
+                Span.Helpers.DispatcherHelper.SafeEnqueue(DispatcherQueue, () => ApplyCheckboxMode(show));
             }
             else if (key == "ShowGitIntegration" && value is bool gitEnabled)
             {
-                DispatcherQueue.TryEnqueue(() =>
+                Span.Helpers.DispatcherHelper.SafeEnqueue(DispatcherQueue, () =>
                 {
                     ToggleColumnVisibility("Git", gitEnabled);
                     if (gitEnabled)

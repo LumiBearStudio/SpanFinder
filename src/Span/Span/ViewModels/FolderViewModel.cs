@@ -20,6 +20,7 @@ namespace Span.ViewModels
     {
         private readonly FileSystemService _fileService;
         private readonly FolderItem _folderModel;
+        private static LocalizationService? _sLoc;
         private bool _isLoaded = false;
         private string? _calculatedSize;
         private Microsoft.UI.Dispatching.DispatcherQueue? _uiDispatcher;
@@ -343,7 +344,7 @@ namespace Span.ViewModels
             if (provider == null)
             {
                 IsLoading = false;
-                ErrorMessage = "\uC6D0\uACA9 \uC5F0\uACB0\uC744 \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4";
+                ErrorMessage = GetLoc().Get("Error_ConnectionNotFound") ?? "Remote connection not found";
                 ErrorIcon = "\uE871";
                 return;
             }
@@ -769,45 +770,55 @@ namespace Span.ViewModels
         /// </summary>
         private static string ClassifyRemoteError(Exception ex)
         {
+            var loc = GetLoc();
             var msg = ex.Message;
             var typeName = ex.GetType().Name;
 
             // 소켓/네트워크 레벨의 OperationCanceledException (사용자 취소가 아닌 타임아웃)
             if (ex is OperationCanceledException)
-                return "연결 시간이 초과되었습니다: 서버 상태를 확인하세요";
+                return loc.Get("Error_Timeout") ?? "Connection timed out: check server";
 
             // SSH.NET 인증 실패
             if (typeName.Contains("Authentication") || msg.Contains("denied") || msg.Contains("authentication", StringComparison.OrdinalIgnoreCase))
-                return "인증 실패: 사용자 이름 또는 비밀번호를 확인하세요";
+                return loc.Get("Error_AuthFailed") ?? "Authentication failed: check credentials";
 
             // SSH.NET 연결 끊김
             if (typeName.Contains("SshConnection") || typeName.Contains("SshOperationTimeout"))
-                return "서버 연결이 끊어졌습니다";
+                return loc.Get("Error_Disconnected") ?? "Server connection lost";
 
             // 소켓/네트워크 에러
             if (typeName.Contains("Socket") || msg.Contains("No such host")
                 || msg.Contains("actively refused") || msg.Contains("Connection refused")
                 || msg.Contains("unreachable", StringComparison.OrdinalIgnoreCase))
-                return "서버에 연결할 수 없습니다: 네트워크 상태를 확인하세요";
+                return loc.Get("Error_CannotConnect") ?? "Cannot connect: check network";
 
             // 타임아웃
             if (msg.Contains("timed out", StringComparison.OrdinalIgnoreCase)
                 || msg.Contains("Timeout", StringComparison.OrdinalIgnoreCase))
-                return "연결 시간이 초과되었습니다: 서버 상태를 확인하세요";
+                return loc.Get("Error_Timeout") ?? "Connection timed out: check server";
 
             // FTP 권한 에러 (530, 550 등)
             if (msg.Contains("550") || msg.Contains("Permission denied")
                 || msg.Contains("Access denied", StringComparison.OrdinalIgnoreCase))
-                return "접근이 거부되었습니다";
+                return loc.Get("Error_AccessDenied") ?? "Access denied";
 
             // FluentFTP 연결 실패
             if (msg.Contains("Unable to connect") || msg.Contains("disconnected")
                 || msg.Contains("Not connected", StringComparison.OrdinalIgnoreCase))
-                return "서버 연결에 실패했습니다";
+                return loc.Get("Error_ConnectionFailed") ?? "Server connection failed";
 
             // 기본
-            return $"원격 연결 오류: {msg}";
+            return string.Format(loc.Get("Error_RemoteGeneric") ?? "Remote error: {0}", msg);
         }
+
+        private static LocalizationService GetLoc()
+        {
+            return _sLoc ??= App.Current.Services.GetRequiredService<LocalizationService>();
+        }
+
+        public static string GetEmptyFolderText() => GetLoc().Get("EmptyFolder") ?? "Empty folder";
+
+        public static string GetRetryText() => GetLoc().Get("Retry") ?? "Retry";
 
         public void CancelLoading()
         {

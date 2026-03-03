@@ -363,19 +363,19 @@ namespace Span
             switch (key)
             {
                 case "Theme":
-                    DispatcherQueue.TryEnqueue(() => ApplyTheme(value as string ?? "system"));
+                    Helpers.DispatcherHelper.SafeEnqueue(DispatcherQueue, () => ApplyTheme(value as string ?? "system"));
                     break;
 
                 case "FontFamily":
-                    DispatcherQueue.TryEnqueue(() => ApplyFontFamily(value as string ?? "Segoe UI Variable"));
+                    Helpers.DispatcherHelper.SafeEnqueue(DispatcherQueue, () => ApplyFontFamily(value as string ?? "Segoe UI Variable"));
                     break;
 
                 case "Density":
-                    DispatcherQueue.TryEnqueue(() => ApplyDensity(value as string ?? "comfortable"));
+                    Helpers.DispatcherHelper.SafeEnqueue(DispatcherQueue, () => ApplyDensity(value as string ?? "comfortable"));
                     break;
 
                 case "IconFontScale":
-                    DispatcherQueue.TryEnqueue(() => ApplyIconFontScale(value as string ?? "0"));
+                    Helpers.DispatcherHelper.SafeEnqueue(DispatcherQueue, () => ApplyIconFontScale(value as string ?? "0"));
                     break;
 
                 case "ShowHiddenFiles":
@@ -383,14 +383,14 @@ namespace Span
                     // Invalidate cached setting before refreshing
                     ViewModels.FileSystemViewModel.InvalidateDisplayNameCache();
                     // Refresh current folder contents to apply filter change
-                    DispatcherQueue.TryEnqueue(() =>
+                    Helpers.DispatcherHelper.SafeEnqueue(DispatcherQueue, () =>
                     {
                         RefreshCurrentView();
                     });
                     break;
 
                 case "Language":
-                    DispatcherQueue.TryEnqueue(() =>
+                    Helpers.DispatcherHelper.SafeEnqueue(DispatcherQueue, () =>
                     {
                         var lang = value as string ?? "system";
                         _loc.Language = lang;
@@ -398,7 +398,7 @@ namespace Span
                     break;
 
                 case "MillerClickBehavior":
-                    DispatcherQueue.TryEnqueue(() =>
+                    Helpers.DispatcherHelper.SafeEnqueue(DispatcherQueue, () =>
                     {
                         bool isDouble = (value as string) == "double";
                         bool leftIsMiller = ViewModel.LeftViewMode == Models.ViewMode.MillerColumns;
@@ -409,20 +409,20 @@ namespace Span
                     break;
 
                 case "ShowCheckboxes":
-                    DispatcherQueue.TryEnqueue(() => ApplyMillerCheckboxMode(value is bool cb && cb));
+                    Helpers.DispatcherHelper.SafeEnqueue(DispatcherQueue, () => ApplyMillerCheckboxMode(value is bool cb && cb));
                     break;
 
                 case "ShowThumbnails":
-                    DispatcherQueue.TryEnqueue(() => ToggleThumbnails(value is bool st && st));
+                    Helpers.DispatcherHelper.SafeEnqueue(DispatcherQueue, () => ToggleThumbnails(value is bool st && st));
                     break;
 
                 case "ShowFavoritesTree":
-                    DispatcherQueue.TryEnqueue(() => ApplyFavoritesTreeMode(value is bool v && v));
+                    Helpers.DispatcherHelper.SafeEnqueue(DispatcherQueue, () => ApplyFavoritesTreeMode(value is bool v && v));
                     break;
 
                 case "ShowGitIntegration":
                     // Git 통합 ON/OFF 시 모든 로드된 컬럼 새로고침 (git 감지 재실행)
-                    DispatcherQueue.TryEnqueue(() => RefreshAllColumnsForGit());
+                    Helpers.DispatcherHelper.SafeEnqueue(DispatcherQueue, () => RefreshAllColumnsForGit());
                     break;
             }
         }
@@ -874,12 +874,12 @@ namespace Span
             var path = explorer?.CurrentPath;
             if (string.IsNullOrEmpty(path) || path == "PC")
             {
-                ViewModel.ShowToast("유효한 폴더에서만 터미널을 열 수 있습니다");
+                ViewModel.ShowToast(_loc.Get("Error_TerminalInvalidPath") ?? "Open terminal from a valid folder");
                 return;
             }
             if (!System.IO.Directory.Exists(path))
             {
-                ViewModel.ShowToast("경로가 존재하지 않습니다");
+                ViewModel.ShowToast(_loc.Get("Error_PathNotExist") ?? "Path does not exist");
                 return;
             }
             var shellService = App.Current.Services.GetRequiredService<Services.ShellService>();
@@ -931,7 +931,7 @@ namespace Span
             ResubscribeLeftExplorer();
             UpdateViewModeVisibility();
             // Tab count changed — update passthrough region
-            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, UpdateTitleBarRegions);
+            Helpers.DispatcherHelper.SafeEnqueue(DispatcherQueue, Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, UpdateTitleBarRegions);
         }
 
         /// <summary>
@@ -1021,7 +1021,7 @@ namespace Span
             ViewModel.OpenOrSwitchToActionLogTab();
             ResubscribeLeftExplorer();
             UpdateViewModeVisibility();
-            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, UpdateTitleBarRegions);
+            Helpers.DispatcherHelper.SafeEnqueue(DispatcherQueue, Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, UpdateTitleBarRegions);
         }
 
         /// <summary>

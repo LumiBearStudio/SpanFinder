@@ -433,6 +433,44 @@ namespace Span.Services
             ("OpenSource_IconFonts", "Icon Fonts", "아이콘 폰트", "アイコンフォント", "图标字体", "圖示字型", "Symbol-Schriftarten", "Fuentes de iconos", "Polices d'icônes", "Fontes de ícones"),
             ("OpenSource_DefaultPack", "Default icon pack", "기본 아이콘 팩", "デフォルトアイコンパック", "默认图标包", "預設圖示包", "Standard-Symbolpaket", "Paquete de iconos predeterminado", "Pack d'icônes par défaut", "Pacote de ícones padrão"),
             ("OpenSource_Available", "Available", "선택 가능", "利用可能", "可用", "可使用", "Verfügbar", "Disponible", "Disponible", "Disponível"),
+
+            // ── Empty folder / status bar / errors ────────────────────────
+            ("EmptyFolder", "Empty folder", "빈 폴더", "空のフォルダー", "空文件夹", "空資料夾", "Leerer Ordner", "Carpeta vacía", "Dossier vide", "Pasta vazia"),
+            ("Retry", "Retry", "다시 시도", "再試行", "重试", "重試", "Erneut versuchen", "Reintentar", "Réessayer", "Tentar novamente"),
+            ("StatusItemCount", "{0} items", "{0}개 항목", "{0}個の項目", "{0} 个项目", "{0} 個項目", "{0} Elemente", "{0} elementos", "{0} éléments", "{0} itens"),
+            ("StatusSelected", "{0} selected", "{0}개 선택됨", "{0}個選択", "{0} 个已选", "{0} 個已選", "{0} ausgewählt", "{0} seleccionados", "{0} sélectionnés", "{0} selecionados"),
+
+            // ── Navigation / folder errors ────────────────────────────────
+            ("Error_FolderNotFound", "Cannot find folder: {0}", "폴더를 찾을 수 없습니다: {0}", "フォルダーが見つかりません: {0}", "找不到文件夹: {0}", "找不到資料夾: {0}", "Ordner nicht gefunden: {0}", "No se encuentra la carpeta: {0}", "Dossier introuvable : {0}", "Pasta não encontrada: {0}"),
+            ("Error_NetworkPath", "Cannot access network path: {0}", "네트워크 경로에 접근할 수 없습니다: {0}", "ネットワークパスにアクセスできません: {0}", "无法访问网络路径: {0}", "無法存取網路路徑: {0}", "Netzwerkpfad nicht erreichbar: {0}", "No se puede acceder a la ruta de red: {0}", "Chemin réseau inaccessible : {0}", "Caminho de rede inacessível: {0}"),
+            ("Error_PathTooLong", "Path is too long (over 260 chars)", "경로가 너무 깁니다 (260자 초과)", "パスが長すぎます（260文字超）", "路径过长（超过260个字符）", "路徑過長（超過260個字元）", "Pfad ist zu lang (über 260 Zeichen)", "La ruta es demasiado larga (más de 260 caracteres)", "Le chemin est trop long (plus de 260 caractères)", "Caminho muito longo (mais de 260 caracteres)"),
+            ("Error_ConnectionNotFound", "Remote connection not found", "원격 연결을 찾을 수 없습니다", "リモート接続が見つかりません", "未找到远程连接", "找不到遠端連線", "Remote-Verbindung nicht gefunden", "Conexión remota no encontrada", "Connexion distante introuvable", "Conexão remota não encontrada"),
+            ("Error_Timeout", "Connection timed out: check server", "연결 시간이 초과되었습니다: 서버 상태를 확인하세요", "接続がタイムアウトしました：サーバーを確認してください", "连接超时：请检查服务器", "連線逾時：請檢查伺服器", "Zeitüberschreitung: Server prüfen", "Tiempo de conexión agotado: compruebe el servidor", "Délai dépassé : vérifiez le serveur", "Tempo limite: verifique o servidor"),
+            ("Error_AuthFailed", "Authentication failed: check credentials", "인증 실패: 사용자 이름 또는 비밀번호를 확인하세요", "認証失敗：ユーザー名またはパスワードを確認してください", "认证失败：请检查用户名或密码", "驗證失敗：請檢查使用者名稱或密碼", "Authentifizierung fehlgeschlagen: Anmeldedaten prüfen", "Autenticación fallida: compruebe las credenciales", "Échec d'authentification : vérifiez les identifiants", "Autenticação falhou: verifique as credenciais"),
+            ("Error_Disconnected", "Server connection lost", "서버 연결이 끊어졌습니다", "サーバー接続が切断されました", "服务器连接已断开", "伺服器連線已中斷", "Serververbindung verloren", "Conexión con el servidor perdida", "Connexion au serveur perdue", "Conexão com o servidor perdida"),
+            ("Error_CannotConnect", "Cannot connect: check network", "서버에 연결할 수 없습니다: 네트워크 상태를 확인하세요", "接続できません：ネットワークを確認してください", "无法连接：请检查网络", "無法連線：請檢查網路", "Verbindung nicht möglich: Netzwerk prüfen", "No se puede conectar: compruebe la red", "Connexion impossible : vérifiez le réseau", "Não é possível conectar: verifique a rede"),
+            ("Error_AccessDenied", "Access denied", "접근이 거부되었습니다", "アクセスが拒否されました", "访问被拒绝", "存取被拒絕", "Zugriff verweigert", "Acceso denegado", "Accès refusé", "Acesso negado"),
+            ("Error_ConnectionFailed", "Server connection failed", "서버 연결에 실패했습니다", "サーバー接続に失敗しました", "服务器连接失败", "伺服器連線失敗", "Serververbindung fehlgeschlagen", "Conexión al servidor fallida", "Échec de connexion au serveur", "Falha na conexão com o servidor"),
+            ("Error_RemoteGeneric", "Remote error: {0}", "원격 연결 오류: {0}", "リモートエラー: {0}", "远程错误: {0}", "遠端錯誤: {0}", "Remote-Fehler: {0}", "Error remoto: {0}", "Erreur distante : {0}", "Erro remoto: {0}"),
+
+            // ── Terminal errors ────────────────────────────────────────────
+            ("Error_TerminalInvalidPath", "Open terminal from a valid folder", "유효한 폴더에서만 터미널을 열 수 있습니다", "有効なフォルダーからターミナルを開いてください", "请从有效文件夹打开终端", "請從有效資料夾開啟終端機", "Terminal aus einem gültigen Ordner öffnen", "Abrir terminal desde una carpeta válida", "Ouvrir le terminal depuis un dossier valide", "Abrir terminal de uma pasta válida"),
+            ("Error_PathNotExist", "Path does not exist", "경로가 존재하지 않습니다", "パスが存在しません", "路径不存在", "路徑不存在", "Pfad existiert nicht", "La ruta no existe", "Le chemin n'existe pas", "O caminho não existe"),
+
+            // ── Tooltip ───────────────────────────────────────────────────
+            ("Tooltip_TypeFolder", "Type: Folder", "종류: 폴더", "種類: フォルダー", "类型: 文件夹", "類型: 資料夾", "Typ: Ordner", "Tipo: Carpeta", "Type : Dossier", "Tipo: Pasta"),
+            ("Tooltip_TypeFile", "Type: {0}", "종류: {0}", "種類: {0}", "类型: {0}", "類型: {0}", "Typ: {0}", "Tipo: {0}", "Type : {0}", "Tipo: {0}"),
+            ("Tooltip_Size", "Size: {0}", "크기: {0}", "サイズ: {0}", "大小: {0}", "大小: {0}", "Größe: {0}", "Tamaño: {0}", "Taille : {0}", "Tamanho: {0}"),
+            ("Tooltip_DateModified", "Date modified: {0}", "수정한 날짜: {0}", "更新日時: {0}", "修改日期: {0}", "修改日期: {0}", "Änderungsdatum: {0}", "Fecha de modificación: {0}", "Date de modification : {0}", "Data de modificação: {0}"),
+
+            // ── Log overflow ──────────────────────────────────────────────
+            ("LogMore", "... and {0} more", "... 외 {0}개", "... 他{0}件", "... 及其他{0}个", "... 及其他{0}個", "... und {0} weitere", "... y {0} más", "... et {0} de plus", "... e mais {0}"),
+
+            // ── Settings - Advanced ───────────────────────────────────────
+            ("Settings_GitIntegration", "Git status integration", "Git 상태 통합", "Git ステータス統合", "Git 状态集成", "Git 狀態整合", "Git-Status-Integration", "Integración de estado Git", "Intégration du statut Git", "Integração de status Git"),
+            ("Settings_GitIntegrationDesc", "Show Git badges and commit history in preview", "파일 아이콘에 Git 상태 뱃지와 미리보기 패널에 커밋 이력 표시", "ファイルアイコンにGitステータスバッジとプレビューにコミット履歴を表示", "在文件图标上显示Git状态标记并在预览面板中显示提交历史", "在檔案圖示上顯示Git狀態徽章並在預覽面板中顯示認可歷程", "Git-Abzeichen und Commit-Verlauf in der Vorschau anzeigen", "Mostrar insignias Git e historial de commits en la vista previa", "Afficher les badges Git et l'historique des commits dans l'aperçu", "Mostrar emblemas Git e histórico de commits na visualização"),
+            ("Settings_HexPreview", "Hex viewer preview", "Hex 뷰어 미리보기", "Hex ビューアー プレビュー", "Hex 查看器预览", "Hex 檢視器預覽", "Hex-Viewer-Vorschau", "Vista previa del visor Hex", "Aperçu du visualiseur Hex", "Visualização do visualizador Hex"),
+            ("Settings_HexPreviewDesc", "Show Hex dump for binary files (.dll, .exe)", "바이너리 파일 선택 시 Hex 덤프 표시", "バイナリファイル選択時にHexダンプを表示", "选择二进制文件时显示Hex转储", "選擇二進位檔案時顯示Hex傾印", "Hex-Dump für Binärdateien (.dll, .exe) anzeigen", "Mostrar volcado Hex para archivos binarios (.dll, .exe)", "Afficher le dump Hex pour les fichiers binaires (.dll, .exe)", "Mostrar dump Hex para arquivos binários (.dll, .exe)"),
         };
     }
 }

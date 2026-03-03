@@ -428,7 +428,14 @@ namespace Span
                         var dto = _pendingTearOff;
                         _pendingTearOff = null;
 
-                        _ = ViewModel.LoadSingleTabFromDtoAsync(dto);
+                        try
+                        {
+                            _ = ViewModel.LoadSingleTabFromDtoAsync(dto);
+                        }
+                        catch (Exception ex)
+                        {
+                            Helpers.DebugLogger.Log($"[TearOff] LoadSingleTabFromDtoAsync failed: {ex.Message}");
+                        }
 
                         // Re-bind MillerColumnsControl to the new explorer
                         MillerColumnsControl.ItemsSource = ViewModel.Explorer.Columns;
@@ -482,10 +489,12 @@ namespace Span
 
                         // Re-apply icon/font scale after visual tree is fully ready
                         // level 0에서도 baseline 저장을 위해 반드시 실행 (idempotent)
-                        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+                        Helpers.DispatcherHelper.SafeEnqueue(DispatcherQueue,
+                            Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
                             () => ApplyIconFontScale(_settings.IconFontScale));
 
-                        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+                        Helpers.DispatcherHelper.SafeEnqueue(DispatcherQueue,
+                            Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
                             () => FocusActiveView());
                         return;
                     }
@@ -1474,6 +1483,18 @@ namespace Span
 
             // FileSystemWatcher 감시 경로 갱신
             UpdateFileSystemWatcherPaths();
+        }
+
+        /// <summary>
+        /// 모든 AddressBar의 편집 모드를 해제한다.
+        /// 밀러 컬럼·사이드바 등 콘텐츠 영역 클릭 시 호출하여
+        /// 빈 공간 클릭에서도 주소창 편집이 취소되도록 한다.
+        /// </summary>
+        private void DismissAddressBarEditMode()
+        {
+            MainAddressBar.ExitEditMode();
+            LeftAddressBar.ExitEditMode();
+            RightAddressBar.ExitEditMode();
         }
 
         /// <summary>
@@ -3306,6 +3327,9 @@ namespace Span
             if (sender is not Grid grid) return;
             try
             {
+                // 주소창 편집 모드 해제 — 빈 공간 클릭 시에도 포커스가 이동하지 않으므로 명시적 해제
+                DismissAddressBarEditMode();
+
                 // Walk up to find the FolderViewModel DataContext (on the ItemTemplate root Grid)
                 var parent = grid;
                 while (parent != null && parent.DataContext is not FolderViewModel)

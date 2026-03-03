@@ -151,7 +151,9 @@ namespace Span.Views
                 }
                 if (_entry.SourcePaths.Count > MaxFileDetails)
                 {
-                    details.Add($"... 외 {_entry.SourcePaths.Count - MaxFileDetails}개");
+                    var loc = App.Current.Services.GetService(typeof(LocalizationService)) as LocalizationService;
+                    var fmt = loc?.Get("LogMore") ?? "... and {0} more";
+                    details.Add(string.Format(fmt, _entry.SourcePaths.Count - MaxFileDetails));
                 }
             }
             FileDetails = details;

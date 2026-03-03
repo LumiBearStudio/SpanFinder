@@ -24,6 +24,10 @@ build-msix.bat
 docs/
 design/
 
+# Sensitive data (safety net — normally stored outside repo in AppData)
+connections.json
+credentials.dat
+
 # Debug screenshots at root
 /[0-9]*.png
 /[0-9]*.PNG

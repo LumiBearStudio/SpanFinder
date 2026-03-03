@@ -20,6 +20,26 @@ namespace Span
     /// </summary>
     public sealed partial class MainWindow
     {
+        /// <summary>
+        /// 컨텍스트 메뉴(MenuFlyout)가 열려 있는지 확인.
+        /// 열려 있으면 키보드 이벤트를 가로채지 않아야 AccessKey가 동작함.
+        /// </summary>
+        private bool IsContextMenuOpen()
+        {
+            try
+            {
+                var popups = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetOpenPopupsForXamlRoot(Content.XamlRoot);
+                foreach (var popup in popups)
+                {
+                    if (popup.Child is Microsoft.UI.Xaml.Controls.FlyoutPresenter
+                        or Microsoft.UI.Xaml.Controls.MenuFlyoutPresenter)
+                        return true;
+                }
+            }
+            catch { }
+            return false;
+        }
+
         #region Global Keyboard Shortcuts (OnGlobalKeyDown)
 
         /// <summary>
@@ -29,6 +49,9 @@ namespace Span
         /// </summary>
         private void OnGlobalKeyDown(object sender, KeyRoutedEventArgs e)
         {
+            // 컨텍스트 메뉴 열려 있으면 AccessKey 처리에 맡김
+            if (IsContextMenuOpen()) return;
+
             // 이름 변경 중이면 F2(선택 영역 순환)만 허용, 나머지 글로벌 단축키 무시
             var selected = GetCurrentSelected();
             if (selected != null && selected.IsRenaming && e.Key != Windows.System.VirtualKey.F2) return;
@@ -490,6 +513,14 @@ namespace Span
             {
                 // 좌클릭: 빈 영역 클릭 시에도 진행 중인 리네임 취소
                 // (SelectionChanged/GotFocus는 빈 영역에서 발생하지 않으므로 여기서 보완)
+                // 단, 리네임 TextBox 내부 클릭은 제외
+                var source = e.OriginalSource as DependencyObject;
+                while (source != null)
+                {
+                    if (source is TextBox tb && tb.DataContext is ViewModels.FileSystemViewModel fsvm && fsvm.IsRenaming)
+                        return; // 리네임 TextBox 클릭 — 취소하지 않음
+                    source = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(source);
+                }
                 CancelAnyActiveRename();
             }
         }
@@ -505,6 +536,9 @@ namespace Span
         /// </summary>
         private void OnMillerKeyDown(object sender, KeyRoutedEventArgs e)
         {
+            // ★ 컨텍스트 메뉴 열려 있으면 AccessKey 처리에 맡김
+            if (IsContextMenuOpen()) return;
+
             // ★ 이름 변경 직후의 Enter/Esc가 파일 실행으로 이어지는 것을 방지
             if (_justFinishedRename)
             {
@@ -697,6 +731,9 @@ namespace Span
         /// </summary>
         internal void OnMillerCharacterReceived(UIElement sender, CharacterReceivedRoutedEventArgs args)
         {
+            // 컨텍스트 메뉴 열려 있으면 AccessKey 처리에 맡김
+            if (IsContextMenuOpen()) return;
+
             // KeyDown에서 이미 처리된 Latin 문자면 건너뛰기
             if (_typeAheadHandledInKeyDown)
             {

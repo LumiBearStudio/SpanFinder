@@ -60,7 +60,17 @@ public sealed class CrashReportingService : IDisposable
         Helpers.DebugLogger.Log("[CrashReporting] Skipped in DEBUG build");
         return;
 #else
-        Task.Run(() => StartSentry());
+        Task.Run(() =>
+        {
+            try
+            {
+                StartSentry();
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[Sentry] Init failed: {ex.Message}");
+            }
+        });
 #endif
     }
 

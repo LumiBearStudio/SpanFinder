@@ -946,11 +946,11 @@
                                                                                         <!-- Git 뱃지 (동일 위치, Git 우선 — 위에 렌더링) -->
                                                                                         <Border Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfTrue(HasGitBadge), Mode=OneWay}"
                                                                                                 HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-4,-4"
-                                                                                                Width="12" Height="12" CornerRadius="6"
+                                                                                                Width="14" Height="14" CornerRadius="7"
                                                                                                 Background="{x:Bind GitStatusBrush, Mode=OneWay}"
                                                                                                 IsHitTestVisible="False">
-                                                                                            <TextBlock Text="{x:Bind GitStatusText, Mode=OneWay}" FontSize="7" FontWeight="Bold"
-                                                                                                       Foreground="{ThemeResource SpanTextSecondaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                                            <TextBlock Text="{x:Bind GitStatusText, Mode=OneWay}" FontSize="8" FontWeight="Bold"
+                                                                                                       Foreground="{x:Bind GitBadgeTextBrush, Mode=OneWay}" HorizontalAlignment="Center" VerticalAlignment="Center"
                                                                                                        Margin="0,-1,0,0"/>
                                                                                         </Border>
                                                                                     </Grid>
@@ -977,7 +977,7 @@
                                                                 <FontIcon Glyph="&#xE8B7;" FontSize="24"
                                                                           Foreground="{ThemeResource SpanTextTertiaryBrush}"
                                                                           HorizontalAlignment="Center"/>
-                                                                <TextBlock Text="빈 폴더" FontSize="12"
+                                                                <TextBlock Text="{x:Bind viewmodels:FolderViewModel.GetEmptyFolderText()}" FontSize="12"
                                                                            Foreground="{ThemeResource SpanTextTertiaryBrush}"
                                                                            HorizontalAlignment="Center"/>
                                                             </StackPanel>
@@ -992,7 +992,7 @@
                                                                            Foreground="{ThemeResource SpanTextSecondaryBrush}"
                                                                            TextWrapping="Wrap" MaxWidth="200" TextAlignment="Center"
                                                                            HorizontalAlignment="Center"/>
-                                                                <HyperlinkButton Content="다시 시도" FontSize="11"
+                                                                <HyperlinkButton Content="{x:Bind viewmodels:FolderViewModel.GetRetryText()}" FontSize="11"
                                                                                  HorizontalAlignment="Center"
                                                                                  Click="OnRetryFolderLoad" Tag="{x:Bind}" />
                                                             </StackPanel>
@@ -1411,11 +1411,11 @@
                                                                                         <!-- Git 뱃지 (동일 위치, Git 우선 — 위에 렌더링) -->
                                                                                         <Border Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfTrue(HasGitBadge), Mode=OneWay}"
                                                                                                 HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-4,-4"
-                                                                                                Width="12" Height="12" CornerRadius="6"
+                                                                                                Width="14" Height="14" CornerRadius="7"
                                                                                                 Background="{x:Bind GitStatusBrush, Mode=OneWay}"
                                                                                                 IsHitTestVisible="False">
-                                                                                            <TextBlock Text="{x:Bind GitStatusText, Mode=OneWay}" FontSize="7" FontWeight="Bold"
-                                                                                                       Foreground="{ThemeResource SpanTextSecondaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                                            <TextBlock Text="{x:Bind GitStatusText, Mode=OneWay}" FontSize="8" FontWeight="Bold"
+                                                                                                       Foreground="{x:Bind GitBadgeTextBrush, Mode=OneWay}" HorizontalAlignment="Center" VerticalAlignment="Center"
                                                                                                        Margin="0,-1,0,0"/>
                                                                                         </Border>
                                                                                     </Grid>
@@ -1442,7 +1442,7 @@
                                                                 <FontIcon Glyph="&#xE8B7;" FontSize="24"
                                                                           Foreground="{ThemeResource SpanTextTertiaryBrush}"
                                                                           HorizontalAlignment="Center"/>
-                                                                <TextBlock Text="빈 폴더" FontSize="12"
+                                                                <TextBlock Text="{x:Bind viewmodels:FolderViewModel.GetEmptyFolderText()}" FontSize="12"
                                                                            Foreground="{ThemeResource SpanTextTertiaryBrush}"
                                                                            HorizontalAlignment="Center"/>
                                                             </StackPanel>
@@ -1457,7 +1457,7 @@
                                                                            Foreground="{ThemeResource SpanTextSecondaryBrush}"
                                                                            TextWrapping="Wrap" MaxWidth="200" TextAlignment="Center"
                                                                            HorizontalAlignment="Center"/>
-                                                                <HyperlinkButton Content="다시 시도" FontSize="11"
+                                                                <HyperlinkButton Content="{x:Bind viewmodels:FolderViewModel.GetRetryText()}" FontSize="11"
                                                                                  HorizontalAlignment="Center"
                                                                                  Click="OnRetryFolderLoad" Tag="{x:Bind}" />
                                                             </StackPanel>

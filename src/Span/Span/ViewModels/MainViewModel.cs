@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using System;
 using System.Collections.Specialized;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Span.ViewModels
 {
@@ -227,11 +228,14 @@ namespace Span.ViewModels
         public FileOperationProgressViewModel ProgressViewModel => _progressViewModel;
         public FileOperationManager FileOperationManager => _fileOperationManager;
 
+        private readonly LocalizationService _loc;
+
         public MainViewModel(FileSystemService fileService, FavoritesService favoritesService, ActionLogService actionLogService)
         {
             _fileService = fileService;
             _favoritesService = favoritesService;
             _actionLogService = actionLogService;
+            _loc = App.Current.Services.GetRequiredService<LocalizationService>();
             _operationHistory = new FileOperationHistory();
             _progressViewModel = new FileOperationProgressViewModel();
             _fileOperationManager = App.Current.Services.GetRequiredService<FileOperationManager>();
@@ -326,9 +330,9 @@ namespace Span.ViewModels
             }
             else
             {
-                StatusItemCountText = $"{itemCount}개 항목";
+                StatusItemCountText = string.Format(_loc.Get("StatusItemCount") ?? "{0} items", itemCount);
             }
-            StatusSelectionText = selCount > 0 ? $"{selCount}개 선택됨" : "";
+            StatusSelectionText = selCount > 0 ? string.Format(_loc.Get("StatusSelected") ?? "{0} selected", selCount) : "";
 
             var mode = (IsSplitViewEnabled && ActivePane == ActivePane.Right)
                 ? RightViewMode : CurrentViewMode;
