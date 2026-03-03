@@ -2,16 +2,13 @@
 
 **A blazing-fast Miller Columns file explorer for Windows, built for power users who refuse to compromise.**
 
-English | [한국어](README.ko.md) | [日本語](README.ja.md) | [中文(简体)](README.zh-CN.md) | [中文(繁體)](README.zh-TW.md) | [Deutsch](README.de.md) | [Español](README.es.md) | [Français](README.fr.md) | [Português](README.pt.md)
+English | [한국어](README/README.ko.md) | [日本語](README/README.ja.md) | [中文(简体)](README/README.zh-CN.md) | [中文(繁體)](README/README.zh-TW.md) | [Deutsch](README/README.de.md) | [Español](README/README.es.md) | [Français](README/README.fr.md) | [Português](README/README.pt.md)
 
 SPAN Finder reimagines file navigation on Windows. Inspired by the elegance of macOS Finder's column view and supercharged with features Windows Explorer never had — multi-tab, split view, async operations, and keyboard-driven workflows that make file management feel effortless.
 
 > **Why settle for Windows Explorer when you can fly?**
 
-<!-- Screenshots: Replace these with actual screenshots after building the app -->
-<!-- Recommended: 1920x1080 or 1600x900 PNG, saved in docs/images/ -->
-
-![SPAN Finder — Miller Columns + Split View](docs/images/screenshot-main.png)
+![SPAN Finder — Miller Columns + Preview Panel](README/1.jpg)
 
 ---
 
@@ -51,6 +48,8 @@ Navigate deep folder hierarchies without losing context. Each column represents 
 - **List** (Ctrl+3) — Dense multi-column layout for scanning large directories
 - **Icons** (Ctrl+4) — Grid view with 4 size options up to 256x256 thumbnails
 
+![Details View with Code Preview](README/3.jpg)
+
 ### Multi-Tab with Full Session Restore
 
 - Open unlimited tabs, each with its own path, view mode, and history
@@ -65,7 +64,11 @@ Navigate deep folder hierarchies without losing context. Each column represents 
 - Separate preview panels for each pane
 - Drag files between panes for copy/move operations
 
+![Split View with 14K+ Items](README/2.jpg)
+
 ### Preview Panel — Know Before You Open
+
+![Code Preview with Git Info](README/5.jpg)
 
 Press **Space** for Quick Look (macOS Finder style):
 
@@ -100,7 +103,7 @@ Press **Space** for Quick Look (macOS Finder style):
 
 ### Themes & Customization
 
-![Themes — Dracula, Tokyo Night, Catppuccin, Nord](docs/images/screenshot-themes.png)
+![Themes & Customization Settings](README/6.jpg)
 
 - **10 Themes**: Light, Dark, Dracula, Tokyo Night, Catppuccin, Gruvbox, Solarized, Nord, One Dark, Monokai
 - **6-Level Row Height** and **6-Level Font/Icon Size** — independent controls
@@ -109,7 +112,7 @@ Press **Space** for Quick Look (macOS Finder style):
 
 ### Developer Tools
 
-![Git Badges & Hex Viewer](docs/images/screenshot-dev-tools.png)
+![Hex Binary Viewer](README/4.jpg)
 
 - **Git status badges**: Modified, Added, Deleted, Untracked per file
 - **Hex dump viewer**: First 512 bytes in hex + ASCII

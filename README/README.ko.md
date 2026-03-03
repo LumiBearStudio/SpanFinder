@@ -2,7 +2,7 @@
 
 **고성능 밀러 컬럼(Miller Columns) 파일 탐색기**
 
-[English](README.md) | 한국어 | [日本語](README.ja.md) | [中文(简体)](README.zh-CN.md) | [中文(繁體)](README.zh-TW.md) | [Deutsch](README.de.md) | [Español](README.es.md) | [Français](README.fr.md) | [Português](README.pt.md)
+[English](../README.md) | 한국어 | [日本語](README.ja.md) | [中文(简体)](README.zh-CN.md) | [中文(繁體)](README.zh-TW.md) | [Deutsch](README.de.md) | [Español](README.es.md) | [Français](README.fr.md) | [Português](README.pt.md)
 
 윈도우 기본 탐색기도 충분히 훌륭합니다. 하지만 맥(Mac)에서 쓰던 '밀러 컬럼'의 편리함이 그리우셨나요?
 

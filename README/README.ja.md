@@ -2,7 +2,7 @@
 
 **Windows向けの超高速ミラーカラム型ファイルエクスプローラー。妥協を許さないパワーユーザーのために。**
 
-[English](README.md) | [한국어](README.ko.md) | 日本語 | [中文(简体)](README.zh-CN.md) | [中文(繁體)](README.zh-TW.md) | [Deutsch](README.de.md) | [Español](README.es.md) | [Français](README.fr.md) | [Português](README.pt.md)
+[English](../README.md) | [한국어](README.ko.md) | 日本語 | [中文(简体)](README.zh-CN.md) | [中文(繁體)](README.zh-TW.md) | [Deutsch](README.de.md) | [Español](README.es.md) | [Français](README.fr.md) | [Português](README.pt.md)
 
 SPAN FinderはWindows上のファイルナビゲーションを再定義します。macOS Finderのカラムビューの優雅さにインスパイアされ、Windows Explorerにはない機能を搭載 — マルチタブ、分割ビュー、非同期操作、キーボード駆動のワークフローでファイル管理を快適に。
 

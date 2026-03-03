@@ -2,7 +2,7 @@
 
 **为Windows打造的极速Miller Columns文件浏览器，专为不妥协的高级用户设计。**
 
-[English](README.md) | [한국어](README.ko.md) | [日本語](README.ja.md) | 中文(简体) | [中文(繁體)](README.zh-TW.md) | [Deutsch](README.de.md) | [Español](README.es.md) | [Français](README.fr.md) | [Português](README.pt.md)
+[English](../README.md) | [한국어](README.ko.md) | [日本語](README.ja.md) | 中文(简体) | [中文(繁體)](README.zh-TW.md) | [Deutsch](README.de.md) | [Español](README.es.md) | [Français](README.fr.md) | [Português](README.pt.md)
 
 SPAN Finder重新定义Windows上的文件导航。灵感来自macOS Finder的列视图，同时搭载Windows Explorer从未有过的功能——多标签、分屏视图、异步操作和键盘驱动的工作流，让文件管理变得轻松高效。
 
