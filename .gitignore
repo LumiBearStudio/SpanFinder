@@ -22,6 +22,7 @@ AGENTS.md
 ROADMAP.md
 build-msix.bat
 docs/
+design/
 
 # Debug screenshots at root
 /[0-9]*.png
