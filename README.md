@@ -2,7 +2,7 @@
 
 **A blazing-fast Miller Columns file explorer for Windows, built for power users who refuse to compromise.**
 
-[한국어](README.ko.md)
+English | [한국어](README.ko.md) | [日本語](README.ja.md) | [中文(简体)](README.zh-CN.md) | [中文(繁體)](README.zh-TW.md) | [Deutsch](README.de.md) | [Español](README.es.md) | [Français](README.fr.md) | [Português](README.pt.md)
 
 SPAN Finder reimagines file navigation on Windows. Inspired by the elegance of macOS Finder's column view and supercharged with features Windows Explorer never had — multi-tab, split view, async operations, and keyboard-driven workflows that make file management feel effortless.
 
