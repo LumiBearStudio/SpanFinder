@@ -88,6 +88,6 @@ Consulte [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Licencia
 
-[GNU General Public License v3.0](LICENSE.md) (con excepción de distribución en Microsoft Store)
+[GNU General Public License v3.0](LICENSE) (con excepción de distribución en Microsoft Store)
 
 El nombre "SPAN Finder" y el logotipo oficial son marcas registradas de LumiBear Studio. Ver [LICENSE.md](LICENSE.md).

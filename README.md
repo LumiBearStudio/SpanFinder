@@ -8,6 +8,11 @@ SPAN Finder reimagines file navigation on Windows. Inspired by the elegance of m
 
 > **Why settle for Windows Explorer when you can fly?**
 
+<!-- Screenshots: Replace these with actual screenshots after building the app -->
+<!-- Recommended: 1920x1080 or 1600x900 PNG, saved in docs/images/ -->
+
+![SPAN Finder — Miller Columns + Split View](docs/images/screenshot-main.png)
+
 ---
 
 ## Why SPAN Finder?
@@ -95,12 +100,16 @@ Press **Space** for Quick Look (macOS Finder style):
 
 ### Themes & Customization
 
+![Themes — Dracula, Tokyo Night, Catppuccin, Nord](docs/images/screenshot-themes.png)
+
 - **10 Themes**: Light, Dark, Dracula, Tokyo Night, Catppuccin, Gruvbox, Solarized, Nord, One Dark, Monokai
 - **6-Level Row Height** and **6-Level Font/Icon Size** — independent controls
 - **3 Icon Packs**: Remix Icon, Phosphor Icons, Tabler Icons
 - **9 Languages**: English, Korean, Japanese, Chinese (Simplified/Traditional), German, Spanish, French, Portuguese
 
 ### Developer Tools
+
+![Git Badges & Hex Viewer](docs/images/screenshot-dev-tools.png)
 
 - **Git status badges**: Modified, Added, Deleted, Untracked per file
 - **Hex dump viewer**: First 512 bytes in hex + ASCII
@@ -172,9 +181,11 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for build setup, coding conventions, and 
 
 ## License
 
-This project is licensed under the [GNU General Public License v3.0](LICENSE.md) with a Microsoft Store distribution exception.
+This project is licensed under the [GNU General Public License v3.0](LICENSE).
 
-The "SPAN Finder" name and official logo are trademarks of LumiBear Studio. See [LICENSE.md](LICENSE.md) for details.
+**Microsoft Store Exception**: The copyright holder (LumiBear Studio) may distribute official binaries through the Microsoft Store under its terms, without those terms being considered "additional restrictions" under GPL v3 Section 7. This exception applies only to the official distribution and does not extend to third-party forks.
+
+**Trademark**: The "SPAN Finder" name and official logo are trademarks of LumiBear Studio. Forks must use a different name and logo. See [LICENSE.md](LICENSE.md) for full trademark policy.
 
 ---
 

@@ -88,6 +88,6 @@ dotnet build src/Span/Span/Span.csproj -p:Platform=x64
 
 ## 授權條款
 
-[GNU General Public License v3.0](LICENSE.md)（含Microsoft Store散佈例外）
+[GNU General Public License v3.0](LICENSE)（含Microsoft Store散佈例外）
 
 「SPAN Finder」名稱和官方標誌是LumiBear Studio的商標。詳見 [LICENSE.md](LICENSE.md)。
