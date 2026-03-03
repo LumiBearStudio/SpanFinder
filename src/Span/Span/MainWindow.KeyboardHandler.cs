@@ -154,6 +154,15 @@ namespace Span
             {
                 Helpers.DebugLogger.Log($"[Keyboard] Ctrl+Key: Key={(int)e.Key} ({e.Key}), OriginalKey={(int)e.OriginalKey} ({e.OriginalKey}), ScanCode={e.KeyStatus.ScanCode}");
 
+                // TextBox/RichEditBox에 포커스가 있으면 텍스트 편집 단축키(C/X/V/A)를 네이티브 처리에 위임
+                if (e.Key is Windows.System.VirtualKey.C or Windows.System.VirtualKey.X
+                    or Windows.System.VirtualKey.V or Windows.System.VirtualKey.A)
+                {
+                    var focused = FocusManager.GetFocusedElement(this.Content.XamlRoot);
+                    if (focused is TextBox || focused is RichEditBox || focused is PasswordBox)
+                        return; // 텍스트 컨트롤의 네이티브 Ctrl+C/X/V/A 동작 유지
+                }
+
                 switch (e.Key)
                 {
                     case Windows.System.VirtualKey.E:

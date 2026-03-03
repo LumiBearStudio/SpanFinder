@@ -9,14 +9,14 @@
 
   <Identity
     Name="8ee278b6-c527-4e2c-b8ae-9ac71fe2ad4a"
-    Publisher="CN=JK_KANG"
+    Publisher="CN=LumiBear Studio"
     Version="1.0.1.0" />
 
   <mp:PhoneIdentity PhoneProductId="8ee278b6-c527-4e2c-b8ae-9ac71fe2ad4a" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
   <Properties>
     <DisplayName>SPAN Finder</DisplayName>
-    <PublisherDisplayName>JK_KANG</PublisherDisplayName>
+    <PublisherDisplayName>LumiBear Studio</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
 

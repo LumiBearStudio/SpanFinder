@@ -166,9 +166,10 @@ namespace Span.ViewModels
                 if (previewType == PreviewType.HexBinary && _settings != null && !_settings.ShowHexPreview)
                     previewType = PreviewType.Generic;
 
-                // Cloud-only files: avoid triggering download for media/text/pdf/hex
-                if (!isFolder && previewType != PreviewType.Image && previewType != PreviewType.Generic
-                    && previewType != PreviewType.Folder
+                // Cloud-only files: avoid triggering download for text/pdf/hex
+                // Image/Media는 허용 — 이미지는 캐시 썸네일, 미디어는 접근 시 자동 다운로드
+                if (!isFolder && previewType != PreviewType.Image && previewType != PreviewType.Media
+                    && previewType != PreviewType.Generic && previewType != PreviewType.Folder
                     && Services.CloudSyncService.IsCloudOnlyFile(item.Path))
                 {
                     previewType = PreviewType.Generic;
