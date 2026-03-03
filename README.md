@@ -1,113 +1,185 @@
+# SPAN Finder
 
-SPAN Finder
-고성능 밀러 컬럼(Miller Columns) 파일 탐색기
+**A blazing-fast Miller Columns file explorer for Windows, built for power users who refuse to compromise.**
 
-윈도우 기본 탐색기도 충분히 훌륭합니다. 하지만 맥(Mac)에서 쓰던 '밀러 컬럼'의 편리함이 그리우셨나요?
+[한국어](README.ko.md)
 
-SPAN Finder는 수많은 기능으로 무장한 무거운 서드파티 탐색기들과는 궤를 달리합니다. "기본 탐색기의 가벼움은 유지하면서, 계층형 탐색(Miller Columns)의 쾌적함과 실무에 꼭 필요한 필수 편의성만 완벽하게 얹어보자"는 개발자의 실제 필요와 답답함에서 출발한 프로젝트입니다.
+SPAN Finder reimagines file navigation on Windows. Inspired by the elegance of macOS Finder's column view and supercharged with features Windows Explorer never had — multi-tab, split view, async operations, and keyboard-driven workflows that make file management feel effortless.
 
-예쁘기만 하고 느린 탐색기에 지치셨다면, 압도적인 속도와 내 눈에 꼭 맞는 커스텀 환경을 제공하는 가장 실용적인 탐색 확장 도구를 만나보세요.
+> **Why settle for Windows Explorer when you can fly?**
 
+---
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-✨ 이런 분들께 강력히 추천합니다
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## Why SPAN Finder?
 
-🍎 맥북(Mac)의 Finder 경험이 그리운 유저
+| | Windows Explorer | SPAN Finder |
+|---|---|---|
+| **Miller Columns** | No | Yes — hierarchical multi-column navigation |
+| **Multi-Tab** | Windows 11 only (basic) | Full tabs with tear-off, duplication, session restore |
+| **Split View** | No | Dual-pane with independent view modes |
+| **Preview Panel** | Basic | 10+ file types — images, video, audio, code, hex, fonts, PDF |
+| **Keyboard Navigation** | Limited | 30+ shortcuts, type-ahead search, full keyboard-first design |
+| **Batch Rename** | No | Regex, prefix/suffix, sequential numbering |
+| **Undo/Redo** | Limited | Full operation history (configurable depth) |
+| **Custom Themes** | No | 10 themes — Dracula, Tokyo Night, Catppuccin, Gruvbox, Nord, and more |
+| **Git Integration** | No | Branch, status, commits at a glance |
+| **Remote Connections** | No | FTP, FTPS, SFTP with saved credentials |
+| **Cloud Status** | Basic overlay | Real-time sync badges (OneDrive, iCloud, Dropbox) |
+| **Startup Speed** | Slow on large directories | Async loading with cancellation — zero lag |
 
-깊은 폴더 속으로 들어갔다가 다시 뒤로 가기(Alt+←)를 연타할 필요가 없습니다. 전체 경로의 흐름을 한눈에 보며 좌우 방향키(←/→)만으로 폴더를 자유롭게 넘나드세요. 스페이스바(Space)를 누르면 미리보기 패널이 즉시 열리는 Quick Look까지 그대로 윈도우로 가져왔습니다.
+---
 
-🎨 끝없는 폴더 지옥을 헤매는 크리에이터
+## Features
 
-프로젝트명 > 2026 > Assets > Images > RAW... 복잡한 에셋 폴더 구조라도 화면 이동 없이 한눈에 파악할 수 있습니다. 10가지 모던 테마는 물론, 내 모니터 해상도와 시력에 맞춰 폴더/파일의 행 높이(6단계)와 아이콘/폰트 크기(6단계)를 마음대로 조절하여 수많은 파일들을 가장 편안한 상태로 스캐닝하세요.
+### Miller Columns — See Everything at Once
 
-💻 흐름이 끊기는 게 싫은 개발자
+Navigate deep folder hierarchies without losing context. Each column represents one level — click a folder and its contents appear in the next column. You always see where you are and where you came from.
 
-탐색기 따로, 터미널 따로, Git 따로, FTP 따로... 이제 한 곳에서 끝내세요. 폴더를 열면 파일의 Git 상태(M, A, D)가 뱃지로 보이고, 단축키(Ctrl+`) 하나로 현재 경로에서 터미널을 엽니다. 알 수 없는 파일은 내장 Hex 덤프 뷰어로 뜯어보고, FileZilla 없이 원격 서버(FTP/SFTP)에 직접 접속하세요.
+- Draggable column separators for custom widths
+- Auto-equalize columns (Ctrl+Shift+=) or auto-fit to content (Ctrl+Shift+-)
+- Smooth horizontal scrolling to keep the active column visible
 
+### Four View Modes
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🚀 주요 기능 한눈에 보기
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- **Miller Columns** (Ctrl+1) — Hierarchical navigation, SPAN Finder's signature
+- **Details** (Ctrl+2) — Sortable table with name, date, type, size columns
+- **List** (Ctrl+3) — Dense multi-column layout for scanning large directories
+- **Icons** (Ctrl+4) — Grid view with 4 size options up to 256x256 thumbnails
 
-[ 완벽한 밀러 컬럼 & 네비게이션 ]
-  - 방향키 중심의 직관적인 뎁스(Depth) 탐색
-  - 더블클릭 자동 너비 조절 및 다중 컬럼 너비 균등화
-  - 독립된 히스토리를 가진 멀티 탭 & 좌우 분할 뷰(Split View)
-  - 상세 보기(Details), 아이콘 보기(4단계 크기) 등 다양한 뷰 모드
+### Multi-Tab with Full Session Restore
 
-[ 내 눈에 맞추는 초개인화 UI ]
-  - 10가지 테마: Light, Dark, Dracula, Tokyo Night, Catppuccin, Gruvbox, Solarized, Nord, One Dark, Monokai
-  - 6단계 행 높이 조절 & 6단계 폰트/아이콘 크기 독립 제어
-  - 9개 언어 지원: 한국어, English, 日本語, 中文(简/繁), Deutsch, Español, Français, Português
+- Open unlimited tabs, each with its own path, view mode, and history
+- **Tab tear-off**: Drag a tab out to create a new window — full state preserved
+- **Tab duplication**: Clone a tab with its exact path and settings
+- Session auto-save: Close the app, reopen it — every tab exactly where you left it
 
-[ 쾌적한 미리보기 (Quick Look) ]
-  - 스페이스바(Space) 한 번으로 미리보기 패널 토글 (macOS Finder 방식)
-  - 이미지, 영상, 마크다운(MD), JSON, PDF, 폰트, Hex 바이너리 등 즉각 확인
-  - 파일 선택만 바꾸면 미리보기가 자동 갱신 — 작업 흐름 중단 없음
+### Split View — True Dual-Pane
 
-[ 안전하고 강력한 파일 관리 ]
-  - 안전한 실행 취소(Undo): 최대 50회 이력 기억. 내장 Action Log 뷰어로 작업 내역을 투명하게 확인하고 안전하게 복구
-  - 배치 이름 변경(Batch Rename): 정규식, 넘버링, 접미사 등으로 수십 개 파일을 실시간 미리보기와 함께 한 번에 변경
-  - 폴더 크기 계산: 하위 폴더의 총 크기를 백그라운드로 계산하여 즉시 표시
-  - ZIP 압축/해제: 파일/폴더를 우클릭 한 번으로 압축하거나, ZIP 파일을 현재 위치 또는 지정 경로에 해제
-  - 컨텍스트 메뉴 단축키: Windows 탐색기와 동일한 AccessKey 지원 — 우클릭 후 키보드만으로 빠르게 조작
+- Side-by-side file browsing with independent navigation per pane
+- Each pane can use a different view mode (Miller left, Details right)
+- Separate preview panels for each pane
+- Drag files between panes for copy/move operations
 
-[ 고급 검색 ]
-  - kind:image, size:>1GB, date:today 등 속성 기반 쿼리 검색
-  - 백그라운드 채널 처리로 UI 멈춤 없음
+### Preview Panel — Know Before You Open
 
-[ 개발자를 위한 도구 ]
-  - Git 상태 뱃지: 파일별 Modified/Added/Deleted 상태를 아이콘으로 즉시 확인
-  - 내장 Hex 덤프 뷰어: 바이너리 파일의 첫 512바이트를 16진수 + ASCII로 분석
-  - 원격 서버 접속: FTP/FTPS/SFTP 직접 연결 — FileZilla 없이 파일 탐색/전송
-  - 터미널 연동: Ctrl+` 하나로 현재 경로에서 터미널 실행
+Press **Space** for Quick Look (macOS Finder style):
 
-[ 클라우드 & 실시간 감지 ]
-  - OneDrive, iCloud, Dropbox 동기화 상태 뱃지(cfapi) 네이티브 지원
-  - FileWatcher 실시간 감지: 외부에서 파일이 변경/추가/삭제되면 자동으로 목록 갱신
-  - 외부 앱에서의 Drag & Drop 파일 가져오기 지원
+- **Images**: JPEG, PNG, GIF, BMP, WebP, TIFF with resolution and metadata
+- **Video**: MP4, MKV, AVI, MOV, WEBM with playback controls
+- **Audio**: MP3, AAC, M4A with artist, album, duration info
+- **Text & Code**: 30+ extensions with syntax display
+- **PDF**: First page preview
+- **Fonts**: Glyph samples with metadata
+- **Hex Binary**: Raw byte view for developers
+- **Folders**: Size, item count, creation date
 
+### Keyboard-First Design
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-⚡ 한계까지 깎아낸 퍼포먼스
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+30+ keyboard shortcuts for users who keep their hands on the keyboard:
 
-수만 개의 파일이 있는 폴더에서도 끊김 없이 동작합니다. 14,000개 항목의 UI 갱신을 배치(Batch)로 압축하고, 비동기(Async) 처리와 채널(Channel) 기반 검색 엔진을 통해 어떤 무거운 작업을 하더라도 앱이 얼어붙지 않는 안정성을 제공합니다.
+| Shortcut | Action |
+|----------|--------|
+| Arrow Keys | Navigate columns and items |
+| Enter | Open folder or execute file |
+| Space | Toggle preview panel |
+| Ctrl+L / Alt+D | Edit address bar |
+| Ctrl+F | Search |
+| Ctrl+C / X / V | Copy / Cut / Paste |
+| Ctrl+Z / Y | Undo / Redo |
+| Ctrl+Shift+N | New folder |
+| F2 | Rename (batch rename if multi-select) |
+| Ctrl+T / W | New tab / Close tab |
+| Ctrl+1-4 | Switch view mode |
+| Ctrl+Shift+E | Toggle split view |
+| Delete | Move to Recycle Bin |
 
+### Themes & Customization
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-⌨️ 주요 단축키
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- **10 Themes**: Light, Dark, Dracula, Tokyo Night, Catppuccin, Gruvbox, Solarized, Nord, One Dark, Monokai
+- **6-Level Row Height** and **6-Level Font/Icon Size** — independent controls
+- **3 Icon Packs**: Remix Icon, Phosphor Icons, Tabler Icons
+- **9 Languages**: English, Korean, Japanese, Chinese (Simplified/Traditional), German, Spanish, French, Portuguese
 
-  ←/→         폴더 간 이동 (밀러 컬럼)
-  Enter        파일/폴더 열기
-  Space        미리보기 패널 토글
-  Ctrl+L       주소 표시줄 포커스
-  Ctrl+F       검색
-  Ctrl+C/X/V   복사 / 잘라내기 / 붙여넣기
-  Ctrl+Z       실행 취소 (Undo)
-  Ctrl+T       새 탭
-  Ctrl+W       탭 닫기
-  Ctrl+1~4     뷰 모드 전환
-  Ctrl+`       터미널 열기
-  Ctrl+,       설정
-  F2           이름 변경
-  F5           새로고침
-  Delete       삭제 (휴지통)
-  Shift+Del    영구 삭제
+### Developer Tools
 
+- **Git status badges**: Modified, Added, Deleted, Untracked per file
+- **Hex dump viewer**: First 512 bytes in hex + ASCII
+- **Terminal integration**: Ctrl+` opens terminal at current path
+- **Remote connections**: FTP/FTPS/SFTP with encrypted credential storage
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-💻 시스템 요구사항
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+### Cloud Storage Integration
 
-  OS           Windows 10 버전 1903 이상 / Windows 11
-  아키텍처     x64, ARM64
-  런타임       Windows App SDK 1.8 (.NET 8)
-  디스플레이   DPI 스케일링 자동 지원
+- **Sync status badges**: Cloud-only, Synced, Pending Upload, Syncing
+- **OneDrive, iCloud, Dropbox** detection out of the box
+- **Smart thumbnails**: Uses cached previews — never triggers unwanted downloads
 
+### Smart Search
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- **Structured queries**: `type:image`, `size:>100MB`, `date:today`, `ext:.pdf`
+- **Type-ahead**: Start typing in any column to filter instantly
+- **Background processing**: Search never freezes the UI
 
-윈도우에서 가장 빠르고 쾌적한 Miller Columns 탐색을 경험해 보세요.
+---
+
+## Performance
+
+Engineered for speed. Tested with 14,000+ items per folder.
+
+- Async I/O everywhere — nothing blocks the UI thread
+- Batch property updates with minimal overhead
+- Debounced selection prevents redundant work during rapid navigation
+- Per-tab caching — instant tab switching, no re-rendering
+- Concurrent thumbnail loading with SemaphoreSlim throttling
+
+---
+
+## System Requirements
+
+| | |
+|---|---|
+| **OS** | Windows 10 version 1903+ / Windows 11 |
+| **Architecture** | x64, ARM64 |
+| **Runtime** | Windows App SDK 1.8 (.NET 8) |
+| **Recommended** | Windows 11 for Mica backdrop |
+
+---
+
+## Build from Source
+
+```bash
+# Prerequisites: Visual Studio 2022 with .NET Desktop + WinUI 3 workloads
+
+# Clone
+git clone https://github.com/LumiBearStudio/SpanFinder.git
+cd SpanFinder
+
+# Build
+dotnet build src/Span/Span/Span.csproj -p:Platform=x64
+
+# Run unit tests
+dotnet test src/Span/Span.Tests/Span.Tests.csproj -p:Platform=x64
+```
+
+> **Note**: WinUI 3 apps cannot be launched via `dotnet run`. Use **Visual Studio F5** (MSIX packaging required).
+
+---
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for build setup, coding conventions, and PR guidelines.
+
+---
+
+## License
+
+This project is licensed under the [GNU General Public License v3.0](LICENSE.md) with a Microsoft Store distribution exception.
+
+The "SPAN Finder" name and official logo are trademarks of LumiBear Studio. See [LICENSE.md](LICENSE.md) for details.
+
+---
+
+## Links
+
+- [Privacy Policy](github-docs/PRIVACY.md)
+- [Open Source Licenses](OpenSourceLicenses.md)
+- [Bug Reports & Feature Requests](https://github.com/LumiBearStudio/SpanFinder/issues)
