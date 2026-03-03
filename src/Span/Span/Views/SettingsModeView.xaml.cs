@@ -14,6 +14,13 @@ namespace Span.Views;
 /// </summary>
 public sealed partial class SettingsModeView : UserControl
 {
+    private static readonly string[] FontOptions =
+    [
+        "Segoe UI Variable", "Arial", "Verdana", "Calibri",
+        "Cascadia Code", "Consolas", "Courier New",
+        "Malgun Gothic", "Microsoft YaHei UI", "Yu Gothic UI"
+    ];
+
     private readonly ScrollViewer[] _sections;
     private readonly Services.SettingsService _settings;
     private LocalizationService? _loc;
@@ -140,12 +147,8 @@ public sealed partial class SettingsModeView : UserControl
             };
 
             var font = _settings.FontFamily;
-            FontCombo.SelectedIndex = font switch
-            {
-                "Cascadia Code" => 1,
-                "Consolas" => 2,
-                _ => 0
-            };
+            var fontIdx = Array.IndexOf(FontOptions, font);
+            FontCombo.SelectedIndex = fontIdx >= 0 ? fontIdx : 0;
 
             // Browsing
             ShowHiddenToggle.IsOn = _settings.ShowHiddenFiles;
@@ -260,12 +263,8 @@ public sealed partial class SettingsModeView : UserControl
         FontCombo.SelectionChanged += (s, e) =>
         {
             if (_isLoading) return;
-            _settings.FontFamily = FontCombo.SelectedIndex switch
-            {
-                1 => "Cascadia Code",
-                2 => "Consolas",
-                _ => "Segoe UI Variable"
-            };
+            var idx = FontCombo.SelectedIndex;
+            _settings.FontFamily = idx >= 0 && idx < FontOptions.Length ? FontOptions[idx] : FontOptions[0];
         };
 
         ShowHiddenToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowHiddenFiles = ShowHiddenToggle.IsOn; };

@@ -427,14 +427,17 @@ namespace Span
             }
         }
 
+        private const string CjkFallback = ", Malgun Gothic, Microsoft YaHei UI, Microsoft JhengHei UI, Yu Gothic UI";
+
         /// <summary>
         /// 폰트 패밀리를 모든 뷰에 적용한다.
+        /// 사용자가 어떤 폰트를 선택하든 CJK fallback이 자동 추가됨.
         /// </summary>
         private void ApplyFontFamily(string fontFamily)
         {
             if (this.Content is FrameworkElement root && root.Resources != null)
             {
-                var font = new FontFamily(fontFamily);
+                var font = new FontFamily(fontFamily + CjkFallback);
                 root.Resources["ContentControlThemeFontFamily"] = font;
 
                 if (root is Microsoft.UI.Xaml.Controls.Control control)

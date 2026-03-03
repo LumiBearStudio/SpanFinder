@@ -1056,7 +1056,7 @@
                                                                   HorizontalScrollBarVisibility="Auto"
                                                                   MaxHeight="184">
                                                         <TextBlock x:Name="InlinePreviewText"
-                                                                   FontFamily="Consolas" FontSize="11"
+                                                                   FontFamily="{StaticResource MonoFont}" FontSize="11"
                                                                    TextWrapping="Wrap"
                                                                    IsTextSelectionEnabled="True"
                                                                    Foreground="{ThemeResource SpanTextSecondaryBrush}"/>

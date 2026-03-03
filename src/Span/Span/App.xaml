@@ -177,7 +177,8 @@
             <!-- Fonts -->
             <FontFamily x:Key="FluentIcons">Segoe Fluent Icons</FontFamily>
             <FontFamily x:Key="RemixIcons">/Assets/Fonts/remixicon.ttf#RemixIcon, /Assets/Fonts/remixicon.ttf#remixicon</FontFamily>
-            <FontFamily x:Key="AppFont">Segoe UI Variable, Segoe UI, sans-serif</FontFamily>
+            <FontFamily x:Key="AppFont">Segoe UI Variable, Segoe UI, Malgun Gothic, Microsoft YaHei UI, Microsoft JhengHei UI, Yu Gothic UI</FontFamily>
+            <FontFamily x:Key="MonoFont">Cascadia Code, Consolas, Malgun Gothic, Microsoft YaHei UI, Microsoft JhengHei UI, Yu Gothic UI</FontFamily>
 
             <!-- Styles -->
 

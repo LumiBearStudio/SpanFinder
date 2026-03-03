@@ -411,7 +411,7 @@
                             <TextBlock Text="{x:Bind GitStatusText, Mode=OneWay}"
                                        Foreground="{x:Bind GitStatusBrush, Mode=OneWay}"
                                        VerticalAlignment="Center"
-                                       FontFamily="Consolas"
+                                       FontFamily="{StaticResource MonoFont}"
                                        FontSize="12"
                                        FontWeight="Bold"
                                        Padding="6,0"/>

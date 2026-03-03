@@ -933,10 +933,20 @@
                                         <TextBlock x:Name="FontLabel" Text="폰트" Style="{StaticResource SettingsCardLabel}" />
                                         <TextBlock x:Name="FontDesc" Text="파일 이름 표시에 사용할 폰트" Style="{StaticResource SettingsCardDesc}" />
                                     </StackPanel>
-                                    <ComboBox x:Name="FontCombo" Grid.Column="2" SelectedIndex="0" MinWidth="140" VerticalAlignment="Center">
+                                    <ComboBox x:Name="FontCombo" Grid.Column="2" SelectedIndex="0" MinWidth="160" VerticalAlignment="Center">
+                                        <!-- Sans-serif -->
                                         <ComboBoxItem Content="Segoe UI Variable" />
+                                        <ComboBoxItem Content="Arial" />
+                                        <ComboBoxItem Content="Verdana" />
+                                        <ComboBoxItem Content="Calibri" />
+                                        <!-- Monospace -->
                                         <ComboBoxItem Content="Cascadia Code" />
                                         <ComboBoxItem Content="Consolas" />
+                                        <ComboBoxItem Content="Courier New" />
+                                        <!-- CJK-optimized -->
+                                        <ComboBoxItem Content="Malgun Gothic" />
+                                        <ComboBoxItem Content="Microsoft YaHei UI" />
+                                        <ComboBoxItem Content="Yu Gothic UI" />
                                     </ComboBox>
                                 </Grid>
                             </Border>

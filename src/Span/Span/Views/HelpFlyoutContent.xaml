@@ -20,7 +20,7 @@
             <Setter Property="HorizontalAlignment" Value="Center"/>
         </Style>
         <Style x:Key="ShortcutKeyText" TargetType="TextBlock">
-            <Setter Property="FontFamily" Value="Consolas"/>
+            <Setter Property="FontFamily" Value="{StaticResource MonoFont}"/>
             <Setter Property="FontSize" Value="11"/>
             <Setter Property="Foreground" Value="{ThemeResource SpanTextPrimaryBrush}"/>
             <Setter Property="HorizontalAlignment" Value="Center"/>

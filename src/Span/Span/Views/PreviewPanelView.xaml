@@ -57,7 +57,7 @@
                                   HorizontalScrollBarVisibility="Auto"
                                   MaxHeight="284">
                         <TextBlock Text="{Binding TextPreview}"
-                                   FontFamily="Consolas" FontSize="11"
+                                   FontFamily="{StaticResource MonoFont}" FontSize="11"
                                    TextWrapping="Wrap"
                                    IsTextSelectionEnabled="True"
                                    Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
@@ -109,7 +109,7 @@
                                   HorizontalScrollBarVisibility="Auto"
                                   MaxHeight="344">
                         <TextBlock Text="{Binding HexPreview}"
-                                   FontFamily="Consolas" FontSize="10.5"
+                                   FontFamily="{StaticResource MonoFont}" FontSize="10.5"
                                    TextWrapping="NoWrap" LineHeight="16"
                                    IsTextSelectionEnabled="True"
                                    Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
@@ -295,7 +295,7 @@
                                 CornerRadius="4" Padding="12" Spacing="2">
                         <TextBlock x:Name="LabelRecentCommits" Text="최근 커밋" FontSize="11" FontWeight="SemiBold"
                                    Foreground="{ThemeResource SpanTextTertiaryBrush}" Margin="0,0,0,4"/>
-                        <TextBlock Text="{Binding GitRecentCommits}" FontFamily="Consolas"
+                        <TextBlock Text="{Binding GitRecentCommits}" FontFamily="{StaticResource MonoFont}"
                                    FontSize="11" LineHeight="16" TextWrapping="Wrap"
                                    IsTextSelectionEnabled="True"
                                    Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
@@ -308,7 +308,7 @@
                         <TextBlock x:Name="LabelChangedFiles" Text="변경 파일" FontSize="11" FontWeight="SemiBold"
                                    Foreground="{ThemeResource SpanTextTertiaryBrush}" Margin="0,0,0,4"/>
                         <ScrollViewer HorizontalScrollBarVisibility="Auto" MaxHeight="200">
-                            <TextBlock Text="{Binding GitChangedFiles}" FontFamily="Consolas"
+                            <TextBlock Text="{Binding GitChangedFiles}" FontFamily="{StaticResource MonoFont}"
                                        FontSize="11" LineHeight="16" TextWrapping="NoWrap"
                                        IsTextSelectionEnabled="True"
                                        Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
