@@ -1,130 +1,113 @@
-# SPAN Finder — High-Performance Miller Columns Explorer for Windows
 
-> "Expand your view, Span your files."
+SPAN Finder
+고성능 밀러 컬럼(Miller Columns) 파일 탐색기
 
-SPAN Finder는 Windows에서 가장 빠르고 안정적인 Miller Columns 파일 탐색기입니다. macOS Finder의 직관적인 계층 탐색 경험을 Windows 파워 유저와 개발자에게 제공합니다.
+윈도우 기본 탐색기도 충분히 훌륭합니다. 하지만 맥(Mac)에서 쓰던 '밀러 컬럼'의 편리함이 그리우셨나요?
 
-## Highlights
+SPAN Finder는 수많은 기능으로 무장한 무거운 서드파티 탐색기들과는 궤를 달리합니다. "기본 탐색기의 가벼움은 유지하면서, 계층형 탐색(Miller Columns)의 쾌적함과 실무에 꼭 필요한 필수 편의성만 완벽하게 얹어보자"는 개발자의 실제 필요와 답답함에서 출발한 프로젝트입니다.
 
-- **Miller Columns**: macOS Finder 스타일의 좌우 계층 탐색 + Details/List/Icon 4종 뷰 모드
-- **Zero Lag**: 14,000+ 파일 폴더도 1회 배치 업데이트, 비동기 I/O, 폴더 캐시로 즉시 로드
-- **Native WinUI 3**: Mica 배경, Fluent Design, Windows 11 최적화 (Windows 10 호환)
-- **Split View**: 좌우 듀얼 패널 독립 탐색, 패널간 드래그 앤 드롭
-- **Multi-Tab**: 탭별 독립 히스토리, Tear-Off(새 창 분리), 세션 자동 복원
-- **Full Shell Integration**: Windows Shell 네이티브 컨텍스트 메뉴 100% 지원
-- **Remote Access**: FTP/FTPS, SFTP, SMB 네트워크 파일 탐색
-- **Power Search**: 재귀 검색 + 와일드카드 + `kind:image size:>1MB date:thisweek` 고급 쿼리
-- **Stability First**: async void 전수 보호, 이벤트 누수 방지, Sentry 크래시 리포팅
+예쁘기만 하고 느린 탐색기에 지치셨다면, 압도적인 속도와 내 눈에 꼭 맞는 커스텀 환경을 제공하는 가장 실용적인 탐색 확장 도구를 만나보세요.
 
-## Tech Stack
 
-| 항목 | 스택 |
-|------|------|
-| **Framework** | WinUI 3 (Windows App SDK 1.8) |
-| **Language** | C# (.NET 8) |
-| **Architecture** | MVVM (CommunityToolkit.Mvvm) |
-| **DI** | Microsoft.Extensions.DependencyInjection |
-| **Target** | net8.0-windows10.0.19041.0 (min: 10.0.17763.0) |
-| **Platforms** | x86, x64, ARM64 |
-| **Crash Reporting** | Sentry (Privacy-safe path scrubbing) |
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✨ 이런 분들께 강력히 추천합니다
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-## Implemented Features (120+)
+🍎 맥북(Mac)의 Finder 경험이 그리운 유저
 
-### Core Navigation
-- Miller Columns + Details + List + Icon + Home 5종 뷰 모드
-- 주소 표시줄 (Breadcrumb + 편집 모드), Back/Forward 히스토리 드롭다운
-- Type-Ahead 검색, 실시간 필터 바 (Ctrl+Shift+F, 와일드카드 지원)
+깊은 폴더 속으로 들어갔다가 다시 뒤로 가기(Alt+←)를 연타할 필요가 없습니다. 전체 경로의 흐름을 한눈에 보며 좌우 방향키(←/→)만으로 폴더를 자유롭게 넘나드세요. 스페이스바(Space)를 누르면 미리보기 패널이 즉시 열리는 Quick Look까지 그대로 윈도우로 가져왔습니다.
 
-### File Operations
-- 복사/이동/삭제: 진행률, 일시정지/재개/취소, 병렬 작업
-- 배치 이름 변경: 찾기/바꾸기(정규식), 접두사/접미사, 번호 매기기 + 실시간 미리보기
-- ZIP 압축/해제, 파일 복제, 바로가기 생성
-- 실행 취소/다시 실행 (최대 50개 히스토리)
+🎨 끝없는 폴더 지옥을 헤매는 크리에이터
 
-### Multi-Tab & Multi-Window
-- 탭별 독립 히스토리/뷰 모드, 탭 Tear-Off(새 창 분리)
-- 세션 자동 저장/복원, 멀티 윈도우
+프로젝트명 > 2026 > Assets > Images > RAW... 복잡한 에셋 폴더 구조라도 화면 이동 없이 한눈에 파악할 수 있습니다. 10가지 모던 테마는 물론, 내 모니터 해상도와 시력에 맞춰 폴더/파일의 행 높이(6단계)와 아이콘/폰트 크기(6단계)를 마음대로 조절하여 수많은 파일들을 가장 편안한 상태로 스캐닝하세요.
 
-### Drag & Drop
-- 내부/외부 드래그 앤 드롭, 분할 뷰 간 이동/복사
-- Spring-loaded 폴더 (호버 시 자동 열림)
-- StorageItems 지연 로딩 (외부 앱 호환)
+💻 흐름이 끊기는 게 싫은 개발자
 
-### Preview Panel
-- 이미지, 비디오, 오디오, PDF, 텍스트(30+ 확장자), 폰트, Hex 덤프
-- 원격 파일(FTP/SFTP) 미리보기 지원
-- Quick Look (Space 키) 모달
+탐색기 따로, 터미널 따로, Git 따로, FTP 따로... 이제 한 곳에서 끝내세요. 폴더를 열면 파일의 Git 상태(M, A, D)가 뱃지로 보이고, 단축키(Ctrl+`) 하나로 현재 경로에서 터미널을 엽니다. 알 수 없는 파일은 내장 Hex 덤프 뷰어로 뜯어보고, FileZilla 없이 원격 서버(FTP/SFTP)에 직접 접속하세요.
 
-### Sidebar
-- 로컬/네트워크/클라우드 드라이브, USB 핫플러그 감지
-- 즐겨찾기 (드래그 리오더, Quick Access 동기화)
-- 최근 폴더, 저장된 원격 연결
 
-### Cloud & Git Integration
-- Cloud Files API 기반 동기화 상태 배지 (OneDrive, iCloud, Dropbox)
-- Git 파일 상태 배지 (Modified/Added/Deleted/Untracked), 브랜치 정보
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚀 주요 기능 한눈에 보기
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-### Search
-- 재귀 검색 (BFS, Channel 기반 비동기, 최대 10,000 결과)
-- 고급 쿼리: `kind:`, `size:`, `date:`, `ext:` 필터 + 와일드카드
+[ 완벽한 밀러 컬럼 & 네비게이션 ]
+  - 방향키 중심의 직관적인 뎁스(Depth) 탐색
+  - 더블클릭 자동 너비 조절 및 다중 컬럼 너비 균등화
+  - 독립된 히스토리를 가진 멀티 탭 & 좌우 분할 뷰(Split View)
+  - 상세 보기(Details), 아이콘 보기(4단계 크기) 등 다양한 뷰 모드
 
-### Settings & Localization
-- 7종 테마 (Light/Dark/System/Dracula/Tokyo Night/Catppuccin/Gruvbox)
-- 3종 아이콘 팩 (Remix/Phosphor/Tabler)
-- 9개 언어 (EN, KO, JA, ZH-CN, ZH-TW, DE, ES, FR, PT-BR)
-- 80+ 키보드 단축키
+[ 내 눈에 맞추는 초개인화 UI ]
+  - 10가지 테마: Light, Dark, Dracula, Tokyo Night, Catppuccin, Gruvbox, Solarized, Nord, One Dark, Monokai
+  - 6단계 행 높이 조절 & 6단계 폰트/아이콘 크기 독립 제어
+  - 9개 언어 지원: 한국어, English, 日本語, 中文(简/繁), Deutsch, Español, Français, Português
 
-### Remote File Systems
-- FTP/FTPS (FluentFTP, TOFU 인증서), SFTP (SSH.NET, 키 인증)
-- SMB 네트워크 브라우저 (WNetEnumResource, NetShareEnum)
+[ 쾌적한 미리보기 (Quick Look) ]
+  - 스페이스바(Space) 한 번으로 미리보기 패널 토글 (macOS Finder 방식)
+  - 이미지, 영상, 마크다운(MD), JSON, PDF, 폰트, Hex 바이너리 등 즉각 확인
+  - 파일 선택만 바꾸면 미리보기가 자동 갱신 — 작업 흐름 중단 없음
 
-### Performance & Reliability
-- 14,000+ 파일 Miller Columns 스크롤 지터 제거
-- 딥 패스 네비게이션 병렬 컬럼 로딩
-- async void 전수 try-catch 보호 (14개 메서드)
-- 이벤트 핸들러 누적 방지 (-= before += 패턴)
-- DispatcherQueue 스레드 안전성 확보
-- Sentry 크래시 리포팅 (비동기 초기화, 경로 스크러빙)
+[ 안전하고 강력한 파일 관리 ]
+  - 안전한 실행 취소(Undo): 최대 50회 이력 기억. 내장 Action Log 뷰어로 작업 내역을 투명하게 확인하고 안전하게 복구
+  - 배치 이름 변경(Batch Rename): 정규식, 넘버링, 접미사 등으로 수십 개 파일을 실시간 미리보기와 함께 한 번에 변경
+  - 폴더 크기 계산: 하위 폴더의 총 크기를 백그라운드로 계산하여 즉시 표시
+  - ZIP 압축/해제: 파일/폴더를 우클릭 한 번으로 압축하거나, ZIP 파일을 현재 위치 또는 지정 경로에 해제
+  - 컨텍스트 메뉴 단축키: Windows 탐색기와 동일한 AccessKey 지원 — 우클릭 후 키보드만으로 빠르게 조작
 
-## Project Structure
+[ 고급 검색 ]
+  - kind:image, size:>1GB, date:today 등 속성 기반 쿼리 검색
+  - 백그라운드 채널 처리로 UI 멈춤 없음
 
-```
-src/Span/Span/
-  App.xaml.cs                          # DI, 앱 라이프사이클
-  MainWindow.xaml.cs                   # 메인 윈도우 (partial class)
-  MainWindow.*.cs                      # 기능별 핸들러 (8개 partial)
-  Models/                              # 데이터 모델 (IFileSystemItem, DriveItem 등)
-  ViewModels/                          # MVVM ViewModel (Explorer, Folder, File 등)
-  Views/                               # XAML 뷰 (Details, Icon, List, Home, Settings 등)
-  Services/                            # 비즈니스 로직 (40+ 서비스)
-  Services/FileOperations/             # 파일 작업 (Copy, Move, Delete, Compress 등)
-  Helpers/                             # 유틸리티 (DebugLogger, NaturalSort 등)
-  Converters/                          # XAML 바인딩 컨버터
-docs/
-  00-context/                          # 요구사항, 기획
-  01-plan/features/                    # 기능별 실행 계획 (11개)
-  02-design/features/                  # 상세 설계 (10개)
-  03-analysis/                         # Gap 분석, 테스트 분석
-  04-report/                           # 완료 보고서
-```
+[ 개발자를 위한 도구 ]
+  - Git 상태 뱃지: 파일별 Modified/Added/Deleted 상태를 아이콘으로 즉시 확인
+  - 내장 Hex 덤프 뷰어: 바이너리 파일의 첫 512바이트를 16진수 + ASCII로 분석
+  - 원격 서버 접속: FTP/FTPS/SFTP 직접 연결 — FileZilla 없이 파일 탐색/전송
+  - 터미널 연동: Ctrl+` 하나로 현재 경로에서 터미널 실행
 
-## Build & Run
+[ 클라우드 & 실시간 감지 ]
+  - OneDrive, iCloud, Dropbox 동기화 상태 뱃지(cfapi) 네이티브 지원
+  - FileWatcher 실시간 감지: 외부에서 파일이 변경/추가/삭제되면 자동으로 목록 갱신
+  - 외부 앱에서의 Drag & Drop 파일 가져오기 지원
 
-```bash
-# Build
-dotnet build src/Span/Span/Span.csproj -p:Platform=x64
 
-# WinUI 3 앱은 MSIX 패키징 필요 — Visual Studio F5로 실행
-# dotnet run은 WinUI 3에서 지원되지 않음
-```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚡ 한계까지 깎아낸 퍼포먼스
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-## Status
+수만 개의 파일이 있는 폴더에서도 끊김 없이 동작합니다. 14,000개 항목의 UI 갱신을 배치(Batch)로 압축하고, 비동기(Async) 처리와 채널(Channel) 기반 검색 엔진을 통해 어떤 무거운 작업을 하더라도 앱이 얼어붙지 않는 안정성을 제공합니다.
 
-- **Current**: v1.0 배포 준비 중 (안정화 + 성능 최적화 단계)
-- **Features**: 120+ 구현 완료
-- **Stability**: Critical/High 안정성 이슈 18건 중 15건 해결 완료
-- **Next**: Sentry 기반 실사용 안정성 모니터링 → v1.0 릴리스
 
-## License
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⌨️ 주요 단축키
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-TBD
+  ←/→         폴더 간 이동 (밀러 컬럼)
+  Enter        파일/폴더 열기
+  Space        미리보기 패널 토글
+  Ctrl+L       주소 표시줄 포커스
+  Ctrl+F       검색
+  Ctrl+C/X/V   복사 / 잘라내기 / 붙여넣기
+  Ctrl+Z       실행 취소 (Undo)
+  Ctrl+T       새 탭
+  Ctrl+W       탭 닫기
+  Ctrl+1~4     뷰 모드 전환
+  Ctrl+`       터미널 열기
+  Ctrl+,       설정
+  F2           이름 변경
+  F5           새로고침
+  Delete       삭제 (휴지통)
+  Shift+Del    영구 삭제
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💻 시스템 요구사항
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  OS           Windows 10 버전 1903 이상 / Windows 11
+  아키텍처     x64, ARM64
+  런타임       Windows App SDK 1.8 (.NET 8)
+  디스플레이   DPI 스케일링 자동 지원
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+윈도우에서 가장 빠르고 쾌적한 Miller Columns 탐색을 경험해 보세요.

@@ -271,6 +271,22 @@ namespace Span
             // Get HWND early (needed by child views and context menu service)
             _hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
 
+            // Window title (shown in taskbar thumbnail & Alt+Tab)
+            this.Title = "SPAN Finder";
+
+            // Window icon (shown in taskbar & title bar)
+            try
+            {
+#pragma warning disable CA1416 // Platform compatibility (guarded by try-catch)
+                var iconPath = System.IO.Path.Combine(
+                    Windows.ApplicationModel.Package.Current.InstalledPath,
+                    "Assets", "app.ico");
+#pragma warning restore CA1416
+                if (System.IO.File.Exists(iconPath))
+                    this.AppWindow.SetIcon(iconPath);
+            }
+            catch { /* unpackaged mode — icon set by manifest */ }
+
             // Pass context menu service and HWND to child views
             _contextMenuService.OwnerHwnd = _hwnd;
             _contextMenuService.XamlRootProvider = () => Content.XamlRoot;
@@ -1626,6 +1642,20 @@ namespace Span
                 if (!hidePreview && ViewModel.IsLeftPreviewEnabled)
                 {
                     LeftPreviewSplitterCol.Width = new GridLength(2, GridUnitType.Pixel);
+                    // Home/ActionLog에서 Width=0으로 숨긴 후 복원 시,
+                    // LeftPreviewCol.Width도 함께 복원해야 프리뷰 패널이 표시됨
+                    if (LeftPreviewCol.Width.Value < 1)
+                    {
+                        double savedWidth = 280;
+                        try
+                        {
+                            var settings = Windows.Storage.ApplicationData.Current.LocalSettings;
+                            if (settings.Values.TryGetValue("LeftPreviewWidth", out var lw))
+                                savedWidth = Math.Max(200, (double)lw);
+                        }
+                        catch { }
+                        LeftPreviewCol.Width = new GridLength(savedWidth, GridUnitType.Pixel);
+                    }
                 }
                 else if (hidePreview)
                 {
@@ -3154,8 +3184,7 @@ namespace Span
         //  Keyboard Handlers -> MainWindow.KeyboardHandler.cs
         //  (OnGlobalKeyDown, OnGlobalPointerPressed, OnMillerKeyDown,
         //   HandleRightArrow, HandleLeftArrow, HandleEnter, HandleTypeAhead,
-        //   HandleQuickLook, BuildQuickLookContentAsync, WrapWithMetadata,
-        //   CreateGenericPreview, KeyToChar)
+        //   HandleQuickLook, KeyToChar)
         // =================================================================
 
         // =================================================================

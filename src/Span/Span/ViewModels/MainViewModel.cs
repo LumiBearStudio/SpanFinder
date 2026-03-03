@@ -140,10 +140,10 @@ namespace Span.ViewModels
 
         // Preview panel state (per-pane independent)
         [ObservableProperty]
-        private bool _isLeftPreviewEnabled = false;
+        private bool _isLeftPreviewEnabled = true;
 
         [ObservableProperty]
-        private bool _isRightPreviewEnabled = false;
+        private bool _isRightPreviewEnabled = true;
 
         private readonly FileSystemService _fileService;
         private readonly FavoritesService _favoritesService;

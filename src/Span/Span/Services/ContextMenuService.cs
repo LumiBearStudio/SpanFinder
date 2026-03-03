@@ -265,52 +265,52 @@ namespace Span.Services
             if (isRemote)
             {
                 // ── Remote file menu (FTP/SFTP) ──
-                menu.Items.Add(CreateItem(_loc.Get("Cut"), "\uE8C6", () => host.PerformCut(file.Path)));
-                menu.Items.Add(CreateItem(_loc.Get("Copy"), "\uE8C8", () => host.PerformCopy(file.Path)));
+                menu.Items.Add(CreateItem(_loc.Get("Cut"), "\uE8C6", () => host.PerformCut(file.Path), "X"));
+                menu.Items.Add(CreateItem(_loc.Get("Copy"), "\uE8C8", () => host.PerformCopy(file.Path), "C"));
                 menu.Items.Add(new MenuFlyoutSeparator());
 
-                menu.Items.Add(CreateItem(_loc.Get("Delete"), "\uE74D", () => host.PerformDelete(file.Path, file.Name)));
-                menu.Items.Add(CreateItem(_loc.Get("Rename"), "\uE70F", () => host.PerformRename(file)));
+                menu.Items.Add(CreateItem(_loc.Get("Delete"), "\uE74D", () => host.PerformDelete(file.Path, file.Name), "D"));
+                menu.Items.Add(CreateItem(_loc.Get("Rename"), "\uE70F", () => host.PerformRename(file), "M"));
                 menu.Items.Add(new MenuFlyoutSeparator());
 
-                menu.Items.Add(CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => _shellService.CopyPathToClipboard(file.Path)));
+                menu.Items.Add(CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => _shellService.CopyPathToClipboard(file.Path), "H"));
                 menu.Items.Add(new MenuFlyoutSeparator());
-                menu.Items.Add(CreateItem(_loc.Get("Properties"), "\uE946", () => ShowProperties(file)));
+                menu.Items.Add(CreateItem(_loc.Get("Properties"), "\uE946", () => ShowProperties(file), "R"));
             }
             else
             {
                 // ── Local file menu ──
-                menu.Items.Add(CreateItem(_loc.Get("Open"), "\uE8E5", () => host.PerformOpen(file)));
-                menu.Items.Add(CreateItem(_loc.Get("OpenWith"), "\uE7AC", () => _ = _shellService.OpenWithAsync(file.Path)));
+                menu.Items.Add(CreateItem(_loc.Get("Open"), "\uE8E5", () => host.PerformOpen(file), "O"));
+                menu.Items.Add(CreateItem(_loc.Get("OpenWith"), "\uE7AC", () => _ = _shellService.OpenWithAsync(file.Path), "A"));
                 menu.Items.Add(new MenuFlyoutSeparator());
 
-                menu.Items.Add(CreateItem(_loc.Get("Cut"), "\uE8C6", () => host.PerformCut(file.Path)));
-                menu.Items.Add(CreateItem(_loc.Get("Copy"), "\uE8C8", () => host.PerformCopy(file.Path)));
+                menu.Items.Add(CreateItem(_loc.Get("Cut"), "\uE8C6", () => host.PerformCut(file.Path), "X"));
+                menu.Items.Add(CreateItem(_loc.Get("Copy"), "\uE8C8", () => host.PerformCopy(file.Path), "C"));
                 menu.Items.Add(new MenuFlyoutSeparator());
 
                 // Compress / Extract
                 string ext = System.IO.Path.GetExtension(file.Path).ToLowerInvariant();
                 if (ext == ".zip")
                 {
-                    menu.Items.Add(CreateItem(_loc.Get("ExtractHere"), "\uE8B7", () => host.PerformExtractHere(file.Path)));
-                    menu.Items.Add(CreateItem(_loc.Get("ExtractTo"), "\uE8B7", () => host.PerformExtractTo(file.Path)));
+                    menu.Items.Add(CreateItem(_loc.Get("ExtractHere"), "\uE8B7", () => host.PerformExtractHere(file.Path), "E"));
+                    menu.Items.Add(CreateItem(_loc.Get("ExtractTo"), "\uE8B7", () => host.PerformExtractTo(file.Path), "T"));
                     menu.Items.Add(new MenuFlyoutSeparator());
                 }
-                menu.Items.Add(CreateItem(_loc.Get("CompressToZip"), "\uE8C5", () => host.PerformCompress(new[] { file.Path })));
+                menu.Items.Add(CreateItem(_loc.Get("CompressToZip"), "\uE8C5", () => host.PerformCompress(new[] { file.Path }), "P"));
                 menu.Items.Add(new MenuFlyoutSeparator());
 
-                menu.Items.Add(CreateItem(_loc.Get("Delete"), "\uE74D", () => host.PerformDelete(file.Path, file.Name)));
-                menu.Items.Add(CreateItem(_loc.Get("Rename"), "\uE70F", () => host.PerformRename(file)));
+                menu.Items.Add(CreateItem(_loc.Get("Delete"), "\uE74D", () => host.PerformDelete(file.Path, file.Name), "D"));
+                menu.Items.Add(CreateItem(_loc.Get("Rename"), "\uE70F", () => host.PerformRename(file), "M"));
                 menu.Items.Add(new MenuFlyoutSeparator());
 
-                menu.Items.Add(CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => _shellService.CopyPathToClipboard(file.Path)));
-                menu.Items.Add(CreateItem(_loc.Get("OpenInExplorer"), "\uED25", () => _shellService.OpenInExplorer(file.Path)));
+                menu.Items.Add(CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => _shellService.CopyPathToClipboard(file.Path), "H"));
+                menu.Items.Add(CreateItem(_loc.Get("OpenInExplorer"), "\uED25", () => _shellService.OpenInExplorer(file.Path), "L"));
 
                 // Shell extension items (loaded before menu is shown)
                 await AppendShellExtensionItemsAsync(menu, file.Path);
 
                 menu.Items.Add(new MenuFlyoutSeparator());
-                menu.Items.Add(CreateItem(_loc.Get("Properties"), "\uE946", () => ShowProperties(file)));
+                menu.Items.Add(CreateItem(_loc.Get("Properties"), "\uE946", () => ShowProperties(file), "R"));
             }
 
             // Cleanup session when menu closes
@@ -324,12 +324,12 @@ namespace Span.Services
             var menu = new MenuFlyout();
             bool isRemote = FileSystemRouter.IsRemotePath(folder.Path);
 
-            menu.Items.Add(CreateItem(_loc.Get("Open"), "\uE8E5", () => host.PerformOpen(folder)));
+            menu.Items.Add(CreateItem(_loc.Get("Open"), "\uE8E5", () => host.PerformOpen(folder), "O"));
             menu.Items.Add(new MenuFlyoutSeparator());
 
-            menu.Items.Add(CreateItem(_loc.Get("Cut"), "\uE8C6", () => host.PerformCut(folder.Path)));
-            menu.Items.Add(CreateItem(_loc.Get("Copy"), "\uE8C8", () => host.PerformCopy(folder.Path)));
-            var folderPaste = CreateItem(_loc.Get("Paste"), "\uE77F", () => host.PerformPaste(folder.Path));
+            menu.Items.Add(CreateItem(_loc.Get("Cut"), "\uE8C6", () => host.PerformCut(folder.Path), "X"));
+            menu.Items.Add(CreateItem(_loc.Get("Copy"), "\uE8C8", () => host.PerformCopy(folder.Path), "C"));
+            var folderPaste = CreateItem(_loc.Get("Paste"), "\uE77F", () => host.PerformPaste(folder.Path), "V");
             folderPaste.IsEnabled = host.HasClipboardContent;
             menu.Items.Add(folderPaste);
             menu.Items.Add(new MenuFlyoutSeparator());
@@ -337,35 +337,35 @@ namespace Span.Services
             if (!isRemote)
             {
                 // Compress (local only)
-                menu.Items.Add(CreateItem(_loc.Get("CompressToZip"), "\uE8C5", () => host.PerformCompress(new[] { folder.Path })));
+                menu.Items.Add(CreateItem(_loc.Get("CompressToZip"), "\uE8C5", () => host.PerformCompress(new[] { folder.Path }), "P"));
                 menu.Items.Add(new MenuFlyoutSeparator());
             }
 
-            menu.Items.Add(CreateItem(_loc.Get("Delete"), "\uE74D", () => host.PerformDelete(folder.Path, folder.Name)));
-            menu.Items.Add(CreateItem(_loc.Get("Rename"), "\uE70F", () => host.PerformRename(folder)));
+            menu.Items.Add(CreateItem(_loc.Get("Delete"), "\uE74D", () => host.PerformDelete(folder.Path, folder.Name), "D"));
+            menu.Items.Add(CreateItem(_loc.Get("Rename"), "\uE70F", () => host.PerformRename(folder), "M"));
             menu.Items.Add(new MenuFlyoutSeparator());
 
             if (!isRemote)
             {
                 bool isFav = host.IsFavorite(folder.Path);
                 if (isFav)
-                    menu.Items.Add(CreateItem(_loc.Get("RemoveFromFavorites"), "\uE735", () => host.RemoveFromFavorites(folder.Path)));
+                    menu.Items.Add(CreateItem(_loc.Get("RemoveFromFavorites"), "\uE735", () => host.RemoveFromFavorites(folder.Path), "I"));
                 else
-                    menu.Items.Add(CreateItem(_loc.Get("AddToFavorites"), "\uE734", () => host.AddToFavorites(folder.Path)));
+                    menu.Items.Add(CreateItem(_loc.Get("AddToFavorites"), "\uE734", () => host.AddToFavorites(folder.Path), "I"));
                 menu.Items.Add(new MenuFlyoutSeparator());
             }
 
-            menu.Items.Add(CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => _shellService.CopyPathToClipboard(folder.Path)));
+            menu.Items.Add(CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => _shellService.CopyPathToClipboard(folder.Path), "H"));
 
             if (!isRemote)
             {
-                menu.Items.Add(CreateItem(_loc.Get("OpenInExplorer"), "\uED25", () => _shellService.OpenInExplorer(folder.Path)));
+                menu.Items.Add(CreateItem(_loc.Get("OpenInExplorer"), "\uED25", () => _shellService.OpenInExplorer(folder.Path), "L"));
                 // Shell extension items (loaded before menu is shown)
                 await AppendShellExtensionItemsAsync(menu, folder.Path);
             }
 
             menu.Items.Add(new MenuFlyoutSeparator());
-            menu.Items.Add(CreateItem(_loc.Get("Properties"), "\uE946", () => ShowProperties(folder)));
+            menu.Items.Add(CreateItem(_loc.Get("Properties"), "\uE946", () => ShowProperties(folder), "R"));
 
             menu.Closed += OnMenuClosed;
 
@@ -376,7 +376,7 @@ namespace Span.Services
         {
             var menu = new MenuFlyout();
 
-            menu.Items.Add(CreateItem(_loc.Get("Open"), "\uE8E5", () => host.PerformOpenDrive(drive)));
+            menu.Items.Add(CreateItem(_loc.Get("Open"), "\uE8E5", () => host.PerformOpenDrive(drive), "O"));
 
             // 용량 정보 (disabled label) — 로컬/리무버블/CD/네트워크 드라이브만
             if (!drive.IsRemoteConnection && !drive.IsCloudStorage && drive.TotalSize > 0)
@@ -391,24 +391,24 @@ namespace Span.Services
             if (drive.IsRemoteConnection)
             {
                 // 원격 연결 (SFTP/FTP): 편집 + 제거
-                menu.Items.Add(CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => _shellService.CopyPathToClipboard(drive.Path)));
+                menu.Items.Add(CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => _shellService.CopyPathToClipboard(drive.Path), "H"));
                 menu.Items.Add(new MenuFlyoutSeparator());
                 menu.Items.Add(CreateItem(_loc.Get("EditConnection"), "\uE70F", () =>
                 {
                     if (!string.IsNullOrEmpty(drive.ConnectionId))
                         host.EditRemoteConnection(drive.ConnectionId);
-                }));
+                }, "E"));
                 menu.Items.Add(CreateItem(_loc.Get("RemoveConnection"), "\uE74D", () =>
                 {
                     if (!string.IsNullOrEmpty(drive.ConnectionId))
                         host.RemoveRemoteConnection(drive.ConnectionId);
-                }));
+                }, "M"));
             }
             else if (drive.IsCloudStorage)
             {
                 // 클라우드 스토리지: 경로 복사 + 탐색기
-                menu.Items.Add(CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => _shellService.CopyPathToClipboard(drive.Path)));
-                menu.Items.Add(CreateItem(_loc.Get("OpenInExplorer"), "\uED25", () => _shellService.OpenInExplorer(drive.Path)));
+                menu.Items.Add(CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => _shellService.CopyPathToClipboard(drive.Path), "H"));
+                menu.Items.Add(CreateItem(_loc.Get("OpenInExplorer"), "\uED25", () => _shellService.OpenInExplorer(drive.Path), "L"));
             }
             else
             {
@@ -419,21 +419,21 @@ namespace Span.Services
                 // 꺼내기 (Removable / CDRom)
                 if (isRemovableOrCdrom)
                 {
-                    menu.Items.Add(CreateItem(_loc.Get("Eject"), "\uE7E7", () => host.PerformEjectDrive(drive)));
+                    menu.Items.Add(CreateItem(_loc.Get("Eject"), "\uE7E7", () => host.PerformEjectDrive(drive), "J"));
                     menu.Items.Add(new MenuFlyoutSeparator());
                 }
 
                 // 연결 끊기 (Network mapped)
                 if (isNetwork)
                 {
-                    menu.Items.Add(CreateItem(_loc.Get("DisconnectDrive"), "\uE8CD", () => host.PerformDisconnectDrive(drive)));
+                    menu.Items.Add(CreateItem(_loc.Get("DisconnectDrive"), "\uE8CD", () => host.PerformDisconnectDrive(drive), "N"));
                     menu.Items.Add(new MenuFlyoutSeparator());
                 }
 
-                menu.Items.Add(CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => _shellService.CopyPathToClipboard(drive.Path)));
-                menu.Items.Add(CreateItem(_loc.Get("OpenInExplorer"), "\uED25", () => _shellService.OpenInExplorer(drive.Path)));
+                menu.Items.Add(CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => _shellService.CopyPathToClipboard(drive.Path), "H"));
+                menu.Items.Add(CreateItem(_loc.Get("OpenInExplorer"), "\uED25", () => _shellService.OpenInExplorer(drive.Path), "L"));
                 menu.Items.Add(new MenuFlyoutSeparator());
-                menu.Items.Add(CreateItem(_loc.Get("Properties"), "\uE946", () => _shellService.ShowProperties(drive.Path)));
+                menu.Items.Add(CreateItem(_loc.Get("Properties"), "\uE946", () => _shellService.ShowProperties(drive.Path), "R"));
             }
 
             return menu;
@@ -443,17 +443,17 @@ namespace Span.Services
         {
             var menu = new MenuFlyout();
 
-            menu.Items.Add(CreateItem(_loc.Get("Open"), "\uE8E5", () => host.PerformOpenFavorite(fav)));
+            menu.Items.Add(CreateItem(_loc.Get("Open"), "\uE8E5", () => host.PerformOpenFavorite(fav), "O"));
             menu.Items.Add(new MenuFlyoutSeparator());
 
-            menu.Items.Add(CreateItem(_loc.Get("RemoveFromFavorites"), "\uE735", () => host.RemoveFromFavorites(fav.Path)));
+            menu.Items.Add(CreateItem(_loc.Get("RemoveFromFavorites"), "\uE735", () => host.RemoveFromFavorites(fav.Path), "I"));
             menu.Items.Add(new MenuFlyoutSeparator());
 
-            menu.Items.Add(CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => _shellService.CopyPathToClipboard(fav.Path)));
-            menu.Items.Add(CreateItem(_loc.Get("OpenInExplorer"), "\uED25", () => _shellService.OpenInExplorer(fav.Path)));
+            menu.Items.Add(CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => _shellService.CopyPathToClipboard(fav.Path), "H"));
+            menu.Items.Add(CreateItem(_loc.Get("OpenInExplorer"), "\uED25", () => _shellService.OpenInExplorer(fav.Path), "L"));
             menu.Items.Add(new MenuFlyoutSeparator());
 
-            menu.Items.Add(CreateItem(_loc.Get("Properties"), "\uE946", () => _shellService.ShowProperties(fav.Path)));
+            menu.Items.Add(CreateItem(_loc.Get("Properties"), "\uE946", () => _shellService.ShowProperties(fav.Path), "R"));
 
             return menu;
         }
@@ -464,67 +464,67 @@ namespace Span.Services
 
             // New submenu: folder + common file types
             var newSub = new MenuFlyoutSubItem { Text = _loc.Get("New"), Icon = new FontIcon { Glyph = "\uE710", FontSize = 14 } };
-            ApplyCompact(newSub);
-            newSub.Items.Add(CreateItem(_loc.Get("NewFolder"), "\uE8B7", () => host.PerformNewFolder(folderPath)));
+            ApplyCompact(newSub, "W");
+            newSub.Items.Add(CreateItem(_loc.Get("NewFolder"), "\uE8B7", () => host.PerformNewFolder(folderPath), "F"));
             newSub.Items.Add(new MenuFlyoutSeparator());
-            newSub.Items.Add(CreateItem(_loc.Get("NewTextDocument"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Text Document.txt")));
-            newSub.Items.Add(CreateItem(_loc.Get("NewWordDocument"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Document.docx")));
-            newSub.Items.Add(CreateItem(_loc.Get("NewExcelSpreadsheet"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Spreadsheet.xlsx")));
-            newSub.Items.Add(CreateItem(_loc.Get("NewPowerPoint"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Presentation.pptx")));
+            newSub.Items.Add(CreateItem(_loc.Get("NewTextDocument"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Text Document.txt"), "T"));
+            newSub.Items.Add(CreateItem(_loc.Get("NewWordDocument"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Document.docx"), "W"));
+            newSub.Items.Add(CreateItem(_loc.Get("NewExcelSpreadsheet"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Spreadsheet.xlsx"), "E"));
+            newSub.Items.Add(CreateItem(_loc.Get("NewPowerPoint"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Presentation.pptx"), "P"));
             newSub.Items.Add(new MenuFlyoutSeparator());
-            newSub.Items.Add(CreateItem(_loc.Get("NewBitmapImage"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Bitmap Image.bmp")));
-            newSub.Items.Add(CreateItem(_loc.Get("NewRichTextDocument"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Rich Text Document.rtf")));
-            newSub.Items.Add(CreateItem(_loc.Get("NewZipArchive"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Compressed (zipped) Folder.zip")));
+            newSub.Items.Add(CreateItem(_loc.Get("NewBitmapImage"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Bitmap Image.bmp"), "B"));
+            newSub.Items.Add(CreateItem(_loc.Get("NewRichTextDocument"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Rich Text Document.rtf"), "R"));
+            newSub.Items.Add(CreateItem(_loc.Get("NewZipArchive"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Compressed (zipped) Folder.zip"), "Z"));
             menu.Items.Add(newSub);
 
-            var emptyPaste = CreateItem(_loc.Get("Paste"), "\uE77F", () => host.PerformPaste(folderPath));
+            var emptyPaste = CreateItem(_loc.Get("Paste"), "\uE77F", () => host.PerformPaste(folderPath), "V");
             emptyPaste.IsEnabled = host.HasClipboardContent;
             menu.Items.Add(emptyPaste);
             menu.Items.Add(new MenuFlyoutSeparator());
 
             // View submenu
             var viewSub = new MenuFlyoutSubItem { Text = _loc.Get("View"), Icon = new FontIcon { Glyph = "\uE8FD", FontSize = 14 } };
-            ApplyCompact(viewSub);
-            viewSub.Items.Add(CreateItem(_loc.Get("MillerColumns"), "\uF0E2", () => host.SwitchViewMode(ViewMode.MillerColumns)));
-            viewSub.Items.Add(CreateItem(_loc.Get("Details"), "\uE8EF", () => host.SwitchViewMode(ViewMode.Details)));
+            ApplyCompact(viewSub, "O");
+            viewSub.Items.Add(CreateItem(_loc.Get("MillerColumns"), "\uF0E2", () => host.SwitchViewMode(ViewMode.MillerColumns), "M"));
+            viewSub.Items.Add(CreateItem(_loc.Get("Details"), "\uE8EF", () => host.SwitchViewMode(ViewMode.Details), "D"));
             viewSub.Items.Add(new MenuFlyoutSeparator());
-            viewSub.Items.Add(CreateItem(_loc.Get("ExtraLargeIcons"), null, () => host.SwitchViewMode(ViewMode.IconExtraLarge)));
-            viewSub.Items.Add(CreateItem(_loc.Get("LargeIcons"), null, () => host.SwitchViewMode(ViewMode.IconLarge)));
-            viewSub.Items.Add(CreateItem(_loc.Get("MediumIcons"), null, () => host.SwitchViewMode(ViewMode.IconMedium)));
-            viewSub.Items.Add(CreateItem(_loc.Get("SmallIcons"), null, () => host.SwitchViewMode(ViewMode.IconSmall)));
+            viewSub.Items.Add(CreateItem(_loc.Get("ExtraLargeIcons"), null, () => host.SwitchViewMode(ViewMode.IconExtraLarge), "X"));
+            viewSub.Items.Add(CreateItem(_loc.Get("LargeIcons"), null, () => host.SwitchViewMode(ViewMode.IconLarge), "L"));
+            viewSub.Items.Add(CreateItem(_loc.Get("MediumIcons"), null, () => host.SwitchViewMode(ViewMode.IconMedium), "E"));
+            viewSub.Items.Add(CreateItem(_loc.Get("SmallIcons"), null, () => host.SwitchViewMode(ViewMode.IconSmall), "S"));
             menu.Items.Add(viewSub);
 
             // Sort submenu
             var sortSub = new MenuFlyoutSubItem { Text = _loc.Get("Sort"), Icon = new FontIcon { Glyph = "\uE8CB", FontSize = 14 } };
-            ApplyCompact(sortSub);
-            sortSub.Items.Add(CreateItem(_loc.Get("Name"), "\uE8C1", () => host.ApplySort("Name")));
-            sortSub.Items.Add(CreateItem(_loc.Get("Date"), "\uE787", () => host.ApplySort("Date")));
-            sortSub.Items.Add(CreateItem(_loc.Get("Size"), "\uE91B", () => host.ApplySort("Size")));
-            sortSub.Items.Add(CreateItem(_loc.Get("Type"), "\uE8FD", () => host.ApplySort("Type")));
+            ApplyCompact(sortSub, "D");
+            sortSub.Items.Add(CreateItem(_loc.Get("Name"), "\uE8C1", () => host.ApplySort("Name"), "N"));
+            sortSub.Items.Add(CreateItem(_loc.Get("Date"), "\uE787", () => host.ApplySort("Date"), "D"));
+            sortSub.Items.Add(CreateItem(_loc.Get("Size"), "\uE91B", () => host.ApplySort("Size"), "S"));
+            sortSub.Items.Add(CreateItem(_loc.Get("Type"), "\uE8FD", () => host.ApplySort("Type"), "T"));
             sortSub.Items.Add(new MenuFlyoutSeparator());
-            sortSub.Items.Add(CreateItem(_loc.Get("Ascending"), "\uE74A", () => host.ApplySortDirection(true)));
-            sortSub.Items.Add(CreateItem(_loc.Get("Descending"), "\uE74B", () => host.ApplySortDirection(false)));
+            sortSub.Items.Add(CreateItem(_loc.Get("Ascending"), "\uE74A", () => host.ApplySortDirection(true), "A"));
+            sortSub.Items.Add(CreateItem(_loc.Get("Descending"), "\uE74B", () => host.ApplySortDirection(false), "E"));
             menu.Items.Add(sortSub);
 
             // Group By submenu
             var currentGroup = host.CurrentGroupBy;
             var groupSub = new MenuFlyoutSubItem { Text = _loc.Get("GroupBy"), Icon = new FontIcon { Glyph = "\uF168", FontSize = 14 } };
-            ApplyCompact(groupSub);
-            groupSub.Items.Add(CreateToggle(_loc.Get("None"), currentGroup == "None", () => host.ApplyGroupBy("None")));
-            groupSub.Items.Add(CreateToggle(_loc.Get("Name"), currentGroup == "Name", () => host.ApplyGroupBy("Name")));
-            groupSub.Items.Add(CreateToggle(_loc.Get("Type"), currentGroup == "Type", () => host.ApplyGroupBy("Type")));
-            groupSub.Items.Add(CreateToggle(_loc.Get("Date"), currentGroup == "DateModified", () => host.ApplyGroupBy("DateModified")));
-            groupSub.Items.Add(CreateToggle(_loc.Get("Size"), currentGroup == "Size", () => host.ApplyGroupBy("Size")));
+            ApplyCompact(groupSub, "G");
+            groupSub.Items.Add(CreateToggle(_loc.Get("None"), currentGroup == "None", () => host.ApplyGroupBy("None"), "O"));
+            groupSub.Items.Add(CreateToggle(_loc.Get("Name"), currentGroup == "Name", () => host.ApplyGroupBy("Name"), "N"));
+            groupSub.Items.Add(CreateToggle(_loc.Get("Type"), currentGroup == "Type", () => host.ApplyGroupBy("Type"), "T"));
+            groupSub.Items.Add(CreateToggle(_loc.Get("Date"), currentGroup == "DateModified", () => host.ApplyGroupBy("DateModified"), "D"));
+            groupSub.Items.Add(CreateToggle(_loc.Get("Size"), currentGroup == "Size", () => host.ApplyGroupBy("Size"), "S"));
             menu.Items.Add(groupSub);
 
             menu.Items.Add(new MenuFlyoutSeparator());
 
             // Selection submenu
             var selectSub = new MenuFlyoutSubItem { Text = _loc.Get("Select"), Icon = new FontIcon { Glyph = "\uE762", FontSize = 14 } };
-            ApplyCompact(selectSub);
-            selectSub.Items.Add(CreateItem(_loc.Get("SelectAll") + "  Ctrl+A", "\uE8B3", () => host.PerformSelectAll()));
-            selectSub.Items.Add(CreateItem(_loc.Get("SelectNone") + "  Ctrl+Shift+A", null, () => host.PerformSelectNone()));
-            selectSub.Items.Add(CreateItem(_loc.Get("InvertSelection") + "  Ctrl+I", null, () => host.PerformInvertSelection()));
+            ApplyCompact(selectSub, "S");
+            selectSub.Items.Add(CreateItem(_loc.Get("SelectAll") + "  Ctrl+A", "\uE8B3", () => host.PerformSelectAll(), "A"));
+            selectSub.Items.Add(CreateItem(_loc.Get("SelectNone") + "  Ctrl+Shift+A", null, () => host.PerformSelectNone(), "N"));
+            selectSub.Items.Add(CreateItem(_loc.Get("InvertSelection") + "  Ctrl+I", null, () => host.PerformInvertSelection(), "I"));
             menu.Items.Add(selectSub);
 
             return menu;
@@ -838,16 +838,16 @@ namespace Span.Services
         public MenuFlyout BuildNewItemMenu(string folderPath, IContextMenuHost host)
         {
             var menu = new MenuFlyout();
-            menu.Items.Add(CreateItem(_loc.Get("NewFolder"), "\uE8B7", () => host.PerformNewFolder(folderPath)));
+            menu.Items.Add(CreateItem(_loc.Get("NewFolder"), "\uE8B7", () => host.PerformNewFolder(folderPath), "F"));
             menu.Items.Add(new MenuFlyoutSeparator());
-            menu.Items.Add(CreateItem(_loc.Get("NewTextDocument"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Text Document.txt")));
-            menu.Items.Add(CreateItem(_loc.Get("NewWordDocument"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Document.docx")));
-            menu.Items.Add(CreateItem(_loc.Get("NewExcelSpreadsheet"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Spreadsheet.xlsx")));
-            menu.Items.Add(CreateItem(_loc.Get("NewPowerPoint"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Presentation.pptx")));
+            menu.Items.Add(CreateItem(_loc.Get("NewTextDocument"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Text Document.txt"), "T"));
+            menu.Items.Add(CreateItem(_loc.Get("NewWordDocument"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Document.docx"), "W"));
+            menu.Items.Add(CreateItem(_loc.Get("NewExcelSpreadsheet"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Spreadsheet.xlsx"), "E"));
+            menu.Items.Add(CreateItem(_loc.Get("NewPowerPoint"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Presentation.pptx"), "P"));
             menu.Items.Add(new MenuFlyoutSeparator());
-            menu.Items.Add(CreateItem(_loc.Get("NewBitmapImage"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Bitmap Image.bmp")));
-            menu.Items.Add(CreateItem(_loc.Get("NewRichTextDocument"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Rich Text Document.rtf")));
-            menu.Items.Add(CreateItem(_loc.Get("NewZipArchive"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Compressed (zipped) Folder.zip")));
+            menu.Items.Add(CreateItem(_loc.Get("NewBitmapImage"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Bitmap Image.bmp"), "B"));
+            menu.Items.Add(CreateItem(_loc.Get("NewRichTextDocument"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Rich Text Document.rtf"), "R"));
+            menu.Items.Add(CreateItem(_loc.Get("NewZipArchive"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Compressed (zipped) Folder.zip"), "Z"));
             return menu;
         }
 
@@ -920,11 +920,11 @@ namespace Span.Services
 
         private static readonly Microsoft.UI.Xaml.Thickness CompactPadding = new(10, 2, 10, 2);
 
-        private static MenuFlyoutItem CreateItem(string text, string? glyph, Action action)
+        private static MenuFlyoutItem CreateItem(string text, string? glyph, Action action, string? accessKey = null)
         {
             var item = new MenuFlyoutItem
             {
-                Text = text,
+                Text = accessKey != null ? $"{text}({accessKey})" : text,
                 FontSize = 12,
                 Padding = CompactPadding,
                 MinHeight = 24
@@ -933,27 +933,34 @@ namespace Span.Services
             {
                 item.Icon = new FontIcon { Glyph = glyph, FontSize = 14 };
             }
+            if (accessKey != null) item.AccessKey = accessKey;
             item.Click += (s, e) => action();
             return item;
         }
 
-        private static void ApplyCompact(MenuFlyoutSubItem sub)
+        private static void ApplyCompact(MenuFlyoutSubItem sub, string? accessKey = null)
         {
             sub.FontSize = 12;
             sub.Padding = CompactPadding;
             sub.MinHeight = 24;
+            if (accessKey != null)
+            {
+                sub.Text = $"{sub.Text}({accessKey})";
+                sub.AccessKey = accessKey;
+            }
         }
 
-        private static ToggleMenuFlyoutItem CreateToggle(string text, bool isChecked, Action action)
+        private static ToggleMenuFlyoutItem CreateToggle(string text, bool isChecked, Action action, string? accessKey = null)
         {
             var item = new ToggleMenuFlyoutItem
             {
-                Text = text,
+                Text = accessKey != null ? $"{text}({accessKey})" : text,
                 FontSize = 12,
                 Padding = CompactPadding,
                 MinHeight = 24,
                 IsChecked = isChecked
             };
+            if (accessKey != null) item.AccessKey = accessKey;
             item.Click += (s, e) => action();
             return item;
         }

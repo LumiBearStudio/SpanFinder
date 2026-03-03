@@ -193,6 +193,12 @@ namespace Span
                 var iconService = Services.GetRequiredService<Services.IconService>();
                 await iconService.LoadAsync();
 
+                // 앱 시작 시 테마에 맞게 아이콘 색상 보정 적용
+                var savedTheme = Services.GetRequiredService<Services.SettingsService>().Theme;
+                bool isLightAtStart = savedTheme == "light" ||
+                    (savedTheme == "system" && RequestedTheme == ApplicationTheme.Light);
+                iconService.UpdateTheme(isLightAtStart);
+
                 // Override icon font resource based on selected icon pack
                 // Must happen before MainWindow creation so StaticResource resolves correctly
                 Resources["RemixIcons"] = new Microsoft.UI.Xaml.Media.FontFamily(iconService.FontFamilyPath);

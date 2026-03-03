@@ -414,8 +414,33 @@ namespace Span.ViewModels
             if (item is FolderViewModel)
             {
                 FileSizeFormatted = "";
-                DateCreated = "";
-                DateModified = item.DateModified;
+                if (!Services.FileSystemRouter.IsRemotePath(item.Path))
+                {
+                    try
+                    {
+                        var dirInfo = new System.IO.DirectoryInfo(item.Path);
+                        if (dirInfo.Exists)
+                        {
+                            DateCreated = dirInfo.CreationTime.ToString("yyyy-MM-dd HH:mm");
+                            DateModified = dirInfo.LastWriteTime.ToString("yyyy-MM-dd HH:mm");
+                        }
+                        else
+                        {
+                            DateCreated = "";
+                            DateModified = item.DateModified;
+                        }
+                    }
+                    catch
+                    {
+                        DateCreated = "";
+                        DateModified = item.DateModified;
+                    }
+                }
+                else
+                {
+                    DateCreated = "";
+                    DateModified = item.DateModified;
+                }
             }
             else
             {

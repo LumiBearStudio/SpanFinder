@@ -25,7 +25,7 @@
                                               FalseThickness="0,2,1,0"/>
             <helpers:BoolToThicknessConverter x:Key="MillerColumnBorderConverter"
                                               TrueThickness="1"
-                                              FalseThickness="0"/>
+                                              FalseThickness="1"/>
         </Grid.Resources>
 
         <Grid.RowDefinitions>

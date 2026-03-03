@@ -41,11 +41,16 @@ namespace Span.Services
     {
         private IconConfig _config = new();
         private Dictionary<string, (string Icon, Brush Brush)> _cache = new();
+        private Dictionary<string, (string Icon, Brush Brush)> _cacheDark = new();
+        private Dictionary<string, (string Icon, Brush Brush)> _cacheLight = new();
         private Brush _defaultBrush;
+        private Brush _defaultBrushLight;
         private Brush _folderBrush;
+        private Brush _folderBrushLight;
+        private bool _isLightTheme;
 
         public string FolderIcon => _config.FolderIcon;
-        public Brush FolderBrush => _folderBrush;
+        public Brush FolderBrush => _isLightTheme ? _folderBrushLight : _folderBrush;
 
         /// <summary>
         /// Font family path for the current icon pack.
@@ -140,26 +145,34 @@ namespace Span.Services
                 System.Diagnostics.Debug.WriteLine($"Failed to load {jsonFile}: {ex.Message}");
             }
 
-            // Pre-calculate colors & Resolving Icons
+            // Pre-calculate colors & Resolving Icons (Dark = original, Light = darkened)
             _defaultBrush = GetBrushFromHex(_config.DefaultColor);
+            _defaultBrushLight = GetBrushFromHex(DarkenForLightTheme(_config.DefaultColor));
             _folderBrush = GetBrushFromHex(_config.FolderColor);
+            _folderBrushLight = GetBrushFromHex(DarkenForLightTheme(_config.FolderColor));
 
             // Resolve default and folder icons using selected resolver
             _config.DefaultIcon = resolver(_config.DefaultIcon);
             _config.FolderIcon = resolver(_config.FolderIcon);
 
-            _cache.Clear();
+            _cacheDark.Clear();
+            _cacheLight.Clear();
 
             foreach (var mapping in _config.Mappings)
             {
                 var brush = GetBrushFromHex(mapping.Color);
+                var brushLight = GetBrushFromHex(DarkenForLightTheme(mapping.Color));
                 var glyph = resolver(mapping.Icon);
 
                 foreach (var ext in mapping.Extensions)
                 {
-                    _cache[ext.ToLowerInvariant()] = (glyph, brush);
+                    var key = ext.ToLowerInvariant();
+                    _cacheDark[key] = (glyph, brush);
+                    _cacheLight[key] = (glyph, brushLight);
                 }
             }
+
+            _cache = _isLightTheme ? _cacheLight : _cacheDark;
         }
 
         /// <summary>
@@ -196,7 +209,87 @@ namespace Span.Services
             {
                 return val.Brush;
             }
-            return _defaultBrush;
+            return _isLightTheme ? _defaultBrushLight : _defaultBrush;
+        }
+
+        /// <summary>
+        /// 테마 변경 시 호출. 라이트 테마에서는 아이콘 색상을 어둡게 보정한다.
+        /// </summary>
+        public void UpdateTheme(bool isLightTheme)
+        {
+            _isLightTheme = isLightTheme;
+            _cache = isLightTheme ? _cacheLight : _cacheDark;
+        }
+
+        /// <summary>
+        /// 라이트 테마용: HSL 명도(Lightness)를 낮추고 채도를 높여 밝은 배경에서 선명하게 보이도록 보정.
+        /// 다크 테마용 파스텔 색상 → 라이트 테마용 진한 색상.
+        /// </summary>
+        private static string DarkenForLightTheme(string hex)
+        {
+            try
+            {
+                hex = hex.Replace("#", "");
+                if (hex.Length != 6) return "#" + hex;
+
+                byte r = Convert.ToByte(hex.Substring(0, 2), 16);
+                byte g = Convert.ToByte(hex.Substring(2, 2), 16);
+                byte b = Convert.ToByte(hex.Substring(4, 2), 16);
+
+                // Convert RGB to HSL
+                double rd = r / 255.0, gd = g / 255.0, bd = b / 255.0;
+                double max = Math.Max(rd, Math.Max(gd, bd));
+                double min = Math.Min(rd, Math.Min(gd, bd));
+                double h = 0, s, l = (max + min) / 2.0;
+
+                if (max == min)
+                {
+                    h = s = 0;
+                }
+                else
+                {
+                    double d = max - min;
+                    s = l > 0.5 ? d / (2.0 - max - min) : d / (max + min);
+                    if (max == rd) h = ((gd - bd) / d + (gd < bd ? 6 : 0)) / 6.0;
+                    else if (max == gd) h = ((bd - rd) / d + 2) / 6.0;
+                    else h = ((rd - gd) / d + 4) / 6.0;
+                }
+
+                // Darken: reduce lightness by 25%, boost saturation by 15%
+                l = Math.Max(0.15, l * 0.75);
+                s = Math.Min(1.0, s * 1.15);
+
+                // Convert HSL back to RGB
+                double r2, g2, b2;
+                if (s == 0)
+                {
+                    r2 = g2 = b2 = l;
+                }
+                else
+                {
+                    double q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+                    double p = 2 * l - q;
+                    r2 = HueToRgb(p, q, h + 1.0 / 3.0);
+                    g2 = HueToRgb(p, q, h);
+                    b2 = HueToRgb(p, q, h - 1.0 / 3.0);
+                }
+
+                return $"#{(byte)(r2 * 255):X2}{(byte)(g2 * 255):X2}{(byte)(b2 * 255):X2}";
+            }
+            catch
+            {
+                return "#" + hex;
+            }
+        }
+
+        private static double HueToRgb(double p, double q, double t)
+        {
+            if (t < 0) t += 1;
+            if (t > 1) t -= 1;
+            if (t < 1.0 / 6.0) return p + (q - p) * 6 * t;
+            if (t < 1.0 / 2.0) return q;
+            if (t < 2.0 / 3.0) return p + (q - p) * (2.0 / 3.0 - t) * 6;
+            return p;
         }
 
         private static Brush GetBrushFromHex(string hex)

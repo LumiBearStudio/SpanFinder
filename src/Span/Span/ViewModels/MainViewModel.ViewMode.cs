@@ -171,11 +171,9 @@ namespace Span.ViewModels
                     IsSplitViewEnabled = (bool)splitEnabled;
                 }
 
-                // Load preview state
-                if (settings.Values.TryGetValue("IsLeftPreviewEnabled", out var leftPrev))
-                    IsLeftPreviewEnabled = (bool)leftPrev;
-                if (settings.Values.TryGetValue("IsRightPreviewEnabled", out var rightPrev))
-                    IsRightPreviewEnabled = (bool)rightPrev;
+                // Preview: Finder 방식 — 항상 활성 상태로 시작, Space 키로 토글
+                IsLeftPreviewEnabled = true;
+                IsRightPreviewEnabled = true;
 
                 // Set auto-navigation based on loaded view mode
                 LeftExplorer.EnableAutoNavigation = ShouldAutoNavigate(LeftViewMode);

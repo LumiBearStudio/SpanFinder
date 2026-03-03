@@ -25,6 +25,7 @@ namespace Span.Services
         string SplitViewGlyph { get; }
 
         Task LoadAsync();
+        void UpdateTheme(bool isLightTheme);
         string GetDriveGlyph(string driveType);
         string GetIcon(string extension);
         Brush GetBrush(string extension);

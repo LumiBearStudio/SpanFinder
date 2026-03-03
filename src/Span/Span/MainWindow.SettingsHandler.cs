@@ -68,6 +68,12 @@ namespace Span
             // PathHighlight 캐시 무효화 (테마 색상 변경 반영)
             ViewModels.FileSystemViewModel.InvalidatePathHighlightCache();
 
+            // 아이콘 색상 테마 보정 (라이트 테마에서 더 진한 색상 사용)
+            bool isLightForIcons = isCustom
+                ? theme == "solarized-light"
+                : theme == "light" || (theme == "system" && App.Current.RequestedTheme == ApplicationTheme.Light);
+            Services.IconService.Current?.UpdateTheme(isLightForIcons);
+
             // 캡션 버튼 색상
             var titleBar = this.AppWindow.TitleBar;
 

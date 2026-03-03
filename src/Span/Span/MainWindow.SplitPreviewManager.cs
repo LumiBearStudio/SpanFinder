@@ -640,14 +640,10 @@ namespace Span
             else _rightPreviewSubscribedColumn = lastColumn;
 
             // Immediately update preview with current selection.
-            // 새 컬럼이 추가된 직후엔 SelectedChild가 null — 이 경우 기존 미리보기(부모 폴더)를 유지.
-            // 사용자가 새 컬럼에서 항목을 선택하면 PropertyChanged로 자동 업데이트됨.
+            // SelectedChild가 있으면 그 항목을, 없으면 마지막 컬럼(폴더) 자체를 프리뷰에 표시.
             var selectedChild = lastColumn.SelectedChild;
-            if (selectedChild != null)
-            {
-                var previewPanel = isLeft ? LeftPreviewPanel : RightPreviewPanel;
-                previewPanel.UpdatePreview(selectedChild);
-            }
+            var previewPanel = isLeft ? LeftPreviewPanel : RightPreviewPanel;
+            previewPanel.UpdatePreview(selectedChild ?? lastColumn);
         }
 
         private void UnsubscribePreviewSelection(bool isLeft)
@@ -669,7 +665,7 @@ namespace Span
             if (e.PropertyName != nameof(FolderViewModel.SelectedChild)) return;
             if (_isClosed || !ViewModel.IsLeftPreviewEnabled) return;
             if (sender is FolderViewModel folder)
-                LeftPreviewPanel.UpdatePreview(folder.SelectedChild);
+                LeftPreviewPanel.UpdatePreview(folder.SelectedChild ?? folder);
         }
 
         private void OnRightColumnSelectionForPreview(object? sender, PropertyChangedEventArgs e)
@@ -677,7 +673,7 @@ namespace Span
             if (e.PropertyName != nameof(FolderViewModel.SelectedChild)) return;
             if (_isClosed || !ViewModel.IsRightPreviewEnabled) return;
             if (sender is FolderViewModel folder)
-                RightPreviewPanel.UpdatePreview(folder.SelectedChild);
+                RightPreviewPanel.UpdatePreview(folder.SelectedChild ?? folder);
         }
 
         /// <summary>
@@ -864,21 +860,15 @@ namespace Span
         {
             if (_isClosed) return;
 
-            // Cancel any pending preview load
+            // Finder 방식: 오른쪽 프리뷰 패널만 사용, 인라인 프리뷰 비활성화
             _inlinePreviewCts?.Cancel();
+            InlinePreviewColumn.Visibility = Visibility.Collapsed;
+            return;
 
+            // --- 아래 코드는 인라인 프리뷰 비활성화로 도달하지 않음 ---
+            #pragma warning disable CS0162
             if (fileVm == null)
             {
-                InlinePreviewColumn.Visibility = Visibility.Collapsed;
-                return;
-            }
-
-            // Don't show inline preview when the right-side preview panel is already active
-            bool previewPaneActive = (ViewModel.ActivePane == ActivePane.Left && ViewModel.IsLeftPreviewEnabled)
-                                  || (ViewModel.ActivePane == ActivePane.Right && ViewModel.IsRightPreviewEnabled);
-            if (previewPaneActive)
-            {
-                InlinePreviewColumn.Visibility = Visibility.Collapsed;
                 return;
             }
 
@@ -998,6 +988,7 @@ namespace Span
                     catch { }
                 });
             }
+            #pragma warning restore CS0162
         }
 
         /// <summary>

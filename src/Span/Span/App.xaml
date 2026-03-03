@@ -87,12 +87,12 @@
 
                 <!-- ==================== LIGHT THEME ==================== -->
                 <ResourceDictionary x:Key="Light">
-                    <!-- Backgrounds -->
+                    <!-- Backgrounds (WinUI 3 Fluent tone-matched) -->
                     <Color x:Key="SpanBgMicaColor">#F3F3F3</Color>
-                    <Color x:Key="SpanBgLayer1Color">#FFFFFF</Color>
-                    <Color x:Key="SpanBgLayer2Color">#F5F5F5</Color>
-                    <Color x:Key="SpanBgLayer3Color">#EBEBEB</Color>
-                    <Color x:Key="SpanBgLayer2TransparentColor">#00F5F5F5</Color>
+                    <Color x:Key="SpanBgLayer1Color">#F9F9F9</Color>
+                    <Color x:Key="SpanBgLayer2Color">#F3F3F3</Color>
+                    <Color x:Key="SpanBgLayer3Color">#EEEEEE</Color>
+                    <Color x:Key="SpanBgLayer2TransparentColor">#00F3F3F3</Color>
 
                     <!-- Accent -->
                     <Color x:Key="SpanAccentColor">#0078D4</Color>
@@ -100,7 +100,7 @@
                     <Color x:Key="SpanAccentDimColor">#B30078D4</Color>
 
                     <!-- Text -->
-                    <Color x:Key="SpanTextPrimaryColor">#1A1A1A</Color>
+                    <Color x:Key="SpanTextPrimaryColor">#1B1B1B</Color>
                     <Color x:Key="SpanTextSecondaryColor">#616161</Color>
                     <Color x:Key="SpanTextTertiaryColor">#8B8B8B</Color>
                     <Color x:Key="SpanTextDisabledColor">#C4C4C4</Color>
