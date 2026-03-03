@@ -14,3 +14,15 @@ Thumbs.db
 *.pdb
 *.cache
 AppPackages/
+
+# Development internal files
+.claude/
+CLAUDE.md
+AGENTS.md
+ROADMAP.md
+build-msix.bat
+docs/
+
+# Debug screenshots at root
+/[0-9]*.png
+/[0-9]*.PNG
