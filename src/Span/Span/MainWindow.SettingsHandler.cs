@@ -2,6 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.Extensions.DependencyInjection;
+using Span.Helpers;
 using Span.Models;
 using Span.ViewModels;
 using System;
@@ -485,16 +486,16 @@ namespace Span
             if (millerControl?.ItemsPanelRoot == null) return;
             foreach (var columnContainer in millerControl.ItemsPanelRoot.Children)
             {
-                var listView = FindChild<ListView>(columnContainer);
+                var listView = VisualTreeHelpers.FindChild<ListView>(columnContainer);
                 if (listView?.ItemsPanelRoot == null) continue;
                 for (int i = 0; i < listView.Items.Count; i++)
                 {
                     if (listView.ContainerFromIndex(i) is ListViewItem item)
                     {
-                        var cp = FindChild<ContentPresenter>(item);
+                        var cp = VisualTreeHelpers.FindChild<ContentPresenter>(item);
                         if (cp != null)
                         {
-                            var grid = FindChild<Grid>(cp);
+                            var grid = VisualTreeHelpers.FindChild<Grid>(cp);
                             if (grid != null)
                             {
                                 grid.Padding = _densityPadding;
@@ -584,7 +585,7 @@ namespace Span
             var homeGrid = SidebarHomeText?.Parent as Grid;
             if (homeGrid != null)
             {
-                var homeIcon = FindChild<FontIcon>(homeGrid);
+                var homeIcon = VisualTreeHelpers.FindChild<FontIcon>(homeGrid);
                 if (homeIcon != null) homeIcon.FontSize = iconFont;
             }
 
@@ -592,7 +593,7 @@ namespace Span
             ApplyIconFontScaleToItemsControl(FavoritesFlatList, itemFont, iconFont);
 
             // Drive sections (Local, Cloud, Network) — find ItemsControls in sidebar
-            var sidebarScroll = FindChild<ScrollViewer>(SidebarBorder);
+            var sidebarScroll = VisualTreeHelpers.FindChild<ScrollViewer>(SidebarBorder);
             if (sidebarScroll?.Content is StackPanel sidebarStack)
             {
                 foreach (var child in sidebarStack.Children)
@@ -631,22 +632,22 @@ namespace Span
             {
                 // ItemsControl + ItemTemplate → ContentPresenter가 DataTemplate 루트를 래핑
                 Grid? columnGrid = columnContainer as Grid
-                    ?? FindChild<Grid>(columnContainer);
+                    ?? VisualTreeHelpers.FindChild<Grid>(columnContainer);
                 if (columnGrid != null && columnGrid.Width >= 220 && columnGrid.Width <= 250)
                     columnGrid.Width = columnWidth;
 
                 // Miller 컬럼 내부의 ListView 찾기 (ListView 타입 명시 — x:Name "ListView" 필드와 충돌 방지)
-                var listView = FindChild<Microsoft.UI.Xaml.Controls.ListView>(columnContainer);
+                var listView = VisualTreeHelpers.FindChild<Microsoft.UI.Xaml.Controls.ListView>(columnContainer);
                 if (listView?.ItemsPanelRoot == null) continue;
                 for (int i = 0; i < listView.Items.Count; i++)
                 {
                     if (listView.ContainerFromIndex(i) is ListViewItem item)
                     {
                         // ListViewItem → ContentPresenter → DataTemplate Grid 경로 사용
-                        var cp = FindChild<ContentPresenter>(item);
+                        var cp = VisualTreeHelpers.FindChild<ContentPresenter>(item);
                         if (cp != null)
                         {
-                            var grid = FindChild<Grid>(cp);
+                            var grid = VisualTreeHelpers.FindChild<Grid>(cp);
                             if (grid != null)
                                 ApplyScaleToTemplateGrid(grid, itemFont, iconFont);
                         }
@@ -679,7 +680,7 @@ namespace Span
                 // Icon inside a nested Grid (e.g., file icon container Grid wrapping FontIcon)
                 else if (child is Grid iconGrid)
                 {
-                    var nestedIcon = FindChild<FontIcon>(iconGrid);
+                    var nestedIcon = VisualTreeHelpers.FindChild<FontIcon>(iconGrid);
                     if (nestedIcon != null && nestedIcon.FontSize >= 16 && nestedIcon.FontSize <= 21)
                         nestedIcon.FontSize = iconFont;
                     // 아이콘 Grid 크기도 스케일에 맞춰 조정 (기본 16x16)
@@ -699,15 +700,15 @@ namespace Span
             // ContentControl(ListViewItem 등): ContentPresenter 경유
             if (container is ContentControl)
             {
-                var cp = FindChild<ContentPresenter>(container);
+                var cp = VisualTreeHelpers.FindChild<ContentPresenter>(container);
                 if (cp != null)
                 {
-                    var grid = FindChild<Grid>(cp);
+                    var grid = VisualTreeHelpers.FindChild<Grid>(cp);
                     if (grid != null) { ApplyScaleToTemplateGrid(grid, itemFont, iconFont); return; }
                 }
             }
             // ContentPresenter 또는 일반 요소: 직접 Grid 탐색 (사이드바 ItemsControl용)
-            var directGrid = FindChild<Grid>(container);
+            var directGrid = VisualTreeHelpers.FindChild<Grid>(container);
             if (directGrid != null)
                 ApplyScaleToTemplateGrid(directGrid, itemFont, iconFont);
         }
@@ -856,7 +857,7 @@ namespace Span
         {
             var container = control.ContainerFromIndex(index) as ContentPresenter;
             if (container == null) return null;
-            return FindChild<ListView>(container);
+            return VisualTreeHelpers.FindChild<ListView>(container);
         }
 
         // #endregion Setting Changed Handlers

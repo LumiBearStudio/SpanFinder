@@ -3,14 +3,13 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Span.Services;
-using System;
 using System.Collections.ObjectModel;
 
 namespace Span.Views;
 
 /// <summary>
 /// 작업 로그 탭 뷰. Home 탭과 동일한 패턴으로 사이드바를 유지한 채 탐색기 영역에 표시.
-/// LogEntryDisplay는 LogFlyoutContent.xaml.cs에 정의되어 있으며 공유한다.
+/// LogEntryDisplay는 LogEntryDisplay.cs에 정의되어 있으며 공유한다.
 /// </summary>
 public sealed partial class LogModeView : UserControl
 {
@@ -43,32 +42,20 @@ public sealed partial class LogModeView : UserControl
     /// </summary>
     public void Refresh()
     {
-        _allEntries = _logService.GetEntries(100);
+        _allEntries = LogViewHelper.RefreshEntries(_logService);
         ApplyFilter();
     }
 
     private void ApplyFilter()
     {
-        _entries.Clear();
-        var filtered = _activeFilter == null
-            ? _allEntries
-            : _allEntries.Where(e => e.OperationType == _activeFilter).ToList();
-
-        foreach (var entry in filtered)
-        {
-            _entries.Add(new LogEntryDisplay(entry));
-        }
-
+        LogViewHelper.ApplyFilter(_allEntries, _activeFilter, _entries);
         EmptyState.Visibility = _entries.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         LogListView.Visibility = _entries.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void LocalizeUI()
     {
-        if (_loc == null) return;
-        TitleText.Text = _loc.Get("Log_Title");
-        ClearButton.Content = _loc.Get("Log_Clear");
-        EmptyStateText.Text = _loc.Get("Log_Empty");
+        LogViewHelper.LocalizeUI(_loc, TitleText, ClearButton, EmptyStateText);
     }
 
     private void OnClearClick(object sender, RoutedEventArgs e)
@@ -80,32 +67,13 @@ public sealed partial class LogModeView : UserControl
     private void OnFilterClick(object sender, RoutedEventArgs e)
     {
         if (sender is not ToggleButton clicked) return;
-
-        string? filter = clicked.Name switch
-        {
-            "FilterCopy" => "Copy",
-            "FilterMove" => "Move",
-            "FilterDelete" => "Delete",
-            "FilterRename" => "Rename",
-            _ => null
-        };
-
-        FilterAll.IsChecked = clicked == FilterAll;
-        FilterCopy.IsChecked = clicked == FilterCopy;
-        FilterMove.IsChecked = clicked == FilterMove;
-        FilterDelete.IsChecked = clicked == FilterDelete;
-        FilterRename.IsChecked = clicked == FilterRename;
-
-        _activeFilter = filter;
+        _activeFilter = LogViewHelper.HandleFilterClick(clicked, FilterAll, FilterCopy, FilterMove, FilterDelete, FilterRename);
         ApplyFilter();
     }
 
     private void OnExpandClick(object sender, RoutedEventArgs e)
     {
-        if (sender is Button btn && btn.DataContext is LogEntryDisplay display)
-        {
-            display.IsExpanded = !display.IsExpanded;
-        }
+        LogViewHelper.HandleExpandClick(sender);
     }
 
     /// <summary>
@@ -113,21 +81,6 @@ public sealed partial class LogModeView : UserControl
     /// </summary>
     private void OnOpenFolderClick(object sender, RoutedEventArgs e)
     {
-        if (sender is Button btn && btn.DataContext is LogEntryDisplay display
-            && !string.IsNullOrEmpty(display.OpenFolderPath))
-        {
-            try
-            {
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = display.OpenFolderPath,
-                    UseShellExecute = true
-                });
-            }
-            catch (Exception ex)
-            {
-                Helpers.DebugLogger.Log($"[LogModeView] OpenFolder failed: {ex.Message}");
-            }
-        }
+        LogViewHelper.HandleOpenFolderClick(sender, "LogModeView");
     }
 }

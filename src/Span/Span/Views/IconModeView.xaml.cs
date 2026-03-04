@@ -1,6 +1,7 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Span.Helpers;
 using Span.Models;
 using Span.Services;
 using Span.ViewModels;
@@ -368,39 +369,16 @@ namespace Span.Views
                     var retryContainer = IconGridView.ContainerFromIndex(idx) as UIElement;
                     if (retryContainer != null)
                     {
-                        var tb = FindChild<TextBox>(retryContainer as DependencyObject);
-                        if (tb != null) ApplyRenameSelection(tb, folder.SelectedChild is FolderViewModel);
+                        var tb = VisualTreeHelpers.FindChild<TextBox>(retryContainer as DependencyObject);
+                        if (tb != null) ViewRenameHelper.ApplyRenameSelection(tb, folder.SelectedChild is FolderViewModel, _renameSelectionCycle, DispatcherQueue);
                     }
                 });
                 return;
             }
 
-            var textBox = FindChild<TextBox>(container as DependencyObject);
+            var textBox = VisualTreeHelpers.FindChild<TextBox>(container as DependencyObject);
             if (textBox != null)
-                ApplyRenameSelection(textBox, folder.SelectedChild is FolderViewModel);
-        }
-
-        private void ApplyRenameSelection(TextBox textBox, bool isFolder)
-        {
-            textBox.Focus(FocusState.Keyboard);
-            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Normal, () =>
-            {
-                if (!isFolder && !string.IsNullOrEmpty(textBox.Text))
-                {
-                    int dotIndex = textBox.Text.LastIndexOf('.');
-                    if (dotIndex > 0)
-                    {
-                        switch (_renameSelectionCycle)
-                        {
-                            case 0: textBox.Select(0, dotIndex); break;
-                            case 1: textBox.SelectAll(); break;
-                            case 2: textBox.Select(dotIndex + 1, textBox.Text.Length - dotIndex - 1); break;
-                        }
-                    }
-                    else textBox.SelectAll();
-                }
-                else textBox.SelectAll();
-            });
+                ViewRenameHelper.ApplyRenameSelection(textBox, folder.SelectedChild is FolderViewModel, _renameSelectionCycle, DispatcherQueue);
         }
 
         private void OnRenameTextBoxKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
@@ -429,7 +407,7 @@ namespace Span.Views
             {
                 // F2 cycling while renaming
                 _renameSelectionCycle = (_renameSelectionCycle + 1) % 3;
-                ApplyRenameSelection(textBox, vm is FolderViewModel);
+                ViewRenameHelper.ApplyRenameSelection(textBox, vm is FolderViewModel, _renameSelectionCycle, DispatcherQueue);
                 e.Handled = true;
             }
         }
@@ -619,17 +597,5 @@ namespace Span.Views
             }
         }
 
-        private static T? FindChild<T>(DependencyObject? parent) where T : DependencyObject
-        {
-            if (parent == null) return null;
-            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
-            {
-                var child = VisualTreeHelper.GetChild(parent, i);
-                if (child is T t) return t;
-                var result = FindChild<T>(child);
-                if (result != null) return result;
-            }
-            return null;
-        }
     }
 }

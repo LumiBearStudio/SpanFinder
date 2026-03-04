@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.Extensions.DependencyInjection;
+using Span.Helpers;
 using Span.Models;
 using Span.ViewModels;
 using Span.Services;
@@ -3090,7 +3091,7 @@ namespace Span
 
             if (_rubberBandHelpers.ContainsKey(grid)) return;
 
-            var listView = FindChild<ListView>(grid);
+            var listView = VisualTreeHelpers.FindChild<ListView>(grid);
             if (listView == null) return;
 
             var helper = new Helpers.RubberBandSelectionHelper(
@@ -3120,17 +3121,17 @@ namespace Span
             if (args.ItemContainer is ListViewItem item)
             {
                 // Reset any stale padding on the template root Grid (ContentBorder)
-                var rootGrid = FindChild<Grid>(item);
+                var rootGrid = VisualTreeHelpers.FindChild<Grid>(item);
                 if (rootGrid != null && rootGrid.Padding != _zeroPadding)
                     rootGrid.Padding = _zeroPadding;
 
                 // Apply density padding + min height to the DATA TEMPLATE Grid (inside ContentPresenter),
                 // NOT the template root Grid (ContentBorder).
                 // 값이 이미 동일하면 건너뛰어 불필요한 레이아웃 무효화 방지.
-                var cp = FindChild<ContentPresenter>(item);
+                var cp = VisualTreeHelpers.FindChild<ContentPresenter>(item);
                 if (cp != null)
                 {
-                    var grid = FindChild<Grid>(cp);
+                    var grid = VisualTreeHelpers.FindChild<Grid>(cp);
                     if (grid != null)
                     {
                         if (grid.Padding != _densityPadding)
@@ -3405,7 +3406,7 @@ namespace Span
                     }
                     if (!clickedOnItem)
                     {
-                        var listView = FindChild<ListView>(parent ?? grid);
+                        var listView = VisualTreeHelpers.FindChild<ListView>(parent ?? grid);
                         listView?.Focus(FocusState.Programmatic);
                     }
                 }
@@ -3559,23 +3560,7 @@ namespace Span
             if (control == null) return null;
             var container = control.ContainerFromIndex(columnIndex) as ContentPresenter;
             if (container == null) return null;
-            return FindChild<ListView>(container);
-        }
-
-        /// <summary>
-        /// 비주얼 트리에서 지정된 타입의 첫 번째 자식 요소를 찾는다.
-        /// </summary>
-        private static T? FindChild<T>(DependencyObject parent) where T : DependencyObject
-        {
-            int count = VisualTreeHelper.GetChildrenCount(parent);
-            for (int i = 0; i < count; i++)
-            {
-                var child = VisualTreeHelper.GetChild(parent, i);
-                if (child is T found) return found;
-                var result = FindChild<T>(child);
-                if (result != null) return result;
-            }
-            return null;
+            return VisualTreeHelpers.FindChild<ListView>(container);
         }
 
         /// <summary>

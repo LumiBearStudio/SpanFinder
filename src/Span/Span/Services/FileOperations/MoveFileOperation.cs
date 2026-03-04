@@ -11,13 +11,6 @@ namespace Span.Services.FileOperations;
 /// </summary>
 public class MoveFileOperation : IFileOperation, IPausableOperation
 {
-    /// <summary>
-    /// I/O 버퍼 크기 (1MB). 대용량 파일에서 시스템 콜 횟수를 줄여 throughput 극대화.
-    /// 1MB 이하 파일은 CopyDirRecursive에서 File.Copy()로 커널 최적화 경로 사용.
-    /// </summary>
-    private const int BufferSize = 1048576;
-    private const int ProgressReportIntervalMs = 100; // Progress 보고 최소 간격 (ms)
-
     private readonly List<string> _sourcePaths;
     private readonly string _destinationDirectory;
     private readonly FileSystemRouter? _router;
@@ -46,8 +39,8 @@ public class MoveFileOperation : IFileOperation, IPausableOperation
 
     /// <inheritdoc/>
     public string Description => _sourcePaths.Count == 1
-        ? string.Format(L("Op_MoveSingle"), GetFileName(_sourcePaths[0]), GetFileName(_destinationDirectory))
-        : string.Format(L("Op_MoveMultiple"), _sourcePaths.Count, GetFileName(_destinationDirectory));
+        ? string.Format(L("Op_MoveSingle"), FileOperationHelpers.GetFileName(_sourcePaths[0]), FileOperationHelpers.GetFileName(_destinationDirectory))
+        : string.Format(L("Op_MoveMultiple"), _sourcePaths.Count, FileOperationHelpers.GetFileName(_destinationDirectory));
 
     /// <inheritdoc/>
     public bool CanUndo => !_hasRemotePaths;
@@ -58,21 +51,8 @@ public class MoveFileOperation : IFileOperation, IPausableOperation
         _pauseEvent = pauseEvent;
     }
 
-    /// <summary>
-    /// 일시정지 상태이면 재개될 때까지 대기. 취소 시 예외 없이 즉시 반환.
-    /// ThrowIfCancellationRequested 대신 IsCancellationRequested 체크를 사용하는 이유:
-    /// ManualResetEventSlim.Wait(ct)가 취소 시 OperationCanceledException을 던지므로,
-    /// 여기서 catch하고 호출자(루프)가 IsCancellationRequested로 정상 종료 처리.
-    /// 예외를 전파하면 각 파일 루프의 try-catch에서 개별 파일 에러로 오인될 수 있음.
-    /// </summary>
     private void WaitIfPaused(CancellationToken cancellationToken)
-    {
-        if (_pauseEvent != null && !cancellationToken.IsCancellationRequested)
-        {
-            try { _pauseEvent.Wait(cancellationToken); }
-            catch (OperationCanceledException) { /* 취소 시 즉시 반환 — 호출자가 IsCancellationRequested 확인 */ }
-        }
-    }
+        => FileOperationHelpers.WaitIfPaused(_pauseEvent, cancellationToken);
 
     /// <inheritdoc/>
     public async Task<OperationResult> ExecuteAsync(
@@ -102,8 +82,8 @@ public class MoveFileOperation : IFileOperation, IPausableOperation
                 bool srcIsRemote = FileSystemRouter.IsRemotePath(sourcePath);
                 bool destIsRemote = FileSystemRouter.IsRemotePath(_destinationDirectory);
 
-                var fileName = GetFileName(sourcePath);
-                var destPath = CombinePath(_destinationDirectory, fileName, destIsRemote);
+                var fileName = FileOperationHelpers.GetFileName(sourcePath);
+                var destPath = FileOperationHelpers.CombinePath(_destinationDirectory, fileName, destIsRemote);
 
                 try
                 {
@@ -139,7 +119,7 @@ public class MoveFileOperation : IFileOperation, IPausableOperation
                                     break;
                                 case ConflictResolution.KeepBoth:
                                 default:
-                                    destPath = GetUniqueFileName(destPath);
+                                    destPath = FileOperationHelpers.GetUniqueFileName(destPath);
                                     break;
                             }
                         }
@@ -148,7 +128,7 @@ public class MoveFileOperation : IFileOperation, IPausableOperation
                         bool srcIsDir = false;
                         if (srcIsRemote)
                         {
-                            var srcProvider = GetRemoteProvider(sourcePath);
+                            var srcProvider = FileOperationHelpers.GetRemoteProvider(_router, sourcePath);
                             if (srcProvider != null)
                             {
                                 var remotePath = FileSystemRouter.ExtractRemotePath(sourcePath);
@@ -170,7 +150,7 @@ public class MoveFileOperation : IFileOperation, IPausableOperation
                                 sourcePath, destPath, srcIsRemote, destIsRemote,
                                 new Progress<long>(bytes =>
                                 {
-                                    ReportProgress(progress, fileName, fileIndex, localProcessed + bytes, totalBytes, startTime);
+                                    FileOperationHelpers.ReportProgress(progress, fileName, fileIndex, _sourcePaths.Count, localProcessed + bytes, totalBytes, startTime);
                                 }),
                                 cancellationToken);
                         }
@@ -180,7 +160,7 @@ public class MoveFileOperation : IFileOperation, IPausableOperation
                                 sourcePath, destPath, srcIsRemote, destIsRemote,
                                 new Progress<long>(bytes =>
                                 {
-                                    ReportProgress(progress, fileName, fileIndex, localProcessed + bytes, totalBytes, startTime);
+                                    FileOperationHelpers.ReportProgress(progress, fileName, fileIndex, _sourcePaths.Count, localProcessed + bytes, totalBytes, startTime);
                                 }),
                                 cancellationToken);
                         }
@@ -188,7 +168,7 @@ public class MoveFileOperation : IFileOperation, IPausableOperation
                         // Delete source after successful copy
                         if (srcIsRemote)
                         {
-                            var provider = GetRemoteProvider(sourcePath);
+                            var provider = FileOperationHelpers.GetRemoteProvider(_router, sourcePath);
                             if (provider != null)
                             {
                                 var remotePath = FileSystemRouter.ExtractRemotePath(sourcePath);
@@ -218,7 +198,7 @@ public class MoveFileOperation : IFileOperation, IPausableOperation
                                     break;
                                 case ConflictResolution.KeepBoth:
                                 default:
-                                    destPath = GetUniqueFileName(destPath);
+                                    destPath = FileOperationHelpers.GetUniqueFileName(destPath);
                                     break;
                             }
                         }
@@ -234,12 +214,14 @@ public class MoveFileOperation : IFileOperation, IPausableOperation
 
                             if (File.Exists(sourcePath))
                             {
-                                await CopyFileWithProgressAsync(
+                                await FileOperationHelpers.CopyFileWithProgressAsync(
                                     sourcePath,
                                     destPath,
+                                    FileOperationHelpers.DefaultBufferSize,
+                                    _pauseEvent,
                                     new Progress<long>(bytes =>
                                     {
-                                        ReportProgress(progress, fileName, fileIndex, localProcessed + bytes, totalBytes, startTime);
+                                        FileOperationHelpers.ReportProgress(progress, fileName, fileIndex, _sourcePaths.Count, localProcessed + bytes, totalBytes, startTime);
                                     }),
                                     cancellationToken);
 
@@ -254,12 +236,14 @@ public class MoveFileOperation : IFileOperation, IPausableOperation
                             }
                             else if (Directory.Exists(sourcePath))
                             {
-                                await CopyDirectoryWithProgressAsync(
+                                await FileOperationHelpers.CopyDirectoryWithProgressAsync(
                                     sourcePath,
                                     destPath,
+                                    FileOperationHelpers.DefaultBufferSize,
+                                    _pauseEvent,
                                     new Progress<long>(bytes =>
                                     {
-                                        ReportProgress(progress, fileName, fileIndex, localProcessed + bytes, totalBytes, startTime);
+                                        FileOperationHelpers.ReportProgress(progress, fileName, fileIndex, _sourcePaths.Count, localProcessed + bytes, totalBytes, startTime);
                                     }),
                                     cancellationToken);
 
@@ -321,19 +305,7 @@ public class MoveFileOperation : IFileOperation, IPausableOperation
                 return result;
             }
 
-            if (errors.Count > 0)
-            {
-                if (result.AffectedPaths.Count == 0)
-                {
-                    result.Success = false;
-                    result.ErrorMessage = string.Join("\n", errors);
-                }
-                else
-                {
-                    result.Success = true;
-                    result.ErrorMessage = $"{L("Op_SomeNotMoved")}:\n{string.Join("\n", errors)}";
-                }
-            }
+            FileOperationHelpers.FinalizeResultWithErrors(result, errors, "Op_SomeNotMoved");
         }
         catch (OperationCanceledException)
         {
@@ -377,23 +349,11 @@ public class MoveFileOperation : IFileOperation, IPausableOperation
                 }
                 catch (Exception ex)
                 {
-                    errors.Add(string.Format(L("Op_FailedTo_MoveBack"), GetFileName(dest), ex.Message));
+                    errors.Add(string.Format(L("Op_FailedTo_MoveBack"), FileOperationHelpers.GetFileName(dest), ex.Message));
                 }
             }
 
-            if (errors.Count > 0)
-            {
-                if (result.AffectedPaths.Count == 0)
-                {
-                    result.Success = false;
-                    result.ErrorMessage = string.Join("\n", errors);
-                }
-                else
-                {
-                    result.Success = true;
-                    result.ErrorMessage = $"{L("Op_SomeNotUndone")}:\n{string.Join("\n", errors)}";
-                }
-            }
+            FileOperationHelpers.FinalizeResultWithErrors(result, errors, "Op_SomeNotUndone");
         }
         catch (OperationCanceledException)
         {
@@ -426,7 +386,7 @@ public class MoveFileOperation : IFileOperation, IPausableOperation
         Stream sourceStream;
         if (srcIsRemote)
         {
-            var provider = GetRemoteProvider(sourcePath)
+            var provider = FileOperationHelpers.GetRemoteProvider(_router, sourcePath)
                 ?? throw new InvalidOperationException($"원격 소스에 대한 연결을 찾을 수 없습니다: {sourcePath}");
             var remotePath = FileSystemRouter.ExtractRemotePath(sourcePath);
             sourceStream = await provider.OpenReadAsync(remotePath, ct);
@@ -434,21 +394,21 @@ public class MoveFileOperation : IFileOperation, IPausableOperation
         else
         {
             sourceStream = new FileStream(sourcePath, FileMode.Open, FileAccess.Read, FileShare.Read,
-                BufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
+                FileOperationHelpers.DefaultBufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
         }
 
         try
         {
             if (destIsRemote)
             {
-                var provider = GetRemoteProvider(destPath)
+                var provider = FileOperationHelpers.GetRemoteProvider(_router, destPath)
                     ?? throw new InvalidOperationException($"원격 대상에 대한 연결을 찾을 수 없습니다: {destPath}");
                 var remotePath = FileSystemRouter.ExtractRemotePath(destPath);
 
                 if (!sourceStream.CanSeek)
                 {
                     var memStream = new MemoryStream();
-                    var buffer = new byte[BufferSize];
+                    var buffer = new byte[FileOperationHelpers.DefaultBufferSize];
                     long copiedBytes = 0;
                     int bytesRead;
                     while ((bytesRead = await sourceStream.ReadAsync(buffer, ct)) > 0)
@@ -475,8 +435,8 @@ public class MoveFileOperation : IFileOperation, IPausableOperation
                     Directory.CreateDirectory(destDir);
 
                 using var destStream = new FileStream(destPath, FileMode.Create, FileAccess.Write, FileShare.None,
-                    BufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
-                var buffer = new byte[BufferSize];
+                    FileOperationHelpers.DefaultBufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
+                var buffer = new byte[FileOperationHelpers.DefaultBufferSize];
                 long copiedBytes = 0;
                 int bytesRead;
                 long lastReportTime = Environment.TickCount64;
@@ -489,7 +449,7 @@ public class MoveFileOperation : IFileOperation, IPausableOperation
                     if (progress != null)
                     {
                         long now = Environment.TickCount64;
-                        if (now - lastReportTime >= ProgressReportIntervalMs)
+                        if (now - lastReportTime >= FileOperationHelpers.ProgressReportIntervalMs)
                         {
                             progress.Report(copiedBytes);
                             lastReportTime = now;
@@ -516,7 +476,7 @@ public class MoveFileOperation : IFileOperation, IPausableOperation
 
         if (destIsRemote)
         {
-            var provider = GetRemoteProvider(destPath)
+            var provider = FileOperationHelpers.GetRemoteProvider(_router, destPath)
                 ?? throw new InvalidOperationException($"원격 대상에 대한 연결을 찾을 수 없습니다: {destPath}");
             await provider.CreateDirectoryAsync(FileSystemRouter.ExtractRemotePath(destPath), ct);
         }
@@ -528,7 +488,7 @@ public class MoveFileOperation : IFileOperation, IPausableOperation
         IReadOnlyList<IFileSystemItem> items;
         if (srcIsRemote)
         {
-            var provider = GetRemoteProvider(sourcePath)
+            var provider = FileOperationHelpers.GetRemoteProvider(_router, sourcePath)
                 ?? throw new InvalidOperationException($"원격 소스에 대한 연결을 찾을 수 없습니다: {sourcePath}");
             var remotePath = FileSystemRouter.ExtractRemotePath(sourcePath);
             items = await provider.GetItemsAsync(remotePath, ct);
@@ -565,14 +525,14 @@ public class MoveFileOperation : IFileOperation, IPausableOperation
             string childSrcPath;
             if (srcIsRemote)
             {
-                childSrcPath = CombineRemoteUri(sourcePath, item.Name);
+                childSrcPath = FileOperationHelpers.CombineRemoteUri(sourcePath, item.Name);
             }
             else
             {
                 childSrcPath = item.Path;
             }
 
-            var childDestPath = CombinePath(destPath, item.Name, destIsRemote);
+            var childDestPath = FileOperationHelpers.CombinePath(destPath, item.Name, destIsRemote);
 
             if (item is FolderItem)
             {
@@ -607,169 +567,7 @@ public class MoveFileOperation : IFileOperation, IPausableOperation
         return !string.Equals(sourceRoot, destRoot, StringComparison.OrdinalIgnoreCase);
     }
 
-    private async Task CopyFileWithProgressAsync(
-        string source,
-        string destination,
-        IProgress<long>? progress,
-        CancellationToken cancellationToken)
-    {
-        // SequentialScan으로 OS-level read-ahead 최적화
-        // ReadAsync/WriteAsync로 CancellationToken을 통한 즉시 취소 지원
-        using var sourceStream = new FileStream(
-            source, FileMode.Open, FileAccess.Read, FileShare.Read,
-            BufferSize, FileOptions.SequentialScan);
-
-        using var destStream = new FileStream(
-            destination, FileMode.Create, FileAccess.Write, FileShare.None,
-            BufferSize, FileOptions.SequentialScan);
-
-        var buffer = new byte[BufferSize];
-        long copiedBytes = 0;
-        int bytesRead;
-        long lastReportTime = Environment.TickCount64;
-
-        // async I/O로 취소 토큰이 Read/Write 중에도 즉시 반응
-        while ((bytesRead = await sourceStream.ReadAsync(buffer, cancellationToken)) > 0)
-        {
-            WaitIfPaused(cancellationToken);
-            await destStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
-            copiedBytes += bytesRead;
-
-            if (progress != null)
-            {
-                long now = Environment.TickCount64;
-                if (now - lastReportTime >= ProgressReportIntervalMs)
-                {
-                    progress.Report(copiedBytes);
-                    lastReportTime = now;
-                }
-            }
-        }
-
-        progress?.Report(copiedBytes);
-    }
-
-    private async Task CopyDirectoryWithProgressAsync(
-        string source,
-        string destination,
-        IProgress<long> overallProgress,
-        CancellationToken cancellationToken)
-    {
-        // 자기 폴더 복사 방지: destination이 source 안에 있으면 해당 디렉토리를 skip
-        string? selfCopySkipDir = null;
-        var srcNorm = source.TrimEnd('\\', '/') + "\\";
-        var destNorm = destination.TrimEnd('\\', '/') + "\\";
-        if (destNorm.StartsWith(srcNorm, StringComparison.OrdinalIgnoreCase))
-            selfCopySkipDir = destination;
-
-        long bytesCopied = 0;
-
-        // 취소 시 return 패턴: ThrowIfCancellationRequested 대신 IsCancellationRequested + return 사용.
-        // 이유: 재귀 호출 스택 전체를 예외로 unwind하는 비용을 피하고,
-        // 부분 복사된 파일들은 ExecuteAsync의 cancellation 분기에서 일관되게 처리.
-        async Task CopyDirRecursive(string src, string dest)
-        {
-            if (cancellationToken.IsCancellationRequested) return;
-            Directory.CreateDirectory(dest);
-
-            foreach (var file in Directory.EnumerateFiles(src))
-            {
-                WaitIfPaused(cancellationToken);
-                if (cancellationToken.IsCancellationRequested) return;
-
-                var destFile = Path.Combine(dest, Path.GetFileName(file));
-                var fileSize = new FileInfo(file).Length;
-
-                if (fileSize <= BufferSize) // 1MB 이하: File.Copy 사용 (커널 최적화)
-                {
-                    File.Copy(file, destFile, overwrite: true);
-                }
-                else // 1MB 초과: 스트림 복사 (대용량 파일 progress 리포팅 가능)
-                {
-                    await CopyFileWithProgressAsync(
-                        file, destFile,
-                        null,
-                        cancellationToken);
-                }
-
-                bytesCopied += fileSize;
-                overallProgress?.Report(bytesCopied);
-            }
-
-            // EnumerateDirectories: lazy enumeration으로 취소 즉시 반응
-            foreach (var dir in Directory.EnumerateDirectories(src))
-            {
-                WaitIfPaused(cancellationToken);
-                if (cancellationToken.IsCancellationRequested) return;
-
-                // 자기 복사 방지: destination 디렉토리 자체를 재귀 대상에서 제외
-                if (selfCopySkipDir != null && string.Equals(dir, selfCopySkipDir, StringComparison.OrdinalIgnoreCase))
-                    continue;
-
-                var destDir = Path.Combine(dest, Path.GetFileName(dir));
-                await CopyDirRecursive(dir, destDir);
-            }
-        }
-
-        await CopyDirRecursive(source, destination);
-    }
-
     // ── Helper methods ──
-
-    private IFileSystemProvider? GetRemoteProvider(string fullPath)
-    {
-        return _router?.GetConnectionForPath(fullPath);
-    }
-
-    private static string GetFileName(string path)
-    {
-        if (FileSystemRouter.IsRemotePath(path))
-        {
-            if (Uri.TryCreate(path, UriKind.Absolute, out var uri))
-            {
-                var segments = uri.AbsolutePath.TrimEnd('/').Split('/');
-                return segments.Length > 0 ? Uri.UnescapeDataString(segments[^1]) : path;
-            }
-            return path.TrimEnd('/').Split('/')[^1];
-        }
-        return Path.GetFileName(path);
-    }
-
-    private static string CombinePath(string directory, string name, bool isRemote)
-    {
-        if (isRemote)
-            return directory.TrimEnd('/') + "/" + name;
-        return Path.Combine(directory, name);
-    }
-
-    private static string CombineRemoteUri(string parentUri, string childName)
-    {
-        return parentUri.TrimEnd('/') + "/" + childName;
-    }
-
-    private void ReportProgress(
-        IProgress<FileOperationProgress>? progress,
-        string fileName, int fileIndex,
-        long currentTotal, long totalBytes,
-        DateTime startTime)
-    {
-        var elapsed = DateTime.Now - startTime;
-        var speed = elapsed.TotalSeconds > 0 ? currentTotal / elapsed.TotalSeconds : 0;
-        var remaining = speed > 0 && totalBytes > 0
-            ? TimeSpan.FromSeconds((totalBytes - currentTotal) / speed)
-            : TimeSpan.Zero;
-
-        progress?.Report(new FileOperationProgress
-        {
-            CurrentFile = fileName,
-            CurrentFileIndex = fileIndex + 1,
-            TotalFileCount = _sourcePaths.Count,
-            TotalBytes = totalBytes > 0 ? totalBytes : currentTotal,
-            ProcessedBytes = currentTotal,
-            SpeedBytesPerSecond = speed,
-            EstimatedTimeRemaining = remaining
-        });
-    }
 
     private static long GetFileOrDirectorySize(string path)
     {
@@ -792,20 +590,4 @@ public class MoveFileOperation : IFileOperation, IPausableOperation
         return 0;
     }
 
-    private string GetUniqueFileName(string path)
-    {
-        var directory = Path.GetDirectoryName(path) ?? "";
-        var fileName = Path.GetFileNameWithoutExtension(path);
-        var extension = Path.GetExtension(path);
-        int counter = 1;
-
-        string newPath;
-        do
-        {
-            newPath = Path.Combine(directory, $"{fileName} ({counter}){extension}");
-            counter++;
-        } while (File.Exists(newPath) || Directory.Exists(newPath));
-
-        return newPath;
-    }
 }

@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Span.Helpers;
 using Span.Models;
 using Span.Services;
 using Span.ViewModels;
@@ -747,57 +748,18 @@ namespace Span.Views
                     var retryContainer = ListGridView.ContainerFromIndex(idx) as UIElement;
                     if (retryContainer != null)
                     {
-                        var tb = FindChild<TextBox>(retryContainer as DependencyObject);
-                        if (tb != null) ApplyRenameSelection(tb, item is FolderViewModel);
+                        var tb = VisualTreeHelpers.FindChild<TextBox>(retryContainer as DependencyObject);
+                        if (tb != null) ViewRenameHelper.ApplyRenameSelection(tb, item is FolderViewModel, _renameSelectionCycle, DispatcherQueue);
                     }
                 });
                 return;
             }
 
-            var textBox = FindChild<TextBox>(container as DependencyObject);
+            var textBox = VisualTreeHelpers.FindChild<TextBox>(container as DependencyObject);
             if (textBox != null)
             {
-                ApplyRenameSelection(textBox, item is FolderViewModel);
+                ViewRenameHelper.ApplyRenameSelection(textBox, item is FolderViewModel, _renameSelectionCycle, DispatcherQueue);
             }
-        }
-
-        /// <summary>
-        /// Apply F2 cycling selection to rename TextBox.
-        /// </summary>
-        private void ApplyRenameSelection(TextBox textBox, bool isFolder)
-        {
-            textBox.Focus(FocusState.Keyboard);
-
-            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Normal, () =>
-            {
-                if (!isFolder && !string.IsNullOrEmpty(textBox.Text))
-                {
-                    int dotIndex = textBox.Text.LastIndexOf('.');
-                    if (dotIndex > 0)
-                    {
-                        switch (_renameSelectionCycle)
-                        {
-                            case 0: // Name only (exclude extension)
-                                textBox.Select(0, dotIndex);
-                                break;
-                            case 1: // All (including extension)
-                                textBox.SelectAll();
-                                break;
-                            case 2: // Extension only
-                                textBox.Select(dotIndex + 1, textBox.Text.Length - dotIndex - 1);
-                                break;
-                        }
-                    }
-                    else
-                    {
-                        textBox.SelectAll();
-                    }
-                }
-                else
-                {
-                    textBox.SelectAll();
-                }
-            });
         }
 
         private void OnRenameTextBoxKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
@@ -859,23 +821,6 @@ namespace Span.Views
                     container.Focus(FocusState.Programmatic);
                 }
             });
-        }
-
-        /// <summary>
-        /// Recursive visual tree search for child of type T.
-        /// </summary>
-        private static T? FindChild<T>(DependencyObject? parent) where T : DependencyObject
-        {
-            if (parent == null) return null;
-            int count = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(parent);
-            for (int i = 0; i < count; i++)
-            {
-                var child = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(parent, i);
-                if (child is T found) return found;
-                var result = FindChild<T>(child);
-                if (result != null) return result;
-            }
-            return null;
         }
 
         #endregion
@@ -1133,7 +1078,7 @@ namespace Span.Views
                             tb.FontSize = itemFont;
                         else if (child is Grid iconGrid && iconGrid.Width <= 24)
                         {
-                            var fi = FindChild<FontIcon>(iconGrid);
+                            var fi = VisualTreeHelpers.FindChild<FontIcon>(iconGrid);
                             if (fi != null && fi.FontSize >= 16 && fi.FontSize <= 21)
                                 fi.FontSize = iconFont;
                         }

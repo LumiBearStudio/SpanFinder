@@ -77,8 +77,8 @@ public class DeleteFileOperation : IFileOperation
     /// <inheritdoc/>
     public string Description => _sourcePaths.Count == 1
         ? (_permanent
-            ? string.Format(L("Op_PermanentDeleteSingle"), GetFileName(_sourcePaths[0]))
-            : string.Format(L("Op_DeleteSingle"), GetFileName(_sourcePaths[0])))
+            ? string.Format(L("Op_PermanentDeleteSingle"), FileOperationHelpers.GetFileName(_sourcePaths[0]))
+            : string.Format(L("Op_DeleteSingle"), FileOperationHelpers.GetFileName(_sourcePaths[0])))
         : (_permanent
             ? string.Format(L("Op_PermanentDeleteMultiple"), _sourcePaths.Count)
             : string.Format(L("Op_DeleteMultiple"), _sourcePaths.Count));
@@ -101,7 +101,7 @@ public class DeleteFileOperation : IFileOperation
                 cancellationToken.ThrowIfCancellationRequested();
 
                 var sourcePath = _sourcePaths[i];
-                var fileName = GetFileName(sourcePath);
+                var fileName = FileOperationHelpers.GetFileName(sourcePath);
 
                 progress?.Report(new FileOperationProgress
                 {
@@ -119,7 +119,7 @@ public class DeleteFileOperation : IFileOperation
                         var provider = _router?.GetConnectionForPath(sourcePath);
                         if (provider == null)
                         {
-                            errors.Add($"원격 연결을 찾을 수 없습니다: {sourcePath}");
+                            errors.Add(string.Format(L("Op_NoRemoteRouter"), sourcePath));
                             continue;
                         }
 
@@ -153,10 +153,7 @@ public class DeleteFileOperation : IFileOperation
 
                         if (recycleError != null)
                         {
-                            if (recycleError.StartsWith("Path not found:"))
-                                errors.Add(recycleError);
-                            else
-                                errors.Add(recycleError);
+                            errors.Add(recycleError);
                             continue;
                         }
                         _recycledPaths[sourcePath] = sourcePath;
@@ -174,19 +171,7 @@ public class DeleteFileOperation : IFileOperation
                 }
             }
 
-            if (errors.Count > 0)
-            {
-                if (result.AffectedPaths.Count == 0)
-                {
-                    result.Success = false;
-                    result.ErrorMessage = string.Join("\n", errors);
-                }
-                else
-                {
-                    result.Success = true;
-                    result.ErrorMessage = $"{L("Op_SomeNotDeleted")}:\n{string.Join("\n", errors)}";
-                }
-            }
+            FileOperationHelpers.FinalizeResultWithErrors(result, errors, "Op_SomeNotDeleted");
         }
         catch (OperationCanceledException)
         {
@@ -603,17 +588,4 @@ exit $r
         return true;
     }
 
-    private static string GetFileName(string path)
-    {
-        if (FileSystemRouter.IsRemotePath(path))
-        {
-            if (Uri.TryCreate(path, UriKind.Absolute, out var uri))
-            {
-                var segments = uri.AbsolutePath.TrimEnd('/').Split('/');
-                return segments.Length > 0 ? Uri.UnescapeDataString(segments[^1]) : path;
-            }
-            return path.TrimEnd('/').Split('/')[^1];
-        }
-        return Path.GetFileName(path);
-    }
 }

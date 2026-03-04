@@ -2,6 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Media;
+using Span.Helpers;
 using Span.Services;
 using Span.ViewModels;
 using System;
@@ -276,7 +277,7 @@ namespace Span.Views
                         }
                         else if (child is Grid iconGrid && iconGrid.Width <= 24)
                         {
-                            var fi = FindChild<FontIcon>(iconGrid);
+                            var fi = VisualTreeHelpers.FindChild<FontIcon>(iconGrid);
                             if (fi != null && fi.FontSize >= 16 && fi.FontSize <= 21)
                                 fi.FontSize = iconFont;
                             if (iconGrid.Width >= 16 && iconGrid.Width <= 21)
@@ -445,25 +446,13 @@ namespace Span.Views
                         }
                         else if (child is Grid iconGrid && iconGrid.Width <= 24)
                         {
-                            var fi = FindChild<FontIcon>(iconGrid);
+                            var fi = VisualTreeHelpers.FindChild<FontIcon>(iconGrid);
                             if (fi != null && fi.FontSize >= 16 && fi.FontSize <= 21)
                                 fi.FontSize = iconFont;
                         }
                     }
                 }
             }
-        }
-
-        private static T? FindChild<T>(DependencyObject parent) where T : DependencyObject
-        {
-            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
-            {
-                var child = VisualTreeHelper.GetChild(parent, i);
-                if (child is T t) return t;
-                var result = FindChild<T>(child);
-                if (result != null) return result;
-            }
-            return null;
         }
 
         #endregion
@@ -685,14 +674,14 @@ namespace Span.Views
                     var retryContainer = DetailsListView.ContainerFromItem(item) as UIElement;
                     if (retryContainer != null)
                     {
-                        var tb = FindChild<TextBox>(retryContainer as DependencyObject);
+                        var tb = VisualTreeHelpers.FindChild<TextBox>(retryContainer as DependencyObject);
                         if (tb != null) ApplyRenameSelection(tb, item is FolderViewModel);
                     }
                 });
                 return;
             }
 
-            var textBox = FindChild<TextBox>(container as DependencyObject);
+            var textBox = VisualTreeHelpers.FindChild<TextBox>(container as DependencyObject);
             if (textBox != null)
             {
                 ApplyRenameSelection(textBox, item is FolderViewModel);

@@ -1,3 +1,5 @@
+using static Span.Services.LocalizationService;
+
 namespace Span.Services.FileOperations;
 
 /// <summary>
@@ -22,7 +24,7 @@ public class NewFolderOperation : IFileOperation
         _isRemote = FileSystemRouter.IsRemotePath(folderPath);
     }
 
-    public string Description => $"Create folder '{GetFileName(_folderPath)}'";
+    public string Description => $"Create folder '{FileOperationHelpers.GetFileName(_folderPath)}'";
     public bool CanUndo => !_isRemote;
 
     public async Task<OperationResult> ExecuteAsync(
@@ -35,7 +37,7 @@ public class NewFolderOperation : IFileOperation
             {
                 var provider = _router?.GetConnectionForPath(_folderPath);
                 if (provider == null)
-                    return OperationResult.CreateFailure($"원격 연결을 찾을 수 없습니다: {_folderPath}");
+                    return OperationResult.CreateFailure(string.Format(L("Op_NoRemoteRouter"), _folderPath));
 
                 var remotePath = FileSystemRouter.ExtractRemotePath(_folderPath);
                 await provider.CreateDirectoryAsync(remotePath, cancellationToken);
@@ -72,17 +74,4 @@ public class NewFolderOperation : IFileOperation
         }
     }
 
-    private static string GetFileName(string path)
-    {
-        if (FileSystemRouter.IsRemotePath(path))
-        {
-            if (Uri.TryCreate(path, UriKind.Absolute, out var uri))
-            {
-                var segments = uri.AbsolutePath.TrimEnd('/').Split('/');
-                return segments.Length > 0 ? Uri.UnescapeDataString(segments[^1]) : path;
-            }
-            return path.TrimEnd('/').Split('/')[^1];
-        }
-        return Path.GetFileName(path);
-    }
 }

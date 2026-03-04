@@ -25,7 +25,7 @@ public class RenameFileOperation : IFileOperation
         _newName = newName ?? throw new ArgumentNullException(nameof(newName));
         _router = router;
         _isRemote = FileSystemRouter.IsRemotePath(sourcePath);
-        _oldName = GetFileName(sourcePath);
+        _oldName = FileOperationHelpers.GetFileName(sourcePath);
     }
 
     /// <inheritdoc/>
@@ -56,7 +56,7 @@ public class RenameFileOperation : IFileOperation
                 // ── 원격 이름 변경 ──
                 var provider = _router?.GetConnectionForPath(_sourcePath);
                 if (provider == null)
-                    return OperationResult.CreateFailure($"원격 연결을 찾을 수 없습니다: {_sourcePath}");
+                    return OperationResult.CreateFailure(string.Format(L("Op_NoRemoteRouter"), _sourcePath));
 
                 var remotePath = FileSystemRouter.ExtractRemotePath(_sourcePath);
                 var parentDir = remotePath.Contains('/')
@@ -165,17 +165,4 @@ public class RenameFileOperation : IFileOperation
         }
     }
 
-    private static string GetFileName(string path)
-    {
-        if (FileSystemRouter.IsRemotePath(path))
-        {
-            if (Uri.TryCreate(path, UriKind.Absolute, out var uri))
-            {
-                var segments = uri.AbsolutePath.TrimEnd('/').Split('/');
-                return segments.Length > 0 ? Uri.UnescapeDataString(segments[^1]) : path;
-            }
-            return path.TrimEnd('/').Split('/')[^1];
-        }
-        return Path.GetFileName(path);
-    }
 }

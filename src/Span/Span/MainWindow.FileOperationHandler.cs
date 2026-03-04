@@ -2,6 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.Extensions.DependencyInjection;
+using Span.Helpers;
 using Span.Models;
 using Span.ViewModels;
 using Span.Views.Dialogs;
@@ -938,14 +939,14 @@ namespace Span
                     var retryContainer = listView.ContainerFromIndex(idx) as UIElement;
                     if (retryContainer != null)
                     {
-                        var tb = FindChild<TextBox>(retryContainer as DependencyObject);
+                        var tb = VisualTreeHelpers.FindChild<TextBox>(retryContainer as DependencyObject);
                         if (tb != null) ApplyRenameSelection(tb, column.SelectedChild is FolderViewModel);
                     }
                 });
                 return;
             }
 
-            var textBox = FindChild<TextBox>(container as DependencyObject);
+            var textBox = VisualTreeHelpers.FindChild<TextBox>(container as DependencyObject);
             if (textBox != null)
             {
                 ApplyRenameSelection(textBox, column.SelectedChild is FolderViewModel);

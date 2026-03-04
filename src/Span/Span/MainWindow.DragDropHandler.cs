@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.Extensions.DependencyInjection;
+using Span.Helpers;
 using Span.ViewModels;
 using Span.Views.Dialogs;
 using Span.Services;
@@ -790,7 +791,7 @@ namespace Span
                     {
                         var container = control.ContainerFromIndex(i) as ContentPresenter;
                         if (container == null) continue;
-                        var grid = FindChild<Grid>(container);
+                        var grid = VisualTreeHelpers.FindChild<Grid>(container);
                         if (grid != null && grid != _resizingColumnGrid)
                         {
                             grid.Width = newWidth;
@@ -856,7 +857,7 @@ namespace Span
             {
                 var container = control.ContainerFromIndex(i) as ContentPresenter;
                 if (container == null) continue;
-                var grid = FindChild<Grid>(container);
+                var grid = VisualTreeHelpers.FindChild<Grid>(container);
                 if (grid == parentGrid)
                 {
                     columnIndex = i;
@@ -963,7 +964,7 @@ namespace Span
             {
                 var container = control.ContainerFromIndex(i) as ContentPresenter;
                 if (container == null) continue;
-                var grid = FindChild<Grid>(container);
+                var grid = VisualTreeHelpers.FindChild<Grid>(container);
                 if (grid != null)
                 {
                     grid.Width = width;
@@ -989,7 +990,7 @@ namespace Span
                 double fittedWidth = MeasureColumnContentWidth(columns[i]);
                 var container = control.ContainerFromIndex(i) as ContentPresenter;
                 if (container == null) continue;
-                var grid = FindChild<Grid>(container);
+                var grid = VisualTreeHelpers.FindChild<Grid>(container);
                 if (grid != null)
                 {
                     grid.Width = fittedWidth;
