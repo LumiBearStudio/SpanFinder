@@ -24,10 +24,14 @@ namespace Span.ViewModels
             // Switch away from Home/ActionLog mode — but preserve Details/List/Icon view modes
             var activeViewMode = (IsSplitViewEnabled && ActivePane == ActivePane.Right)
                 ? RightViewMode : CurrentViewMode;
+            Helpers.DebugLogger.Log($"[OpenDrive] activeViewMode={activeViewMode}, CurrentViewMode={CurrentViewMode}");
             if (activeViewMode == ViewMode.Home || activeViewMode == ViewMode.ActionLog)
             {
-                SwitchViewMode(ViewMode.MillerColumns);
+                var resolved = ResolveViewModeFromHome();
+                Helpers.DebugLogger.Log($"[OpenDrive] Home→Drive: switching to {resolved}");
+                SwitchViewMode(resolved);
             }
+            Helpers.DebugLogger.Log($"[OpenDrive] AFTER switch: CurrentViewMode={CurrentViewMode}");
 
             var driveRoot = new FolderItem
             {
@@ -212,7 +216,7 @@ namespace Span.ViewModels
         /// <summary>
         /// 마지막 명시적 리프레시 시각. FileWatcher 디바운싱에 사용.
         /// </summary>
-        public DateTime LastExplicitRefreshTime { get; private set; }
+        public DateTime LastExplicitRefreshTime { get; internal set; }
 
         public async Task RefreshCurrentFolderAsync(int? columnIndex = null, ExplorerViewModel? explorer = null)
         {

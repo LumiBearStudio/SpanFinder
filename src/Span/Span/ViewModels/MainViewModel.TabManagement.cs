@@ -21,6 +21,32 @@ namespace Span.ViewModels
         private string HomeLabel =>
             App.Current.Services.GetService<LocalizationService>()?.Get("Home") ?? "Home";
 
+        /// <summary>
+        /// 마지막으로 닫힌 탭의 ViewMode를 기억하여 Home→드라이브 전환 시 복원.
+        /// 한 번 사용 후 null로 초기화.
+        /// </summary>
+        private ViewMode? _lastClosedViewMode;
+
+        /// <summary>
+        /// Home 모드 전환 전의 ViewMode를 기억 (사이드바 Home 클릭 등).
+        /// 드라이브/즐겨찾기 클릭 시 복원.
+        /// </summary>
+        private ViewMode? _viewModeBeforeHome;
+
+        /// <summary>
+        /// Home/ActionLog에서 탐색기로 복귀 시 이전 ViewMode 결정.
+        /// 우선순위: _lastClosedViewMode > _viewModeBeforeHome > MillerColumns
+        /// </summary>
+        public ViewMode ResolveViewModeFromHome()
+        {
+            Helpers.DebugLogger.Log($"[ResolveViewModeFromHome] _lastClosedViewMode={_lastClosedViewMode}, _viewModeBeforeHome={_viewModeBeforeHome}");
+            var mode = _lastClosedViewMode ?? _viewModeBeforeHome ?? ViewMode.MillerColumns;
+            Helpers.DebugLogger.Log($"[ResolveViewModeFromHome] → resolved={mode}");
+            _lastClosedViewMode = null;
+            _viewModeBeforeHome = null;
+            return mode;
+        }
+
         #region Tab Management
 
         /// <summary>
@@ -130,8 +156,16 @@ namespace Span.ViewModels
 
         public void CloseTab(int index)
         {
+            Helpers.DebugLogger.Log($"[CloseTab] index={index}, Tabs.Count={Tabs.Count}, CurrentViewMode={CurrentViewMode}, _viewModeBeforeHome={_viewModeBeforeHome}, _lastClosedViewMode={_lastClosedViewMode}");
             if (Tabs.Count <= 1)
             {
+                // 탭 닫기 전에 현재 ViewMode 저장 (Home→드라이브 전환 시 복원용)
+                // Home 상태에서 닫으면 Home 전환 전 ViewMode를 사용
+                _lastClosedViewMode = (CurrentViewMode == ViewMode.Home)
+                    ? _viewModeBeforeHome
+                    : CurrentViewMode;
+                Helpers.DebugLogger.Log($"[CloseTab] SAVED _lastClosedViewMode={_lastClosedViewMode}");
+
                 // Last tab — reset to Home tab instead of closing window
                 Tabs[0].Explorer?.Cleanup();
                 Tabs.RemoveAt(0);

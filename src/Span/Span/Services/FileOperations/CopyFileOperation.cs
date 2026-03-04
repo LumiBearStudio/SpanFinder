@@ -9,9 +9,8 @@ namespace Span.Services.FileOperations;
 /// </summary>
 public class CopyFileOperation : IFileOperation, IPausableOperation
 {
-    private const int BufferSize = 1048576; // 1MB buffer for file copying (up from 80KB)
-
-    private static int GetBufferSize(long fileSize) => fileSize < 1048576 ? 81920 : BufferSize;
+    private const int BufferSize = 1048576; // 1MB 버퍼
+    private const int ProgressReportIntervalMs = 100; // Progress 보고 최소 간격 (ms)
 
     private readonly List<string> _sourcePaths;
     private readonly string _destinationDirectory;
@@ -55,11 +54,11 @@ public class CopyFileOperation : IFileOperation, IPausableOperation
 
     private void WaitIfPaused(CancellationToken cancellationToken)
     {
-        if (_pauseEvent != null)
+        if (_pauseEvent != null && !cancellationToken.IsCancellationRequested)
         {
-            _pauseEvent.Wait(cancellationToken);
+            try { _pauseEvent.Wait(cancellationToken); }
+            catch (OperationCanceledException) { /* 취소 시 즉시 반환 — 호출자가 IsCancellationRequested 확인 */ }
         }
-        cancellationToken.ThrowIfCancellationRequested();
     }
 
     /// <inheritdoc/>
@@ -75,15 +74,18 @@ public class CopyFileOperation : IFileOperation, IPausableOperation
 
         try
         {
-            // Calculate total bytes
-            foreach (var path in _sourcePaths)
+            // 전체 바이트 계산 (각 항목 크기를 캐싱하여 이중 계산 방지)
+            var itemSizes = new long[_sourcePaths.Count];
+            for (int idx = 0; idx < _sourcePaths.Count; idx++)
             {
-                totalBytes += await GetFileOrDirectorySizeAsync(path, cancellationToken);
+                itemSizes[idx] = await GetFileOrDirectorySizeAsync(_sourcePaths[idx], cancellationToken);
+                totalBytes += itemSizes[idx];
             }
 
             for (int i = 0; i < _sourcePaths.Count; i++)
             {
                 WaitIfPaused(cancellationToken);
+                if (cancellationToken.IsCancellationRequested) break;
 
                 var sourcePath = _sourcePaths[i];
                 bool srcIsRemote = FileSystemRouter.IsRemotePath(sourcePath);
@@ -167,9 +169,8 @@ public class CopyFileOperation : IFileOperation, IPausableOperation
                                 cancellationToken);
                         }
 
-                        // Update cumulative progress for multi-file operations
-                        var itemSize = await GetFileOrDirectorySizeAsync(sourcePath, cancellationToken);
-                        processedBytes += itemSize;
+                        // 캐싱된 크기 사용 (이중 계산 방지)
+                        processedBytes += itemSizes[i];
                     }
                     else
                     {
@@ -218,7 +219,8 @@ public class CopyFileOperation : IFileOperation, IPausableOperation
                         }
                         else if (Directory.Exists(sourcePath))
                         {
-                            var dirSize = await GetFileOrDirectorySizeAsync(sourcePath, cancellationToken);
+                            // 캐싱된 크기 사용 (이중 계산 방지)
+                            var dirSize = itemSizes[i];
                             long localProcessed = processedBytes;
                             int fileIndex = i;
                             await CopyDirectoryWithProgressAsync(
@@ -253,6 +255,14 @@ public class CopyFileOperation : IFileOperation, IPausableOperation
                 {
                     errors.Add($"Failed to copy {fileName}: {ex.Message}");
                 }
+            }
+
+            // 취소 시 예외 없이 즉시 종료
+            if (cancellationToken.IsCancellationRequested)
+            {
+                result.Success = false;
+                result.ErrorMessage = "Copy operation was cancelled";
+                return result;
             }
 
             if (errors.Count > 0)
@@ -412,7 +422,8 @@ public class CopyFileOperation : IFileOperation, IPausableOperation
         }
         else
         {
-            sourceStream = new FileStream(sourcePath, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, useAsync: true);
+            sourceStream = new FileStream(sourcePath, FileMode.Open, FileAccess.Read, FileShare.Read,
+                BufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
         }
 
         try
@@ -467,22 +478,34 @@ public class CopyFileOperation : IFileOperation, IPausableOperation
                 if (!string.IsNullOrEmpty(destDir))
                     Directory.CreateDirectory(destDir);
 
-                using var destStream = new FileStream(destPath, FileMode.Create, FileAccess.Write, FileShare.None, BufferSize, useAsync: true);
+                using var destStream = new FileStream(destPath, FileMode.Create, FileAccess.Write, FileShare.None,
+                    BufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
                 var buffer = new byte[BufferSize];
                 long copiedBytes = 0;
                 int bytesRead;
+                long lastReportTime = Environment.TickCount64;
                 while ((bytesRead = await sourceStream.ReadAsync(buffer, ct)) > 0)
                 {
                     WaitIfPaused(ct);
                     await destStream.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
                     copiedBytes += bytesRead;
                     // 다운로드에서 이미 진행률을 보고했으면 여기서 중복 보고 안 함
-                    if (!sourceUsedProgress)
-                        progress?.Report(copiedBytes);
+                    // 시간 간격 throttle로 UI 스레드 부하 감소
+                    if (!sourceUsedProgress && progress != null)
+                    {
+                        long now = Environment.TickCount64;
+                        if (now - lastReportTime >= ProgressReportIntervalMs)
+                        {
+                            progress.Report(copiedBytes);
+                            lastReportTime = now;
+                        }
+                    }
                 }
-                // 다운로드 진행률 사용한 경우, 최종 크기 보고
+                // 최종 진행률 보고
                 if (sourceUsedProgress && sourceStream.CanSeek)
                     progress?.Report(sourceStream.Length);
+                else if (!sourceUsedProgress)
+                    progress?.Report(copiedBytes);
             }
         }
         finally
@@ -523,7 +546,8 @@ public class CopyFileOperation : IFileOperation, IPausableOperation
         else
         {
             var localItems = new List<IFileSystemItem>();
-            foreach (var file in Directory.GetFiles(sourcePath))
+            // EnumerateFiles/EnumerateDirectories: lazy enumeration으로 취소 즉시 반응
+            foreach (var file in Directory.EnumerateFiles(sourcePath))
             {
                 localItems.Add(new FileItem
                 {
@@ -532,7 +556,7 @@ public class CopyFileOperation : IFileOperation, IPausableOperation
                     Size = new FileInfo(file).Length
                 });
             }
-            foreach (var dir in Directory.GetDirectories(sourcePath))
+            foreach (var dir in Directory.EnumerateDirectories(sourcePath))
             {
                 localItems.Add(new FolderItem
                 {
@@ -546,7 +570,7 @@ public class CopyFileOperation : IFileOperation, IPausableOperation
         foreach (var item in items)
         {
             WaitIfPaused(ct);
-            ct.ThrowIfCancellationRequested();
+            if (ct.IsCancellationRequested) return;
 
             string childSrcPath;
             if (srcIsRemote)
@@ -590,26 +614,43 @@ public class CopyFileOperation : IFileOperation, IPausableOperation
     private async Task CopyFileWithProgressAsync(
         string source,
         string destination,
-        IProgress<long> progress,
+        IProgress<long>? progress,
         CancellationToken cancellationToken)
     {
+        // SequentialScan으로 OS-level read-ahead 최적화
+        // ReadAsync/WriteAsync로 CancellationToken을 통한 즉시 취소 지원
         using var sourceStream = new FileStream(
-            source, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, useAsync: true);
+            source, FileMode.Open, FileAccess.Read, FileShare.Read,
+            BufferSize, FileOptions.SequentialScan);
 
         using var destStream = new FileStream(
-            destination, FileMode.Create, FileAccess.Write, FileShare.None, BufferSize, useAsync: true);
+            destination, FileMode.Create, FileAccess.Write, FileShare.None,
+            BufferSize, FileOptions.SequentialScan);
 
         var buffer = new byte[BufferSize];
         long copiedBytes = 0;
         int bytesRead;
+        long lastReportTime = Environment.TickCount64;
 
+        // async I/O로 취소 토큰이 Read/Write 중에도 즉시 반응
         while ((bytesRead = await sourceStream.ReadAsync(buffer, cancellationToken)) > 0)
         {
             WaitIfPaused(cancellationToken);
             await destStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
             copiedBytes += bytesRead;
-            progress?.Report(copiedBytes);
+
+            if (progress != null)
+            {
+                long now = Environment.TickCount64;
+                if (now - lastReportTime >= ProgressReportIntervalMs)
+                {
+                    progress.Report(copiedBytes);
+                    lastReportTime = now;
+                }
+            }
         }
+
+        progress?.Report(copiedBytes);
     }
 
     private async Task CopyDirectoryWithProgressAsync(
@@ -618,33 +659,54 @@ public class CopyFileOperation : IFileOperation, IPausableOperation
         IProgress<long> overallProgress,
         CancellationToken cancellationToken)
     {
+        // 자기 폴더 복사 방지: destination이 source 안에 있으면 해당 디렉토리를 skip
+        string? selfCopySkipDir = null;
+        var srcNorm = source.TrimEnd('\\', '/') + "\\";
+        var destNorm = destination.TrimEnd('\\', '/') + "\\";
+        if (destNorm.StartsWith(srcNorm, StringComparison.OrdinalIgnoreCase))
+            selfCopySkipDir = destination;
+
         long bytesCopied = 0;
 
         async Task CopyDirRecursive(string src, string dest)
         {
+            if (cancellationToken.IsCancellationRequested) return;
             Directory.CreateDirectory(dest);
 
-            foreach (var file in Directory.GetFiles(src))
+            // EnumerateFiles: lazy enumeration으로 대규모 디렉토리에서 즉시 처리 시작 + 취소 반응
+            foreach (var file in Directory.EnumerateFiles(src))
             {
                 WaitIfPaused(cancellationToken);
-                cancellationToken.ThrowIfCancellationRequested();
+                if (cancellationToken.IsCancellationRequested) return;
 
                 var destFile = Path.Combine(dest, Path.GetFileName(file));
                 var fileSize = new FileInfo(file).Length;
 
-                await CopyFileWithProgressAsync(
-                    file, destFile,
-                    new Progress<long>(_ => { }),
-                    cancellationToken);
+                if (fileSize <= BufferSize) // 1MB 이하: File.Copy 사용 (커널 최적화, 작은 파일 대량 복사 시 성능 향상)
+                {
+                    File.Copy(file, destFile, overwrite: true);
+                }
+                else // 1MB 초과: 스트림 복사 (대용량 파일 progress 리포팅 가능)
+                {
+                    await CopyFileWithProgressAsync(
+                        file, destFile,
+                        null,
+                        cancellationToken);
+                }
 
                 bytesCopied += fileSize;
                 overallProgress?.Report(bytesCopied);
             }
 
-            foreach (var dir in Directory.GetDirectories(src))
+            // EnumerateDirectories: lazy enumeration으로 취소 즉시 반응
+            foreach (var dir in Directory.EnumerateDirectories(src))
             {
                 WaitIfPaused(cancellationToken);
-                cancellationToken.ThrowIfCancellationRequested();
+                if (cancellationToken.IsCancellationRequested) return;
+
+                // 자기 복사 방지: destination 디렉토리 자체를 재귀 대상에서 제외
+                if (selfCopySkipDir != null && string.Equals(dir, selfCopySkipDir, StringComparison.OrdinalIgnoreCase))
+                    continue;
 
                 var destDir = Path.Combine(dest, Path.GetFileName(dir));
                 await CopyDirRecursive(dir, destDir);

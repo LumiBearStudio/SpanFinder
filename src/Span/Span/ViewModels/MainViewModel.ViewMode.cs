@@ -29,7 +29,12 @@ namespace Span.ViewModels
             // Home mode always targets the left pane (HomeView only exists in left pane)
             if (mode == ViewMode.Home)
             {
+                Helpers.DebugLogger.Log($"[SwitchViewMode→Home] CurrentViewMode={CurrentViewMode}, _viewModeBeforeHome={_viewModeBeforeHome}, _lastClosedViewMode={_lastClosedViewMode}");
                 if (CurrentViewMode == ViewMode.Home) return;
+                // Home 전환 전 현재 ViewMode 저장 (탐색기 뷰모드만)
+                if (CurrentViewMode != ViewMode.Settings && CurrentViewMode != ViewMode.ActionLog)
+                    _viewModeBeforeHome = CurrentViewMode;
+                Helpers.DebugLogger.Log($"[SwitchViewMode→Home] SAVED _viewModeBeforeHome={_viewModeBeforeHome}");
                 ActivePane = ActivePane.Left;
                 CurrentViewMode = ViewMode.Home;
                 LeftViewMode = ViewMode.Home;

@@ -1888,9 +1888,13 @@ namespace Span
         {
             if (e.ClickedItem is DriveItem drive)
             {
+                Helpers.DebugLogger.Log($"[OnDriveItemClick] BEFORE: CurrentViewMode={ViewModel.CurrentViewMode}");
                 if (ViewModel.CurrentViewMode == ViewMode.ActionLog)
                     ConvertLogTabToExplorer();
                 ViewModel.OpenDrive(drive);
+                Helpers.DebugLogger.Log($"[OnDriveItemClick] AFTER OpenDrive: CurrentViewMode={ViewModel.CurrentViewMode}");
+                UpdateViewModeVisibility();
+                Helpers.DebugLogger.Log($"[OnDriveItemClick] AFTER UpdateViewModeVisibility: CurrentViewMode={ViewModel.CurrentViewMode}");
                 if (ViewModel.CurrentViewMode == ViewMode.MillerColumns)
                     FocusColumnAsync(0);
                 else
@@ -1930,9 +1934,13 @@ namespace Span
                     }
                     else
                     {
+                        Helpers.DebugLogger.Log($"[OnDriveItemTapped] BEFORE: CurrentViewMode={ViewModel.CurrentViewMode}");
                         if (ViewModel.CurrentViewMode == ViewMode.ActionLog)
                             ConvertLogTabToExplorer();
                         ViewModel.OpenDrive(drive);
+                        Helpers.DebugLogger.Log($"[OnDriveItemTapped] AFTER OpenDrive: CurrentViewMode={ViewModel.CurrentViewMode}");
+                        UpdateViewModeVisibility();
+                        Helpers.DebugLogger.Log($"[OnDriveItemTapped] AFTER UpdateViewModeVisibility: CurrentViewMode={ViewModel.CurrentViewMode}");
                         if (ViewModel.CurrentViewMode == ViewMode.MillerColumns)
                             FocusColumnAsync(0);
                         else
@@ -2680,7 +2688,7 @@ namespace Span
                     if (activeViewMode == ViewMode.ActionLog)
                         ConvertLogTabToExplorer();
                     if (activeViewMode == ViewMode.Home || activeViewMode == ViewMode.ActionLog)
-                        ViewModel.SwitchViewMode(ViewMode.MillerColumns);
+                        ViewModel.SwitchViewMode(ViewModel.ResolveViewModeFromHome());
 
                     var folder = new FolderItem
                     {
@@ -2688,7 +2696,8 @@ namespace Span
                         Path = fav.Path
                     };
                     _ = ViewModel.ActiveExplorer.NavigateTo(folder);
-                    FocusColumnAsync(0);
+                    if (ViewModel.CurrentViewMode == ViewMode.MillerColumns)
+                        FocusColumnAsync(0);
                 }
             }
             catch (Exception ex)
@@ -3367,6 +3376,21 @@ namespace Span
                     {
                         ViewModel.ActivePane = ActivePane.Left;
                         ViewModel.LeftExplorer.SetActiveColumn(folderVm);
+                    }
+
+                    // ★ 빈 공간 클릭 시 ListView에 키보드 포커스 이동
+                    // (시각적 파란 테두리와 실제 키보드 포커스를 동기화)
+                    bool clickedOnItem = false;
+                    var src = e.OriginalSource as DependencyObject;
+                    while (src != null && src != grid)
+                    {
+                        if (src is ListViewItem) { clickedOnItem = true; break; }
+                        src = VisualTreeHelper.GetParent(src);
+                    }
+                    if (!clickedOnItem)
+                    {
+                        var listView = FindChild<ListView>(parent ?? grid);
+                        listView?.Focus(FocusState.Programmatic);
                     }
                 }
             }
@@ -4136,6 +4160,7 @@ namespace Span
         void Services.IContextMenuHost.PerformOpenDrive(DriveItem drive)
         {
             ViewModel.OpenDrive(drive);
+            UpdateViewModeVisibility();
             if (ViewModel.CurrentViewMode == ViewMode.MillerColumns)
                 FocusColumnAsync(0);
             else

@@ -863,7 +863,7 @@ namespace Span.ViewModels
                 ? RightViewMode : CurrentViewMode;
             if (activeViewMode == ViewMode.Home || activeViewMode == ViewMode.ActionLog)
             {
-                SwitchViewMode(ViewMode.MillerColumns);
+                SwitchViewMode(ResolveViewModeFromHome());
             }
 
             var folder = new FolderItem { Name = favorite.Name, Path = favorite.Path };

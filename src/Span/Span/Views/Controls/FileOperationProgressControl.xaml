@@ -3,6 +3,7 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:services="using:Span.Services"
+    xmlns:helpers="using:Span.Helpers"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
@@ -10,7 +11,7 @@
     <Grid>
         <!-- Multi-operation list panel: shown when FileOperationManager has active operations -->
         <Border x:Name="MultiOperationPanel"
-                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                Background="{ThemeResource SolidBackgroundFillColorQuarternaryBrush}"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                 BorderThickness="1"
                 CornerRadius="8"
@@ -39,6 +40,7 @@
 
                     <Button x:Name="CancelAllButton" Grid.Column="1" Content="Cancel All"
                             FontSize="11" Padding="8,4"
+                            helpers:CursorHelper.IsHandCursor="True"
                             Command="{x:Bind ViewModel.CancelAllCommand}"
                             Style="{StaticResource DefaultButtonStyle}"/>
                 </Grid>
@@ -70,20 +72,24 @@
                                                TextTrimming="CharacterEllipsis"
                                                VerticalAlignment="Center"/>
 
-                                    <!-- Pause/Resume button -->
+                                    <!-- Pause/Resume button: Cancelling 상태에서 비활성화 -->
                                     <Button Grid.Column="1"
                                             Width="28" Height="28" Padding="0"
+                                            helpers:CursorHelper.IsHandCursor="True"
                                             ToolTipService.ToolTip="{x:Bind PauseResumeTooltip, Mode=OneWay}"
+                                            IsEnabled="{x:Bind CanPauseOrResume, Mode=OneWay}"
                                             Tag="{x:Bind Id}"
                                             Click="OnPauseResumeClick"
                                             Style="{StaticResource SubtleButtonStyle}">
                                         <FontIcon Glyph="{x:Bind PauseResumeIcon, Mode=OneWay}" FontSize="12"/>
                                     </Button>
 
-                                    <!-- Cancel button -->
+                                    <!-- Cancel button: Cancelling 상태에서 비활성화 (중복 클릭 방지) -->
                                     <Button Grid.Column="2"
                                             Width="28" Height="28" Padding="0"
+                                            helpers:CursorHelper.IsHandCursor="True"
                                             ToolTipService.ToolTip="Cancel"
+                                            IsEnabled="{x:Bind CanCancel, Mode=OneWay}"
                                             Tag="{x:Bind Id}"
                                             Click="OnCancelClick"
                                             Style="{StaticResource SubtleButtonStyle}">
@@ -91,15 +97,16 @@
                                     </Button>
                                 </Grid>
 
-                                <!-- Row 1: Progress bar -->
+                                <!-- Row 1: Progress bar — Cancelling 시 ShowError=True (빨간색 표시) -->
                                 <ProgressBar Grid.Row="1"
                                              Value="{x:Bind Percentage, Mode=OneWay}"
                                              Maximum="100"
                                              ShowPaused="{x:Bind IsPaused, Mode=OneWay}"
+                                             ShowError="{x:Bind IsCancelling, Mode=OneWay}"
                                              Height="4"
                                              Margin="0,4,0,2"/>
 
-                                <!-- Row 2: Details -->
+                                <!-- Row 2: Details — Cancelling 시 StatusText("취소 중...") 표시 -->
                                 <Grid Grid.Row="2" ColumnSpacing="8">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
@@ -113,15 +120,24 @@
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                TextTrimming="CharacterEllipsis"/>
 
+                                    <!-- Cancelling 상태: "취소 중..." 텍스트 (IsRunning=false → SpeedText 숨김) -->
+                                    <TextBlock Grid.Column="1"
+                                               Text="{x:Bind StatusText, Mode=OneWay}"
+                                               FontSize="11"
+                                               FontStyle="Italic"
+                                               Foreground="{ThemeResource SystemFillColorCautionBrush}"
+                                               Visibility="{x:Bind IsCancelling, Mode=OneWay}"/>
                                     <TextBlock Grid.Column="1"
                                                Text="{x:Bind SpeedText, Mode=OneWay}"
                                                FontSize="11"
-                                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                               Visibility="{x:Bind IsRunning, Mode=OneWay}"/>
 
                                     <TextBlock Grid.Column="2"
                                                Text="{x:Bind RemainingTimeText, Mode=OneWay}"
                                                FontSize="11"
-                                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                               Visibility="{x:Bind IsRunning, Mode=OneWay}"/>
                                 </Grid>
                             </Grid>
                         </DataTemplate>

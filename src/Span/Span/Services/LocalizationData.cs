@@ -149,6 +149,8 @@ namespace Span.Services
             // ── File operations ─────────────────────────────────────────────
             ("FileOperations", "File Operations", "파일 작업", "ファイル操作", "文件操作", "檔案作業", "Dateivorgänge", "Operaciones de archivo", "Opérations sur les fichiers", "Operações de arquivo"),
             ("CancelAll", "Cancel All", "모두 취소", "すべてキャンセル", "全部取消", "全部取消", "Alle abbrechen", "Cancelar todo", "Tout annuler", "Cancelar tudo"),
+            ("Cancelling", "Cancelling...", "취소 중...", "キャンセル中...", "正在取消...", "正在取消...", "Wird abgebrochen...", "Cancelando...", "Annulation...", "Cancelando..."),
+            ("OperationCancelled", "Operation cancelled", "작업이 취소되었습니다", "操作がキャンセルされました", "操作已取消", "作業已取消", "Vorgang abgebrochen", "Operación cancelada", "Opération annulée", "Operação cancelada"),
 
             // ── File conflict dialog ────────────────────────────────────────
             ("FileAlreadyExists", "File Already Exists", "파일이 이미 존재합니다", "ファイルが既に存在します", "文件已存在", "檔案已存在", "Datei ist bereits vorhanden", "El archivo ya existe", "Le fichier existe déjà", "O arquivo já existe"),

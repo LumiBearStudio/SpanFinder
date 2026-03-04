@@ -343,25 +343,41 @@ namespace Span
             FolderViewModel? targetFolder;
             int activeIndex;
 
+            string destDir;
+
+            Helpers.DebugLogger.Log($"[HandlePaste] viewMode={viewMode}, ColumnsCount={ViewModel.ActiveExplorer.Columns.Count}");
+            for (int dbgI = 0; dbgI < ViewModel.ActiveExplorer.Columns.Count; dbgI++)
+            {
+                var dbgCol = ViewModel.ActiveExplorer.Columns[dbgI];
+                Helpers.DebugLogger.Log($"[HandlePaste]   Column[{dbgI}]: Path={dbgCol.Path}, SelectedChild={dbgCol.SelectedChild?.Name ?? "null"}");
+            }
+
             if (viewMode != ViewMode.MillerColumns)
             {
                 targetFolder = ViewModel.ActiveExplorer.CurrentFolder;
                 activeIndex = -1; // non-Miller: activeIndex 불필요
+                if (targetFolder == null) return;
+                destDir = targetFolder.Path;
+                Helpers.DebugLogger.Log($"[HandlePaste] Non-Miller: destDir={destDir}");
             }
             else
             {
                 var columns = ViewModel.ActiveExplorer.Columns;
-                activeIndex = GetCurrentColumnIndex(); // Bug 0: selection 기반 fallback 포함
+                activeIndex = GetActiveColumnIndex();
                 if (activeIndex < 0) activeIndex = columns.Count - 1;
+                Helpers.DebugLogger.Log($"[HandlePaste] Miller: GetActiveColumnIndex={activeIndex}, columns.Count={columns.Count}");
                 if (activeIndex < 0 || activeIndex >= columns.Count) return;
-                targetFolder = columns[activeIndex];
+
+                var col = columns[activeIndex];
+                destDir = col.Path;
+                targetFolder = col;
+                Helpers.DebugLogger.Log($"[HandlePaste] FINAL destDir={destDir}");
             }
-            if (targetFolder == null) return;
-            string destDir = targetFolder.Path;
 
             List<string> sourcePaths;
             bool isCut;
 
+            Helpers.DebugLogger.Log($"[HandlePaste] _clipboardPaths.Count={_clipboardPaths.Count}, _isCutOperation={_isCutOperation}");
             if (_clipboardPaths.Count > 0)
             {
                 // Internal clipboard (Span → Span copy/cut)
@@ -400,6 +416,31 @@ namespace Span
                     Helpers.DebugLogger.Log($"[Clipboard] External paste error: {ex.Message}");
                     return;
                 }
+            }
+
+            // 자기 폴더 복사 방지: 폴더를 자기 자신 안에 복사/이동하면 무한 재귀 발생
+            var destNorm = destDir.TrimEnd('\\', '/') + "\\";
+            int removedCount = sourcePaths.RemoveAll(srcPath =>
+            {
+                if (Directory.Exists(srcPath))
+                {
+                    var srcNorm = srcPath.TrimEnd('\\', '/') + "\\";
+                    if (destNorm.StartsWith(srcNorm, StringComparison.OrdinalIgnoreCase))
+                    {
+                        Helpers.DebugLogger.Log($"[Paste] 자기 복사 차단: {srcPath} → {destDir}");
+                        return true;
+                    }
+                }
+                return false;
+            });
+            if (sourcePaths.Count == 0)
+            {
+                if (removedCount > 0)
+                {
+                    var loc = App.Current.Services.GetRequiredService<LocalizationService>();
+                    ViewModel.ShowToast(loc.Get("CannotCopyToSelf") ?? "폴더를 자기 자신 안에 복사할 수 없습니다.", 3000, isError: true);
+                }
+                return;
             }
 
             var router = App.Current.Services.GetRequiredService<FileSystemRouter>();
@@ -485,6 +526,7 @@ namespace Span
                 }
             }
 
+            Helpers.DebugLogger.Log($"[HandlePaste] isCut={isCut} → {(isCut ? "MoveFileOperation" : "CopyFileOperation")}");
             Span.Services.FileOperations.IFileOperation op;
             if (isCut)
             {
@@ -633,7 +675,7 @@ namespace Span
                 else
                 {
                     var columns = ViewModel.ActiveExplorer.Columns;
-                    activeIndex = GetActiveColumnIndex();
+                    activeIndex = GetCurrentColumnIndex(); // selection 기반 fallback 포함
                     if (activeIndex < 0) activeIndex = columns.Count - 1;
                     if (activeIndex < 0 || activeIndex >= columns.Count) return;
                     currentFolder = columns[activeIndex];
@@ -1199,7 +1241,7 @@ namespace Span
             else
             {
                 var columns = ViewModel.ActiveExplorer.Columns;
-                activeIndex = GetActiveColumnIndex();
+                activeIndex = GetCurrentColumnIndex(); // selection 기반 fallback 포함
                 if (activeIndex < 0) activeIndex = columns.Count - 1;
                 if (activeIndex < 0 || activeIndex >= columns.Count) return;
                 currentColumn = columns[activeIndex];
@@ -1444,7 +1486,7 @@ namespace Span
                 return ViewModel.ActiveExplorer.CurrentFolder?.Path;
 
             var columns = ViewModel.ActiveExplorer.Columns;
-            int activeIndex = GetActiveColumnIndex();
+            int activeIndex = GetCurrentColumnIndex(); // selection 기반 fallback (toolbar 클릭 시 focus 없음)
             if (activeIndex < 0) activeIndex = columns.Count - 1;
             if (activeIndex < 0 || activeIndex >= columns.Count) return null;
             return columns[activeIndex].Path;

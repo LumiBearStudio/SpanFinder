@@ -81,6 +81,20 @@ public sealed partial class FileOperationProgressControl : UserControl
             MultiOperationPanel.Visibility = _boundManager?.ActiveOperations.Count > 0
                 ? Visibility.Visible
                 : Visibility.Collapsed;
+
+            // 새로 추가된 항목에 로컬라이즈된 텍스트 적용
+            if (e.NewItems != null && _loc != null)
+            {
+                foreach (var item in e.NewItems)
+                {
+                    if (item is FileOperationEntry entry)
+                    {
+                        entry._cancellingText = _loc.Get("Cancelling");
+                    }
+                }
+            }
+
+            UpdateCancelAllButtonState();
         });
     }
 
@@ -97,7 +111,27 @@ public sealed partial class FileOperationProgressControl : UserControl
         if (sender is Button btn && btn.Tag is int operationId)
         {
             ViewModel.OperationManager?.CancelOperation(operationId);
+            // 취소 후 CancelAll 버튼 상태 업데이트
+            UpdateCancelAllButtonState();
         }
+    }
+
+    /// <summary>
+    /// 모든 작업이 Cancelling 상태이면 CancelAll 버튼 비활성화
+    /// </summary>
+    private void UpdateCancelAllButtonState()
+    {
+        if (_boundManager == null) return;
+        bool hasCancel = false;
+        foreach (var op in _boundManager.ActiveOperations)
+        {
+            if (op.CanCancel)
+            {
+                hasCancel = true;
+                break;
+            }
+        }
+        CancelAllButton.IsEnabled = hasCancel;
     }
 
     private void LocalizeUI()

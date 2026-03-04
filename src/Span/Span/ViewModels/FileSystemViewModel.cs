@@ -587,10 +587,19 @@ namespace Span.ViewModels
 
         /// <summary>
         /// 이름 변경 취소 (Esc).
+        /// FileWatcher 디바운스 리프레시를 억제하여 스크롤 깜빡임 방지.
         /// </summary>
         public void CancelRename()
         {
             IsRenaming = false;
+
+            // FileWatcher가 rename 취소를 파일 변경으로 감지하여 ReloadAsync를 트리거하는 것을 방지
+            try
+            {
+                var mainVm = App.Current.Services.GetRequiredService<MainViewModel>();
+                mainVm.LastExplicitRefreshTime = DateTime.UtcNow;
+            }
+            catch { /* DI 미초기화 시 무시 */ }
         }
     }
 }

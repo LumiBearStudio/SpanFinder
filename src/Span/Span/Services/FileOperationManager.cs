@@ -334,10 +334,12 @@ public partial class FileOperationEntry : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsPaused))]
     [NotifyPropertyChangedFor(nameof(IsRunning))]
+    [NotifyPropertyChangedFor(nameof(IsCancelling))]
     [NotifyPropertyChangedFor(nameof(PauseResumeIcon))]
     [NotifyPropertyChangedFor(nameof(PauseResumeTooltip))]
     [NotifyPropertyChangedFor(nameof(CanPauseOrResume))]
     [NotifyPropertyChangedFor(nameof(CanCancel))]
+    [NotifyPropertyChangedFor(nameof(StatusText))]
     private OperationStatus _status = OperationStatus.Running;
 
     [ObservableProperty]
@@ -345,10 +347,16 @@ public partial class FileOperationEntry : ObservableObject
 
     public bool IsPaused => Status == OperationStatus.Paused;
     public bool IsRunning => Status == OperationStatus.Running;
+    public bool IsCancelling => Status == OperationStatus.Cancelling;
     public string PauseResumeIcon => IsPaused ? "\uE768" : "\uE769"; // Play : Pause (Segoe MDL2)
     public string PauseResumeTooltip => IsPaused ? "Resume" : "Pause";
     public bool CanPauseOrResume => Status == OperationStatus.Running || Status == OperationStatus.Paused;
     public bool CanCancel => Status == OperationStatus.Running || Status == OperationStatus.Paused;
+    /// <summary>Cancelling 상태일 때 표시할 상태 텍스트 (로컬라이즈 가능)</summary>
+    public string StatusText => IsCancelling ? _cancellingText : "";
+
+    /// <summary>로컬라이즈된 "취소 중..." 텍스트 설정용</summary>
+    internal string _cancellingText = "Cancelling...";
 
     public string SpeedText => FormatSpeed(SpeedBytesPerSecond);
     public string RemainingTimeText => FormatTime(EstimatedTimeRemaining);

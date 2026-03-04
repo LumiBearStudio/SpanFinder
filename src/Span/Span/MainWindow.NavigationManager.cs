@@ -84,14 +84,19 @@ namespace Span
         private int GetActiveColumnIndex()
         {
             var focused = FocusManager.GetFocusedElement(this.Content.XamlRoot) as DependencyObject;
+            Helpers.DebugLogger.Log($"[GetActiveColumnIndex] focused={focused?.GetType().Name ?? "null"} ({(focused as FrameworkElement)?.Name ?? ""})");
             if (focused == null) return -1;
 
             for (int i = 0; i < ViewModel.ActiveExplorer.Columns.Count; i++)
             {
                 var listView = GetListViewForColumn(i);
                 if (listView != null && IsDescendant(listView, focused))
+                {
+                    Helpers.DebugLogger.Log($"[GetActiveColumnIndex] → {i} (focus inside column ListView)");
                     return i;
+                }
             }
+            Helpers.DebugLogger.Log($"[GetActiveColumnIndex] → -1 (focus not in any column)");
             return -1;
         }
 
