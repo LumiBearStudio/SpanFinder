@@ -373,9 +373,8 @@ namespace Span
             else
             {
                 var columns = ViewModel.ActiveExplorer.Columns;
-                activeIndex = GetActiveColumnIndex();
-                if (activeIndex < 0) activeIndex = columns.Count - 1;
-                Helpers.DebugLogger.Log($"[HandlePaste] Miller: GetActiveColumnIndex={activeIndex}, columns.Count={columns.Count}");
+                activeIndex = GetCurrentColumnIndex();
+                Helpers.DebugLogger.Log($"[HandlePaste] Miller: GetCurrentColumnIndex={activeIndex}, columns.Count={columns.Count}");
                 if (activeIndex < 0 || activeIndex >= columns.Count) return;
 
                 var col = columns[activeIndex];
