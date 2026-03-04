@@ -8,7 +8,7 @@ namespace Span.Helpers;
 /// Sets ProtectedCursor on any UIElement via reflection (WinUI 3 workaround).
 /// Also provides IsHandCursor attached property for XAML Style usage.
 /// </summary>
-internal static class CursorHelper
+public static class CursorHelper
 {
     private static readonly PropertyInfo? _protectedCursorProp =
         typeof(UIElement).GetProperty("ProtectedCursor",
