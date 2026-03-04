@@ -447,7 +447,7 @@ namespace Span
                 if (removedCount > 0)
                 {
                     var loc = App.Current.Services.GetRequiredService<LocalizationService>();
-                    ViewModel.ShowToast(loc.Get("CannotCopyToSelf") ?? "폴더를 자기 자신 안에 복사할 수 없습니다.", 3000, isError: true);
+                    ViewModel.ShowToast(loc.Get("CannotCopyToSelf"), 3000, isError: true);
                 }
                 return;
             }
