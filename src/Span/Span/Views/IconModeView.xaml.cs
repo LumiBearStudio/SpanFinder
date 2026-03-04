@@ -266,6 +266,11 @@ namespace Span.Views
 
         #region Selection Operations
 
+        internal void SelectAll()
+        {
+            IconGridView?.SelectAll();
+        }
+
         internal void SelectNone()
         {
             if (IconGridView == null) return;

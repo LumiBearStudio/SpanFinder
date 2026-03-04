@@ -1313,6 +1313,10 @@ namespace Span
             {
                 if (_isClosed) return;
 
+                // Bug 4: 명시적 RefreshCurrentFolderAsync 직후엔 Watcher 리로드 스킵 (더블 리프레시 방지)
+                if (ViewModel != null && (DateTime.UtcNow - ViewModel.LastExplicitRefreshTime).TotalMilliseconds < 500)
+                    return;
+
                 // 캐시 무효화
                 try
                 {
@@ -1887,7 +1891,10 @@ namespace Span
                 if (ViewModel.CurrentViewMode == ViewMode.ActionLog)
                     ConvertLogTabToExplorer();
                 ViewModel.OpenDrive(drive);
-                FocusColumnAsync(0);
+                if (ViewModel.CurrentViewMode == ViewMode.MillerColumns)
+                    FocusColumnAsync(0);
+                else
+                    FocusActiveView();
             }
         }
 
@@ -1926,7 +1933,10 @@ namespace Span
                         if (ViewModel.CurrentViewMode == ViewMode.ActionLog)
                             ConvertLogTabToExplorer();
                         ViewModel.OpenDrive(drive);
-                        FocusColumnAsync(0);
+                        if (ViewModel.CurrentViewMode == ViewMode.MillerColumns)
+                            FocusColumnAsync(0);
+                        else
+                            FocusActiveView();
                     }
                     Helpers.DebugLogger.Log($"[Sidebar] Drive tapped: {drive.Name}");
                 }
@@ -4126,7 +4136,10 @@ namespace Span
         void Services.IContextMenuHost.PerformOpenDrive(DriveItem drive)
         {
             ViewModel.OpenDrive(drive);
-            FocusColumnAsync(0);
+            if (ViewModel.CurrentViewMode == ViewMode.MillerColumns)
+                FocusColumnAsync(0);
+            else
+                FocusActiveView();
         }
 
         void Services.IContextMenuHost.PerformEjectDrive(DriveItem drive)

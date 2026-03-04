@@ -11,6 +11,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using Windows.ApplicationModel.DataTransfer;
 
 namespace Span
@@ -42,7 +43,18 @@ namespace Span
                 var listView = GetListViewForColumn(activeIndex);
                 listView?.SelectAll();
             }
-            // Details/Icon views: Extended mode natively handles Ctrl+A via ListView/GridView
+            else if (viewMode == ViewMode.Details)
+            {
+                GetActiveDetailsView()?.SelectAll();
+            }
+            else if (viewMode == ViewMode.List)
+            {
+                GetActiveListView()?.SelectAll();
+            }
+            else if (Helpers.ViewModeExtensions.IsIconMode(viewMode))
+            {
+                GetActiveIconView()?.SelectAll();
+            }
         }
 
         // =================================================================
@@ -339,7 +351,7 @@ namespace Span
             else
             {
                 var columns = ViewModel.ActiveExplorer.Columns;
-                activeIndex = GetActiveColumnIndex();
+                activeIndex = GetCurrentColumnIndex(); // Bug 0: selection 기반 fallback 포함
                 if (activeIndex < 0) activeIndex = columns.Count - 1;
                 if (activeIndex < 0 || activeIndex >= columns.Count) return;
                 targetFolder = columns[activeIndex];
@@ -364,7 +376,14 @@ namespace Span
                     var content = Clipboard.GetContent();
                     if (!content.Contains(StandardDataFormats.StorageItems)) return;
 
-                    var items = await content.GetStorageItemsAsync();
+                    // Bug 1: 클립보드 접근에 타임아웃 적용 (COM 교착 방지)
+                    var clipTask = content.GetStorageItemsAsync().AsTask();
+                    if (await Task.WhenAny(clipTask, Task.Delay(5000)) != clipTask)
+                    {
+                        Helpers.DebugLogger.Log("[Clipboard] GetStorageItemsAsync timed out (5s)");
+                        return;
+                    }
+                    var items = clipTask.Result;
                     sourcePaths = items
                         .Select(i => i.Path)
                         .Where(p => !string.IsNullOrEmpty(p))

@@ -648,6 +648,11 @@ namespace Span.Views
 
         #region Selection Operations
 
+        internal void SelectAll()
+        {
+            ListGridView?.SelectAll();
+        }
+
         internal void SelectNone()
         {
             if (ListGridView == null) return;

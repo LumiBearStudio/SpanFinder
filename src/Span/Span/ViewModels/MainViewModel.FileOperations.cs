@@ -21,7 +21,7 @@ namespace Span.ViewModels
         [RelayCommand]
         public void OpenDrive(DriveItem drive)
         {
-            // Switch away from Home mode if needed (same pattern as NavigateToFavorite)
+            // Switch away from Home/ActionLog mode — but preserve Details/List/Icon view modes
             var activeViewMode = (IsSplitViewEnabled && ActivePane == ActivePane.Right)
                 ? RightViewMode : CurrentViewMode;
             if (activeViewMode == ViewMode.Home || activeViewMode == ViewMode.ActionLog)
@@ -209,9 +209,15 @@ namespace Span.ViewModels
             });
         }
 
+        /// <summary>
+        /// 마지막 명시적 리프레시 시각. FileWatcher 디바운싱에 사용.
+        /// </summary>
+        public DateTime LastExplicitRefreshTime { get; private set; }
+
         public async Task RefreshCurrentFolderAsync(int? columnIndex = null, ExplorerViewModel? explorer = null)
         {
             explorer ??= ActiveExplorer;
+            LastExplicitRefreshTime = DateTime.UtcNow;
             Helpers.DebugLogger.Log($"[RefreshCurrentFolderAsync] START - columnIndex: {columnIndex}");
 
             if (explorer?.Columns == null || explorer.Columns.Count == 0)

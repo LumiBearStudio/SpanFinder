@@ -83,6 +83,37 @@ namespace Span.ViewModels
             int totalChanges = addCount + removeCount;
             int threshold = Math.Max(oldItems.Count, newItems.Count) / 2;
 
+            // Bug 2: 이름 변경만 감지 (항목 수 동일, 1개만 Path 변경) → in-place 속성 업데이트
+            if (oldItems.Count == newItems.Count && addCount == 1 && removeCount == 1)
+            {
+                // 변경된 old/new 항목 찾기
+                FileSystemViewModel? removedOld = null;
+                FileSystemViewModel? addedNew = null;
+                for (int i = 0; i < oldItems.Count; i++)
+                {
+                    if (!newPathSet.Contains(oldItems[i].Path))
+                        removedOld = oldItems[i];
+                }
+                for (int i = 0; i < newItems.Count; i++)
+                {
+                    if (!oldByPath.ContainsKey(newItems[i].Path))
+                        addedNew = newItems[i];
+                }
+
+                // 같은 부모 디렉토리 → 이름 변경으로 판단
+                if (removedOld != null && addedNew != null)
+                {
+                    string? oldDir = System.IO.Path.GetDirectoryName(removedOld.Path);
+                    string? newDir = System.IO.Path.GetDirectoryName(addedNew.Path);
+                    if (string.Equals(oldDir, newDir, StringComparison.OrdinalIgnoreCase))
+                    {
+                        // in-place 업데이트: Remove/Insert 없이 기존 VM의 속성만 변경
+                        removedOld.UpdateFrom(addedNew);
+                        return true;
+                    }
+                }
+            }
+
             // 대량 변경 → 전체 교체 fallback
             if (totalChanges > threshold)
             {

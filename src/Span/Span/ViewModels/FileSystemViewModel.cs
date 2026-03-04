@@ -196,6 +196,20 @@ namespace Span.ViewModels
         public string Path => _model.Path;
 
         /// <summary>
+        /// 이름 변경 등으로 인한 in-place 속성 업데이트.
+        /// Remove/Insert 없이 기존 VM 인스턴스의 Name/Path를 갱신하여 스크롤바 깜빡임 방지.
+        /// </summary>
+        internal void UpdateFrom(FileSystemViewModel source)
+        {
+            _model.Name = source._model.Name;
+            _model.Path = source._model.Path;
+            OnPropertyChanged(nameof(Name));
+            OnPropertyChanged(nameof(Path));
+            OnPropertyChanged(nameof(DisplayName));
+            OnPropertyChanged(nameof(IconGlyph));
+        }
+
+        /// <summary>
         /// 숨김 파일/폴더 반투명 표시를 위한 불투명도.
         /// Hidden=0.5, Normal=1.0
         /// </summary>

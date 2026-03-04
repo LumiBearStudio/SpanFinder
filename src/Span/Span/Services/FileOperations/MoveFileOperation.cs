@@ -10,7 +10,9 @@ namespace Span.Services.FileOperations;
 /// </summary>
 public class MoveFileOperation : IFileOperation, IPausableOperation
 {
-    private const int BufferSize = 81920; // 80KB for streaming copy
+    private const int BufferSize = 1048576; // 1MB buffer for streaming copy (up from 80KB)
+
+    private static int GetBufferSize(long fileSize) => fileSize < 1048576 ? 81920 : BufferSize;
 
     private readonly List<string> _sourcePaths;
     private readonly string _destinationDirectory;

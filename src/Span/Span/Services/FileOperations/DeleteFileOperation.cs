@@ -127,8 +127,8 @@ public class DeleteFileOperation : IFileOperation
                     }
                     else if (_permanent)
                     {
-                        // ── 로컬 영구 삭제 ──
-                        var deleteError = TryDeleteDirect(sourcePath);
+                        // ── 로컬 영구 삭제 (Task.Run으로 UI 스레드 블록 방지) ──
+                        var deleteError = await Task.Run(() => TryDeleteDirect(sourcePath), cancellationToken);
                         if (deleteError != null)
                         {
                             errors.Add($"{deleteError}: {fileName}");
@@ -137,17 +137,25 @@ public class DeleteFileOperation : IFileOperation
                     }
                     else
                     {
-                        // ── 로컬 휴지통 삭제 ──
-                        if (!FileExistsWin32(sourcePath) && !Directory.Exists(sourcePath))
+                        // ── 로컬 휴지통 삭제 (Task.Run으로 UI 스레드 블록 방지) ──
+                        var recycleError = await Task.Run(() =>
                         {
-                            errors.Add($"Path not found: {sourcePath}");
-                            continue;
-                        }
+                            if (!FileExistsWin32(sourcePath) && !Directory.Exists(sourcePath))
+                                return $"Path not found: {sourcePath}";
 
-                        var recycleError = TryRecycle(sourcePath);
+                            var err = TryRecycle(sourcePath);
+                            if (err != null)
+                                return $"{err}: {fileName}";
+
+                            return (string?)null;
+                        }, cancellationToken);
+
                         if (recycleError != null)
                         {
-                            errors.Add($"{recycleError}: {fileName}");
+                            if (recycleError.StartsWith("Path not found:"))
+                                errors.Add(recycleError);
+                            else
+                                errors.Add(recycleError);
                             continue;
                         }
                         _recycledPaths[sourcePath] = sourcePath;

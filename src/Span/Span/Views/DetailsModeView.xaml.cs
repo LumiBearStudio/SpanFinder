@@ -589,6 +589,11 @@ namespace Span.Views
 
         #region Selection Operations
 
+        internal void SelectAll()
+        {
+            DetailsListView?.SelectAll();
+        }
+
         internal void SelectNone()
         {
             if (DetailsListView == null) return;
