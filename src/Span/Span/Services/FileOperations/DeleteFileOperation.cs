@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
+using static Span.Services.LocalizationService;
 
 namespace Span.Services.FileOperations;
 
@@ -76,11 +77,11 @@ public class DeleteFileOperation : IFileOperation
     /// <inheritdoc/>
     public string Description => _sourcePaths.Count == 1
         ? (_permanent
-            ? $"Permanently delete \"{GetFileName(_sourcePaths[0])}\""
-            : $"Delete \"{GetFileName(_sourcePaths[0])}\"")
+            ? string.Format(L("Op_PermanentDeleteSingle"), GetFileName(_sourcePaths[0]))
+            : string.Format(L("Op_DeleteSingle"), GetFileName(_sourcePaths[0])))
         : (_permanent
-            ? $"Permanently delete {_sourcePaths.Count} item(s)"
-            : $"Delete {_sourcePaths.Count} item(s)");
+            ? string.Format(L("Op_PermanentDeleteMultiple"), _sourcePaths.Count)
+            : string.Format(L("Op_DeleteMultiple"), _sourcePaths.Count));
 
     /// <inheritdoc/>
     public bool CanUndo => !_permanent && !_sourcePaths.Any(FileSystemRouter.IsRemotePath);
@@ -165,11 +166,11 @@ public class DeleteFileOperation : IFileOperation
                 }
                 catch (PathTooLongException)
                 {
-                    errors.Add($"경로가 너무 깁니다: {fileName}");
+                    errors.Add(string.Format(L("Op_PathTooLong"), fileName));
                 }
                 catch (Exception ex)
                 {
-                    errors.Add($"Failed to delete {fileName}: {ex.Message}");
+                    errors.Add(string.Format(L("Op_FailedTo_Delete"), fileName, ex.Message));
                 }
             }
 
@@ -183,19 +184,19 @@ public class DeleteFileOperation : IFileOperation
                 else
                 {
                     result.Success = true;
-                    result.ErrorMessage = $"Some items could not be deleted:\n{string.Join("\n", errors)}";
+                    result.ErrorMessage = $"{L("Op_SomeNotDeleted")}:\n{string.Join("\n", errors)}";
                 }
             }
         }
         catch (OperationCanceledException)
         {
             result.Success = false;
-            result.ErrorMessage = "Delete operation was cancelled";
+            result.ErrorMessage = L("Op_Cancelled_Delete");
         }
         catch (Exception ex)
         {
             result.Success = false;
-            result.ErrorMessage = $"Unexpected error: {ex.Message}";
+            result.ErrorMessage = string.Format(L("Op_UnexpectedError"), ex.Message);
         }
 
         return result;
@@ -211,12 +212,12 @@ public class DeleteFileOperation : IFileOperation
     {
         if (_permanent)
         {
-            return OperationResult.CreateFailure("Cannot undo permanent deletion");
+            return OperationResult.CreateFailure(L("Op_CannotUndoPermanent"));
         }
 
         if (_recycledPaths.Count == 0)
         {
-            return OperationResult.CreateFailure("No items to restore (undo information not available)");
+            return OperationResult.CreateFailure(L("Op_NoItemsToRestore"));
         }
 
         return await Task.Run(() =>
@@ -309,11 +310,11 @@ public class DeleteFileOperation : IFileOperation
             }
             catch (OperationCanceledException)
             {
-                return OperationResult.CreateFailure("Restore operation was cancelled");
+                return OperationResult.CreateFailure(L("Op_Cancelled_Restore"));
             }
             catch (Exception ex)
             {
-                return OperationResult.CreateFailure($"Failed to restore from Recycle Bin: {ex.Message}");
+                return OperationResult.CreateFailure(string.Format(L("Op_FailedRestoreRecycleBin"), ex.Message));
             }
 
             result.AffectedPaths = restored;
@@ -326,7 +327,7 @@ public class DeleteFileOperation : IFileOperation
                 }
                 else
                 {
-                    result.ErrorMessage = $"Some items could not be restored:\n{string.Join("\n", errors)}";
+                    result.ErrorMessage = $"{L("Op_SomeNotRestored")}:\n{string.Join("\n", errors)}";
                 }
             }
 

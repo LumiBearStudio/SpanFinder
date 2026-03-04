@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Reflection;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -41,41 +43,35 @@ public sealed class CrashReportingService : IDisposable
     }
 
     /// <summary>
-    /// Sentry SDK 비동기 초기화. App 생성자에서 호출.
-    /// 백그라운드에서 SDK를 초기화하므로 앱 시작을 차단하지 않는다.
-    /// 초기화 완료 전 발생하는 예외는 캡처 누락될 수 있으나,
-    /// 앱 시작 속도가 우선이므로 허용 가능한 트레이드오프.
+    /// Sentry SDK 동기 초기화. App 생성자에서 호출.
+    /// 글로벌 예외 핸들러 등록 전에 SDK가 준비되어야 초기 크래시를 캡처할 수 있으므로
+    /// 동기로 초기화한다. SentrySdk.Init는 약 10-50ms로 충분히 빠르다.
     /// </summary>
     public void Initialize()
     {
-        if (!_isEnabled) return;
+        if (!_isEnabled)
+        {
+            Helpers.DebugLogger.Log("[CrashReporting] Disabled by user setting");
+            return;
+        }
         if (string.IsNullOrEmpty(SentryDsn))
         {
             Helpers.DebugLogger.Log("[CrashReporting] Skipped — DSN not configured (set SPAN_SENTRY_DSN env var)");
             return;
         }
 
-#if DEBUG
-        // DEBUG 빌드에서는 Sentry 전송 불필요 — 로컬 디버거 사용
-        Helpers.DebugLogger.Log("[CrashReporting] Skipped in DEBUG build");
-        return;
-#else
-        Task.Run(() =>
+        try
         {
-            try
-            {
-                StartSentry();
-            }
-            catch (Exception ex)
-            {
-                Helpers.DebugLogger.Log($"[Sentry] Init failed: {ex.Message}");
-            }
-        });
-#endif
+            StartSentry();
+        }
+        catch (Exception ex)
+        {
+            Helpers.DebugLogger.Log($"[Sentry] Init failed: {ex.Message}");
+        }
     }
 
     /// <summary>
-    /// 예외 캡처 + 경로 스크러빙.
+    /// 예외 캡처 + 경로 스크러빙 + 로그 파일 첨부.
     /// </summary>
     public void CaptureException(Exception ex, string context, Dictionary<string, string>? extras = null)
     {
@@ -83,7 +79,7 @@ public sealed class CrashReportingService : IDisposable
 
         try
         {
-            var sentryId = SentrySdk.CaptureException(ex, scope =>
+            SentrySdk.CaptureException(ex, scope =>
             {
                 scope.SetTag("crash.context", context);
                 scope.SetExtra("memory.workingSet", Environment.WorkingSet / 1024 / 1024 + " MB");
@@ -94,11 +90,39 @@ public sealed class CrashReportingService : IDisposable
                     foreach (var kv in extras)
                         scope.SetExtra(kv.Key, ScrubPaths(kv.Value));
                 }
+
+                AttachLogFile(scope);
             });
         }
         catch
         {
             // Sentry 전송 실패가 앱에 영향을 주면 안 됨
+        }
+    }
+
+    /// <summary>
+    /// Fatal 크래시 캡처 — 로그 파일 첨부 + Flush로 프로세스 종료 전 전송 보장.
+    /// DI 실패에 대비해 SentrySdk 직접 호출도 포함.
+    /// </summary>
+    public static void CaptureFatalException(Exception ex, string context)
+    {
+        try
+        {
+            SentrySdk.CaptureException(ex, scope =>
+            {
+                scope.Level = SentryLevel.Fatal;
+                scope.SetTag("crash.context", context);
+                scope.SetExtra("memory.workingSet", Environment.WorkingSet / 1024 / 1024 + " MB");
+                scope.SetExtra("memory.gcTotal", GC.GetTotalMemory(false) / 1024 / 1024 + " MB");
+
+                AttachLogFile(scope);
+            });
+            // 프로세스 종료 전 이벤트가 전송되도록 동기 대기 (최대 3초)
+            SentrySdk.FlushAsync(TimeSpan.FromSeconds(3)).GetAwaiter().GetResult();
+        }
+        catch
+        {
+            // 프로세스 종료 직전 — 실패해도 무시
         }
     }
 
@@ -147,7 +171,11 @@ public sealed class CrashReportingService : IDisposable
             {
                 options.Dsn = SentryDsn;
                 options.Release = $"span@{GetAppVersion()}";
+#if DEBUG
+                options.Environment = "debug";
+#else
                 options.Environment = "production";
+#endif
 
                 // 오프라인 캐시: 크래시 전송 실패 시 로컬 저장 → 다음 실행 시 재전송
                 options.CacheDirectoryPath = System.IO.Path.Combine(
@@ -283,6 +311,74 @@ public sealed class CrashReportingService : IDisposable
         catch
         {
             return "1.0.0";
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    //  로그 파일 첨부 (Log File Attachment)
+    //  목적: Sentry 이벤트에 최근 로그를 첨부하여 크래시 전후 컨텍스트 제공
+    //  - 마지막 128KB만 전송 (Sentry 첨부파일 제한 고려)
+    //  - 경로 스크러빙 적용하여 사용자 폴더명 제거
+    // ══════════════════════════════════════════════════════════════
+
+    private const int MaxLogAttachmentBytes = 128 * 1024; // 128KB
+
+    /// <summary>
+    /// Sentry scope에 로그 파일을 첨부. 경로 스크러빙 후 마지막 128KB만 전송.
+    /// </summary>
+    private static void AttachLogFile(Scope scope)
+    {
+        try
+        {
+            var logPath = Helpers.DebugLogger.GetLogFilePath();
+            if (string.IsNullOrEmpty(logPath) || !File.Exists(logPath)) return;
+
+            var logBytes = ReadTailBytes(logPath, MaxLogAttachmentBytes);
+            if (logBytes == null || logBytes.Length == 0) return;
+
+            // 경로 스크러빙 적용
+            var logText = Encoding.UTF8.GetString(logBytes);
+            var scrubbedText = ScrubPaths(logText);
+            var scrubbedBytes = Encoding.UTF8.GetBytes(scrubbedText);
+
+            scope.AddAttachment(scrubbedBytes, "Span_Debug.log", AttachmentType.Default, "text/plain");
+        }
+        catch
+        {
+            // 로그 첨부 실패가 크래시 리포팅을 방해하면 안 됨
+        }
+    }
+
+    /// <summary>
+    /// 파일의 마지막 N바이트를 읽는다. 파일이 잠겨있어도 읽을 수 있도록 FileShare.ReadWrite 사용.
+    /// </summary>
+    private static byte[]? ReadTailBytes(string path, int maxBytes)
+    {
+        try
+        {
+            using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            var length = fs.Length;
+            if (length == 0) return null;
+
+            var readSize = (int)Math.Min(length, maxBytes);
+            var buffer = new byte[readSize];
+
+            if (length > maxBytes)
+                fs.Seek(-maxBytes, SeekOrigin.End);
+
+            var bytesRead = 0;
+            while (bytesRead < readSize)
+            {
+                var read = fs.Read(buffer, bytesRead, readSize - bytesRead);
+                if (read == 0) break;
+                bytesRead += read;
+            }
+
+            return buffer;
+        }
+        catch
+        {
+            return null;
         }
     }
 

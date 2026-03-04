@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
 using Span.Models;
 using Span.Services;
+using Span.Services.FileOperations;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 
@@ -121,6 +122,26 @@ namespace Span.Views
                 display.IsExpanded = !display.IsExpanded;
             }
         }
+
+        private void OnOpenFolderClick(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.DataContext is LogEntryDisplay display
+                && !string.IsNullOrEmpty(display.OpenFolderPath))
+            {
+                try
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = display.OpenFolderPath,
+                        UseShellExecute = true
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Helpers.DebugLogger.Log($"[LogFlyout] OpenFolder failed: {ex.Message}");
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -140,14 +161,15 @@ namespace Span.Views
         {
             _entry = entry;
 
-            // Build file details list (file names only, max 20)
+            // Build file details list (full paths for single item, file names for multiple)
             var details = new List<string>();
-            if (_entry.SourcePaths != null)
+            if (_entry.SourcePaths != null && _entry.SourcePaths.Count > 0)
             {
                 var paths = _entry.SourcePaths.Take(MaxFileDetails).ToList();
+                bool showFullPath = _entry.SourcePaths.Count == 1;
                 foreach (var path in paths)
                 {
-                    details.Add(GetFileName(path));
+                    details.Add(showFullPath ? path : GetFileName(path));
                 }
                 if (_entry.SourcePaths.Count > MaxFileDetails)
                 {
@@ -162,6 +184,28 @@ namespace Span.Views
             if (!string.IsNullOrEmpty(_entry.DestinationPath))
             {
                 DestinationText = $"\u2192 {_entry.DestinationPath}";
+            }
+
+            // Build source folder path (for "open folder" button)
+            if (_entry.SourcePaths != null && _entry.SourcePaths.Count > 0)
+            {
+                var firstPath = _entry.SourcePaths[0];
+                try
+                {
+                    if (!string.IsNullOrEmpty(firstPath) && !FileSystemRouter.IsRemotePath(firstPath))
+                    {
+                        var parent = System.IO.Path.GetDirectoryName(firstPath);
+                        if (!string.IsNullOrEmpty(parent))
+                            OpenFolderPath = parent;
+                    }
+                }
+                catch { }
+            }
+
+            // For Copy/Move, prefer destination path for "open folder"
+            if (!string.IsNullOrEmpty(_entry.DestinationPath) && !FileSystemRouter.IsRemotePath(_entry.DestinationPath))
+            {
+                OpenFolderPath = _entry.DestinationPath;
             }
         }
 
@@ -211,10 +255,20 @@ namespace Span.Views
         public Visibility DestinationVisibility =>
             !string.IsNullOrEmpty(DestinationText) ? Visibility.Visible : Visibility.Collapsed;
 
+        /// <summary>
+        /// 소스 경로가 1개 이상이거나 대상 경로가 있으면 expand 버튼 표시.
+        /// 단일 파일 Delete/Rename도 전체 경로 확인 가능하게 변경.
+        /// </summary>
         public Visibility ExpandButtonVisibility =>
-            (_entry.SourcePaths != null && _entry.SourcePaths.Count > 1) || !string.IsNullOrEmpty(_entry.DestinationPath)
+            (_entry.SourcePaths != null && _entry.SourcePaths.Count > 0) || !string.IsNullOrEmpty(_entry.DestinationPath)
                 ? Visibility.Visible
                 : Visibility.Collapsed;
+
+        /// <summary>폴더 열기 버튼 대상 경로. Copy/Move → DestinationPath, Delete/Rename → 소스 부모 경로.</summary>
+        public string? OpenFolderPath { get; }
+
+        public Visibility OpenFolderVisibility =>
+            !string.IsNullOrEmpty(OpenFolderPath) ? Visibility.Visible : Visibility.Collapsed;
 
         public bool IsExpanded
         {

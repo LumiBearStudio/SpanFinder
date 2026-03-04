@@ -75,6 +75,25 @@ namespace Span.Services
             return key;
         }
 
+        /// <summary>
+        /// Service 레이어에서 DI 없이 로컬라이제이션 접근을 위한 static 헬퍼.
+        /// App.Current.Services에서 LocalizationService를 가져와 Get(key) 호출.
+        /// 실패 시 영문 fallback (Strings["en"]) 사용.
+        /// </summary>
+        public static string L(string key)
+        {
+            try
+            {
+                var svc = App.Current?.Services?.GetService(typeof(LocalizationService)) as LocalizationService;
+                if (svc != null) return svc.Get(key);
+            }
+            catch { }
+            // fallback to English
+            if (Strings.TryGetValue("en", out var en) && en.TryGetValue(key, out var val))
+                return val;
+            return key;
+        }
+
         private static string ResolveLanguage(string lang)
         {
             if (lang == "system")

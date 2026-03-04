@@ -168,6 +168,24 @@
                                         </DataTemplate>
                                     </ItemsRepeater.ItemTemplate>
                                 </ItemsRepeater>
+
+                                <!-- Open Folder Button -->
+                                <Button Visibility="{Binding OpenFolderVisibility}"
+                                        Click="OnOpenFolderClick"
+                                        Background="Transparent"
+                                        Padding="4,4" MinWidth="0" MinHeight="0"
+                                        HorizontalAlignment="Left"
+                                        Margin="0,4,0,0">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <FontIcon Glyph="&#xE838;" FontSize="11"
+                                                  Foreground="{ThemeResource SpanAccentBrush}"/>
+                                        <TextBlock Text="{Binding OpenFolderPath}"
+                                                   FontSize="11"
+                                                   Foreground="{ThemeResource SpanAccentBrush}"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   MaxWidth="300"/>
+                                    </StackPanel>
+                                </Button>
                             </StackPanel>
                         </StackPanel>
                     </DataTemplate>

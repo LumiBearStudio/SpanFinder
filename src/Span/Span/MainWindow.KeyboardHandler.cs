@@ -351,7 +351,7 @@ namespace Span
                             if (settingsSvc != null)
                             {
                                 settingsSvc.ShowHiddenFiles = !settingsSvc.ShowHiddenFiles;
-                                ViewModel.ShowToast(settingsSvc.ShowHiddenFiles ? "Hidden files shown" : "Hidden files hidden");
+                                ViewModel.ShowToast(settingsSvc.ShowHiddenFiles ? _loc.Get("Toast_HiddenFilesShown") : _loc.Get("Toast_HiddenFilesHidden"));
                             }
                         }
                         e.Handled = true;
@@ -430,7 +430,7 @@ namespace Span
                                 eqCtl.InvalidateMeasure();
                                 eqCtl.UpdateLayout();
                                 GetActiveMillerScrollViewer().InvalidateMeasure();
-                                ViewModel.ShowToast("All columns equalized to default width");
+                                ViewModel.ShowToast(_loc.Get("Toast_ColumnsEqualized"));
                             }
                             e.Handled = true;
                         }
@@ -443,7 +443,7 @@ namespace Span
                             if (ViewModel.CurrentViewMode == Models.ViewMode.MillerColumns)
                             {
                                 AutoFitAllColumns();
-                                ViewModel.ShowToast("All columns auto-fitted to content");
+                                ViewModel.ShowToast(_loc.Get("Toast_ColumnsAutoFit"));
                             }
                             e.Handled = true;
                         }

@@ -63,11 +63,11 @@ namespace Span.ViewModels
             if (result.Success)
             {
                 await RefreshCurrentFolderAsync();
-                ShowToast($"Undone: {UndoDescription}");
+                ShowToast(string.Format(_loc.Get("Toast_Undone"), UndoDescription));
             }
             else
             {
-                ShowError(result.ErrorMessage ?? "Undo failed");
+                ShowError(result.ErrorMessage ?? _loc.Get("Toast_UndoFailed"));
             }
         }
 
@@ -78,11 +78,11 @@ namespace Span.ViewModels
             if (result.Success)
             {
                 await RefreshCurrentFolderAsync();
-                ShowToast($"Redone: {RedoDescription}");
+                ShowToast(string.Format(_loc.Get("Toast_Redone"), RedoDescription));
             }
             else
             {
-                ShowError(result.ErrorMessage ?? "Redo failed");
+                ShowError(result.ErrorMessage ?? _loc.Get("Toast_RedoFailed"));
             }
         }
 
@@ -126,16 +126,16 @@ namespace Span.ViewModels
 
                 if (operation.CanUndo)
                 {
-                    ShowToast($"Completed: {operation.Description} — Press Ctrl+Z to undo");
+                    ShowToast(string.Format(_loc.Get("Toast_CompletedUndo"), operation.Description));
                 }
                 else
                 {
-                    ShowToast($"Completed: {operation.Description}");
+                    ShowToast(string.Format(_loc.Get("Toast_Completed"), operation.Description));
                 }
             }
             else
             {
-                ShowError(result.ErrorMessage ?? "Operation failed");
+                ShowError(result.ErrorMessage ?? _loc.Get("Toast_OperationFailed"));
             }
 
             Helpers.DebugLogger.Log($"[ExecuteFileOperationAsync] ===== COMPLETE =====");
@@ -179,11 +179,11 @@ namespace Span.ViewModels
                         }
 
                         await RefreshCurrentFolderAsync(targetColumnIndex);
-                        ShowToast($"Completed: {operation.Description}");
+                        ShowToast(string.Format(_loc.Get("Toast_Completed"), operation.Description));
                     }
                     else if (e.Entry.Status != Services.OperationStatus.Cancelled)
                     {
-                        ShowError(e.Result.ErrorMessage ?? "Operation failed");
+                        ShowError(e.Result.ErrorMessage ?? _loc.Get("Toast_OperationFailed"));
                     }
                 });
             }

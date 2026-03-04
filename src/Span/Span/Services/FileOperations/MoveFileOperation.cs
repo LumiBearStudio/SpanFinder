@@ -1,5 +1,6 @@
 using System.Threading;
 using Span.Models;
+using static Span.Services.LocalizationService;
 
 namespace Span.Services.FileOperations;
 
@@ -45,8 +46,8 @@ public class MoveFileOperation : IFileOperation, IPausableOperation
 
     /// <inheritdoc/>
     public string Description => _sourcePaths.Count == 1
-        ? $"Move \"{GetFileName(_sourcePaths[0])}\" to {GetFileName(_destinationDirectory)}"
-        : $"Move {_sourcePaths.Count} item(s) to {GetFileName(_destinationDirectory)}";
+        ? string.Format(L("Op_MoveSingle"), GetFileName(_sourcePaths[0]), GetFileName(_destinationDirectory))
+        : string.Format(L("Op_MoveMultiple"), _sourcePaths.Count, GetFileName(_destinationDirectory));
 
     /// <inheritdoc/>
     public bool CanUndo => !_hasRemotePaths;
@@ -121,7 +122,7 @@ public class MoveFileOperation : IFileOperation, IPausableOperation
                         // ── Remote move: stream copy + delete source ──
                         if (_router == null)
                         {
-                            errors.Add($"원격 경로를 처리할 수 없습니다 (라우터 없음): {sourcePath}");
+                            errors.Add(string.Format(L("Op_NoRemoteRouter"), sourcePath));
                             continue;
                         }
 
@@ -289,7 +290,7 @@ public class MoveFileOperation : IFileOperation, IPausableOperation
                             }
                             else
                             {
-                                errors.Add($"Path not found: {sourcePath}");
+                                errors.Add(string.Format(L("Op_PathNotFound"), sourcePath));
                                 continue;
                             }
                         }
@@ -304,11 +305,11 @@ public class MoveFileOperation : IFileOperation, IPausableOperation
                 }
                 catch (PathTooLongException)
                 {
-                    errors.Add($"경로가 너무 깁니다: {fileName}");
+                    errors.Add(string.Format(L("Op_PathTooLong"), fileName));
                 }
                 catch (Exception ex)
                 {
-                    errors.Add($"Failed to move {fileName}: {ex.Message}");
+                    errors.Add(string.Format(L("Op_FailedTo_Move"), fileName, ex.Message));
                 }
             }
 
@@ -316,7 +317,7 @@ public class MoveFileOperation : IFileOperation, IPausableOperation
             if (cancellationToken.IsCancellationRequested)
             {
                 result.Success = false;
-                result.ErrorMessage = "Move operation was cancelled";
+                result.ErrorMessage = L("Op_Cancelled_Move");
                 return result;
             }
 
@@ -330,19 +331,19 @@ public class MoveFileOperation : IFileOperation, IPausableOperation
                 else
                 {
                     result.Success = true;
-                    result.ErrorMessage = $"Some items could not be moved:\n{string.Join("\n", errors)}";
+                    result.ErrorMessage = $"{L("Op_SomeNotMoved")}:\n{string.Join("\n", errors)}";
                 }
             }
         }
         catch (OperationCanceledException)
         {
             result.Success = false;
-            result.ErrorMessage = "Move operation was cancelled";
+            result.ErrorMessage = L("Op_Cancelled_Move");
         }
         catch (Exception ex)
         {
             result.Success = false;
-            result.ErrorMessage = $"Unexpected error: {ex.Message}";
+            result.ErrorMessage = string.Format(L("Op_UnexpectedError"), ex.Message);
         }
 
         return result;
@@ -376,7 +377,7 @@ public class MoveFileOperation : IFileOperation, IPausableOperation
                 }
                 catch (Exception ex)
                 {
-                    errors.Add($"Failed to move back {GetFileName(dest)}: {ex.Message}");
+                    errors.Add(string.Format(L("Op_FailedTo_MoveBack"), GetFileName(dest), ex.Message));
                 }
             }
 
@@ -390,19 +391,19 @@ public class MoveFileOperation : IFileOperation, IPausableOperation
                 else
                 {
                     result.Success = true;
-                    result.ErrorMessage = $"Some items could not be undone:\n{string.Join("\n", errors)}";
+                    result.ErrorMessage = $"{L("Op_SomeNotUndone")}:\n{string.Join("\n", errors)}";
                 }
             }
         }
         catch (OperationCanceledException)
         {
             result.Success = false;
-            result.ErrorMessage = "Undo operation was cancelled";
+            result.ErrorMessage = L("Op_Cancelled_Move");
         }
         catch (Exception ex)
         {
             result.Success = false;
-            result.ErrorMessage = $"Unexpected error during undo: {ex.Message}";
+            result.ErrorMessage = string.Format(L("Op_UnexpectedErrorUndo"), ex.Message);
         }
 
         return result;

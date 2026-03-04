@@ -1,3 +1,5 @@
+using static Span.Services.LocalizationService;
+
 namespace Span.Services.FileOperations;
 
 /// <summary>
@@ -27,7 +29,7 @@ public class RenameFileOperation : IFileOperation
     }
 
     /// <inheritdoc/>
-    public string Description => $"Rename '{_oldName}' to '{_newName}'";
+    public string Description => string.Format(L("Op_Rename"), _oldName, _newName);
 
     /// <inheritdoc/>
     public bool CanUndo => !_isRemote;
@@ -92,10 +94,10 @@ public class RenameFileOperation : IFileOperation
                 bool isDirectory = Directory.Exists(_sourcePath);
 
                 if (!isFile && !isDirectory)
-                    return OperationResult.CreateFailure($"Source path does not exist: {_sourcePath}");
+                    return OperationResult.CreateFailure(string.Format(L("Op_SourceNotExist"), _sourcePath));
 
                 if (File.Exists(newPath) || Directory.Exists(newPath))
-                    return OperationResult.CreateFailure($"A file or directory with the name '{_newName}' already exists");
+                    return OperationResult.CreateFailure(string.Format(L("Op_NameAlreadyExists"), _newName));
 
                 if (isFile)
                     File.Move(_sourcePath, newPath);
@@ -115,11 +117,11 @@ public class RenameFileOperation : IFileOperation
         }
         catch (OperationCanceledException)
         {
-            return OperationResult.CreateFailure("Rename operation was cancelled");
+            return OperationResult.CreateFailure(L("Op_Cancelled_Rename"));
         }
         catch (Exception ex)
         {
-            return OperationResult.CreateFailure($"Rename error: {ex.Message}");
+            return OperationResult.CreateFailure(string.Format(L("Op_FailedTo_Rename"), ex.Message));
         }
     }
 
@@ -127,7 +129,7 @@ public class RenameFileOperation : IFileOperation
     public async Task<OperationResult> UndoAsync(CancellationToken cancellationToken = default)
     {
         if (_isRemote)
-            return OperationResult.CreateFailure("원격 파일 이름 변경은 되돌릴 수 없습니다.");
+            return OperationResult.CreateFailure(L("Op_CannotUndoRemoteRename"));
 
         try
         {
@@ -143,10 +145,10 @@ public class RenameFileOperation : IFileOperation
             bool isDirectory = Directory.Exists(newPath);
 
             if (!isFile && !isDirectory)
-                return OperationResult.CreateFailure($"Cannot undo: renamed item not found at {newPath}");
+                return OperationResult.CreateFailure(string.Format(L("Op_UndoItemNotFound"), newPath));
 
             if (File.Exists(_sourcePath) || Directory.Exists(_sourcePath))
-                return OperationResult.CreateFailure($"Cannot undo: original name '{_oldName}' is already taken");
+                return OperationResult.CreateFailure(string.Format(L("Op_UndoNameTaken"), _oldName));
 
             if (isFile) File.Move(newPath, _sourcePath);
             else Directory.Move(newPath, _sourcePath);
@@ -155,11 +157,11 @@ public class RenameFileOperation : IFileOperation
         }
         catch (OperationCanceledException)
         {
-            return OperationResult.CreateFailure("Undo operation was cancelled");
+            return OperationResult.CreateFailure(L("Op_Cancelled_Rename"));
         }
         catch (Exception ex)
         {
-            return OperationResult.CreateFailure($"Unexpected error during undo: {ex.Message}");
+            return OperationResult.CreateFailure(string.Format(L("Op_UnexpectedErrorUndo"), ex.Message));
         }
     }
 

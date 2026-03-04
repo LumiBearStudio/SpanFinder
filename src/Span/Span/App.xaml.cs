@@ -123,7 +123,9 @@ namespace Span
                     Helpers.DebugLogger.Log($"[CRASH] Inner: {e.Exception.InnerException.GetType().FullName}: {e.Exception.InnerException.Message}\n{e.Exception.InnerException.StackTrace}");
             }
             _lastCrashTime = now;
-            try { Services.GetRequiredService<Services.CrashReportingService>().CaptureException(e.Exception, "UI.UnhandledException"); } catch { }
+            // Sentry: DI 서비스 우선, 실패 시 static fallback (FlushAsync 포함)
+            try { Services.GetRequiredService<Services.CrashReportingService>().CaptureException(e.Exception, "UI.UnhandledException"); }
+            catch { Span.Services.CrashReportingService.CaptureFatalException(e.Exception, "UI.UnhandledException"); }
             e.Handled = true;
         }
 
@@ -131,13 +133,15 @@ namespace Span
         {
             var ex = e.ExceptionObject as Exception;
             Helpers.DebugLogger.LogCrash("AppDomain.UnhandledException", ex);
-            try { Services.GetRequiredService<Services.CrashReportingService>().CaptureException(ex!, "AppDomain.UnhandledException"); } catch { }
+            // Fatal: 프로세스 종료 직전이므로 반드시 Flush
+            if (ex != null) Span.Services.CrashReportingService.CaptureFatalException(ex, "AppDomain.UnhandledException");
         }
 
         private void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
         {
             Helpers.DebugLogger.LogCrash("Task.UnobservedException", e.Exception);
-            try { Services.GetRequiredService<Services.CrashReportingService>().CaptureException(e.Exception, "Task.UnobservedException"); } catch { }
+            try { Services.GetRequiredService<Services.CrashReportingService>().CaptureException(e.Exception, "Task.UnobservedException"); }
+            catch { Span.Services.CrashReportingService.CaptureFatalException(e.Exception, "Task.UnobservedException"); }
             e.SetObserved(); // Prevent process termination
         }
 

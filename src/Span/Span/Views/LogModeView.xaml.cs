@@ -107,4 +107,27 @@ public sealed partial class LogModeView : UserControl
             display.IsExpanded = !display.IsExpanded;
         }
     }
+
+    /// <summary>
+    /// "폴더 열기" 버튼 클릭 — Windows Explorer에서 해당 폴더를 연다.
+    /// </summary>
+    private void OnOpenFolderClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.DataContext is LogEntryDisplay display
+            && !string.IsNullOrEmpty(display.OpenFolderPath))
+        {
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = display.OpenFolderPath,
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[LogModeView] OpenFolder failed: {ex.Message}");
+            }
+        }
+    }
 }
