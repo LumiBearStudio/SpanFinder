@@ -327,6 +327,10 @@ namespace Span.ViewModels
 
         partial void OnThumbnailSourceChanged(BitmapImage? value)
         {
+            if (value != null)
+                Helpers.DebugLogger.Log($"[ThumbnailSource] SET: {Name} pixel={value.PixelWidth}x{value.PixelHeight} uri={value.UriSource}");
+            else
+                Helpers.DebugLogger.Log($"[ThumbnailSource] CLEAR: {Name}");
             OnPropertyChanged(nameof(HasThumbnail));
         }
 
@@ -415,6 +419,11 @@ namespace Span.ViewModels
         /// F2 인라인 이름 변경 시작.
         /// Windows Explorer 방식: 파일도 확장자 포함한 전체 이름 표시 (선택 영역만 파일명).
         /// </summary>
+        partial void OnIsRenamingChanged(bool value)
+        {
+            Helpers.DebugLogger.Log($"[Rename] IsRenaming changed to {value} for '{Name}' stack={Environment.StackTrace.Replace("\r\n", " | ").Replace("\n", " | ")}");
+        }
+
         public void BeginRename()
         {
             // 폴더, 파일 모두 전체 이름 사용 (Windows Explorer 동작)

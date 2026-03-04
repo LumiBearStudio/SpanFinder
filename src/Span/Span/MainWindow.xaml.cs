@@ -167,6 +167,7 @@ namespace Span
         // F2 rename selection cycling: 0=name only, 1=all, 2=extension only
         private int _renameSelectionCycle = 0;
         private string? _renameTargetPath = null;
+        private bool _renamePendingFocus = false; // PerformRename → FocusRenameTextBox 사이 LostFocus 무시용
         private double _resizeStartX;
         private double _resizeStartWidth;
 
@@ -1591,7 +1592,40 @@ namespace Span
         {
             bool isSpecialMode = mode == ViewMode.Settings;
 
-            // HOST 단위 Visibility
+            // ★ Host Visible 전에 per-tab 패널 정리 (이전 탭 잔상 방지)
+            var tabId = ViewModel.ActiveTab?.Id;
+            if (tabId != null && mode == ViewMode.Details)
+            {
+                foreach (var kvp in _tabDetailsPanels)
+                    kvp.Value.Visibility = kvp.Key == tabId ? Visibility.Visible : Visibility.Collapsed;
+                if (!_tabDetailsPanels.ContainsKey(tabId))
+                    CreateDetailsPanelForTab(ViewModel.ActiveTab!);
+                if (_tabDetailsPanels.TryGetValue(tabId, out var dp))
+                    dp.Visibility = Visibility.Visible;
+                _activeDetailsTabId = tabId;
+            }
+            if (tabId != null && mode == ViewMode.List)
+            {
+                foreach (var kvp in _tabListPanels)
+                    kvp.Value.Visibility = kvp.Key == tabId ? Visibility.Visible : Visibility.Collapsed;
+                if (!_tabListPanels.ContainsKey(tabId))
+                    CreateListPanelForTab(ViewModel.ActiveTab!);
+                if (_tabListPanels.TryGetValue(tabId, out var mp))
+                    mp.Visibility = Visibility.Visible;
+                _activeListTabId = tabId;
+            }
+            if (tabId != null && Helpers.ViewModeExtensions.IsIconMode(mode))
+            {
+                foreach (var kvp in _tabIconPanels)
+                    kvp.Value.Visibility = kvp.Key == tabId ? Visibility.Visible : Visibility.Collapsed;
+                if (!_tabIconPanels.ContainsKey(tabId))
+                    CreateIconPanelForTab(ViewModel.ActiveTab!);
+                if (_tabIconPanels.TryGetValue(tabId, out var ip))
+                    ip.Visibility = Visibility.Visible;
+                _activeIconTabId = tabId;
+            }
+
+            // HOST 단위 Visibility (per-tab 패널이 정리된 후 설정)
             MillerTabsHost.Visibility = mode == ViewMode.MillerColumns ? Visibility.Visible : Visibility.Collapsed;
             DetailsTabsHost.Visibility = mode == ViewMode.Details ? Visibility.Visible : Visibility.Collapsed;
             ListTabsHost.Visibility = mode == ViewMode.List ? Visibility.Visible : Visibility.Collapsed;
@@ -1704,32 +1738,7 @@ namespace Span
             ToolbarRenameButton.IsEnabled = false;
             ToolbarDeleteButton.IsEnabled = false;
 
-            // Lazy 패널 생성 + 활성 패널 Visible 보장
-            var tabId = ViewModel.ActiveTab?.Id;
-            if (tabId != null && mode == ViewMode.Details)
-            {
-                if (!_tabDetailsPanels.ContainsKey(tabId))
-                    CreateDetailsPanelForTab(ViewModel.ActiveTab!);
-                if (_tabDetailsPanels.TryGetValue(tabId, out var dp))
-                    dp.Visibility = Visibility.Visible;
-                _activeDetailsTabId = tabId;
-            }
-            if (tabId != null && mode == ViewMode.List)
-            {
-                if (!_tabListPanels.ContainsKey(tabId))
-                    CreateListPanelForTab(ViewModel.ActiveTab!);
-                if (_tabListPanels.TryGetValue(tabId, out var mp))
-                    mp.Visibility = Visibility.Visible;
-                _activeListTabId = tabId;
-            }
-            if (tabId != null && Helpers.ViewModeExtensions.IsIconMode(mode))
-            {
-                if (!_tabIconPanels.ContainsKey(tabId))
-                    CreateIconPanelForTab(ViewModel.ActiveTab!);
-                if (_tabIconPanels.TryGetValue(tabId, out var ip))
-                    ip.Visibility = Visibility.Visible;
-                _activeIconTabId = tabId;
-            }
+            // (per-tab 패널 생성/정리는 Host Visibility 설정 전에 처리됨 — 상단 참조)
 
             // Breadcrumb lazy 갱신 (ResubscribeLeftExplorer에서 skip된 경우 보정)
             var explorer = ViewModel.Explorer;
@@ -3171,11 +3180,14 @@ namespace Span
                 if (sender is Grid grid && grid.DataContext is FileViewModel file)
                 {
                     e.Handled = true; // Prevent bubbling to empty area handler during await
+                    Helpers.DebugLogger.Log($"[ContextMenu] OnFileRightTapped START: {file.Name} hasThumbnail={file.HasThumbnail}");
                     var flyout = await _contextMenuService.BuildFileMenuAsync(file, this);
+                    Helpers.DebugLogger.Log($"[ContextMenu] OnFileRightTapped BUILT: {file.Name} items={flyout.Items.Count}");
                     flyout.ShowAt(grid, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
                     {
                         Position = e.GetPosition(grid)
                     });
+                    Helpers.DebugLogger.Log($"[ContextMenu] OnFileRightTapped SHOWN: {file.Name}");
                 }
             }
             catch (Exception ex)
@@ -3466,6 +3478,16 @@ namespace Span
         /// </summary>
         private FileSystemViewModel? GetCurrentSelected()
         {
+            var viewMode = (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
+                ? ViewModel.RightViewMode : ViewModel.CurrentViewMode;
+
+            if (viewMode != ViewMode.MillerColumns)
+            {
+                // Details/List/Icon: CurrentFolder에서 선택된 항목을 가져옴
+                return ViewModel.ActiveExplorer.CurrentFolder?.SelectedChild;
+            }
+
+            // Miller Columns
             var columns = ViewModel.ActiveExplorer.Columns;
             int activeIndex = GetActiveColumnIndex();
             if (activeIndex < 0) activeIndex = columns.Count - 1;
@@ -4043,13 +4065,39 @@ namespace Span
 
         void Services.IContextMenuHost.PerformRename(FileSystemViewModel item)
         {
+            Helpers.DebugLogger.Log($"[Rename] PerformRename START: '{item.Name}'");
+
+            // 컨텍스트 메뉴가 닫히면 포커스가 유실되므로,
+            // 포커스 기반 GetCurrentColumnIndex() 대신 item이 속한 컬럼을 직접 찾는다.
+            var columns = ViewModel.ActiveExplorer.Columns;
+            int targetIndex = -1;
+            for (int i = 0; i < columns.Count; i++)
+            {
+                if (columns[i].Children.Contains(item))
+                {
+                    targetIndex = i;
+                    columns[i].SelectedChild = item;
+                    break;
+                }
+            }
+
+            Helpers.DebugLogger.Log($"[Rename] PerformRename targetIndex={targetIndex}");
+
+            // MenuFlyout 닫힘 → LostFocus → CommitRename 방지
+            _renamePendingFocus = true;
             item.BeginRename();
+
+            if (targetIndex < 0)
+                targetIndex = GetCurrentColumnIndex();
+            if (targetIndex < 0) { _renamePendingFocus = false; return; }
+
+            int colIdx = targetIndex;
             DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
             {
                 if (_isClosed) return;
-                int activeIndex = GetCurrentColumnIndex();
-                if (activeIndex >= 0)
-                    FocusRenameTextBox(activeIndex);
+                Helpers.DebugLogger.Log($"[Rename] PerformRename Low dispatch: clearing pendingFocus, calling FocusRenameTextBox({colIdx})");
+                _renamePendingFocus = false;
+                FocusRenameTextBox(colIdx);
             });
         }
 

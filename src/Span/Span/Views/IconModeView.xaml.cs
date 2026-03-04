@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using Span.Models;
 using Span.Services;
 using Span.ViewModels;
@@ -161,39 +162,44 @@ namespace Span.Views
             try
             {
                 if (_settings != null && !_settings.ShowContextMenu) return;
-                if (e.OriginalSource is FrameworkElement fe && ContextMenuService != null && ContextMenuHost != null)
+                if (e.OriginalSource is not FrameworkElement fe || ContextMenuService == null || ContextMenuHost == null)
+                    return;
+
+                // OriginalSource가 Image/FontIcon 등 내부 요소일 수 있으므로
+                // 안전한 ShowAt 타겟을 찾는다 (GridViewItem 컨테이너 또는 템플릿 루트 Grid)
+                var showAtTarget = FindShowAtTarget(fe) ?? fe;
+                var position = e.GetPosition(showAtTarget);
+
+                // Check if this is actually a file/folder item (not empty area)
+                bool isItem = fe.DataContext is FolderViewModel || fe.DataContext is FileViewModel;
+                if (isItem)
+                    e.Handled = true; // Prevent bubbling during await
+
+                Microsoft.UI.Xaml.Controls.MenuFlyout? flyout = null;
+
+                if (fe.DataContext is FolderViewModel folder)
+                    flyout = await ContextMenuService.BuildFolderMenuAsync(folder, ContextMenuHost);
+                else if (fe.DataContext is FileViewModel file)
+                    flyout = await ContextMenuService.BuildFileMenuAsync(file, ContextMenuHost);
+
+                if (flyout != null)
                 {
-                    // Check if this is actually a file/folder item (not empty area)
-                    bool isItem = fe.DataContext is FolderViewModel || fe.DataContext is FileViewModel;
-                    if (isItem)
-                        e.Handled = true; // Prevent bubbling during await
-
-                    Microsoft.UI.Xaml.Controls.MenuFlyout? flyout = null;
-
-                    if (fe.DataContext is FolderViewModel folder)
-                        flyout = await ContextMenuService.BuildFolderMenuAsync(folder, ContextMenuHost);
-                    else if (fe.DataContext is FileViewModel file)
-                        flyout = await ContextMenuService.BuildFileMenuAsync(file, ContextMenuHost);
-
-                    if (flyout != null)
+                    flyout.ShowAt(showAtTarget, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
                     {
-                        flyout.ShowAt(fe, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
+                        Position = position
+                    });
+                }
+                else
+                {
+                    // Empty area fallback
+                    var folderPath = ViewModel?.CurrentFolder?.Path;
+                    if (!string.IsNullOrEmpty(folderPath))
+                    {
+                        flyout = ContextMenuService.BuildEmptyAreaMenu(folderPath, ContextMenuHost);
+                        flyout.ShowAt(showAtTarget, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
                         {
-                            Position = e.GetPosition(fe)
+                            Position = position
                         });
-                    }
-                    else
-                    {
-                        // Empty area fallback
-                        var folderPath = ViewModel?.CurrentFolder?.Path;
-                        if (!string.IsNullOrEmpty(folderPath))
-                        {
-                            flyout = ContextMenuService.BuildEmptyAreaMenu(folderPath, ContextMenuHost);
-                            flyout.ShowAt(fe, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
-                            {
-                                Position = e.GetPosition(fe)
-                            });
-                        }
                     }
                 }
             }
@@ -201,6 +207,26 @@ namespace Span.Views
             {
                 Helpers.DebugLogger.Log($"[IconModeView] OnItemRightTapped error: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// OriginalSource에서 안전한 ShowAt 타겟 요소를 찾는다.
+        /// Image/FontIcon 등 내부 요소 대신 GridViewItem 또는 템플릿 루트 Grid를 반환.
+        /// BitmapImage 로딩 중인 Image 컨트롤에 ShowAt하면 E_INVALIDARG 발생 가능.
+        /// </summary>
+        private static FrameworkElement? FindShowAtTarget(FrameworkElement source)
+        {
+            var current = source;
+            while (current != null)
+            {
+                if (current is Microsoft.UI.Xaml.Controls.GridViewItem)
+                    return current;
+                // 템플릿 루트 Grid (DataContext가 ViewModel인 첫 번째 Grid)
+                if (current is Grid grid && grid.DataContext is ViewModels.FileSystemViewModel)
+                    return grid;
+                current = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(current) as FrameworkElement;
+            }
+            return null;
         }
 
         private void OnItemDoubleClick(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
@@ -214,6 +240,17 @@ namespace Span.Views
             if (selected != null && selected.IsRenaming) return;
             if (Helpers.ViewItemHelper.HasModifierKey()) return;
 
+            // _justFinishedRename 가드: rename 후 Enter가 파일 실행되지 않도록
+            if (_justFinishedRename)
+            {
+                _justFinishedRename = false;
+                if (e.Key == Windows.System.VirtualKey.Enter)
+                {
+                    e.Handled = true;
+                    return;
+                }
+            }
+
             switch (e.Key)
             {
                 case Windows.System.VirtualKey.Enter:
@@ -226,6 +263,200 @@ namespace Span.Views
                     break;
             }
         }
+
+        #region Selection Operations
+
+        internal void SelectNone()
+        {
+            if (IconGridView == null) return;
+            _isSyncingSelection = true;
+            try
+            {
+                IconGridView.SelectedItems.Clear();
+                if (ViewModel?.CurrentFolder != null)
+                {
+                    ViewModel.CurrentFolder.SelectedChild = null;
+                    ViewModel.CurrentFolder.SelectedItems.Clear();
+                }
+            }
+            finally { _isSyncingSelection = false; }
+        }
+
+        internal void InvertSelection()
+        {
+            if (IconGridView == null || ViewModel?.CurrentFolder == null) return;
+            var allItems = ViewModel.CurrentFolder.Children.ToList();
+            var selectedIndices = new HashSet<int>();
+            foreach (var item in IconGridView.SelectedItems)
+            {
+                int idx = allItems.IndexOf(item as FileSystemViewModel);
+                if (idx >= 0) selectedIndices.Add(idx);
+            }
+            _isSyncingSelection = true;
+            try
+            {
+                IconGridView.SelectedItems.Clear();
+                for (int i = 0; i < allItems.Count; i++)
+                {
+                    if (!selectedIndices.Contains(i))
+                        IconGridView.SelectedItems.Add(allItems[i]);
+                }
+            }
+            finally { _isSyncingSelection = false; }
+        }
+
+        #endregion
+
+        #region F2 Inline Rename
+
+        private int _renameSelectionCycle;
+        private string? _renameTargetPath;
+        private bool _justFinishedRename;
+
+        /// <summary>
+        /// F2 이름 변경 핸들러. MainWindow.HandleRename()에서 위임됨.
+        /// </summary>
+        internal void HandleRename()
+        {
+            var folder = ViewModel?.CurrentFolder;
+            if (folder == null) return;
+
+            var selected = folder.SelectedChild;
+            if (selected == null && folder.Children.Count > 0)
+            {
+                selected = folder.Children[0];
+                folder.SelectedChild = selected;
+            }
+            if (selected == null) return;
+
+            var itemPath = (selected as FolderViewModel)?.Path ?? (selected as FileViewModel)?.Path;
+            if (selected.IsRenaming && itemPath == _renameTargetPath)
+            {
+                _renameSelectionCycle = (_renameSelectionCycle + 1) % 3;
+                DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+                    () => FocusIconRenameTextBox());
+                return;
+            }
+
+            _renameSelectionCycle = 0;
+            _renameTargetPath = itemPath;
+            selected.BeginRename();
+
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+                () => FocusIconRenameTextBox());
+        }
+
+        private void FocusIconRenameTextBox()
+        {
+            var folder = ViewModel?.CurrentFolder;
+            if (folder?.SelectedChild == null || IconGridView == null) return;
+
+            int idx = folder.Children.IndexOf(folder.SelectedChild);
+            if (idx < 0) return;
+
+            var container = IconGridView.ContainerFromIndex(idx) as UIElement;
+            if (container == null)
+            {
+                IconGridView.ScrollIntoView(folder.SelectedChild);
+                DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+                {
+                    var retryContainer = IconGridView.ContainerFromIndex(idx) as UIElement;
+                    if (retryContainer != null)
+                    {
+                        var tb = FindChild<TextBox>(retryContainer as DependencyObject);
+                        if (tb != null) ApplyRenameSelection(tb, folder.SelectedChild is FolderViewModel);
+                    }
+                });
+                return;
+            }
+
+            var textBox = FindChild<TextBox>(container as DependencyObject);
+            if (textBox != null)
+                ApplyRenameSelection(textBox, folder.SelectedChild is FolderViewModel);
+        }
+
+        private void ApplyRenameSelection(TextBox textBox, bool isFolder)
+        {
+            textBox.Focus(FocusState.Keyboard);
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Normal, () =>
+            {
+                if (!isFolder && !string.IsNullOrEmpty(textBox.Text))
+                {
+                    int dotIndex = textBox.Text.LastIndexOf('.');
+                    if (dotIndex > 0)
+                    {
+                        switch (_renameSelectionCycle)
+                        {
+                            case 0: textBox.Select(0, dotIndex); break;
+                            case 1: textBox.SelectAll(); break;
+                            case 2: textBox.Select(dotIndex + 1, textBox.Text.Length - dotIndex - 1); break;
+                        }
+                    }
+                    else textBox.SelectAll();
+                }
+                else textBox.SelectAll();
+            });
+        }
+
+        private void OnRenameTextBoxKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+        {
+            if (sender is not TextBox textBox) return;
+            var vm = textBox.DataContext as FileSystemViewModel;
+            if (vm == null) return;
+
+            if (e.Key == Windows.System.VirtualKey.Enter)
+            {
+                vm.CommitRename();
+                _justFinishedRename = true;
+                _renameTargetPath = null;
+                e.Handled = true;
+                FocusSelectedGridViewItem();
+            }
+            else if (e.Key == Windows.System.VirtualKey.Escape)
+            {
+                vm.CancelRename();
+                _justFinishedRename = true;
+                _renameTargetPath = null;
+                e.Handled = true;
+                FocusSelectedGridViewItem();
+            }
+            else if (e.Key == Windows.System.VirtualKey.F2)
+            {
+                // F2 cycling while renaming
+                _renameSelectionCycle = (_renameSelectionCycle + 1) % 3;
+                ApplyRenameSelection(textBox, vm is FolderViewModel);
+                e.Handled = true;
+            }
+        }
+
+        private void OnRenameTextBoxLostFocus(object sender, RoutedEventArgs e)
+        {
+            if (sender is not TextBox textBox) return;
+            var vm = textBox.DataContext as FileSystemViewModel;
+            if (vm == null) return;
+
+            if (vm.IsRenaming)
+                vm.CommitRename();
+            _justFinishedRename = true;
+            _renameTargetPath = null;
+        }
+
+        private void FocusSelectedGridViewItem()
+        {
+            var folder = ViewModel?.CurrentFolder;
+            if (folder?.SelectedChild == null || IconGridView == null) return;
+
+            int idx = folder.Children.IndexOf(folder.SelectedChild);
+            if (idx < 0) return;
+
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+            {
+                var container = IconGridView.ContainerFromIndex(idx) as UIElement;
+                container?.Focus(FocusState.Keyboard);
+            });
+        }
+
+        #endregion
 
         // ── Rubber Band Selection ──
 
@@ -381,6 +612,19 @@ namespace Span.Views
             {
                 Helpers.DebugLogger.Log($"[IconModeView] Cleanup error: {ex.Message}");
             }
+        }
+
+        private static T? FindChild<T>(DependencyObject? parent) where T : DependencyObject
+        {
+            if (parent == null) return null;
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is T t) return t;
+                var result = FindChild<T>(child);
+                if (result != null) return result;
+            }
+            return null;
         }
     }
 }

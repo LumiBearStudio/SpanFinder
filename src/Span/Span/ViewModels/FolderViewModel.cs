@@ -46,7 +46,99 @@ namespace Span.ViewModels
         /// </summary>
         public void ReplaceChildren(System.Collections.Generic.IList<FileSystemViewModel> newItems)
         {
+            // 정렬 변경은 대부분의 항목 위치가 바뀌므로 전체 교체가 효율적
             Children = new ObservableCollection<FileSystemViewModel>(newItems);
+        }
+
+        /// <summary>
+        /// Children 컬렉션을 diff 기반으로 증분 업데이트.
+        /// 기존 ViewModel 인스턴스를 유지하여 스크롤/선택/썸네일 상태를 보존한다.
+        /// 대량 변경(50% 이상) 시 전체 교체로 fallback.
+        /// </summary>
+        /// <param name="newItems">정렬/필터 적용 완료된 새 목록</param>
+        /// <returns>true: 증분 적용됨, false: 전체 교체 fallback</returns>
+        public bool SyncChildren(IList<FileSystemViewModel> newItems)
+        {
+            var oldItems = Children;
+
+            // 빈 목록 → 전체 교체
+            if (oldItems.Count == 0 || newItems.Count == 0)
+            {
+                Children = new ObservableCollection<FileSystemViewModel>(newItems);
+                return false;
+            }
+
+            // Path 기반 old 인덱스 구축
+            var oldByPath = new Dictionary<string, int>(
+                oldItems.Count, StringComparer.OrdinalIgnoreCase);
+            for (int i = 0; i < oldItems.Count; i++)
+                oldByPath[oldItems[i].Path] = i;
+
+            var newPathSet = new HashSet<string>(
+                newItems.Select(x => x.Path), StringComparer.OrdinalIgnoreCase);
+
+            // 변경량 계산
+            int addCount = newItems.Count(item => !oldByPath.ContainsKey(item.Path));
+            int removeCount = oldItems.Count(item => !newPathSet.Contains(item.Path));
+            int totalChanges = addCount + removeCount;
+            int threshold = Math.Max(oldItems.Count, newItems.Count) / 2;
+
+            // 대량 변경 → 전체 교체 fallback
+            if (totalChanges > threshold)
+            {
+                Children = new ObservableCollection<FileSystemViewModel>(newItems);
+                return false;
+            }
+
+            // === 증분 업데이트 ===
+
+            // 1단계: 삭제 (뒤에서부터 — 인덱스 안정성)
+            for (int i = oldItems.Count - 1; i >= 0; i--)
+            {
+                if (!newPathSet.Contains(oldItems[i].Path))
+                    oldItems.RemoveAt(i);
+            }
+
+            // 2단계: 추가 & 순서 맞추기
+            for (int newIdx = 0; newIdx < newItems.Count; newIdx++)
+            {
+                var newItem = newItems[newIdx];
+
+                if (newIdx < oldItems.Count &&
+                    string.Equals(oldItems[newIdx].Path, newItem.Path, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue; // 같은 위치에 같은 항목
+                }
+
+                // 현재 컬렉션에서 찾기
+                int existingIdx = -1;
+                for (int j = newIdx; j < oldItems.Count; j++)
+                {
+                    if (string.Equals(oldItems[j].Path, newItem.Path, StringComparison.OrdinalIgnoreCase))
+                    {
+                        existingIdx = j;
+                        break;
+                    }
+                }
+
+                if (existingIdx >= 0)
+                {
+                    // 위치 이동
+                    if (existingIdx != newIdx)
+                        oldItems.Move(existingIdx, newIdx);
+                }
+                else
+                {
+                    // 새 항목 삽입
+                    oldItems.Insert(newIdx, newItem);
+                }
+            }
+
+            // 3단계: 초과 항목 제거
+            while (oldItems.Count > newItems.Count)
+                oldItems.RemoveAt(oldItems.Count - 1);
+
+            return true;
         }
 
         /// <summary>
@@ -667,23 +759,33 @@ namespace Span.ViewModels
             _isBulkUpdating = true;
             try
             {
-                // 필터 활성 시 → 필터 적용, 아닐 때 → 전체 표시
+                IList<FileSystemViewModel> displayItems;
                 if (!string.IsNullOrEmpty(_currentFilterText))
                 {
-                    var filtered = sortedItems.Where(item => MatchesFilter(item.Name, _currentFilterText)).ToList();
-                    Children = new ObservableCollection<FileSystemViewModel>(filtered);
+                    displayItems = sortedItems.Where(item => MatchesFilter(item.Name, _currentFilterText)).ToList();
                 }
                 else
                 {
-                    // 배치 교체: 1회 PropertyChanged("Children") → ListView 전체 리바인딩
-                    Children = new ObservableCollection<FileSystemViewModel>(sortedItems);
+                    displayItems = sortedItems;
                 }
 
-                Helpers.DebugLogger.Log($"[FolderViewModel] Children populated: {sortedItems.Count} items (batch), filtered={Children.Count}");
+                // 기존 Children이 있으면 diff 기반 증분 업데이트 시도 (스크롤/선택/썸네일 보존)
+                bool usedSync = false;
+                if (Children.Count > 0)
+                {
+                    usedSync = SyncChildren(displayItems);
+                }
+                else
+                {
+                    Children = new ObservableCollection<FileSystemViewModel>(displayItems);
+                }
+
+                Helpers.DebugLogger.Log($"[FolderViewModel] Children populated: {sortedItems.Count} items (incremental={usedSync}), displayed={Children.Count}");
             }
             finally
             {
                 _isBulkUpdating = false;
+                OnPropertyChanged(nameof(Children)); // SyncChildren은 프로퍼티 교체가 아니므로 명시적 통지 필요
                 OnPropertyChanged(nameof(ChildCountText));
                 OnPropertyChanged(nameof(TotalChildCount));
             }
@@ -935,20 +1037,26 @@ namespace Span.ViewModels
                 if (_allChildren == null || _allChildren.Count == 0)
                     return;
 
+                IList<FileSystemViewModel> displayItems;
                 if (string.IsNullOrEmpty(_currentFilterText))
                 {
-                    Children = new ObservableCollection<FileSystemViewModel>(_allChildren);
+                    displayItems = _allChildren;
                 }
                 else
                 {
-                    var filtered = _allChildren.Where(item => MatchesFilter(item.Name, _currentFilterText)).ToList();
-                    Children = new ObservableCollection<FileSystemViewModel>(filtered);
+                    displayItems = _allChildren.Where(item => MatchesFilter(item.Name, _currentFilterText)).ToList();
                 }
+
+                // diff 기반 증분 업데이트 (필터 타이핑 시 소수 항목만 변경)
+                if (Children.Count > 0)
+                    SyncChildren(displayItems);
+                else
+                    Children = new ObservableCollection<FileSystemViewModel>(displayItems);
             }
             finally
             {
                 _isBulkUpdating = false;
-                // 필터 완료 후 한 번에 갱신
+                OnPropertyChanged(nameof(Children));
                 OnPropertyChanged(nameof(ChildCountText));
                 OnPropertyChanged(nameof(TotalChildCount));
             }

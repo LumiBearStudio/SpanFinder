@@ -36,7 +36,10 @@ namespace Span
                         return true;
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[KeyboardHandler] IsContextMenuOpen error: {ex.Message}");
+            }
             return false;
         }
 
@@ -49,8 +52,26 @@ namespace Span
         /// </summary>
         private void OnGlobalKeyDown(object sender, KeyRoutedEventArgs e)
         {
-            // 컨텍스트 메뉴 열려 있으면 AccessKey 처리에 맡김
-            if (IsContextMenuOpen()) return;
+            // 컨텍스트 메뉴 열려 있으면: 수식키 없는 단독 문자 키 → AccessKey 동작 실행
+            if (IsContextMenuOpen())
+            {
+                string? key = null;
+                if (e.Key >= Windows.System.VirtualKey.A && e.Key <= Windows.System.VirtualKey.Z)
+                    key = e.Key.ToString();
+                else if (e.Key >= Windows.System.VirtualKey.Number0 && e.Key <= Windows.System.VirtualKey.Number9)
+                    key = ((int)e.Key - (int)Windows.System.VirtualKey.Number0).ToString();
+
+                if (key != null)
+                {
+                    var ctrlHeld = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control)
+                                   .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+                    if (!ctrlHeld && _contextMenuService.TryInvokeAccessKey(key))
+                    {
+                        e.Handled = true;
+                    }
+                }
+                return;
+            }
 
             // 이름 변경 중이면 F2(선택 영역 순환)만 허용, 나머지 글로벌 단축키 무시
             var selected = GetCurrentSelected();

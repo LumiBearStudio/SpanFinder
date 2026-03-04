@@ -22,6 +22,12 @@ namespace Span.Services
         /// <summary>Current shell menu session (kept alive while menu is open)</summary>
         private ShellContextMenu.Session? _currentSession;
 
+        /// <summary>현재 열려 있는 MenuFlyout 추적 (단독 키 AccessKey 지원용)</summary>
+        private MenuFlyout? _activeFlyout;
+
+        /// <summary>현재 열린 서브메뉴 추적 (서브메뉴 내 AccessKey 탐색용)</summary>
+        private MenuFlyoutSubItem? _openedSubItem;
+
         /// <summary>HWND of the owner window (set by MainWindow)</summary>
         public IntPtr OwnerHwnd { get; set; }
 
@@ -300,21 +306,28 @@ namespace Span.Services
                 menu.Items.Add(new MenuFlyoutSeparator());
 
                 menu.Items.Add(CreateItem(_loc.Get("Delete"), "\uE74D", () => host.PerformDelete(file.Path, file.Name), "D"));
-                menu.Items.Add(CreateItem(_loc.Get("Rename"), "\uE70F", () => host.PerformRename(file), "M"));
+                menu.Items.Add(CreateItem(_loc.Get("Rename"), "\uE70F", () =>
+                {
+                    Helpers.DebugLogger.Log($"[Rename] Menu Click handler fired for '{file.Name}'");
+                    try { host.PerformRename(file); }
+                    catch (Exception ex) { Helpers.DebugLogger.Log($"[Rename] Menu Click EXCEPTION: {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}"); }
+                }, "M"));
                 menu.Items.Add(new MenuFlyoutSeparator());
 
                 menu.Items.Add(CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => _shellService.CopyPathToClipboard(file.Path), "H"));
                 menu.Items.Add(CreateItem(_loc.Get("OpenInExplorer"), "\uED25", () => _shellService.OpenInExplorer(file.Path), "L"));
 
-                // Shell extension items (loaded before menu is shown)
-                await AppendShellExtensionItemsAsync(menu, file.Path);
-
                 menu.Items.Add(new MenuFlyoutSeparator());
                 menu.Items.Add(CreateItem(_loc.Get("Properties"), "\uE946", () => ShowProperties(file), "R"));
+
+                // Shell 항목: 캐시 히트 → 메뉴 표시 전 삽입 + 백그라운드 재검증
+                //              캐시 미스 → await로 대기 후 삽입 (최대 1.5초)
+                await AppendShellExtensionItemsAsync(menu, file.Path);
             }
 
             // Cleanup session when menu closes
             menu.Closed += OnMenuClosed;
+            TrackFlyout(menu);
 
             return menu;
         }
@@ -360,14 +373,18 @@ namespace Span.Services
             if (!isRemote)
             {
                 menu.Items.Add(CreateItem(_loc.Get("OpenInExplorer"), "\uED25", () => _shellService.OpenInExplorer(folder.Path), "L"));
-                // Shell extension items (loaded before menu is shown)
-                await AppendShellExtensionItemsAsync(menu, folder.Path);
             }
 
             menu.Items.Add(new MenuFlyoutSeparator());
             menu.Items.Add(CreateItem(_loc.Get("Properties"), "\uE946", () => ShowProperties(folder), "R"));
 
+            // Shell 항목: 캐시 히트 → 메뉴 표시 전 삽입 + 백그라운드 재검증
+            //              캐시 미스 → await로 대기 후 삽입 (최대 1.5초)
+            if (!isRemote)
+                await AppendShellExtensionItemsAsync(menu, folder.Path);
+
             menu.Closed += OnMenuClosed;
+            TrackFlyout(menu);
 
             return menu;
         }
@@ -436,6 +453,7 @@ namespace Span.Services
                 menu.Items.Add(CreateItem(_loc.Get("Properties"), "\uE946", () => _shellService.ShowProperties(drive.Path), "R"));
             }
 
+            TrackFlyout(menu);
             return menu;
         }
 
@@ -455,6 +473,7 @@ namespace Span.Services
 
             menu.Items.Add(CreateItem(_loc.Get("Properties"), "\uE946", () => _shellService.ShowProperties(fav.Path), "R"));
 
+            TrackFlyout(menu);
             return menu;
         }
 
@@ -527,15 +546,12 @@ namespace Span.Services
             selectSub.Items.Add(CreateItem(_loc.Get("InvertSelection") + "  Ctrl+I", null, () => host.PerformInvertSelection(), "I"));
             menu.Items.Add(selectSub);
 
+            TrackFlyout(menu);
             return menu;
         }
 
         /// <summary>
-        /// Asynchronously load shell extension items and append them to the menu.
-        /// This is awaited before the menu is shown, preventing visible flicker
-        /// from items being added after display.
-        /// Uses dedicated STA thread with timeout to prevent UI blocking from
-        /// unresponsive shell extensions.
+        /// Shell 확장 항목을 메뉴에 추가 (await로 대기, 최대 1.5초 타임아웃).
         /// </summary>
         private Task AppendShellExtensionItemsAsync(MenuFlyout menu, string path)
         {
@@ -547,21 +563,48 @@ namespace Span.Services
         {
             try
             {
-                // Dispose previous session
+                // 이전 세션 정리
                 _currentSession?.Dispose();
+                _currentSession = null;
+
+                Helpers.DebugLogger.Log($"[ContextMenuService] Shell CreateSessionAsync START: {path}");
                 _currentSession = await ShellContextMenu.CreateSessionAsync(OwnerHwnd, path);
+                Helpers.DebugLogger.Log($"[ContextMenuService] Shell CreateSessionAsync END: items={_currentSession?.Items.Count ?? 0}");
 
                 if (_currentSession == null || _currentSession.Items.Count == 0)
                     return;
 
-                bool showDevMenu = _settings.ShowDeveloperMenu;
-                bool showShellExtras = _settings.ShowWindowsShellExtras;
-                bool showCopilot = _settings.ShowCopilotMenu;
+                InsertShellItemsToMenu(menu, _currentSession.Items);
+                Helpers.DebugLogger.Log($"[ContextMenuService] Shell items inserted: menu.Items.Count={menu.Items.Count}");
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[ContextMenuService] Shell extension error: {ex.GetType().Name}: {ex.Message}");
+                Helpers.DebugLogger.Log($"[ContextMenuService] Shell extension StackTrace: {ex.StackTrace}");
+                if (ex.InnerException != null)
+                    Helpers.DebugLogger.Log($"[ContextMenuService] Shell extension Inner: {ex.InnerException.GetType().Name}: {ex.InnerException.Message}");
+            }
+        }
 
-                // Two-pass collection: track which items are "edit with X"
-                var items = new List<(MenuFlyoutItemBase item, bool isEdit)>();
+        /// <summary>Shell 항목 목록을 필터링/그룹핑하여 메뉴에 삽입</summary>
+        private void InsertShellItemsToMenu(MenuFlyout menu, IList<ShellMenuItem> shellItems)
+        {
+            bool showDevMenu = _settings.ShowDeveloperMenu;
+            bool showShellExtras = _settings.ShowWindowsShellExtras;
+            bool showCopilot = _settings.ShowCopilotMenu;
 
-                foreach (var shellItem in _currentSession.Items)
+            var items = new List<(MenuFlyoutItemBase item, bool isEdit)>();
+
+            Helpers.DebugLogger.Log($"[ShellEnum] Raw shell items: {shellItems.Count}");
+            for (int si = 0; si < shellItems.Count; si++)
+            {
+                var s = shellItems[si];
+                Helpers.DebugLogger.Log($"[ShellEnum] [{si}] text='{s.Text}' verb='{s.Verb}' sep={s.IsSeparator} ownerDraw={s.IsOwnerDrawn} disabled={s.IsDisabled} sub={s.HasSubmenu} accel='{s.Accelerator}' cmdId={s.CommandId}");
+            }
+
+            foreach (var shellItem in shellItems)
+            {
+                try
                 {
                     if (shellItem.IsSeparator)
                     {
@@ -569,98 +612,97 @@ namespace Span.Services
                         continue;
                     }
 
-                    // Filter Copilot items when toggle is OFF
-                    if (!showCopilot && IsCopilotItem(shellItem))
+                    // OwnerDrawn 항목은 WinUI MenuFlyout으로 표현 불가 — 스킵
+                    if (shellItem.IsOwnerDrawn && string.IsNullOrWhiteSpace(shellItem.Text))
                         continue;
 
-                    // Filter developer items when toggle is OFF
-                    if (!showDevMenu && IsDeveloperItem(shellItem))
-                        continue;
-
-                    // Filter Windows shell extras when toggle is OFF
-                    if (!showShellExtras && IsWindowsShellExtraItem(shellItem))
-                        continue;
+                    if (!showCopilot && IsCopilotItem(shellItem)) continue;
+                    if (!showDevMenu && IsDeveloperItem(shellItem)) continue;
+                    if (!showShellExtras && IsWindowsShellExtraItem(shellItem)) continue;
 
                     bool isEdit = IsEditWithItem(shellItem);
                     var converted = ConvertShellItem(shellItem);
                     if (converted != null)
                         items.Add((converted, isEdit));
                 }
-
-                // Group "edit with X" items into submenu when 2+
-                var editEntries = items.Where(x => x.isEdit).Select(x => x.item).ToList();
-                List<MenuFlyoutItemBase> filtered;
-
-                if (editEntries.Count >= 2)
+                catch (Exception ex)
                 {
-                    var editSub = new MenuFlyoutSubItem
-                    {
-                        Text = _loc.Get("EditWith"),
-                        Icon = new FontIcon { Glyph = "\uE70F", FontSize = 14 }
-                    };
-                    ApplyCompact(editSub);
-                    foreach (var ei in editEntries)
-                        editSub.Items.Add(ei);
-
-                    // Replace first edit item with submenu, skip the rest
-                    filtered = new List<MenuFlyoutItemBase>();
-                    bool submenuInserted = false;
-                    foreach (var (item, isEdit) in items)
-                    {
-                        if (isEdit)
-                        {
-                            if (!submenuInserted)
-                            {
-                                filtered.Add(editSub);
-                                submenuInserted = true;
-                            }
-                            // skip — already inside submenu
-                        }
-                        else
-                        {
-                            filtered.Add(item);
-                        }
-                    }
-                }
-                else
-                {
-                    filtered = items.Select(x => x.item).ToList();
-                }
-
-                // Remove leading/trailing separators
-                while (filtered.Count > 0 && filtered[0] is MenuFlyoutSeparator)
-                    filtered.RemoveAt(0);
-                while (filtered.Count > 0 && filtered[^1] is MenuFlyoutSeparator)
-                    filtered.RemoveAt(filtered.Count - 1);
-
-                // Remove consecutive separators
-                for (int i = filtered.Count - 1; i > 0; i--)
-                {
-                    if (filtered[i] is MenuFlyoutSeparator && filtered[i - 1] is MenuFlyoutSeparator)
-                        filtered.RemoveAt(i);
-                }
-
-                // Insert before the last 2 items (separator + Properties)
-                // so shell items appear in the correct position
-                if (filtered.Count > 0)
-                {
-                    int insertAt = Math.Max(0, menu.Items.Count - 2);
-                    // Only add separator if previous item isn't already one
-                    if (insertAt == 0 || !(menu.Items[insertAt - 1] is MenuFlyoutSeparator))
-                    {
-                        menu.Items.Insert(insertAt, new MenuFlyoutSeparator());
-                        insertAt++;
-                    }
-                    foreach (var item in filtered)
-                    {
-                        menu.Items.Insert(insertAt, item);
-                        insertAt++;
-                    }
+                    Helpers.DebugLogger.Log($"[ContextMenuService] ConvertShellItem failed: text='{shellItem.Text}' verb='{shellItem.Verb}' ownerDrawn={shellItem.IsOwnerDrawn} err={ex.Message}");
                 }
             }
-            catch (Exception ex)
+
+            // Group "edit with X" items into submenu when 2+
+            var editEntries = items.Where(x => x.isEdit).Select(x => x.item).ToList();
+            List<MenuFlyoutItemBase> filtered;
+
+            if (editEntries.Count >= 2)
             {
-                Helpers.DebugLogger.Log($"[ContextMenuService] Shell extension enumeration error: {ex.Message}");
+                var editSub = new MenuFlyoutSubItem
+                {
+                    Text = _loc.Get("EditWith"),
+                    Icon = new FontIcon { Glyph = "\uE70F", FontSize = 14 }
+                };
+                ApplyCompact(editSub);
+                foreach (var ei in editEntries) editSub.Items.Add(ei);
+
+                filtered = new List<MenuFlyoutItemBase>();
+                bool submenuInserted = false;
+                foreach (var (item, isEdit) in items)
+                {
+                    if (isEdit)
+                    {
+                        if (!submenuInserted) { filtered.Add(editSub); submenuInserted = true; }
+                    }
+                    else filtered.Add(item);
+                }
+            }
+            else
+            {
+                filtered = items.Select(x => x.item).ToList();
+            }
+
+            // Clean separators
+            while (filtered.Count > 0 && filtered[0] is MenuFlyoutSeparator) filtered.RemoveAt(0);
+            while (filtered.Count > 0 && filtered[^1] is MenuFlyoutSeparator) filtered.RemoveAt(filtered.Count - 1);
+            for (int i = filtered.Count - 1; i > 0; i--)
+            {
+                if (filtered[i] is MenuFlyoutSeparator && filtered[i - 1] is MenuFlyoutSeparator)
+                    filtered.RemoveAt(i);
+            }
+
+            if (filtered.Count == 0) return;
+
+            // Insert before the last 2 items (separator + Properties)
+            int insertAt = Math.Max(0, menu.Items.Count - 2);
+
+            if (insertAt == 0 || !(menu.Items[insertAt - 1] is MenuFlyoutSeparator))
+            {
+                menu.Items.Insert(insertAt, new MenuFlyoutSeparator());
+                insertAt++;
+            }
+
+            Helpers.DebugLogger.Log($"[ShellInsert] Inserting {filtered.Count} items at pos={insertAt}");
+            for (int idx = 0; idx < filtered.Count; idx++)
+            {
+                var item = filtered[idx];
+                string desc = item switch
+                {
+                    MenuFlyoutSeparator => "---separator---",
+                    MenuFlyoutSubItem sub => $"SubItem(text='{sub.Text}' children={sub.Items.Count})",
+                    MenuFlyoutItem mfi => $"Item(text='{mfi.Text}' enabled={mfi.IsEnabled})",
+                    _ => item.GetType().Name
+                };
+                try
+                {
+                    Helpers.DebugLogger.Log($"[ShellInsert] [{idx}] {desc}");
+                    menu.Items.Insert(insertAt, item);
+                    Helpers.DebugLogger.Log($"[ShellInsert] [{idx}] inserted OK");
+                }
+                catch (Exception ex)
+                {
+                    Helpers.DebugLogger.Log($"[ShellInsert] [{idx}] INSERT FAILED: {ex.GetType().Name}: {ex.Message}");
+                }
+                insertAt++;
             }
         }
 
@@ -670,37 +712,52 @@ namespace Span.Services
             if (shellItem.IsSeparator)
                 return new MenuFlyoutSeparator();
 
-            string translatedText = TranslateShellText(shellItem);
+            string translatedText = SanitizeMenuText(TranslateShellText(shellItem));
+            Helpers.DebugLogger.Log($"[ConvertShell] text='{shellItem.Text}' → '{translatedText}' verb='{shellItem.Verb}' sub={shellItem.HasSubmenu} cmdId={shellItem.CommandId}");
 
             if (shellItem.HasSubmenu)
             {
+                // 빈 텍스트 SubItem 방어 (OwnerDrawn 항목 등)
+                if (string.IsNullOrWhiteSpace(translatedText))
+                    translatedText = shellItem.Verb ?? "...";
+                Helpers.DebugLogger.Log($"[ConvertShell] Creating SubItem text='{translatedText}'");
                 var subItem = new MenuFlyoutSubItem { Text = translatedText };
                 ApplyCompact(subItem);
+                // Shell SubItem: WinUI AccessKey 대신 Tag에 accelerator 저장
+                // (WinUI AccessKey는 일부 Shell accelerator 값에서 E_INVALIDARG 발생)
+                if (!string.IsNullOrEmpty(shellItem.Accelerator))
+                    subItem.Tag = shellItem.Accelerator;
                 foreach (var child in shellItem.Children!)
                 {
                     var childItem = ConvertShellItem(child);
                     if (childItem != null)
                         subItem.Items.Add(childItem);
                 }
+                Helpers.DebugLogger.Log($"[ConvertShell] SubItem done children={subItem.Items.Count}");
                 return subItem.Items.Count > 0 ? subItem : null;
             }
 
             if (string.IsNullOrWhiteSpace(translatedText))
                 return null;
 
+            // 세션 참조와 CommandId 캡처
+            int cmdId = shellItem.CommandId;
+            var session = _currentSession;
+            Action invokeAction = () => session?.InvokeCommand(cmdId);
+
+            Helpers.DebugLogger.Log($"[ConvertShell] Creating MenuFlyoutItem text='{translatedText}' cmdId={cmdId}");
             var item = new MenuFlyoutItem
             {
                 Text = translatedText,
                 FontSize = 12,
                 Padding = CompactPadding,
                 MinHeight = 24,
-                IsEnabled = !shellItem.IsDisabled
+                IsEnabled = !shellItem.IsDisabled,
+                Tag = invokeAction // TryInvokeAccessKey에서 사용
             };
 
-            // Capture commandId and session reference for the click handler
-            int cmdId = shellItem.CommandId;
-            var session = _currentSession;
-            item.Click += (s, e) => session?.InvokeCommand(cmdId);
+            item.Click += (s, e) => invokeAction();
+            Helpers.DebugLogger.Log($"[ConvertShell] MenuFlyoutItem created OK");
 
             return item;
         }
@@ -816,9 +873,9 @@ namespace Span.Services
         {
             try
             {
-                // Dispose shell COM session when menu closes
                 _currentSession?.Dispose();
                 _currentSession = null;
+                _openedSubItem = null;
             }
             catch (Exception ex)
             {
@@ -828,8 +885,134 @@ namespace Span.Services
             finally
             {
                 if (sender is MenuFlyout flyout)
+                {
                     flyout.Closed -= OnMenuClosed;
+                    if (_activeFlyout == flyout) _activeFlyout = null;
+                }
             }
+        }
+
+        /// <summary>
+        /// 활성 MenuFlyout을 추적하여 단독 키 AccessKey를 지원.
+        /// Build*Menu 메서드에서 자동 호출.
+        /// </summary>
+        private void TrackFlyout(MenuFlyout flyout)
+        {
+            _activeFlyout = flyout;
+            _openedSubItem = null;
+            flyout.Closed += (s, e) =>
+            {
+                if (_activeFlyout == flyout)
+                {
+                    _activeFlyout = null;
+                    _openedSubItem = null;
+                }
+            };
+        }
+
+        /// <summary>
+        /// 현재 열린 MenuFlyout에서 AccessKey가 일치하는 항목을 찾아 실행.
+        /// WinUI 3의 AccessKey는 Alt 키가 필요하므로, 단독 키 입력을 직접 처리한다.
+        /// top-level 항목을 우선 검색하고, 없으면 서브메뉴 내부까지 재귀 탐색한다.
+        /// </summary>
+        /// <returns>AccessKey 일치 항목이 있으면 true (실행 완료)</returns>
+        public bool TryInvokeAccessKey(string key)
+        {
+            if (_activeFlyout == null) return false;
+
+            try
+            {
+                // 서브메뉴가 열려 있으면 해당 서브메뉴의 Items만 탐색
+                // → top-level "새로만들기(W)"와 서브메뉴 내 "Word(W)" 충돌 방지
+                if (_openedSubItem != null)
+                {
+                    if (TryInvokeInItems(_openedSubItem.Items, key, recursive: false))
+                        return true;
+                    if (TryInvokeInItems(_openedSubItem.Items, key, recursive: true))
+                        return true;
+                    // 서브메뉴 내에서 매칭 못 하면 WinUI에 위임 (e.Handled = false)
+                    return false;
+                }
+
+                // 1차: top-level 항목 검색 (MenuFlyoutItem, ToggleMenuFlyoutItem, MenuFlyoutSubItem)
+                if (TryInvokeInItems(_activeFlyout.Items, key, recursive: false))
+                    return true;
+
+                // 2차: 서브메뉴 내부 재귀 검색
+                if (TryInvokeInItems(_activeFlyout.Items, key, recursive: true))
+                    return true;
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[ContextMenuService] TryInvokeAccessKey error: {ex.Message}");
+            }
+
+            return false;
+        }
+
+        private bool TryInvokeInItems(IList<MenuFlyoutItemBase> items, string key, bool recursive)
+        {
+            foreach (var item in items)
+            {
+                // MenuFlyoutItem: 텍스트 suffix "(X)" 또는 Tag 매칭
+                if (item is MenuFlyoutItem mfi && mfi.Tag is Action action)
+                {
+                    bool matches = ExtractAccessKeyFromText(mfi.Text)
+                        ?.Equals(key, StringComparison.OrdinalIgnoreCase) == true;
+                    if (matches)
+                    {
+                        _activeFlyout?.Hide();
+                        var dq = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
+                        if (dq != null) dq.TryEnqueue(() => action());
+                        else action();
+                        return true;
+                    }
+                }
+
+                if (item is ToggleMenuFlyoutItem tmfi
+                    && tmfi.Tag is Action toggleAction
+                    && ExtractAccessKeyFromText(tmfi.Text)
+                        ?.Equals(key, StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    _activeFlyout?.Hide();
+                    var dq = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
+                    if (dq != null) dq.TryEnqueue(() => toggleAction());
+                    else toggleAction();
+                    return true;
+                }
+
+                // SubItem: 텍스트 suffix "(X)" 또는 Tag에 저장된 accelerator 매칭
+                if (item is MenuFlyoutSubItem sub)
+                {
+                    string? subKey = sub.Tag is string tagKey ? tagKey
+                        : ExtractAccessKeyFromText(sub.Text);
+                    if (!string.IsNullOrEmpty(subKey) && subKey.Equals(key, StringComparison.OrdinalIgnoreCase))
+                    {
+                        // 서브메뉴가 열린 것으로 추적 → 이후 키 입력은 서브메뉴 Items만 탐색
+                        _openedSubItem = sub;
+                        // 서브메뉴 열기: Focus 후 다음 프레임에서 Right Arrow 키 시뮬레이션
+                        try { sub.Focus(Microsoft.UI.Xaml.FocusState.Keyboard); } catch { }
+                        sub.DispatcherQueue?.TryEnqueue(
+                            Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+                            {
+                                const byte VK_RIGHT = 0x27;
+                                const uint KEYEVENTF_EXTENDEDKEY = 0x0001;
+                                const uint KEYEVENTF_KEYUP = 0x0002;
+                                Helpers.NativeMethods.keybd_event(VK_RIGHT, 0, KEYEVENTF_EXTENDEDKEY, 0);
+                                Helpers.NativeMethods.keybd_event(VK_RIGHT, 0, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, 0);
+                            });
+                        return true;
+                    }
+                }
+
+                // 재귀 모드일 때만 서브메뉴 내부 탐색
+                if (recursive && item is MenuFlyoutSubItem recSub && recSub.Items.Count > 0)
+                {
+                    if (TryInvokeInItems(recSub.Items, key, recursive: true))
+                        return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>
@@ -848,6 +1031,7 @@ namespace Span.Services
             menu.Items.Add(CreateItem(_loc.Get("NewBitmapImage"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Bitmap Image.bmp"), "B"));
             menu.Items.Add(CreateItem(_loc.Get("NewRichTextDocument"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Rich Text Document.rtf"), "R"));
             menu.Items.Add(CreateItem(_loc.Get("NewZipArchive"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Compressed (zipped) Folder.zip"), "Z"));
+            TrackFlyout(menu);
             return menu;
         }
 
@@ -918,6 +1102,37 @@ namespace Span.Services
             }
         }
 
+        /// <summary>
+        /// Shell 메뉴 텍스트 세정: 탭 문자(accelerator 구분자), 제어문자 제거.
+        /// Win32 HMENU 텍스트에 포함된 \t 이후 문자열은 accelerator 힌트이므로 제거.
+        /// WinUI MenuFlyoutItem.Text에 탭/제어문자가 있으면 E_INVALIDARG 발생 가능.
+        /// </summary>
+        private static string SanitizeMenuText(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return text;
+            // Win32 메뉴는 \t 이후를 accelerator 표시용으로 사용 (예: "Undo\tCtrl+Z")
+            int tabIdx = text.IndexOf('\t');
+            if (tabIdx >= 0) text = text.Substring(0, tabIdx);
+            // 제어문자 제거 (U+0000~U+001F, U+007F)
+            if (text.Any(c => char.IsControl(c)))
+                text = new string(text.Where(c => !char.IsControl(c)).ToArray());
+            return text;
+        }
+
+        /// <summary>
+        /// 메뉴 텍스트에서 AccessKey 추출: "Open(O)" → "O", "복사(C)" → "C"
+        /// 텍스트 끝이 "(X)" 형식일 때 X를 반환, 아니면 null.
+        /// </summary>
+        private static string? ExtractAccessKeyFromText(string? text)
+        {
+            if (string.IsNullOrEmpty(text) || text.Length < 3) return null;
+            if (text[^1] != ')') return null;
+            int openParen = text.LastIndexOf('(');
+            if (openParen < 0 || openParen >= text.Length - 2) return null;
+            string key = text.Substring(openParen + 1, text.Length - openParen - 2);
+            return key.Length == 1 ? key : null;
+        }
+
         private static readonly Microsoft.UI.Xaml.Thickness CompactPadding = new(10, 2, 10, 2);
 
         private static MenuFlyoutItem CreateItem(string text, string? glyph, Action action, string? accessKey = null)
@@ -933,8 +1148,18 @@ namespace Span.Services
             {
                 item.Icon = new FontIcon { Glyph = glyph, FontSize = 14 };
             }
-            if (accessKey != null) item.AccessKey = accessKey;
-            item.Click += (s, e) => action();
+            if (accessKey != null)
+            {
+                // WinUI AccessKey 속성 사용 금지: visual tree 미연결 상태에서
+                // AccessKey 설정 시 E_INVALIDARG 발생 (네이티브 XAML 예외, try-catch 불가).
+                // 대신 Tag에 action 저장 → TryInvokeAccessKey에서 단축키 처리.
+                item.Tag = action;
+            }
+            item.Click += (s, e) =>
+            {
+                try { action(); }
+                catch (Exception ex) { Helpers.DebugLogger.Log($"[ContextMenu] Click handler exception: {ex.GetType().Name}: {ex.Message}"); }
+            };
             return item;
         }
 
@@ -945,8 +1170,12 @@ namespace Span.Services
             sub.MinHeight = 24;
             if (accessKey != null)
             {
-                sub.Text = $"{sub.Text}({accessKey})";
-                sub.AccessKey = accessKey;
+                // 이미 (X) suffix가 있으면 추가하지 않음 (CJK Shell 메뉴 중복 방지)
+                string suffix = $"({accessKey})";
+                if (!sub.Text.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+                    sub.Text = $"{sub.Text}({accessKey})";
+                // AccessKey 속성 미설정 — Tag에 accelerator 저장으로 대체
+                sub.Tag = accessKey;
             }
         }
 
@@ -960,7 +1189,10 @@ namespace Span.Services
                 MinHeight = 24,
                 IsChecked = isChecked
             };
-            if (accessKey != null) item.AccessKey = accessKey;
+            if (accessKey != null)
+            {
+                item.Tag = action;
+            }
             item.Click += (s, e) => action();
             return item;
         }

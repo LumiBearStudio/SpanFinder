@@ -564,6 +564,14 @@ namespace Span.Views
             if (selected != null && selected.IsRenaming) return;
             if (Helpers.ViewItemHelper.HasModifierKey()) return;
 
+            // 이름 변경 직후의 Enter가 파일 실행으로 이어지는 것을 방지
+            if (_justFinishedRename)
+            {
+                _justFinishedRename = false;
+                e.Handled = true;
+                return;
+            }
+
             switch (e.Key)
             {
                 case Windows.System.VirtualKey.Enter:
@@ -575,6 +583,192 @@ namespace Span.Views
                     e.Handled = true;
                     break;
             }
+        }
+
+        #endregion
+
+        #region Selection Operations
+
+        internal void SelectNone()
+        {
+            if (DetailsListView == null) return;
+            _isSyncingSelection = true;
+            try
+            {
+                DetailsListView.SelectedItems.Clear();
+                if (ViewModel?.CurrentFolder != null)
+                {
+                    ViewModel.CurrentFolder.SelectedChild = null;
+                    ViewModel.CurrentFolder.SelectedItems.Clear();
+                }
+            }
+            finally { _isSyncingSelection = false; }
+        }
+
+        internal void InvertSelection()
+        {
+            if (DetailsListView == null || ViewModel?.CurrentFolder == null) return;
+            var allItems = ViewModel.CurrentFolder.Children.ToList();
+            var selectedIndices = new HashSet<int>();
+            foreach (var item in DetailsListView.SelectedItems)
+            {
+                int idx = allItems.IndexOf(item as FileSystemViewModel);
+                if (idx >= 0) selectedIndices.Add(idx);
+            }
+            _isSyncingSelection = true;
+            try
+            {
+                DetailsListView.SelectedItems.Clear();
+                for (int i = 0; i < allItems.Count; i++)
+                {
+                    if (!selectedIndices.Contains(i))
+                        DetailsListView.SelectedItems.Add(allItems[i]);
+                }
+            }
+            finally { _isSyncingSelection = false; }
+        }
+
+        #endregion
+
+        #region F2 Inline Rename
+
+        private int _renameSelectionCycle;
+        private string? _renameTargetPath;
+        private bool _justFinishedRename;
+
+        /// <summary>
+        /// Details 뷰에서 F2 인라인 rename 시작.
+        /// MainWindow.HandleRename()이 Miller 전용이므로 Details 전용 구현.
+        /// </summary>
+        internal void HandleRename()
+        {
+            var selected = ViewModel?.CurrentFolder?.SelectedChild;
+            if (selected == null) return;
+
+            var itemPath = selected.Path;
+
+            // F2 cycling: 이미 rename 중이면 선택 영역 순환
+            if (selected.IsRenaming && itemPath == _renameTargetPath)
+            {
+                _renameSelectionCycle = (_renameSelectionCycle + 1) % 3;
+                DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+                {
+                    FocusDetailsRenameTextBox(selected);
+                });
+                return;
+            }
+
+            // 첫 F2: rename 시작
+            _renameSelectionCycle = 0;
+            _renameTargetPath = itemPath;
+            selected.BeginRename();
+
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+            {
+                FocusDetailsRenameTextBox(selected);
+            });
+        }
+
+        private void FocusDetailsRenameTextBox(FileSystemViewModel item)
+        {
+            var container = DetailsListView.ContainerFromItem(item) as UIElement;
+            if (container == null)
+            {
+                DetailsListView.ScrollIntoView(item);
+                DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+                {
+                    var retryContainer = DetailsListView.ContainerFromItem(item) as UIElement;
+                    if (retryContainer != null)
+                    {
+                        var tb = FindChild<TextBox>(retryContainer as DependencyObject);
+                        if (tb != null) ApplyRenameSelection(tb, item is FolderViewModel);
+                    }
+                });
+                return;
+            }
+
+            var textBox = FindChild<TextBox>(container as DependencyObject);
+            if (textBox != null)
+            {
+                ApplyRenameSelection(textBox, item is FolderViewModel);
+            }
+        }
+
+        private void ApplyRenameSelection(TextBox textBox, bool isFolder)
+        {
+            textBox.Focus(FocusState.Keyboard);
+
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Normal, () =>
+            {
+                if (!isFolder && !string.IsNullOrEmpty(textBox.Text))
+                {
+                    int dotIndex = textBox.Text.LastIndexOf('.');
+                    if (dotIndex > 0)
+                    {
+                        switch (_renameSelectionCycle)
+                        {
+                            case 0: textBox.Select(0, dotIndex); break;
+                            case 1: textBox.SelectAll(); break;
+                            case 2: textBox.Select(dotIndex + 1, textBox.Text.Length - dotIndex - 1); break;
+                        }
+                    }
+                    else textBox.SelectAll();
+                }
+                else textBox.SelectAll();
+            });
+        }
+
+        private void OnRenameTextBoxKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+        {
+            if (sender is not TextBox textBox) return;
+            var vm = textBox.DataContext as FileSystemViewModel;
+            if (vm == null) return;
+
+            if (e.Key == Windows.System.VirtualKey.Enter)
+            {
+                vm.CommitRename();
+                _justFinishedRename = true;
+                _renameTargetPath = null;
+                e.Handled = true;
+                FocusSelectedListViewItem();
+            }
+            else if (e.Key == Windows.System.VirtualKey.Escape)
+            {
+                vm.CancelRename();
+                _justFinishedRename = true;
+                _renameTargetPath = null;
+                e.Handled = true;
+                FocusSelectedListViewItem();
+            }
+            else if (e.Key == Windows.System.VirtualKey.F2)
+            {
+                HandleRename();
+                e.Handled = true;
+            }
+        }
+
+        private void OnRenameTextBoxLostFocus(object sender, RoutedEventArgs e)
+        {
+            if (sender is not TextBox textBox) return;
+            var vm = textBox.DataContext as FileSystemViewModel;
+            if (vm == null || !vm.IsRenaming) return;
+
+            vm.CommitRename();
+            _renameTargetPath = null;
+        }
+
+        private void FocusSelectedListViewItem()
+        {
+            var selected = ViewModel?.CurrentFolder?.SelectedChild;
+            if (selected == null) return;
+
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+            {
+                if (DetailsListView.ContainerFromItem(selected) is ListViewItem container)
+                {
+                    container.Focus(FocusState.Programmatic);
+                }
+            });
         }
 
         #endregion
@@ -928,7 +1122,7 @@ namespace Span.Views
             LocationColumnDef.MinWidth = show ? 100 : 0;
             LocationHeaderContainer.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
             Splitter1a.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
-            Splitter1b.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+            // Splitter1b는 Name|Date 구분선 역할도 하므로 Location 숨김과 무관하게 유지
             _locationColumnWidth = show ? 180 : 0;
             UpdateAllVisibleContainerWidths();
         }

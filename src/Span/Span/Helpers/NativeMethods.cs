@@ -58,6 +58,10 @@ namespace Span.Helpers
 
         internal static readonly IntPtr HWND_TOP = IntPtr.Zero;
 
+        // 키보드 입력 시뮬레이션 (서브메뉴 열기용)
+        [DllImport("user32.dll")]
+        internal static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, nuint dwExtraInfo);
+
         // DPI 확인용
         [DllImport("user32.dll")]
         internal static extern uint GetDpiForWindow(IntPtr hwnd);

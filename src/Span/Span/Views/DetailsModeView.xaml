@@ -78,17 +78,18 @@
                 </Button>
             </Grid>
 
-            <!-- Splitter 1a: between Name and Location -->
+            <!-- Splitter 1a: between Name and Location (검색 결과에서만 표시) -->
             <controls:GridSplitter x:Name="Splitter1a" Grid.Column="2"
                                    Width="1"
                                    Padding="0"
                                    Margin="0"
+                                   Visibility="Collapsed"
                                    ResizeDirection="Columns"
                                    HorizontalAlignment="Center"
                                    Background="Transparent"/>
 
             <!-- Location Header (검색 결과에서만 표시) -->
-            <Grid Grid.Column="3" x:Name="LocationHeaderContainer">
+            <Grid Grid.Column="3" x:Name="LocationHeaderContainer" Visibility="Collapsed">
                 <Button x:Name="LocationHeaderButton"
                         Content="Location"
                         Click="OnHeaderClick"
@@ -109,7 +110,7 @@
                 </Button>
             </Grid>
 
-            <!-- Splitter 1b: between Location and Date -->
+            <!-- Splitter 1b: Name|Date 구분선 (Location 숨김 시에도 항상 표시) -->
             <controls:GridSplitter x:Name="Splitter1b" Grid.Column="4"
                                    Width="1"
                                    Padding="0"
@@ -364,13 +365,23 @@
                             </Border>
                         </Grid>
 
-                        <!-- Name -->
+                        <!-- Name (display) -->
                         <TextBlock Grid.Column="1"
                                    Text="{x:Bind TruncatedDisplayName, Mode=OneWay}"
                                    VerticalAlignment="Center"
                                    TextTrimming="CharacterEllipsis"
                                    FontSize="13"
-                                   Padding="6,0"/>
+                                   Padding="6,0"
+                                   Visibility="{x:Bind vm:FileSystemViewModel.NotRenaming(IsRenaming), Mode=OneWay}"/>
+                        <!-- Rename TextBox (visible during rename) -->
+                        <TextBox Grid.Column="1"
+                                 Text="{x:Bind EditableName, Mode=TwoWay}"
+                                 Visibility="{x:Bind IsRenaming, Mode=OneWay}"
+                                 VerticalAlignment="Center"
+                                 VerticalContentAlignment="Center"
+                                 Padding="6,0" MinHeight="0" FontSize="13"
+                                 LostFocus="OnRenameTextBoxLostFocus"
+                                 KeyDown="OnRenameTextBoxKeyDown"/>
 
                         <!-- Location (검색 결과에서만 표시) - Width set by ContainerContentChanging -->
                         <Border Grid.Column="3" x:Name="LocationCell" Width="0">

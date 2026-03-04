@@ -214,6 +214,63 @@ namespace Span.Views
         public void RebuildListItemsPublic() => RebuildListItems();
 
         /// <summary>
+        /// _listItems를 diff 기반으로 증분 업데이트. ".."와 파일 항목을 모두 포함.
+        /// Path 기준 비교, 50% 이상 변경 시 전체 교체 fallback.
+        /// </summary>
+        private void SyncListItems(System.Collections.Generic.List<ViewModels.FileSystemViewModel> newItems)
+        {
+            var oldItems = _listItems;
+            var newPathSet = new System.Collections.Generic.HashSet<string>(
+                newItems.Select(x => x.Path), StringComparer.OrdinalIgnoreCase);
+
+            int addCount = newItems.Count(x => !oldItems.Any(o => string.Equals(o.Path, x.Path, StringComparison.OrdinalIgnoreCase)));
+            int removeCount = oldItems.Count(x => !newPathSet.Contains(x.Path));
+
+            if (addCount + removeCount > Math.Max(oldItems.Count, newItems.Count) / 2)
+            {
+                // 대량 변경 → 전체 교체
+                oldItems.Clear();
+                foreach (var item in newItems)
+                    oldItems.Add(item);
+                return;
+            }
+
+            // 삭제 (뒤에서부터)
+            for (int i = oldItems.Count - 1; i >= 0; i--)
+            {
+                if (!newPathSet.Contains(oldItems[i].Path))
+                    oldItems.RemoveAt(i);
+            }
+
+            // 추가 & 순서 맞추기
+            for (int newIdx = 0; newIdx < newItems.Count; newIdx++)
+            {
+                var newItem = newItems[newIdx];
+                if (newIdx < oldItems.Count &&
+                    string.Equals(oldItems[newIdx].Path, newItem.Path, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                int existingIdx = -1;
+                for (int j = newIdx; j < oldItems.Count; j++)
+                {
+                    if (string.Equals(oldItems[j].Path, newItem.Path, StringComparison.OrdinalIgnoreCase))
+                    {
+                        existingIdx = j;
+                        break;
+                    }
+                }
+
+                if (existingIdx >= 0 && existingIdx != newIdx)
+                    oldItems.Move(existingIdx, newIdx);
+                else if (existingIdx < 0)
+                    oldItems.Insert(newIdx, newItem);
+            }
+
+            while (oldItems.Count > newItems.Count)
+                oldItems.RemoveAt(oldItems.Count - 1);
+        }
+
+        /// <summary>
         /// Rebuild the List items list: [..] + directories (sorted) + files (sorted).
         /// </summary>
         private void RebuildListItems()
@@ -231,29 +288,35 @@ namespace Span.Views
 
             try
             {
-                _listItems.Clear();
+                // ".." 항목 관리
+                var newParentVm = CreateParentDotDotVm(folder.Path);
+                var sourceItems = folder.Children.ToList();
 
-                // 1. Create ".." entry if not at root
-                _parentDotDotVm = CreateParentDotDotVm(folder.Path);
-                if (_parentDotDotVm != null)
+                // 새 전체 목록 구축 (".." + Children)
+                var newItems = new System.Collections.Generic.List<ViewModels.FileSystemViewModel>(sourceItems.Count + 1);
+                if (newParentVm != null) newItems.Add(newParentVm);
+                newItems.AddRange(sourceItems);
+
+                // diff 기반 증분 업데이트 (스크롤/선택 보존)
+                if (_listItems.Count > 0 && newItems.Count > 0)
                 {
-                    _listItems.Add(_parentDotDotVm);
+                    SyncListItems(newItems);
                 }
+                else
+                {
+                    _listItems.Clear();
+                    foreach (var item in newItems)
+                        _listItems.Add(item);
+                }
+                _parentDotDotVm = newParentVm;
 
-                // 2. FolderViewModel.Children은 이미 정렬됨 (PopulateChildren/SortChildren)
-                var sorted = folder.Children.ToList();
-
-                foreach (var item in sorted)
-                    _listItems.Add(item);
-
-                // 3. Restore selection or select first item for keyboard nav
+                // Restore selection or select first item for keyboard nav
                 if (savedSelection != null && savedSelection.Name != ".." && _listItems.Contains(savedSelection))
                 {
                     ListGridView.SelectedItem = savedSelection;
                 }
                 else if (_listItems.Count > 0)
                 {
-                    // Auto-select first item so arrow keys start from a known position
                     ListGridView.SelectedItem = _listItems[0];
                 }
             }
@@ -583,13 +646,56 @@ namespace Span.Views
 
         #endregion
 
+        #region Selection Operations
+
+        internal void SelectNone()
+        {
+            if (ListGridView == null) return;
+            _isSyncingSelection = true;
+            try
+            {
+                ListGridView.SelectedItems.Clear();
+                if (ViewModel?.CurrentFolder != null)
+                {
+                    ViewModel.CurrentFolder.SelectedChild = null;
+                    ViewModel.CurrentFolder.SelectedItems.Clear();
+                }
+            }
+            finally { _isSyncingSelection = false; }
+        }
+
+        internal void InvertSelection()
+        {
+            if (ListGridView == null || ViewModel?.CurrentFolder == null) return;
+            var allItems = ViewModel.CurrentFolder.Children.ToList();
+            var selectedIndices = new HashSet<int>();
+            foreach (var item in ListGridView.SelectedItems)
+            {
+                int idx = allItems.IndexOf(item as FileSystemViewModel);
+                if (idx >= 0) selectedIndices.Add(idx);
+            }
+            _isSyncingSelection = true;
+            try
+            {
+                ListGridView.SelectedItems.Clear();
+                for (int i = 0; i < allItems.Count; i++)
+                {
+                    if (!selectedIndices.Contains(i))
+                        ListGridView.SelectedItems.Add(allItems[i]);
+                }
+            }
+            finally { _isSyncingSelection = false; }
+        }
+
+        #endregion
+
         #region F2 Inline Rename
 
         /// <summary>
         /// Start inline rename for the selected item (F2).
         /// Handles F2 cycling: name-only → all → extension-only.
         /// </summary>
-        private void HandleRename()
+        internal void HandleRename()
         {
             var selected = GetSelectedItem();
             if (selected == null || IsParentDotDot(selected)) return;

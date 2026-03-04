@@ -100,6 +100,10 @@ namespace Span.ViewModels
                 var bitmap = new BitmapImage();
                 bitmap.DecodePixelWidth = decodePixelWidth;
                 bitmap.DecodePixelType = DecodePixelType.Logical;
+                // 이미지 디코딩 실패 감지
+                bitmap.ImageFailed += (s, args) =>
+                    Helpers.DebugLogger.LogCrash($"BitmapImage.ImageFailed({Name})",
+                        args.ErrorMessage != null ? new InvalidOperationException(args.ErrorMessage) : null);
 
                 using var stream = File.OpenRead(filePath);
                 using var memStream = new MemoryStream();
@@ -109,8 +113,10 @@ namespace Span.ViewModels
                 // Guard: column may have been removed during async I/O
                 if (!_thumbnailLoading) return;
 
+                Helpers.DebugLogger.Log($"[Thumbnail] SetSourceAsync START: {Name} ({fileInfo.Length} bytes)");
                 var ras = memStream.AsRandomAccessStream();
                 await bitmap.SetSourceAsync(ras);
+                Helpers.DebugLogger.Log($"[Thumbnail] SetSourceAsync OK: {Name} (pixel={bitmap.PixelWidth}x{bitmap.PixelHeight})");
 
                 // Guard again after SetSourceAsync (another await point)
                 if (!_thumbnailLoading) return;
@@ -156,7 +162,13 @@ namespace Span.ViewModels
                     var bitmap = new BitmapImage();
                     bitmap.DecodePixelWidth = decodePixelWidth;
                     bitmap.DecodePixelType = DecodePixelType.Logical;
+                    bitmap.ImageFailed += (s, args) =>
+                        Helpers.DebugLogger.LogCrash($"BitmapImage.ImageFailed.Shell({Name})",
+                            args.ErrorMessage != null ? new InvalidOperationException(args.ErrorMessage) : null);
+
+                    Helpers.DebugLogger.Log($"[Thumbnail] Shell SetSourceAsync START: {Name}");
                     await bitmap.SetSourceAsync(thumbnail);
+                    Helpers.DebugLogger.Log($"[Thumbnail] Shell SetSourceAsync OK: {Name}");
 
                     if (!_thumbnailLoading) return;
 

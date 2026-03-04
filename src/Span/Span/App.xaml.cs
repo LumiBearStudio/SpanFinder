@@ -105,9 +105,24 @@ namespace Span
             return null;
         }
 
+        private int _crashCount;
+        private DateTime _lastCrashTime;
         private void OnUnhandledException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs e)
         {
-            Helpers.DebugLogger.LogCrash("UI.UnhandledException", e.Exception);
+            var now = DateTime.UtcNow;
+            _crashCount++;
+            // 반복 크래시 억제: 첫 3회만 상세 기록, 이후 10초 간격으로 요약만
+            if (_crashCount <= 3 || (now - _lastCrashTime).TotalSeconds >= 10)
+            {
+                Helpers.DebugLogger.LogCrash("UI.UnhandledException", e.Exception);
+                Helpers.DebugLogger.LogCrash("UI.Detail",
+                    new InvalidOperationException($"Message='{e.Message}' HRESULT=0x{e.Exception?.HResult:X8} count={_crashCount}"));
+                Helpers.DebugLogger.Log($"[CRASH] UnhandledException: {e.Exception?.GetType().FullName}: {e.Exception?.Message}");
+                Helpers.DebugLogger.Log($"[CRASH] StackTrace: {e.Exception?.StackTrace}");
+                if (e.Exception?.InnerException != null)
+                    Helpers.DebugLogger.Log($"[CRASH] Inner: {e.Exception.InnerException.GetType().FullName}: {e.Exception.InnerException.Message}\n{e.Exception.InnerException.StackTrace}");
+            }
+            _lastCrashTime = now;
             try { Services.GetRequiredService<Services.CrashReportingService>().CaptureException(e.Exception, "UI.UnhandledException"); } catch { }
             e.Handled = true;
         }

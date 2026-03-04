@@ -146,10 +146,12 @@
 
                         <!-- Rename TextBox (visible during rename) -->
                         <TextBox Grid.Column="1"
-                                 Text="{x:Bind EditableName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 Text="{x:Bind EditableName, Mode=TwoWay}"
                                  Visibility="{x:Bind IsRenaming, Mode=OneWay}"
                                  VerticalAlignment="Center"
-                                 Padding="2" MinHeight="0" FontSize="13"
+                                 VerticalContentAlignment="Center"
+                                 Padding="4,0" MinHeight="0" FontSize="13"
+                                 Margin="0,-1,0,0"
                                  LostFocus="OnRenameTextBoxLostFocus"
                                  KeyDown="OnRenameTextBoxKeyDown"/>
 

@@ -27,6 +27,9 @@ namespace Span.Models
         /// <summary>True if the item uses owner-drawn rendering (may have no text)</summary>
         public bool IsOwnerDrawn { get; set; }
 
+        /// <summary>Accelerator character extracted from &amp; marker in original menu text (e.g. "&amp;Open" → "O")</summary>
+        public string? Accelerator { get; set; }
+
         /// <summary>Child items for submenus</summary>
         public List<ShellMenuItem>? Children { get; set; }
 

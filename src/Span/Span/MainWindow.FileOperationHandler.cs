@@ -77,6 +77,18 @@ namespace Span
                     }
                 }
             }
+            else if (viewMode == ViewMode.Details)
+            {
+                GetActiveDetailsView()?.SelectNone();
+            }
+            else if (viewMode == ViewMode.List)
+            {
+                GetActiveListView()?.SelectNone();
+            }
+            else if (Helpers.ViewModeExtensions.IsIconMode(viewMode))
+            {
+                GetActiveIconView()?.SelectNone();
+            }
         }
 
         // =================================================================
@@ -131,9 +143,21 @@ namespace Span
                 {
                     _isSyncingSelection = false;
                 }
-
-                ViewModel.UpdateStatusBar();
             }
+            else if (viewMode == ViewMode.Details)
+            {
+                GetActiveDetailsView()?.InvertSelection();
+            }
+            else if (viewMode == ViewMode.List)
+            {
+                GetActiveListView()?.InvertSelection();
+            }
+            else if (Helpers.ViewModeExtensions.IsIconMode(viewMode))
+            {
+                GetActiveIconView()?.InvertSelection();
+            }
+
+            ViewModel.UpdateStatusBar();
         }
 
         // =================================================================
@@ -146,12 +170,43 @@ namespace Span
         /// </summary>
         private List<FileSystemViewModel> GetCurrentSelectedItems()
         {
+            var viewMode = (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
+                ? ViewModel.RightViewMode : ViewModel.CurrentViewMode;
+
+            if (viewMode != ViewMode.MillerColumns)
+            {
+                // Details/List/Icon: CurrentFolder에서 선택된 항목을 가져옴
+                var currentFolder = ViewModel.ActiveExplorer.CurrentFolder;
+                if (currentFolder != null)
+                    return currentFolder.GetSelectedItemsList();
+                return new List<FileSystemViewModel>();
+            }
+
+            // Miller Columns: 활성 컬럼에서 선택된 항목을 가져옴
             var columns = ViewModel.ActiveExplorer.Columns;
             int activeIndex = GetCurrentColumnIndex();
             if (activeIndex < 0 || activeIndex >= columns.Count) return new List<FileSystemViewModel>();
 
             var col = columns[activeIndex];
             return col.GetSelectedItemsList();
+        }
+
+        /// <summary>
+        /// 현재 뷰 모드에 맞는 활성 FolderViewModel을 반환한다.
+        /// Miller: 활성 컬럼, non-Miller: CurrentFolder.
+        /// </summary>
+        private FolderViewModel? GetCurrentViewFolder()
+        {
+            var viewMode = (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
+                ? ViewModel.RightViewMode : ViewModel.CurrentViewMode;
+
+            if (viewMode != ViewMode.MillerColumns)
+                return ViewModel.ActiveExplorer.CurrentFolder;
+
+            var columns = ViewModel.ActiveExplorer.Columns;
+            int activeIndex = GetCurrentColumnIndex();
+            if (activeIndex < 0 || activeIndex >= columns.Count) return null;
+            return columns[activeIndex];
         }
 
         #endregion
@@ -168,16 +223,11 @@ namespace Span
             if (selectedItems.Count == 0)
             {
                 // Fallback: auto-select first item if nothing is selected
-                var columns = ViewModel.ActiveExplorer.Columns;
-                int activeIndex = GetCurrentColumnIndex();
-                if (activeIndex >= 0 && activeIndex < columns.Count)
+                var folder = GetCurrentViewFolder();
+                if (folder != null && folder.Children.Count > 0)
                 {
-                    var currentColumn = columns[activeIndex];
-                    if (currentColumn.Children.Count > 0)
-                    {
-                        currentColumn.SelectedChild = currentColumn.Children[0];
-                        selectedItems = new List<FileSystemViewModel> { currentColumn.Children[0] };
-                    }
+                    folder.SelectedChild = folder.Children[0];
+                    selectedItems = new List<FileSystemViewModel> { folder.Children[0] };
                 }
             }
             if (selectedItems.Count == 0) return;
@@ -224,16 +274,11 @@ namespace Span
             var selectedItems = GetCurrentSelectedItems();
             if (selectedItems.Count == 0)
             {
-                var columns = ViewModel.ActiveExplorer.Columns;
-                int activeIndex = GetCurrentColumnIndex();
-                if (activeIndex >= 0 && activeIndex < columns.Count)
+                var folder = GetCurrentViewFolder();
+                if (folder != null && folder.Children.Count > 0)
                 {
-                    var currentColumn = columns[activeIndex];
-                    if (currentColumn.Children.Count > 0)
-                    {
-                        currentColumn.SelectedChild = currentColumn.Children[0];
-                        selectedItems = new List<FileSystemViewModel> { currentColumn.Children[0] };
-                    }
+                    folder.SelectedChild = folder.Children[0];
+                    selectedItems = new List<FileSystemViewModel> { folder.Children[0] };
                 }
             }
             if (selectedItems.Count == 0) return;
@@ -280,12 +325,26 @@ namespace Span
         {
             try
             {
-            var columns = ViewModel.ActiveExplorer.Columns;
-            int activeIndex = GetActiveColumnIndex();
-            if (activeIndex < 0) activeIndex = columns.Count - 1;
-            if (activeIndex < 0 || activeIndex >= columns.Count) return;
+            var viewMode = (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
+                ? ViewModel.RightViewMode : ViewModel.CurrentViewMode;
 
-            var targetFolder = columns[activeIndex];
+            FolderViewModel? targetFolder;
+            int activeIndex;
+
+            if (viewMode != ViewMode.MillerColumns)
+            {
+                targetFolder = ViewModel.ActiveExplorer.CurrentFolder;
+                activeIndex = -1; // non-Miller: activeIndex 불필요
+            }
+            else
+            {
+                var columns = ViewModel.ActiveExplorer.Columns;
+                activeIndex = GetActiveColumnIndex();
+                if (activeIndex < 0) activeIndex = columns.Count - 1;
+                if (activeIndex < 0 || activeIndex >= columns.Count) return;
+                targetFolder = columns[activeIndex];
+            }
+            if (targetFolder == null) return;
             string destDir = targetFolder.Path;
 
             List<string> sourcePaths;
@@ -423,7 +482,7 @@ namespace Span
                 op = copyOp;
             }
 
-            await ViewModel.ExecuteFileOperationAsync(op, activeIndex);
+            await ViewModel.ExecuteFileOperationAsync(op, activeIndex >= 0 ? activeIndex : null);
 
             if (isCut && _clipboardPaths.Count > 0) _clipboardPaths.Clear();
             UpdateToolbarButtonStates();
@@ -442,12 +501,23 @@ namespace Span
         {
             try
             {
-            var columns = ViewModel.ActiveExplorer.Columns;
-            int activeIndex = GetActiveColumnIndex();
-            if (activeIndex < 0) activeIndex = columns.Count - 1;
-            if (activeIndex < 0 || activeIndex >= columns.Count) return;
+            var viewMode = (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
+                ? ViewModel.RightViewMode : ViewModel.CurrentViewMode;
 
-            string destDir = columns[activeIndex].Path;
+            string? destDir;
+            if (viewMode != ViewMode.MillerColumns)
+            {
+                destDir = ViewModel.ActiveExplorer.CurrentFolder?.Path;
+            }
+            else
+            {
+                var columns = ViewModel.ActiveExplorer.Columns;
+                int activeIndex = GetActiveColumnIndex();
+                if (activeIndex < 0) activeIndex = columns.Count - 1;
+                if (activeIndex < 0 || activeIndex >= columns.Count) return;
+                destDir = columns[activeIndex].Path;
+            }
+            if (string.IsNullOrEmpty(destDir)) return;
 
             // 소스 경로 수집 (내부 or 외부 클립보드)
             List<string> sourcePaths;
@@ -530,12 +600,27 @@ namespace Span
         {
             try
             {
-                var columns = ViewModel.ActiveExplorer.Columns;
-                int activeIndex = GetActiveColumnIndex();
-                if (activeIndex < 0) activeIndex = columns.Count - 1;
-                if (activeIndex < 0 || activeIndex >= columns.Count) return;
+                var viewMode = (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
+                    ? ViewModel.RightViewMode : ViewModel.CurrentViewMode;
 
-                var currentFolder = columns[activeIndex];
+                FolderViewModel? currentFolder;
+                int activeIndex;
+
+                if (viewMode != ViewMode.MillerColumns)
+                {
+                    currentFolder = ViewModel.ActiveExplorer.CurrentFolder;
+                    activeIndex = -1;
+                }
+                else
+                {
+                    var columns = ViewModel.ActiveExplorer.Columns;
+                    activeIndex = GetActiveColumnIndex();
+                    if (activeIndex < 0) activeIndex = columns.Count - 1;
+                    if (activeIndex < 0 || activeIndex >= columns.Count) return;
+                    currentFolder = columns[activeIndex];
+                }
+                if (currentFolder == null) return;
+
                 string baseName = _loc.Get("NewFolderBaseName");
                 bool isRemote = Services.FileSystemRouter.IsRemotePath(currentFolder.Path);
 
@@ -559,7 +644,7 @@ namespace Span
 
                 var router = App.Current.Services.GetRequiredService<Services.FileSystemRouter>();
                 var op = new Span.Services.FileOperations.NewFolderOperation(newPath, router);
-                await ViewModel.ExecuteFileOperationAsync(op, activeIndex);
+                await ViewModel.ExecuteFileOperationAsync(op, activeIndex >= 0 ? activeIndex : (int?)null);
 
                 // Select the new folder and start inline rename
                 var newFolder = currentFolder.Children.FirstOrDefault(c =>
@@ -569,7 +654,9 @@ namespace Span
                     currentFolder.SelectedChild = newFolder;
                     newFolder.BeginRename();
                     await System.Threading.Tasks.Task.Delay(100);
-                    FocusRenameTextBox(activeIndex);
+                    if (viewMode == ViewMode.MillerColumns && activeIndex >= 0)
+                        FocusRenameTextBox(activeIndex);
+                    // non-Miller: 해당 뷰에서 rename TextBox 포커스는 IsRenaming 바인딩으로 자동 처리
                 }
             }
             catch (Exception ex)
@@ -594,12 +681,24 @@ namespace Span
         {
             try
             {
-                var columns = ViewModel.ActiveExplorer.Columns;
-                int activeIndex = GetActiveColumnIndex();
-                if (activeIndex < 0) activeIndex = columns.Count - 1;
-                if (activeIndex < 0 || activeIndex >= columns.Count) return;
+                var viewMode = (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
+                    ? ViewModel.RightViewMode : ViewModel.CurrentViewMode;
 
-                var column = columns[activeIndex];
+                FolderViewModel? column;
+                if (viewMode != ViewMode.MillerColumns)
+                {
+                    column = ViewModel.ActiveExplorer.CurrentFolder;
+                }
+                else
+                {
+                    var columns = ViewModel.ActiveExplorer.Columns;
+                    int activeIndex = GetActiveColumnIndex();
+                    if (activeIndex < 0) activeIndex = columns.Count - 1;
+                    if (activeIndex < 0 || activeIndex >= columns.Count) return;
+                    column = columns[activeIndex];
+                }
+                if (column == null) return;
+
                 var previousSelection = column.SelectedChild;
 
                 await column.ReloadAsync();
@@ -633,6 +732,23 @@ namespace Span
         /// </summary>
         private void HandleRename()
         {
+            // Details/List/Icon 뷰: 해당 뷰의 자체 rename 핸들러에 위임
+            if (ViewModel.CurrentViewMode == Models.ViewMode.Details)
+            {
+                GetActiveDetailsView()?.HandleRename();
+                return;
+            }
+            if (ViewModel.CurrentViewMode == Models.ViewMode.List)
+            {
+                GetActiveListView()?.HandleRename();
+                return;
+            }
+            if (Helpers.ViewModeExtensions.IsIconMode(ViewModel.CurrentViewMode))
+            {
+                GetActiveIconView()?.HandleRename();
+                return;
+            }
+
             var columns = ViewModel.ActiveExplorer.Columns;
             int activeIndex = GetCurrentColumnIndex(); // Fixed: Use GetCurrentColumnIndex
             if (activeIndex < 0 || activeIndex >= columns.Count) return;
@@ -731,12 +847,13 @@ namespace Span
         private void FocusRenameTextBoxCore(ListView listView, int columnIndex)
         {
             var columns = ViewModel.ActiveExplorer.Columns;
-            if (columnIndex >= columns.Count) return;
+            if (columnIndex >= columns.Count) { Helpers.DebugLogger.Log($"[Rename] FocusRenameTextBoxCore: columnIndex={columnIndex} >= columns.Count={columns.Count}"); return; }
 
             var column = columns[columnIndex];
-            if (column.SelectedChild == null) return;
+            if (column.SelectedChild == null) { Helpers.DebugLogger.Log($"[Rename] FocusRenameTextBoxCore: SelectedChild is null for column {columnIndex}"); return; }
 
             int idx = column.Children.IndexOf(column.SelectedChild);
+            Helpers.DebugLogger.Log($"[Rename] FocusRenameTextBoxCore: col={columnIndex} selectedChild='{column.SelectedChild.Name}' IsRenaming={column.SelectedChild.IsRenaming} childIdx={idx}");
             if (idx < 0) return;
 
             var container = listView.ContainerFromIndex(idx) as UIElement;
@@ -842,6 +959,12 @@ namespace Span
             var vm = textBox.DataContext as FileSystemViewModel;
             if (vm == null) return;
 
+            Helpers.DebugLogger.Log($"[Rename] LostFocus: vm.Name='{vm.Name}' IsRenaming={vm.IsRenaming} pendingFocus={_renamePendingFocus}");
+
+            // PerformRename(컨텍스트 메뉴) → BeginRename 직후 MenuFlyout 닫힘으로
+            // TextBox가 아직 포커스를 받기 전에 LostFocus가 발동하는 케이스 방어
+            if (_renamePendingFocus) return;
+
             // 포커스 잃으면 커밋 (ListModeView와 동일 동작)
             // Enter 없이 다른 곳 클릭해도 변경사항 저장
             if (vm.IsRenaming)
@@ -886,6 +1009,10 @@ namespace Span
         /// </summary>
         private void CancelAnyActiveRename()
         {
+            // 우클릭 메뉴에서 이름 바꾸기 실행 시, MenuFlyout 닫힘 → 컬럼 GotFocus → 여기 호출됨
+            // _renamePendingFocus가 true이면 PerformRename이 진행 중이므로 취소하지 않음
+            if (_renamePendingFocus) return;
+
             var explorer = ViewModel?.ActiveExplorer;
             if (explorer == null) return;
 
@@ -938,12 +1065,26 @@ namespace Span
         {
             try
             {
-            // ★ Save activeIndex BEFORE showing dialog (modal dialog steals focus)
-            var columns = ViewModel.ActiveExplorer.Columns;
-            int activeIndex = GetCurrentColumnIndex();
-            if (activeIndex < 0 || activeIndex >= columns.Count) return;
+            var viewMode = (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
+                ? ViewModel.RightViewMode : ViewModel.CurrentViewMode;
 
-            var currentColumn = columns[activeIndex];
+            FolderViewModel? currentColumn;
+            int activeIndex;
+
+            if (viewMode != ViewMode.MillerColumns)
+            {
+                currentColumn = ViewModel.ActiveExplorer.CurrentFolder;
+                activeIndex = -1;
+            }
+            else
+            {
+                // ★ Save activeIndex BEFORE showing dialog (modal dialog steals focus)
+                var columns = ViewModel.ActiveExplorer.Columns;
+                activeIndex = GetCurrentColumnIndex();
+                if (activeIndex < 0 || activeIndex >= columns.Count) return;
+                currentColumn = columns[activeIndex];
+            }
+            if (currentColumn == null) return;
 
             // Multi-selection support
             var selectedItems = GetCurrentSelectedItems();
@@ -981,47 +1122,36 @@ namespace Span
                 if (_isClosed) return;
             }
 
-            // await 후 컬럼 유효성 재검증
-            var freshColumns = ViewModel.ActiveExplorer.Columns;
-            if (activeIndex >= freshColumns.Count) return;
-            if (!ReferenceEquals(currentColumn, freshColumns[activeIndex])) return;
+            // await 후 컬럼 유효성 재검증 (Miller only)
+            if (viewMode == ViewMode.MillerColumns)
+            {
+                var freshColumns = ViewModel.ActiveExplorer.Columns;
+                if (activeIndex >= freshColumns.Count) return;
+                if (!ReferenceEquals(currentColumn, freshColumns[activeIndex])) return;
+            }
 
             var paths = selectedItems.Select(i => i.Path).ToList();
             Helpers.DebugLogger.Log($"[HandleDelete] Dialog confirmed. Deleting {paths.Count} item(s), ActiveIndex: {activeIndex}");
-            Helpers.DebugLogger.Log($"[HandleDelete] Columns before delete: {string.Join(" > ", ViewModel.ActiveExplorer.Columns.Select(c => c.Name))}");
 
             // Execute delete operation (send to Recycle Bin)
             var router = App.Current.Services.GetRequiredService<Services.FileSystemRouter>();
             var operation = new DeleteFileOperation(paths, permanent: false, router: router);
-            Helpers.DebugLogger.Log($"[HandleDelete] Calling ExecuteFileOperationAsync with targetColumnIndex={activeIndex}");
-            await ViewModel.ExecuteFileOperationAsync(operation, activeIndex);
+            await ViewModel.ExecuteFileOperationAsync(operation, activeIndex >= 0 ? activeIndex : null);
             if (_isClosed) return;
 
-            Helpers.DebugLogger.Log($"[HandleDelete] After ExecuteFileOperationAsync. CurrentColumn children count: {currentColumn.Children.Count}");
-
             // ★ Smart selection: Select the item at the same index, or the last item if index is out of bounds
-            // Note: RefreshCurrentFolderAsync() already cleared selection and reloaded
             if (currentColumn.Children.Count > 0)
             {
                 int newIndex = Math.Clamp(selectedIndex, 0, currentColumn.Children.Count - 1);
                 currentColumn.SelectedChild = currentColumn.Children[newIndex];
-                Helpers.DebugLogger.Log($"[HandleDelete] Smart selection: selectedIndex={selectedIndex}, newIndex={newIndex}, selected={currentColumn.Children[newIndex].Name}");
             }
-            else
+
+            // Miller only: Remove columns after deleted item
+            if (viewMode == ViewMode.MillerColumns && activeIndex >= 0)
             {
-                Helpers.DebugLogger.Log($"[HandleDelete] No children after delete - selection cleared");
+                ViewModel.ActiveExplorer.CleanupColumnsFrom(activeIndex + 1);
+                FocusColumnAsync(activeIndex);
             }
-
-            // Remove columns after deleted item (using proper cleanup)
-            Helpers.DebugLogger.Log($"[HandleDelete] Cleaning up columns from index {activeIndex + 1}");
-            ViewModel.ActiveExplorer.CleanupColumnsFrom(activeIndex + 1);
-
-            Helpers.DebugLogger.Log($"[HandleDelete] Columns after cleanup: {string.Join(" > ", ViewModel.ActiveExplorer.Columns.Select(c => c.Name))}");
-
-            // Restore focus
-            Helpers.DebugLogger.Log($"[HandleDelete] Restoring focus to column {activeIndex}");
-            FocusColumnAsync(activeIndex);
-            Helpers.DebugLogger.Log($"[HandleDelete] ===== COMPLETE =====");
             }
             catch (Exception ex)
             {
@@ -1036,12 +1166,26 @@ namespace Span
         {
             try
             {
-            var columns = ViewModel.ActiveExplorer.Columns;
-            int activeIndex = GetActiveColumnIndex();
-            if (activeIndex < 0) activeIndex = columns.Count - 1;
-            if (activeIndex < 0 || activeIndex >= columns.Count) return;
+            var viewMode = (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
+                ? ViewModel.RightViewMode : ViewModel.CurrentViewMode;
 
-            var currentColumn = columns[activeIndex];
+            FolderViewModel? currentColumn;
+            int activeIndex;
+
+            if (viewMode != ViewMode.MillerColumns)
+            {
+                currentColumn = ViewModel.ActiveExplorer.CurrentFolder;
+                activeIndex = -1;
+            }
+            else
+            {
+                var columns = ViewModel.ActiveExplorer.Columns;
+                activeIndex = GetActiveColumnIndex();
+                if (activeIndex < 0) activeIndex = columns.Count - 1;
+                if (activeIndex < 0 || activeIndex >= columns.Count) return;
+                currentColumn = columns[activeIndex];
+            }
+            if (currentColumn == null) return;
 
             // Multi-selection support
             var selectedItems = GetCurrentSelectedItems();
@@ -1069,30 +1213,33 @@ namespace Span
 
             // await 후 상태 재검증
             if (_isClosed) return;
-            var freshColumns = ViewModel.ActiveExplorer.Columns;
-            if (activeIndex >= freshColumns.Count) return;
-            if (!ReferenceEquals(currentColumn, freshColumns[activeIndex])) return;
+            if (viewMode == ViewMode.MillerColumns)
+            {
+                var freshColumns = ViewModel.ActiveExplorer.Columns;
+                if (activeIndex >= freshColumns.Count) return;
+                if (!ReferenceEquals(currentColumn, freshColumns[activeIndex])) return;
+            }
 
             // Execute permanent delete operation
             var paths = selectedItems.Select(i => i.Path).ToList();
             var router = App.Current.Services.GetRequiredService<Services.FileSystemRouter>();
             var operation = new DeleteFileOperation(paths, permanent: true, router: router);
-            await ViewModel.ExecuteFileOperationAsync(operation, activeIndex);
+            await ViewModel.ExecuteFileOperationAsync(operation, activeIndex >= 0 ? activeIndex : null);
             if (_isClosed) return;
 
-            // ★ Smart selection: Select the item at the same index, or the last item if index is out of bounds
-            // Note: RefreshCurrentFolderAsync() already cleared selection and reloaded
+            // ★ Smart selection
             if (currentColumn.Children.Count > 0)
             {
                 int newIndex = Math.Clamp(selectedIndex, 0, currentColumn.Children.Count - 1);
                 currentColumn.SelectedChild = currentColumn.Children[newIndex];
             }
 
-            // Remove columns after deleted item (using proper cleanup)
-            ViewModel.ActiveExplorer.CleanupColumnsFrom(activeIndex + 1);
-
-            // Restore focus
-            FocusColumnAsync(activeIndex);
+            // Miller only: Remove columns after deleted item
+            if (viewMode == ViewMode.MillerColumns && activeIndex >= 0)
+            {
+                ViewModel.ActiveExplorer.CleanupColumnsFrom(activeIndex + 1);
+                FocusColumnAsync(activeIndex);
+            }
             }
             catch (Exception ex)
             {
@@ -1271,6 +1418,12 @@ namespace Span
 
         private string? GetActiveColumnPath()
         {
+            var viewMode = (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
+                ? ViewModel.RightViewMode : ViewModel.CurrentViewMode;
+
+            if (viewMode != ViewMode.MillerColumns)
+                return ViewModel.ActiveExplorer.CurrentFolder?.Path;
+
             var columns = ViewModel.ActiveExplorer.Columns;
             int activeIndex = GetActiveColumnIndex();
             if (activeIndex < 0) activeIndex = columns.Count - 1;
@@ -1447,11 +1600,10 @@ namespace Span
             }
 
             // Refresh current folder
-            var explorer = ViewModel.ActiveExplorer;
-            int colIndex = GetCurrentColumnIndex();
-            if (colIndex >= 0 && colIndex < explorer.Columns.Count)
+            var refreshFolder = GetCurrentViewFolder();
+            if (refreshFolder != null)
             {
-                await explorer.Columns[colIndex].RefreshAsync();
+                await refreshFolder.RefreshAsync();
             }
 
             ViewModel.ShowToast(paths.Count == 1

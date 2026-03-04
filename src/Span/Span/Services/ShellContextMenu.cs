@@ -377,21 +377,37 @@ namespace Span.Services
 
             try
             {
+                Helpers.DebugLogger.Log($"[ShellContextMenu] CreateSession step=SHParseDisplayName path={path}");
                 int hr = SHParseDisplayName(path, IntPtr.Zero, out pidl, 0, out _);
-                if (hr != 0 || pidl == IntPtr.Zero) return null;
+                if (hr != 0 || pidl == IntPtr.Zero)
+                {
+                    Helpers.DebugLogger.Log($"[ShellContextMenu] CreateSession SHParseDisplayName FAILED hr=0x{hr:X8}");
+                    return null;
+                }
 
+                Helpers.DebugLogger.Log($"[ShellContextMenu] CreateSession step=SHBindToParent");
                 var iidFolder = new Guid("000214E6-0000-0000-C000-000000000046");
                 hr = SHBindToParent(pidl, ref iidFolder, out shellFolderPtr, out IntPtr childPidl);
-                if (hr != 0 || shellFolderPtr == IntPtr.Zero) return null;
+                if (hr != 0 || shellFolderPtr == IntPtr.Zero)
+                {
+                    Helpers.DebugLogger.Log($"[ShellContextMenu] CreateSession SHBindToParent FAILED hr=0x{hr:X8}");
+                    return null;
+                }
 
+                Helpers.DebugLogger.Log($"[ShellContextMenu] CreateSession step=GetUIObjectOf");
                 shellFolderObj = Marshal.GetObjectForIUnknown(shellFolderPtr);
                 var shellFolder = (IShellFolder)shellFolderObj;
 
                 var iidCM = new Guid("000214e4-0000-0000-c000-000000000046");
                 IntPtr[] childPidls = { childPidl };
                 hr = shellFolder.GetUIObjectOf(hwnd, 1, childPidls, ref iidCM, IntPtr.Zero, out contextMenuPtr);
-                if (hr != 0 || contextMenuPtr == IntPtr.Zero) return null;
+                if (hr != 0 || contextMenuPtr == IntPtr.Zero)
+                {
+                    Helpers.DebugLogger.Log($"[ShellContextMenu] CreateSession GetUIObjectOf FAILED hr=0x{hr:X8}");
+                    return null;
+                }
 
+                Helpers.DebugLogger.Log($"[ShellContextMenu] CreateSession step=QueryContextMenu");
                 contextMenuObj = Marshal.GetObjectForIUnknown(contextMenuPtr);
                 var contextMenu = (IContextMenu)contextMenuObj;
 
@@ -405,6 +421,7 @@ namespace Span.Services
 
                 hr = contextMenu.QueryContextMenu(hMenu, 0, FIRST_CMD, LAST_CMD,
                     CMF_NORMAL | CMF_EXPLORE | CMF_CANRENAME);
+                Helpers.DebugLogger.Log($"[ShellContextMenu] CreateSession QueryContextMenu hr=0x{hr:X8} menuCount={GetMenuItemCount(hMenu)}");
                 if (hr < 0)
                 {
                     DestroyMenu(hMenu);
@@ -412,7 +429,9 @@ namespace Span.Services
                 }
 
                 // Enumerate and filter items
+                Helpers.DebugLogger.Log($"[ShellContextMenu] CreateSession step=EnumerateMenuItems");
                 var items = EnumerateMenuItems(hMenu, contextMenu, cm2, cm3, 0);
+                Helpers.DebugLogger.Log($"[ShellContextMenu] CreateSession EnumerateMenuItems done count={items.Count}");
 
                 var session = new Session(
                     contextMenu, contextMenuObj, shellFolderObj,
@@ -430,7 +449,8 @@ namespace Span.Services
             }
             catch (Exception ex)
             {
-                Helpers.DebugLogger.Log($"[ShellContextMenu] CreateSession error: {ex.Message}");
+                Helpers.DebugLogger.Log($"[ShellContextMenu] CreateSession EXCEPTION: {ex.GetType().Name}: {ex.Message}");
+                Helpers.DebugLogger.Log($"[ShellContextMenu] CreateSession StackTrace: {ex.StackTrace}");
                 return null;
             }
             finally
@@ -450,10 +470,10 @@ namespace Span.Services
         /// If the shell extension takes too long (e.g. unresponsive third-party),
         /// returns null so the caller can show custom-only menu items.
         /// </summary>
-        public static async Task<Session?> CreateSessionAsync(IntPtr hwnd, string path, int timeoutMs = 3000)
+        public static async Task<Session?> CreateSessionAsync(IntPtr hwnd, string path, int timeoutMs = 1500)
         {
-            // Throttle concurrent STA threads to prevent resource exhaustion
-            if (!await s_staThrottle.WaitAsync(timeoutMs))
+            // Throttle concurrent STA threads — 슬롯 없으면 500ms만 대기 후 포기
+            if (!await s_staThrottle.WaitAsync(Math.Min(timeoutMs, 500)))
             {
                 Helpers.DebugLogger.Log($"[ShellContextMenu] STA throttle timeout for: {path}");
                 return null;
@@ -493,7 +513,10 @@ namespace Span.Services
 
                 if (caught != null)
                 {
-                    Helpers.DebugLogger.Log($"[ShellContextMenu] CreateSessionAsync error: {caught.Message}");
+                    Helpers.DebugLogger.Log($"[ShellContextMenu] CreateSessionAsync EXCEPTION: {caught.GetType().Name}: {caught.Message}");
+                    Helpers.DebugLogger.Log($"[ShellContextMenu] CreateSessionAsync StackTrace: {caught.StackTrace}");
+                    if (caught.InnerException != null)
+                        Helpers.DebugLogger.Log($"[ShellContextMenu] CreateSessionAsync Inner: {caught.InnerException.GetType().Name}: {caught.InnerException.Message}");
                     return null;
                 }
 
@@ -541,6 +564,7 @@ namespace Span.Services
 
                 // Get text (second pass)
                 string text = string.Empty;
+                string? accelerator = null;
                 bool isOwnerDrawn = (mii.fType & MFT_OWNERDRAW) != 0;
 
                 if (!isOwnerDrawn)
@@ -564,8 +588,15 @@ namespace Span.Services
                             if (GetMenuItemInfoW(hMenu, i, true, ref miiText))
                             {
                                 text = Marshal.PtrToStringUni(miiText.dwTypeData) ?? string.Empty;
+                                // Extract accelerator character before stripping & markers
+                                int ampIdx = text.IndexOf('&');
+                                if (ampIdx >= 0 && ampIdx + 1 < text.Length && text[ampIdx + 1] != '&')
+                                    accelerator = text[ampIdx + 1].ToString().ToUpperInvariant();
                                 // Strip accelerator markers (&)
                                 text = text.Replace("&", "");
+                                // Note: CJK 로케일에서 "보내기(&N)" → "보내기(N)" 로 괄호가 남지만,
+                                // 여기서 strip하면 WindowsShellExtraTexts 필터와 매칭되어 항목이 사라짐.
+                                // ApplyCompact에서 중복 "(X)" 방어 로직으로 처리.
                             }
                         }
                         finally
@@ -611,7 +642,8 @@ namespace Span.Services
                     CommandId = (int)mii.wID,
                     Verb = verb,
                     IsDisabled = (mii.fState & MFS_DISABLED) != 0 || (mii.fState & MFS_GRAYED) != 0,
-                    IsOwnerDrawn = isOwnerDrawn
+                    IsOwnerDrawn = isOwnerDrawn,
+                    Accelerator = accelerator
                 };
 
                 // Handle submenus recursively
@@ -758,11 +790,13 @@ namespace Span.Services
                     if (_hMenu != IntPtr.Zero) DestroyMenu(_hMenu);
                     if (_pidl != IntPtr.Zero) CoTaskMemFree(_pidl);
 
+                    // RCW를 통해 Release — Marshal.Release와 이중 호출하면 참조 카운트 오류 발생
                     try { Marshal.ReleaseComObject(_contextMenuObj); } catch { }
                     try { Marshal.ReleaseComObject(_shellFolderObj); } catch { }
 
-                    if (_contextMenuPtr != IntPtr.Zero) Marshal.Release(_contextMenuPtr);
-                    if (_shellFolderPtr != IntPtr.Zero) Marshal.Release(_shellFolderPtr);
+                    // 원시 포인터 Release 제거: ReleaseComObject가 이미 IUnknown::Release() 호출
+                    // if (_contextMenuPtr != IntPtr.Zero) Marshal.Release(_contextMenuPtr);
+                    // if (_shellFolderPtr != IntPtr.Zero) Marshal.Release(_shellFolderPtr);
                 }
                 catch (Exception ex)
                 {
