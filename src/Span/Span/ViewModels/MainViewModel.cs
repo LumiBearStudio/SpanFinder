@@ -850,6 +850,11 @@ namespace Span.ViewModels
             return Favorites.Any(f => f.Path.Equals(path, StringComparison.OrdinalIgnoreCase));
         }
 
+        /// <summary>
+        /// 사이드바 즐겨찾기 클릭 시 해당 경로로 탐색.
+        /// Home/ActionLog 모드인 경우 이전 뷰모드를 복원하여 사용자 뷰 컨텍스트 유지.
+        /// OpenDrive()와 동일한 뷰모드 보존 패턴 사용.
+        /// </summary>
         public void NavigateToFavorite(FavoriteItem favorite)
         {
             if (!System.IO.Directory.Exists(favorite.Path))
@@ -858,7 +863,7 @@ namespace Span.ViewModels
                 return;
             }
 
-            // Switch away from Home mode if needed
+            // Home/ActionLog에서 벗어나며 이전 뷰모드 복원 (OpenDrive와 동일한 패턴)
             var activeViewMode = (IsSplitViewEnabled && ActivePane == ActivePane.Right)
                 ? RightViewMode : CurrentViewMode;
             if (activeViewMode == ViewMode.Home || activeViewMode == ViewMode.ActionLog)

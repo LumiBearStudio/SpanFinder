@@ -79,7 +79,11 @@ namespace Span
         #region Column Focus & Visibility
 
         /// <summary>
-        /// 활성 컬럼의 인덱스를 반환한다. 포커스 기반으로 활성 컬럼을 결정한다.
+        /// 현재 키보드 포커스가 위치한 Miller Column의 인덱스를 반환한다.
+        /// FocusManager에서 포커스된 요소를 가져온 뒤, 각 컬럼의 ListView에 대해
+        /// IsDescendant()로 포함 여부를 검사한다.
+        /// 포커스가 어떤 컬럼에도 없으면 -1을 반환한다.
+        /// HandlePaste, HandleSelectAll 등에서 대상 컬럼을 결정하는 핵심 메서드.
         /// </summary>
         private int GetActiveColumnIndex()
         {
@@ -101,8 +105,10 @@ namespace Span
         }
 
         /// <summary>
-        /// Get the column index that should be used for operations when focus is lost.
-        /// Finds the rightmost column with a SelectedChild.
+        /// 포커스가 없을 때 작업 대상 컬럼 인덱스를 결정한다.
+        /// 우선 GetActiveColumnIndex()를 시도하고, 실패하면(-1) SelectedChild가 있는
+        /// 가장 오른쪽 컬럼을 반환한다. 최종 fallback은 마지막 컬럼.
+        /// 툴바 버튼 클릭 등 포커스가 컬럼 밖에 있을 때 사용된다.
         /// </summary>
         private int GetCurrentColumnIndex()
         {

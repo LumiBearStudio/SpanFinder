@@ -28,8 +28,10 @@ namespace Span
         #region Selection Operations (SelectAll, SelectNone, InvertSelection)
 
         /// <summary>
-        /// 전체 선택 처리. 현재 활성 뷰 모드에 따라 적절한 ListView를 찾아
-        /// SelectAll을 실행한다.
+        /// 전체 선택 처리 (Ctrl+A).
+        /// SplitView 활성 시 ActivePane에 따른 뷰 모드를 확인하고,
+        /// MillerColumns/Details/List/Icon 모드 각각에 맞는 뷰의 SelectAll을 호출한다.
+        /// Miller 모드에서는 포커스가 없는 경우 마지막 컬럼을 대상으로 한다.
         /// </summary>
         private void HandleSelectAll()
         {
@@ -226,8 +228,9 @@ namespace Span
         #region Clipboard Operations (Copy, Cut, Paste)
 
         /// <summary>
-        /// 복사(코피) 작업 처리. 선택된 항목의 경로를 클립보드에 저장하고
-        /// 시스템 클립보드에도 StorageItems로 설정한다.
+        /// 복사 작업 처리 (Ctrl+C).
+        /// 선택된 항목의 경로를 내부 _clipboardPaths에 저장하고 _isCutOperation=false로 설정한다.
+        /// 시스템 클립보드에 StorageItems도 제공하여 Windows 탐색기와의 호환성을 보장한다.
         /// </summary>
         private void HandleCopy()
         {
@@ -279,7 +282,9 @@ namespace Span
         }
 
         /// <summary>
-        /// 잘라내기(컷) 작업 처리. HandleCopy와 동일하지만 이동 플래그를 설정한다.
+        /// 잘라내기 작업 처리 (Ctrl+X).
+        /// HandleCopy와 동일한 흐름이지만 _isCutOperation=true로 설정하고,
+        /// DataPackage.RequestedOperation을 Move로 지정하여 붙여넣기 시 이동 동작을 수행한다.
         /// </summary>
         private void HandleCut()
         {
@@ -330,7 +335,11 @@ namespace Span
         }
 
         /// <summary>
-        /// 붙여넣기 작업 처리. 클립보드의 파일 경로를 현재 폴더에 복사/이동한다.
+        /// 붙여넣기 작업 처리 (Ctrl+V).
+        /// 대상 디렉토리(destDir)는 현재 뷰 모드에 따라 결정된다:
+        /// - 비-Miller 모드: CurrentFolder 경로 사용
+        /// - Miller 모드: GetActiveColumnIndex()로 포커스된 컬럼의 경로 사용 (포커스 없으면 마지막 컬럼)
+        /// 내부 클립보드(_clipboardPaths)와 외부 클립보드(Windows StorageItems) 모두 지원한다.
         /// 충돌 시 ConflictResolutionDialog를 표시하여 사용자 선택을 받는다.
         /// </summary>
         private async void HandlePaste()
@@ -514,6 +523,7 @@ namespace Span
                     dialog.XamlRoot = this.Content.XamlRoot;
 
                     var dialogResult = await ShowContentDialogSafeAsync(dialog);
+                    if (_isClosed) return; // 다이얼로그 표시 중 창 닫힘 방어 (HandleDelete 패턴과 동일)
                     if (dialogResult != ContentDialogResult.Primary)
                     {
                         Helpers.DebugLogger.Log("[Clipboard] Paste cancelled by user (conflict dialog)");

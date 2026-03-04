@@ -18,10 +18,16 @@ namespace Span.ViewModels
     {
         #region File Operations
 
+        /// <summary>
+        /// 사이드바/Home 화면에서 드라이브 클릭 시 해당 드라이브로 탐색.
+        /// Home/ActionLog 모드인 경우 이전 뷰모드(Details/List/Icon 등)를 복원하여
+        /// 사용자가 Home 전환 전에 사용하던 뷰를 유지함.
+        /// </summary>
         [RelayCommand]
         public void OpenDrive(DriveItem drive)
         {
-            // Switch away from Home/ActionLog mode — but preserve Details/List/Icon view modes
+            // Home/ActionLog에서 벗어나되, 탐색기 뷰모드(Details/List/Icon)는 보존.
+            // ResolveViewModeFromHome()이 _lastClosedViewMode → _viewModeBeforeHome → Miller 순으로 결정.
             var activeViewMode = (IsSplitViewEnabled && ActivePane == ActivePane.Right)
                 ? RightViewMode : CurrentViewMode;
             Helpers.DebugLogger.Log($"[OpenDrive] activeViewMode={activeViewMode}, CurrentViewMode={CurrentViewMode}");
@@ -136,9 +142,10 @@ namespace Span.ViewModels
         }
 
         /// <summary>
-        /// Starts a copy/move operation via the FileOperationManager for concurrent,
-        /// pausable execution. The operation runs in the background and the UI is updated
-        /// via the ActiveOperations collection.
+        /// Copy/Move 작업을 FileOperationManager를 통해 백그라운드에서 동시 실행.
+        /// 일시정지(Pause)/재개(Resume)/취소(Cancel) 지원.
+        /// UI 스레드를 차단하지 않으며, 완료 시 DispatcherQueue로 콜백하여 결과 처리.
+        /// Undo 지원: 성공 시 CompletedOperationWrapper로 히스토리에 추가 (Ctrl+Z 가능).
         /// </summary>
         private async Task ExecuteViaConcurrentManagerAsync(IFileOperation operation, int? targetColumnIndex)
         {

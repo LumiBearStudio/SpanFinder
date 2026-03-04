@@ -551,9 +551,10 @@ namespace Span
         #region Miller Columns Keyboard (ItemsControl level)
 
         /// <summary>
-        /// 분리 된 Miller Column 내 키보드 이벤트 핸들러.
-        /// 방향키 탐색(좌/우/상/하), Enter 실행, Home/End 이동,
+        /// Miller Column 전용 키보드 이벤트 핸들러 (ItemsControl 레벨).
+        /// 방향키 탐색(좌/우), Enter 실행, Backspace 뒤로, Home/End 이동,
         /// 타입 어헤드 검색, 스페이스바 QuickLook 등을 처리한다.
+        /// 컨텍스트 메뉴/리네임 중이거나 Ctrl/Alt 조합이면 처리를 건너뛴다.
         /// </summary>
         private void OnMillerKeyDown(object sender, KeyRoutedEventArgs e)
         {

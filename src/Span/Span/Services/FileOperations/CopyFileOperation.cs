@@ -9,7 +9,11 @@ namespace Span.Services.FileOperations;
 /// </summary>
 public class CopyFileOperation : IFileOperation, IPausableOperation
 {
-    private const int BufferSize = 1048576; // 1MB 버퍼
+    /// <summary>
+    /// I/O 버퍼 크기 (1MB). 대용량 파일에서 시스템 콜 횟수를 줄여 throughput 극대화.
+    /// 1MB 이하 파일은 CopyDirRecursive에서 File.Copy()로 커널 최적화 경로 사용.
+    /// </summary>
+    private const int BufferSize = 1048576;
     private const int ProgressReportIntervalMs = 100; // Progress 보고 최소 간격 (ms)
 
     private readonly List<string> _sourcePaths;
@@ -52,6 +56,13 @@ public class CopyFileOperation : IFileOperation, IPausableOperation
         _pauseEvent = pauseEvent;
     }
 
+    /// <summary>
+    /// 일시정지 상태이면 재개될 때까지 대기. 취소 시 예외 없이 즉시 반환.
+    /// ThrowIfCancellationRequested 대신 IsCancellationRequested 체크를 사용하는 이유:
+    /// ManualResetEventSlim.Wait(ct)가 취소 시 OperationCanceledException을 던지므로,
+    /// 여기서 catch하고 호출자(루프)가 IsCancellationRequested로 정상 종료 처리.
+    /// 예외를 전파하면 각 파일 루프의 try-catch에서 개별 파일 에러로 오인될 수 있음.
+    /// </summary>
     private void WaitIfPaused(CancellationToken cancellationToken)
     {
         if (_pauseEvent != null && !cancellationToken.IsCancellationRequested)
@@ -231,6 +242,14 @@ public class CopyFileOperation : IFileOperation, IPausableOperation
                                     ReportProgress(progress, fileName, fileIndex, localProcessed + bytes, totalBytes, startTime);
                                 }),
                                 cancellationToken);
+
+                            // 취소 시 부분 복사 디렉토리 정리 — _copiedPaths에 미추가로 Undo 일관성 보장
+                            if (cancellationToken.IsCancellationRequested)
+                            {
+                                try { if (Directory.Exists(destPath)) Directory.Delete(destPath, recursive: true); } catch { }
+                                break;
+                            }
+
                             processedBytes += dirSize;
                         }
                         else
@@ -668,6 +687,9 @@ public class CopyFileOperation : IFileOperation, IPausableOperation
 
         long bytesCopied = 0;
 
+        // 취소 시 return 패턴: ThrowIfCancellationRequested 대신 IsCancellationRequested + return 사용.
+        // 이유: 재귀 호출 스택 전체를 예외로 unwind하는 비용을 피하고,
+        // 부분 복사된 파일들은 ExecuteAsync의 cancellation 분기에서 일관되게 처리.
         async Task CopyDirRecursive(string src, string dest)
         {
             if (cancellationToken.IsCancellationRequested) return;

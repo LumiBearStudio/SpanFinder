@@ -23,19 +23,25 @@ namespace Span.ViewModels
 
         /// <summary>
         /// 마지막으로 닫힌 탭의 ViewMode를 기억하여 Home→드라이브 전환 시 복원.
-        /// 한 번 사용 후 null로 초기화.
+        /// CloseTab에서 설정되며, ResolveViewModeFromHome()에서 소비 후 null로 초기화.
+        /// 우선순위가 _viewModeBeforeHome보다 높음 (탭 닫기 시 사용자가 마지막 본 뷰모드).
         /// </summary>
         private ViewMode? _lastClosedViewMode;
 
         /// <summary>
         /// Home 모드 전환 전의 ViewMode를 기억 (사이드바 Home 클릭 등).
-        /// 드라이브/즐겨찾기 클릭 시 복원.
+        /// SwitchViewMode(Home)에서 저장되며, 드라이브/즐겨찾기 클릭 시 복원에 사용.
+        /// 이 값은 탐색기 뷰모드(Miller/Details/List/Icon)만 저장 — Settings/ActionLog는 제외.
+        /// ResolveViewModeFromHome()에서 소비 후 null로 초기화.
         /// </summary>
         private ViewMode? _viewModeBeforeHome;
 
         /// <summary>
         /// Home/ActionLog에서 탐색기로 복귀 시 이전 ViewMode 결정.
-        /// 우선순위: _lastClosedViewMode > _viewModeBeforeHome > MillerColumns
+        /// 우선순위: _lastClosedViewMode > _viewModeBeforeHome > MillerColumns (기본값).
+        /// _lastClosedViewMode가 우선인 이유: 탭 닫기→새 Home 탭 생성→드라이브 클릭 흐름에서
+        /// 사용자가 닫기 직전에 보던 뷰모드를 유지하기 위함.
+        /// 두 필드 모두 한 번 사용 후 null로 초기화 (일회성 소비).
         /// </summary>
         public ViewMode ResolveViewModeFromHome()
         {
@@ -159,8 +165,10 @@ namespace Span.ViewModels
             Helpers.DebugLogger.Log($"[CloseTab] index={index}, Tabs.Count={Tabs.Count}, CurrentViewMode={CurrentViewMode}, _viewModeBeforeHome={_viewModeBeforeHome}, _lastClosedViewMode={_lastClosedViewMode}");
             if (Tabs.Count <= 1)
             {
-                // 탭 닫기 전에 현재 ViewMode 저장 (Home→드라이브 전환 시 복원용)
-                // Home 상태에서 닫으면 Home 전환 전 ViewMode를 사용
+                // 마지막 탭 닫기 전에 현재 ViewMode 저장 (새로 생성되는 Home 탭에서 드라이브 클릭 시 복원용).
+                // Home 상태에서 닫는 경우: Home 전환 전에 저장해둔 _viewModeBeforeHome을 사용
+                //   (예: Details 모드 → Home 전환 → 탭 닫기 → 새 탭에서 드라이브 클릭 시 Details 복원)
+                // 탐색기 상태에서 닫는 경우: 현재 ViewMode를 그대로 사용
                 _lastClosedViewMode = (CurrentViewMode == ViewMode.Home)
                     ? _viewModeBeforeHome
                     : CurrentViewMode;

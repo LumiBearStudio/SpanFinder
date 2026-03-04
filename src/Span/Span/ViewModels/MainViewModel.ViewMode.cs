@@ -31,7 +31,9 @@ namespace Span.ViewModels
             {
                 Helpers.DebugLogger.Log($"[SwitchViewMode→Home] CurrentViewMode={CurrentViewMode}, _viewModeBeforeHome={_viewModeBeforeHome}, _lastClosedViewMode={_lastClosedViewMode}");
                 if (CurrentViewMode == ViewMode.Home) return;
-                // Home 전환 전 현재 ViewMode 저장 (탐색기 뷰모드만)
+                // Home 전환 전 현재 ViewMode 저장 — 드라이브/즐겨찾기 클릭 시 이전 뷰모드 복원에 사용.
+                // Settings/ActionLog는 탐색기 뷰모드가 아니므로 저장하지 않음 (복원해도 의미 없음).
+                // 저장된 값은 ResolveViewModeFromHome() 또는 CloseTab()에서 소비됨.
                 if (CurrentViewMode != ViewMode.Settings && CurrentViewMode != ViewMode.ActionLog)
                     _viewModeBeforeHome = CurrentViewMode;
                 Helpers.DebugLogger.Log($"[SwitchViewMode→Home] SAVED _viewModeBeforeHome={_viewModeBeforeHome}");

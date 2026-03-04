@@ -1329,36 +1329,44 @@ namespace Span
                 }
                 catch { }
 
-                // 변경된 경로의 컬럼 리로드
-                var leftExplorer = ViewModel?.Explorer;
-                if (leftExplorer != null)
+                // 변경된 경로의 컬럼 리로드 — try-catch로 async void 람다 예외 방어
+                // (네트워크 드라이브 해제 등 엣지 케이스에서 ReloadAsync 실패 시 앱 크래시 방지)
+                try
                 {
-                    foreach (var col in leftExplorer.Columns.ToList())
+                    var leftExplorer = ViewModel?.Explorer;
+                    if (leftExplorer != null)
                     {
-                        if (col.Path.Equals(changedPath, StringComparison.OrdinalIgnoreCase))
-                        {
-                            await col.ReloadAsync();
-                            leftExplorer.NotifyCurrentItemsChanged();
-                            break;
-                        }
-                    }
-                }
-
-                if (ViewModel?.IsSplitViewEnabled == true)
-                {
-                    var rightExplorer = ViewModel.RightExplorer;
-                    if (rightExplorer != null)
-                    {
-                        foreach (var col in rightExplorer.Columns.ToList())
+                        foreach (var col in leftExplorer.Columns.ToList())
                         {
                             if (col.Path.Equals(changedPath, StringComparison.OrdinalIgnoreCase))
                             {
                                 await col.ReloadAsync();
-                                rightExplorer.NotifyCurrentItemsChanged();
+                                leftExplorer.NotifyCurrentItemsChanged();
                                 break;
                             }
                         }
                     }
+
+                    if (ViewModel?.IsSplitViewEnabled == true)
+                    {
+                        var rightExplorer = ViewModel.RightExplorer;
+                        if (rightExplorer != null)
+                        {
+                            foreach (var col in rightExplorer.Columns.ToList())
+                            {
+                                if (col.Path.Equals(changedPath, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    await col.ReloadAsync();
+                                    rightExplorer.NotifyCurrentItemsChanged();
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Helpers.DebugLogger.Log($"[FileWatcher] ReloadAsync failed: {ex.Message}");
                 }
             });
         }
@@ -1882,7 +1890,9 @@ namespace Span
 
         /// <summary>
         /// 사이드바 드라이브 항목 클릭 이벤트 핸들러.
-        /// 선택된 드라이브 경로로 Miller Column 탐색을 시작한다.
+        /// 선택된 드라이브 경로로 탐색을 시작한다.
+        /// OpenDrive 이후 현재 뷰 모드를 보존하며,
+        /// MillerColumns이면 첫 컬럼에, 그 외 모드면 해당 뷰에 포커스를 이동한다.
         /// </summary>
         private void OnDriveItemClick(object sender, ItemClickEventArgs e)
         {
@@ -1919,7 +1929,9 @@ namespace Span
         }
 
         /// <summary>
-        /// Handle drive item tap in new hybrid sidebar.
+        /// 하이브리드 사이드바 드라이브 항목 탭 이벤트.
+        /// 원격 연결(FTP/SFTP)인 경우 비밀번호 확인 후 연결하고,
+        /// 로컬 드라이브인 경우 OnDriveItemClick과 동일하게 뷰 모드를 보존하면서 탐색한다.
         /// </summary>
         private async void OnDriveItemTapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
         {
@@ -2673,8 +2685,9 @@ namespace Span
 
         /// <summary>
         /// 즐겨찾기 경로로 탐색을 실행한다.
-        /// Home 모드인 경우 MillerColumns 모드로 전환 후 탐색하고,
-        /// 좌측 패널이 활성 패널인지 여부에 따라 적절한 탐색기에 경로를 설정한다.
+        /// Home/ActionLog 모드인 경우 ResolveViewModeFromHome()으로 이전 뷰 모드를 복원한 후 탐색하므로,
+        /// 사용자가 Details/List/Icon 모드를 사용 중이었다면 해당 모드가 유지된다.
+        /// MillerColumns 모드이면 탐색 후 첫 컬럼에 포커스를 이동한다.
         /// </summary>
         /// <param name="fav">탐색할 즐겨찾기 항목.</param>
         private async void NavigateToFavorite(FavoriteItem fav)
@@ -3350,8 +3363,9 @@ namespace Span
 
         /// <summary>
         /// Miller Column Grid의 PointerPressed 이벤트.
-        /// 클릭된 컬럼의 FolderViewModel을 찾아 ActivePane와 ActiveColumn을 설정하고,
-        /// 벨도 선택 업데이트를 위해 포커스를 요청한다.
+        /// 클릭된 컬럼의 FolderViewModel을 찾아 ActivePane와 ActiveColumn을 설정한다.
+        /// 빈 공간(ListViewItem 외) 클릭 시 해당 컬럼의 ListView에 키보드 포커스를 이동하여,
+        /// 시각적 선택 표시(파란 테두리)와 실제 키보드 포커스를 동기화한다.
         /// </summary>
         private void OnMillerColumnPointerPressed(object sender, PointerRoutedEventArgs e)
         {
@@ -3379,7 +3393,9 @@ namespace Span
                     }
 
                     // ★ 빈 공간 클릭 시 ListView에 키보드 포커스 이동
-                    // (시각적 파란 테두리와 실제 키보드 포커스를 동기화)
+                    // ListViewItem이 아닌 Grid 여백 영역을 클릭한 경우,
+                    // ListView 자체에 Programmatic 포커스를 부여하여
+                    // 이후 화살표 키 등 키보드 탐색이 즉시 동작하도록 한다.
                     bool clickedOnItem = false;
                     var src = e.OriginalSource as DependencyObject;
                     while (src != null && src != grid)

@@ -9,7 +9,9 @@
     mc:Ignorable="d">
 
     <Grid>
-        <!-- Multi-operation list panel: shown when FileOperationManager has active operations -->
+        <!-- Multi-operation list panel: shown when FileOperationManager has active operations.
+             SolidBackgroundFillColorQuarternaryBrush: 불투명 배경 사용 — 탐색기 콘텐츠 위에
+             오버레이되므로 반투명이면 텍스트 가독성이 떨어짐. 카드형 UI로 명확히 분리. -->
         <Border x:Name="MultiOperationPanel"
                 Background="{ThemeResource SolidBackgroundFillColorQuarternaryBrush}"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
@@ -38,6 +40,8 @@
                                FontWeight="SemiBold" FontSize="13"
                                VerticalAlignment="Center"/>
 
+                    <!-- CursorHelper.IsHandCursor: WinUI 3 Button의 기본 커서는 Arrow.
+                         파일 작업 패널은 오버레이 UI이므로 클릭 가능 영역을 Hand 커서로 명시. -->
                     <Button x:Name="CancelAllButton" Grid.Column="1" Content="Cancel All"
                             FontSize="11" Padding="8,4"
                             helpers:CursorHelper.IsHandCursor="True"
