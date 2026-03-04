@@ -71,7 +71,7 @@ namespace Span.Services
             ("NewZipArchive", "Compressed (zipped) Folder", "압축(zip) 폴더", "圧縮(zip)フォルダー", "压缩(zipped)文件夹", "壓縮的(zipped)資料夾", "ZIP-komprimierter Ordner", "Carpeta comprimida (en zip)", "Dossier compressé (zippé)", "Pasta compactada (zipada)"),
 
             // ── Edit-with ───────────────────────────────────────────────────
-            ("EditWith", "Edit with...", "편집 프로그램", "編集プログラム", "编辑方式...", "編輯方式...", "Bearbeiten mit...", "Editar con...", "Modifier avec...", "Editar com..."),
+            ("EditWith", "Edit with...", "편집 앱 선택...", "別のアプリで編集...", "使用其他应用编辑...", "使用其他應用程式編輯...", "Bearbeiten mit...", "Editar con...", "Modifier avec...", "Editar com..."),
 
             // ── Compress/Extract ────────────────────────────────────────────
             ("CompressToZip", "Compress to ZIP", "ZIP으로 압축", "ZIPに圧縮", "压缩为 ZIP", "壓縮為 ZIP", "Als ZIP komprimieren", "Comprimir a ZIP", "Compresser en ZIP", "Compactar para ZIP"),
@@ -197,7 +197,7 @@ namespace Span.Services
             ("Help_InvertSelection", "Invert selection", "선택 반전", "選択の反転", "反向选择", "反向選取", "Auswahl umkehren", "Invertir selección", "Inverser la sélection", "Inverter seleção"),
             ("Help_View", "View", "보기", "表示", "查看", "檢視", "Ansicht", "Ver", "Affichage", "Exibir"),
             ("Help_MillerColumns", "Miller Columns", "밀러 컬럼", "ミラーカラム", "Miller Columns", "Miller Columns", "Miller Columns", "Miller Columns", "Miller Columns", "Miller Columns"),
-            ("Help_DetailList", "Detail list", "상세 목록", "詳細リスト", "详细列表", "詳細清單", "Detailliste", "Lista detallada", "Liste détaillée", "Lista detalhada"),
+            ("Help_DetailList", "Detail list", "자세히 보기", "詳細リスト", "详细列表", "詳細清單", "Detailliste", "Lista detallada", "Liste détaillée", "Lista detalhada"),
             ("Help_ListView", "List", "리스트", "リスト", "列表", "清單", "Liste", "Lista", "Liste", "Lista"),
             ("Help_Icons", "Icons", "아이콘", "アイコン", "图标", "圖示", "Symbole", "Iconos", "Icônes", "Ícones"),
             ("Help_SplitView", "Toggle split view", "분할 뷰 토글", "分割ビュー切替", "切换拆分视图", "切換分割檢視", "Geteilte Ansicht umschalten", "Alternar vista dividida", "Basculer l'affichage fractionné", "Alternar exibição dividida"),
@@ -240,10 +240,10 @@ namespace Span.Services
             ("Settings_StartupBehaviorDesc", "Screen to show when the app launches", "앱을 실행할 때 보여줄 화면", "アプリ起動時に表示する画面", "应用启动时显示的画面", "應用程式啟動時顯示的畫面", "Anzeige beim Start der App", "Pantalla a mostrar al iniciar la aplicación", "Écran affiché au lancement de l'application", "Tela exibida ao iniciar o aplicativo"),
             ("Settings_RestoreSession", "Restore last session", "마지막 세션 복원", "前回のセッションを復元", "恢复上次会话", "還原上次工作階段", "Letzte Sitzung wiederherstellen", "Restaurar última sesión", "Restaurer la dernière session", "Restaurar última sessão"),
             ("Settings_RestoreSessionDesc", "Keeps previously opened tabs and paths", "이전에 열어둔 탭과 경로를 유지합니다", "以前開いていたタブとパスを維持します", "保留之前打开的标签页和路径", "保留先前開啟的索引標籤和路徑", "Behält zuvor geöffnete Tabs und Pfade bei", "Mantiene las pestañas y rutas abiertas anteriormente", "Conserve les onglets et chemins précédemment ouverts", "Mantém as guias e caminhos abertos anteriormente"),
-            ("Settings_OpenHome", "Open My PC (Home)", "내 PC (홈) 열기", "マイPC（ホーム）を開く", "打开此电脑 (主页)", "開啟此電腦 (首頁)", "Eigener PC (Start) öffnen", "Abrir Mi PC (Inicio)", "Ouvrir Mon PC (Accueil)", "Abrir Meu PC (Início)"),
+            ("Settings_OpenHome", "Open My PC (Home)", "내 PC (홈) 열기", "マイPC（ホーム）を開く", "打开此电脑 (主页)", "開啟此電腦 (首頁)", "Dieser PC (Start) öffnen", "Abrir Este equipo (Inicio)", "Ouvrir Mon PC (Accueil)", "Abrir Este Computador (Início)"),
             ("Settings_OpenSpecificFolder", "Open specific folder...", "특정 폴더 열기...", "特定のフォルダーを開く...", "打开指定文件夹...", "開啟指定資料夾...", "Bestimmten Ordner öffnen...", "Abrir carpeta específica...", "Ouvrir un dossier spécifique...", "Abrir pasta específica..."),
             ("Settings_CustomPath", "Custom path", "사용자 지정 경로", "カスタムパス", "自定义路径", "自訂路徑", "Benutzerdefinierter Pfad", "Ruta personalizada", "Chemin personnalisé", "Caminho personalizado"),
-            ("Settings_FavoritesTree", "Favorites tree view", "즐겨찾기 트리뷰", "お気に入りツリー表示", "收藏夹树形视图", "我的最愛樹狀檢視", "Favoritenstrukturansicht", "Vista de árbol de favoritos", "Arborescence des favoris", "Exibição em árvore dos favoritos"),
+            ("Settings_FavoritesTree", "Favorites tree view", "즐겨찾기 트리 보기", "お気に入りツリー表示", "收藏夹树形视图", "我的最愛樹狀檢視", "Favoritenstrukturansicht", "Vista de árbol de favoritos", "Arborescence des favoris", "Exibição em árvore dos favoritos"),
             ("Settings_FavoritesTreeDesc", "Display favorites as a tree (sub-folder browsing)", "즐겨찾기를 트리뷰로 표시 (하위 폴더 탐색 가능)", "お気に入りをツリー表示（サブフォルダー参照可能）", "以树形结构显示收藏夹 (可浏览子文件夹)", "以樹狀結構顯示我的最愛 (可瀏覽子資料夾)", "Favoriten als Baum anzeigen (Unterordner durchsuchen)", "Mostrar favoritos como árbol (exploración de subcarpetas)", "Afficher les favoris en arborescence (navigation dans les sous-dossiers)", "Exibir favoritos em árvore (navegação em subpastas)"),
             ("Settings_SystemTray", "System tray", "시스템 트레이", "システムトレイ", "系统托盘", "系統匣", "Infobereich", "Bandeja del sistema", "Zone de notification", "Bandeja do sistema"),
             ("Settings_SystemTrayDesc", "Minimize to tray when close button is pressed", "닫기 버튼을 누르면 트레이로 최소화", "閉じるボタンでトレイに最小化", "按关闭按钮时最小化到托盘", "按關閉按鈕時最小化到系統匣", "Beim Schließen in den Infobereich minimieren", "Minimizar a la bandeja al presionar cerrar", "Réduire dans la zone de notification à la fermeture", "Minimizar para bandeja ao fechar"),
@@ -355,7 +355,7 @@ namespace Span.Services
             ("Preview_Artist", "Artist", "아티스트", "アーティスト", "艺术家", "演出者", "Interpret", "Artista", "Artiste", "Artista"),
             ("Preview_Album", "Album", "앨범", "アルバム", "专辑", "專輯", "Album", "Álbum", "Album", "Álbum"),
             ("Preview_Git", "Git", "Git", "Git", "Git", "Git", "Git", "Git", "Git", "Git"),
-            ("Preview_RecentCommits", "Recent Commits", "최근 커밋", "最近のコミット", "最近的提交", "最近的認可", "Letzte Commits", "Confirmaciones recientes", "Commits récents", "Commits recentes"),
+            ("Preview_RecentCommits", "Recent Commits", "최근 커밋", "最近のコミット", "最近的提交", "最近的提交", "Letzte Commits", "Confirmaciones recientes", "Commits récents", "Commits recentes"),
             ("Preview_ChangedFiles", "Changed Files", "변경된 파일", "変更されたファイル", "已更改的文件", "已變更的檔案", "Geänderte Dateien", "Archivos modificados", "Fichiers modifiés", "Arquivos alterados"),
 
             // ── Column headers/filters ──────────────────────────────────────
@@ -467,7 +467,6 @@ namespace Span.Services
             ("Op_CannotUndoRemoteRename", "Cannot undo remote rename", "원격 이름 변경은 되돌릴 수 없습니다", "リモートの名前変更は元に戻せません", "无法撤消远程重命名", "無法復原遠端重新命名", "Remote-Umbenennung kann nicht rückgängig gemacht werden", "No se puede deshacer el renombrado remoto", "Impossible d'annuler le renommage distant", "Não é possível desfazer renomeação remota"),
             ("Op_UndoItemNotFound", "Cannot undo: item not found at {0}", "되돌리기 불가: {0}에서 항목을 찾을 수 없음", "元に戻せません: {0}に項目が見つかりません", "无法撤消: 在 {0} 找不到项目", "無法復原: 在 {0} 找不到項目", "Rückgängig nicht möglich: Element nicht gefunden bei {0}", "No se puede deshacer: elemento no encontrado en {0}", "Impossible d'annuler : élément introuvable à {0}", "Não é possível desfazer: item não encontrado em {0}"),
             ("Op_UndoNameTaken", "Cannot undo: name '{0}' is already taken", "되돌리기 불가: '{0}' 이름이 이미 사용 중", "元に戻せません: 名前「{0}」は既に使用中", "无法撤消: 名称\u201C{0}\u201D已被占用", "無法復原: 名稱「{0}」已被使用", "Rückgängig nicht möglich: Name '{0}' ist bereits vergeben", "No se puede deshacer: el nombre '{0}' ya está en uso", "Impossible d'annuler : le nom « {0} » est déjà utilisé", "Não é possível desfazer: nome '{0}' já está em uso"),
-            ("Cancel", "Cancel", "취소", "キャンセル", "取消", "取消", "Abbrechen", "Cancelar", "Annuler", "Cancelar"),
 
             // ── Settings - Custom Themes section ─────────────────────────────
             ("Settings_CustomThemes", "Custom Themes", "커스텀 테마", "カスタムテーマ", "自定义主题", "自訂主題", "Benutzerdefinierte Designs", "Temas personalizados", "Thèmes personnalisés", "Temas personalizados"),
@@ -485,7 +484,7 @@ namespace Span.Services
             ("Settings_UndoCount", "{0} items", "{0}개", "{0}件", "{0} 个", "{0} 個", "{0} Einträge", "{0} elementos", "{0} éléments", "{0} itens"),
 
             // ── Open Source section ──────────────────────────────────────────
-            ("OpenSource_Libraries", "Libraries", "라이브러리", "ライブラリ", "库", "資料庫", "Bibliotheken", "Bibliotecas", "Bibliothèques", "Bibliotecas"),
+            ("OpenSource_Libraries", "Libraries", "라이브러리", "ライブラリ", "库", "函式庫", "Bibliotheken", "Bibliotecas", "Bibliothèques", "Bibliotecas"),
             ("OpenSource_IconFonts", "Icon Fonts", "아이콘 폰트", "アイコンフォント", "图标字体", "圖示字型", "Symbol-Schriftarten", "Fuentes de iconos", "Polices d'icônes", "Fontes de ícones"),
             ("OpenSource_DefaultPack", "Default icon pack", "기본 아이콘 팩", "デフォルトアイコンパック", "默认图标包", "預設圖示包", "Standard-Symbolpaket", "Paquete de iconos predeterminado", "Pack d'icônes par défaut", "Pacote de ícones padrão"),
             ("OpenSource_Available", "Available", "선택 가능", "利用可能", "可用", "可使用", "Verfügbar", "Disponible", "Disponible", "Disponível"),
@@ -524,7 +523,7 @@ namespace Span.Services
 
             // ── Settings - Advanced ───────────────────────────────────────
             ("Settings_GitIntegration", "Git status integration", "Git 상태 통합", "Git ステータス統合", "Git 状态集成", "Git 狀態整合", "Git-Status-Integration", "Integración de estado Git", "Intégration du statut Git", "Integração de status Git"),
-            ("Settings_GitIntegrationDesc", "Show Git badges and commit history in preview", "파일 아이콘에 Git 상태 뱃지와 미리보기 패널에 커밋 이력 표시", "ファイルアイコンにGitステータスバッジとプレビューにコミット履歴を表示", "在文件图标上显示Git状态标记并在预览面板中显示提交历史", "在檔案圖示上顯示Git狀態徽章並在預覽面板中顯示認可歷程", "Git-Abzeichen und Commit-Verlauf in der Vorschau anzeigen", "Mostrar insignias Git e historial de commits en la vista previa", "Afficher les badges Git et l'historique des commits dans l'aperçu", "Mostrar emblemas Git e histórico de commits na visualização"),
+            ("Settings_GitIntegrationDesc", "Show Git badges and commit history in preview", "파일 아이콘에 Git 상태 뱃지와 미리보기 패널에 커밋 이력 표시", "ファイルアイコンにGitステータスバッジとプレビューにコミット履歴を表示", "在文件图标上显示Git状态标记并在预览面板中显示提交历史", "在檔案圖示上顯示Git狀態徽章並在預覽面板中顯示提交歷史", "Git-Abzeichen und Commit-Verlauf in der Vorschau anzeigen", "Mostrar insignias Git e historial de commits en la vista previa", "Afficher les badges Git et l'historique des commits dans l'aperçu", "Mostrar emblemas Git e histórico de commits na visualização"),
             ("Settings_HexPreview", "Hex viewer preview", "Hex 뷰어 미리보기", "Hex ビューアー プレビュー", "Hex 查看器预览", "Hex 檢視器預覽", "Hex-Viewer-Vorschau", "Vista previa del visor Hex", "Aperçu du visualiseur Hex", "Visualização do visualizador Hex"),
             ("Settings_HexPreviewDesc", "Show Hex dump for binary files (.dll, .exe)", "바이너리 파일 선택 시 Hex 덤프 표시", "バイナリファイル選択時にHexダンプを表示", "选择二进制文件时显示Hex转储", "選擇二進位檔案時顯示Hex傾印", "Hex-Dump für Binärdateien (.dll, .exe) anzeigen", "Mostrar volcado Hex para archivos binarios (.dll, .exe)", "Afficher le dump Hex pour les fichiers binaires (.dll, .exe)", "Mostrar dump Hex para arquivos binários (.dll, .exe)"),
         };
