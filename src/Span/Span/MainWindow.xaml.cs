@@ -3339,7 +3339,6 @@ namespace Span
             if (_isSearchFiltered)
             {
                 RestoreSearchFilter();
-                ViewModel.UpdateStatusBar();
             }
 
             try
@@ -3357,6 +3356,9 @@ namespace Span
                         ViewModel.ActivePane = ActivePane.Left;
                         ViewModel.LeftExplorer.SetActiveColumn(folderVm);
                     }
+
+                    // 포커스된 컬럼 기준으로 상태바 갱신
+                    ViewModel.UpdateStatusBar();
                 }
             }
             catch (System.Runtime.InteropServices.COMException) { }

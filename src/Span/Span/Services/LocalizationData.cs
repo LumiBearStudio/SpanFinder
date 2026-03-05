@@ -116,6 +116,7 @@ namespace Span.Services
 
             // ── Drag-drop ───────────────────────────────────────────────────
             ("Move", "Move", "이동", "移動", "移动", "移動", "Verschieben", "Mover", "Déplacer", "Mover"),
+            ("DragLink", "Create Shortcut", "바로가기 만들기", "ショートカットの作成", "创建快捷方式", "建立捷徑", "Verknüpfung erstellen", "Crear acceso directo", "Créer un raccourci", "Criar atalho"),
             ("DragAddToFavorites", "Add to Favorites", "즐겨찾기에 추가", "お気に入りに追加", "添加到收藏夹", "新增到我的最愛", "Zu Favoriten hinzufügen", "Agregar a Favoritos", "Ajouter aux Favoris", "Adicionar aos Favoritos"),
 
             // ── View modes ──────────────────────────────────────────────────

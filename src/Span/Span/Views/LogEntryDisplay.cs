@@ -28,24 +28,15 @@ namespace Span.Views
         {
             _entry = entry;
 
-            // Build file details list (full paths for single item, file names for multiple)
-            var details = new List<string>();
-            if (_entry.SourcePaths != null && _entry.SourcePaths.Count > 0)
+            // Build file details list via helper
+            string? moreFormat = null;
+            try
             {
-                var paths = _entry.SourcePaths.Take(MaxFileDetails).ToList();
-                bool showFullPath = _entry.SourcePaths.Count == 1;
-                foreach (var path in paths)
-                {
-                    details.Add(showFullPath ? path : GetFileName(path));
-                }
-                if (_entry.SourcePaths.Count > MaxFileDetails)
-                {
-                    var loc = App.Current.Services.GetService(typeof(LocalizationService)) as LocalizationService;
-                    var fmt = loc?.Get("LogMore") ?? "... and {0} more";
-                    details.Add(string.Format(fmt, _entry.SourcePaths.Count - MaxFileDetails));
-                }
+                var loc = App.Current.Services.GetService(typeof(LocalizationService)) as LocalizationService;
+                moreFormat = loc?.Get("LogMore");
             }
-            FileDetails = details;
+            catch { }
+            FileDetails = LogEntryDisplayHelper.BuildFileDetails(_entry.SourcePaths, MaxFileDetails, moreFormat);
 
             // Build destination text
             if (!string.IsNullOrEmpty(_entry.DestinationPath))
@@ -53,45 +44,15 @@ namespace Span.Views
                 DestinationText = $"\u2192 {_entry.DestinationPath}";
             }
 
-            // Build source folder path (for "open folder" button)
-            if (_entry.SourcePaths != null && _entry.SourcePaths.Count > 0)
-            {
-                var firstPath = _entry.SourcePaths[0];
-                try
-                {
-                    if (!string.IsNullOrEmpty(firstPath) && !FileSystemRouter.IsRemotePath(firstPath))
-                    {
-                        var parent = System.IO.Path.GetDirectoryName(firstPath);
-                        if (!string.IsNullOrEmpty(parent))
-                            OpenFolderPath = parent;
-                    }
-                }
-                catch { }
-            }
-
-            // For Copy/Move, prefer destination path for "open folder"
-            if (!string.IsNullOrEmpty(_entry.DestinationPath) && !FileSystemRouter.IsRemotePath(_entry.DestinationPath))
-            {
-                OpenFolderPath = _entry.DestinationPath;
-            }
+            // Determine open folder path via helper
+            OpenFolderPath = LogEntryDisplayHelper.DetermineOpenFolderPath(
+                _entry.SourcePaths, _entry.DestinationPath, FileSystemRouter.IsRemotePath);
         }
 
         public string Description => _entry.Description;
         public string? ErrorMessage => _entry.ErrorMessage;
 
-        public string OperationGlyph => _entry.OperationType switch
-        {
-            "Copy" => "\uE8C8",
-            "Move" => "\uE8DE",
-            "Delete" => "\uE74D",
-            "Rename" => "\uE8AC",
-            "NewFolder" => "\uE8B7",
-            "Undo" => "\uE7A7",
-            "Redo" => "\uE7A6",
-            "Compress" => "\uE8C5",
-            "Extract" => "\uE8B7",
-            _ => "\uE946"
-        };
+        public string OperationGlyph => LogEntryDisplayHelper.GetOperationGlyph(_entry.OperationType);
 
         public string StatusGlyph => _entry.Success ? "\uE73E" : "\uE711";
 
@@ -104,20 +65,7 @@ namespace Span.Views
                 ? Visibility.Visible
                 : Visibility.Collapsed;
 
-        public string FormattedTime
-        {
-            get
-            {
-                var now = DateTime.Now;
-                var ts = _entry.Timestamp;
-
-                if (ts.Date == now.Date)
-                    return ts.ToString("HH:mm:ss");
-                if (ts.Date == now.Date.AddDays(-1))
-                    return $"어제 {ts:HH:mm}";
-                return ts.ToString("MM/dd HH:mm");
-            }
-        }
+        public string FormattedTime => LogEntryDisplayHelper.FormatTime(_entry.Timestamp, DateTime.Now);
 
         // Expandable details
         public List<string> FileDetails { get; }
@@ -159,23 +107,5 @@ namespace Span.Views
         public Visibility DetailVisibility => _isExpanded ? Visibility.Visible : Visibility.Collapsed;
         public string ExpandGlyph => _isExpanded ? "\uE70E" : "\uE70D";
 
-        private static string GetFileName(string path)
-        {
-            if (string.IsNullOrEmpty(path)) return path;
-            try
-            {
-                if (Uri.TryCreate(path, UriKind.Absolute, out var uri) &&
-                    (uri.Scheme == "ftp" || uri.Scheme == "sftp"))
-                {
-                    var segments = uri.AbsolutePath.TrimEnd('/').Split('/');
-                    return segments.Length > 0 ? Uri.UnescapeDataString(segments[^1]) : path;
-                }
-                return System.IO.Path.GetFileName(path);
-            }
-            catch
-            {
-                return path;
-            }
-        }
     }
 }

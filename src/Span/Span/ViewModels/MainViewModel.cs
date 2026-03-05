@@ -310,18 +310,12 @@ namespace Span.ViewModels
             }
 
             var explorer = ActiveExplorer;
-            var folder = explorer?.CurrentFolder;
+            // 포커스된(활성) 컬럼 기준으로 상태바 표시 (IsActive 플래그 사용)
+            var folder = explorer?.Columns.FirstOrDefault(c => c.IsActive) ?? explorer?.CurrentFolder;
             int itemCount = folder?.Children?.Count ?? 0;
 
-            // Selection: use SelectedItems (multi) or SelectedChild (single)
-            int selCount = 0;
-            if (folder != null)
-            {
-                if (folder.HasMultiSelection)
-                    selCount = folder.SelectedItems.Count;
-                else if (folder.SelectedChild != null)
-                    selCount = 1;
-            }
+            // Selection: SelectedItems.Count 기준 (SelectedChild는 탐색 전용이라 상태바에 부적합)
+            int selCount = folder?.SelectedItems.Count ?? 0;
 
             // 재귀 검색 중이면 검색 상태 표시
             if (!string.IsNullOrEmpty(explorer?.SearchStatusText))

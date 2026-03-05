@@ -11,7 +11,7 @@ namespace Span.Views;
 
 internal static class LogViewHelper
 {
-    internal const string ErrorFilter = "__Error__";
+    internal const string ErrorFilter = LogEntryDisplayHelper.ErrorFilter;
 
     /// <summary>
     /// 로그 항목 리프레시 (양쪽 뷰 공통)
@@ -44,7 +44,7 @@ internal static class LogViewHelper
     /// 에러 항목 수 (뱃지 표시용)
     /// </summary>
     internal static int CountErrors(List<ActionLogEntry> allEntries)
-        => allEntries.Count(e => !e.Success);
+        => LogEntryDisplayHelper.CountErrors(allEntries);
 
     /// <summary>
     /// 필터 버튼 클릭 처리 (라디오 동작)

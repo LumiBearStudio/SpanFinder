@@ -71,6 +71,7 @@ namespace Span.ViewModels
             if (result.Success)
             {
                 await RefreshCurrentFolderAsync();
+                await RefreshOppositeExplorerAsync();
                 ShowToast(string.Format(_loc.Get("Toast_Undone"), desc));
             }
             else
@@ -94,6 +95,7 @@ namespace Span.ViewModels
             if (result.Success)
             {
                 await RefreshCurrentFolderAsync();
+                await RefreshOppositeExplorerAsync();
                 ShowToast(string.Format(_loc.Get("Toast_Redone"), desc));
             }
             else
@@ -138,6 +140,7 @@ namespace Span.ViewModels
                 // Refresh the specified column (or last column if not specified)
                 Helpers.DebugLogger.Log($"[ExecuteFileOperationAsync] Calling RefreshCurrentFolderAsync({targetColumnIndex})");
                 await RefreshCurrentFolderAsync(targetColumnIndex);
+                await RefreshOppositeExplorerAsync();
                 Helpers.DebugLogger.Log($"[ExecuteFileOperationAsync] RefreshCurrentFolderAsync completed");
 
                 if (operation.CanUndo)
@@ -195,6 +198,7 @@ namespace Span.ViewModels
                         }
 
                         await RefreshCurrentFolderAsync(targetColumnIndex);
+                        await RefreshOppositeExplorerAsync();
                         ShowToast(string.Format(_loc.Get("Toast_Completed"), operation.Description));
                     }
                     else if (e.Entry.Status != Services.OperationStatus.Cancelled)
@@ -241,6 +245,23 @@ namespace Span.ViewModels
         /// </summary>
         public DateTime LastExplicitRefreshTime { get; internal set; }
 
+        /// <summary>
+        /// Split View 활성 시 반대쪽 패널의 모든 컬럼을 리프레시.
+        /// Copy/Move/Undo/Redo 완료 후 소스·대상 양쪽이 모두 최신 상태를 반영하도록 한다.
+        /// columnIndex=0으로 호출하면 cascade 로직에 의해 모든 후속 컬럼도 리프레시됨.
+        /// </summary>
+        private async Task RefreshOppositeExplorerAsync()
+        {
+            if (!IsSplitViewEnabled) return;
+
+            var opposite = ActivePane == ActivePane.Left ? RightExplorer : LeftExplorer;
+            if (opposite?.Columns == null || opposite.Columns.Count == 0) return;
+
+            Helpers.DebugLogger.Log($"[RefreshOppositeExplorer] Refreshing ALL columns of opposite pane ({(ActivePane == ActivePane.Left ? "Right" : "Left")})");
+            // Refresh from column 0 → cascade reloads all subsequent columns too
+            await RefreshCurrentFolderAsync(0, opposite);
+        }
+
         public async Task RefreshCurrentFolderAsync(int? columnIndex = null, ExplorerViewModel? explorer = null)
         {
             explorer ??= ActiveExplorer;
@@ -254,47 +275,31 @@ namespace Span.ViewModels
             }
 
             // Determine which column to refresh
-            // If columnIndex is provided, use it; otherwise refresh the last column
             int targetIndex = columnIndex ?? explorer.Columns.Count - 1;
             Helpers.DebugLogger.Log($"[RefreshCurrentFolderAsync] Target index: {targetIndex} (total columns: {explorer.Columns.Count})");
 
-            // Validate index
             if (targetIndex < 0 || targetIndex >= explorer.Columns.Count)
             {
                 Helpers.DebugLogger.Log($"[RefreshCurrentFolderAsync] Invalid index - ABORT");
                 return;
             }
 
-            var targetColumn = explorer.Columns[targetIndex];
-            var savedName = targetColumn.SelectedChild?.Name;
+            // Reload target column and all subsequent columns (cascade).
+            // ReloadAsync internally uses SyncChildren (diff-based incremental update)
+            // which preserves existing ViewModel instances → selection/scroll/thumbnail state kept.
+            // DO NOT clear SelectedChild — SyncChildren retains matching instances by Path.
+            int lastIndex = explorer.Columns.Count - 1;
+            for (int i = targetIndex; i <= lastIndex; i++)
+            {
+                var col = explorer.Columns[i];
+                Helpers.DebugLogger.Log($"[RefreshCurrentFolderAsync] Reloading column '{col.Name}' (index {i})");
+                await col.ReloadAsync();
+            }
 
-            Helpers.DebugLogger.Log($"[RefreshCurrentFolderAsync] Refreshing column '{targetColumn.Name}' (saved selection: {savedName ?? "null"})");
-            Helpers.DebugLogger.Log($"[RefreshCurrentFolderAsync] Children before reload: {targetColumn.Children.Count}");
-
-            // CRITICAL: Clear selection BEFORE reload to prevent stale reference
-            targetColumn.SelectedChild = null;
-
-            Helpers.DebugLogger.Log($"[RefreshCurrentFolderAsync] Calling ReloadAsync()...");
-            await targetColumn.ReloadAsync();
-            Helpers.DebugLogger.Log($"[RefreshCurrentFolderAsync] ReloadAsync() completed. Children after reload: {targetColumn.Children.Count}");
-
-            // Explicitly notify ExplorerViewModel so Details/List/Icon views rebind
+            // Notify ExplorerViewModel so Details/List/Icon views rebind
             explorer.NotifyCurrentItemsChanged();
 
-            // Restore previous selection by name
-            if (savedName != null)
-            {
-                var restored = targetColumn.Children.FirstOrDefault(c =>
-                    c.Name.Equals(savedName, StringComparison.OrdinalIgnoreCase));
-                targetColumn.SelectedChild = restored; // null if not found (selection cleared)
-                Helpers.DebugLogger.Log($"[RefreshCurrentFolderAsync] Restored selection: {restored?.Name ?? "null"}");
-            }
-            else
-            {
-                Helpers.DebugLogger.Log($"[RefreshCurrentFolderAsync] No selection to restore");
-            }
-
-            Helpers.DebugLogger.Log($"[RefreshCurrentFolderAsync] ===== COMPLETE =====");
+            Helpers.DebugLogger.Log($"[RefreshCurrentFolderAsync] ===== COMPLETE ({lastIndex - targetIndex + 1} column(s)) =====");
         }
 
         #endregion

@@ -16,6 +16,9 @@ namespace Span.Helpers
         internal static extern bool GetCursorPos(out POINT pt);
 
         [DllImport("user32.dll")]
+        internal static extern bool SetCursorPos(int x, int y);
+
+        [DllImport("user32.dll")]
         internal static extern bool GetWindowRect(IntPtr hWnd, out RECT rect);
 
         [DllImport("user32.dll")]
@@ -61,6 +64,28 @@ namespace Span.Helpers
         // 키보드 입력 시뮬레이션 (서브메뉴 열기용)
         [DllImport("user32.dll")]
         internal static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, nuint dwExtraInfo);
+
+        // 마우스 입력 시뮬레이션 (드래그 중 DragOver 강제 재발생용)
+        [DllImport("user32.dll")]
+        internal static extern void mouse_event(uint dwFlags, int dx, int dy, uint dwData, nuint dwExtraInfo);
+        internal const uint MOUSEEVENTF_MOVE = 0x0001;
+
+        // Modifier key 가상키 상수 (드래그 중 modifier key 감지용 — GetAsyncKeyState와 함께 사용)
+        internal const int VK_SHIFT = 0x10;
+        internal const int VK_CONTROL = 0x11;
+        internal const int VK_MENU = 0x12; // Alt
+
+        // PostMessage — 커서 이동 없이 WM_MOUSEMOVE를 윈도우 메시지 큐에 삽입
+        [DllImport("user32.dll")]
+        internal static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+        [DllImport("user32.dll")]
+        internal static extern bool ScreenToClient(IntPtr hWnd, ref POINT point);
+
+        internal const uint WM_MOUSEMOVE = 0x0200;
+        internal const uint MK_SHIFT = 0x0004;
+        internal const uint MK_CONTROL = 0x0008;
+        internal const uint MK_LBUTTON = 0x0001;
 
         // DPI 확인용
         [DllImport("user32.dll")]

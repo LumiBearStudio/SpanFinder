@@ -650,6 +650,22 @@ namespace Span.ViewModels
                 // ── Phase 3: 모든 폴더 내용을 병렬 로딩 (UI 행 해소) ──
                 await Task.WhenAll(columnVms.Select(vm => vm.EnsureChildrenLoadedAsync()));
 
+                // ── Phase 4: SelectedChild를 실제 Children 인스턴스로 재매칭 ──
+                // Phase 2에서 설정한 SelectedChild는 Phase 1에서 만든 임시 인스턴스.
+                // Phase 3에서 EnsureChildrenLoadedAsync가 새 Children을 구축하므로
+                // SelectedChild가 Children에 포함되지 않을 수 있다 (→ 하이라이트 안 됨).
+                // 각 컬럼의 Children에서 다음 컬럼 Path와 일치하는 항목을 찾아 재설정.
+                for (int i = 0; i < columnVms.Length - 1; i++)
+                {
+                    var nextPath = columnVms[i + 1].Path;
+                    var match = columnVms[i].Children.FirstOrDefault(c =>
+                        c.Path.Equals(nextPath, System.StringComparison.OrdinalIgnoreCase));
+                    if (match != null)
+                        columnVms[i].SelectedChild = match;
+                }
+
+                UpdatePathHighlights();
+
                 Helpers.DebugLogger.Log($"[NavigateToPath] Hierarchy built (parallel): {string.Join(" > ", Columns.Select(c => c.Name))}");
             }
             finally

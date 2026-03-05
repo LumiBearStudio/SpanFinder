@@ -49,6 +49,8 @@
     <Compile Include="..\Span\Services\FileOperations\FileOperationHistory.cs" Link="Sources\Services\FileOperationHistory.cs" />
     <Compile Include="..\Span\Services\FileOperations\IFileOperation.cs" Link="Sources\Services\IFileOperation.cs" />
     <Compile Include="..\Span\Services\FileOperations\CompletedOperationWrapper.cs" Link="Sources\Services\CompletedOperationWrapper.cs" />
+    <!-- Services - file operations (shared helpers) -->
+    <Compile Include="..\Span\Services\FileOperations\FileOperationHelpers.cs" Link="Sources\Services\FileOperationHelpers.cs" />
     <!-- Services - file operations (integration testable) -->
     <Compile Include="..\Span\Services\FileOperations\CopyFileOperation.cs" Link="Sources\Services\CopyFileOperation.cs" />
     <Compile Include="..\Span\Services\FileOperations\MoveFileOperation.cs" Link="Sources\Services\MoveFileOperation.cs" />
@@ -68,6 +70,13 @@
     <Compile Include="..\Span\Services\IFileSystemProvider.cs" Link="Sources\Services\IFileSystemProvider.cs" />
     <!-- Services - file watcher (pure C#) -->
     <Compile Include="..\Span\Services\FileSystemWatcherService.cs" Link="Sources\Services\FileSystemWatcherService.cs" />
+    <!-- Services - action log (pure C#) -->
+    <Compile Include="..\Span\Services\IActionLogService.cs" Link="Sources\Services\IActionLogService.cs" />
+    <Compile Include="..\Span\Services\ActionLogService.cs" Link="Sources\Services\ActionLogService.cs" />
+    <!-- Views - pure logic helpers (no WinUI) -->
+    <Compile Include="..\Span\Views\LogEntryDisplayHelper.cs" Link="Sources\Views\LogEntryDisplayHelper.cs" />
+    <!-- Localization data (partial class, provides Entries tuple for L() fallback) -->
+    <Compile Include="..\Span\Services\LocalizationData.cs" Link="Sources\Services\LocalizationData.cs" />
     <!-- Helpers - P/Invoke (pure C#) -->
     <Compile Include="..\Span\Helpers\NativeMethods.cs" Link="Sources\Helpers\NativeMethods.cs" />
   </ItemGroup>

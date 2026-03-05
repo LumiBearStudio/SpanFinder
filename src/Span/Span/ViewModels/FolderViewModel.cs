@@ -1186,7 +1186,9 @@ namespace Span.ViewModels
             {
                 SelectedChild = SelectedItems[0];
             }
-            // Multi-selection: don't touch SelectedChild → navigation suppressed
+            // Multi/Zero selection: don't touch SelectedChild
+            // → SelectedChild는 탐색 전용 (null 설정 시 자식 컬럼 제거됨)
+            // → 상태바 선택 수는 SelectedItems.Count 기준으로 별도 처리
 
             OnPropertyChanged(nameof(HasMultiSelection));
         }

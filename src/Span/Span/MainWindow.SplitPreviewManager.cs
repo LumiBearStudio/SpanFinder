@@ -136,6 +136,8 @@ namespace Span
         /// </summary>
         private void OnLeftPanePointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
         {
+            // 드래그 중에는 ActivePane 전환을 방지 — 크로스패널 드롭 시 상태 불일치 방지
+            if (IsDragInProgress) return;
             if (ViewModel.ActivePane != ActivePane.Left)
             {
                 ViewModel.ActivePane = ActivePane.Left;
@@ -145,6 +147,7 @@ namespace Span
 
         private void OnRightPanePointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
         {
+            if (IsDragInProgress) return;
             if (ViewModel.ActivePane != ActivePane.Right)
             {
                 ViewModel.ActivePane = ActivePane.Right;

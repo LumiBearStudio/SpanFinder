@@ -172,11 +172,8 @@ namespace Span.ViewModels
                     RightViewMode = (ViewMode)rightInt;
                 }
 
-                // Load split view state
-                if (settings.Values.TryGetValue("IsSplitViewEnabled", out var splitEnabled))
-                {
-                    IsSplitViewEnabled = (bool)splitEnabled;
-                }
+                // Split view: 항상 단일 패널로 시작 (분할 상태는 세션 복원하지 않음)
+                IsSplitViewEnabled = false;
 
                 // Preview: Finder 방식 — 항상 활성 상태로 시작, Space 키로 토글
                 IsLeftPreviewEnabled = true;
