@@ -37,6 +37,13 @@ namespace Span.ViewModels
         private ViewMode? _viewModeBeforeHome;
 
         /// <summary>
+        /// 우측 패인이 Home에서 탐색기로 전환될 때 사용할 뷰모드.
+        /// LoadTabsFromSettings()에서 Tab2StartupViewMode로 설정됨.
+        /// ResolveViewModeFromHome()에서 우측 패인용으로 사용.
+        /// </summary>
+        private ViewMode? _rightPreferredViewMode;
+
+        /// <summary>
         /// Home/ActionLog에서 탐색기로 복귀 시 이전 ViewMode 결정.
         /// 우선순위: _lastClosedViewMode > _viewModeBeforeHome > MillerColumns (기본값).
         /// _lastClosedViewMode가 우선인 이유: 탭 닫기→새 Home 탭 생성→드라이브 클릭 흐름에서
@@ -45,11 +52,24 @@ namespace Span.ViewModels
         /// </summary>
         public ViewMode ResolveViewModeFromHome()
         {
-            Helpers.DebugLogger.Log($"[ResolveViewModeFromHome] _lastClosedViewMode={_lastClosedViewMode}, _viewModeBeforeHome={_viewModeBeforeHome}");
-            var mode = _lastClosedViewMode ?? _viewModeBeforeHome ?? ViewMode.MillerColumns;
+            // 우측 패인 Home → 탐색기 전환: _rightPreferredViewMode 우선 사용
+            if (IsSplitViewEnabled && ActivePane == ActivePane.Right && _rightPreferredViewMode.HasValue)
+            {
+                var rMode = _rightPreferredViewMode.Value;
+                Helpers.DebugLogger.Log($"[ResolveViewModeFromHome] Right pane → {rMode}");
+                return rMode;
+            }
+
+            // 좌측 패인: 기존 우선순위
+            // _lastClosedViewMode > ActiveTab.PreferredViewMode > _viewModeBeforeHome > MillerColumns
+            var preferred = ActiveTab?.PreferredViewMode;
+            Helpers.DebugLogger.Log($"[ResolveViewModeFromHome] _lastClosedViewMode={_lastClosedViewMode}, preferred={preferred}, _viewModeBeforeHome={_viewModeBeforeHome}");
+            var mode = _lastClosedViewMode ?? preferred ?? _viewModeBeforeHome ?? ViewMode.MillerColumns;
             Helpers.DebugLogger.Log($"[ResolveViewModeFromHome] → resolved={mode}");
             _lastClosedViewMode = null;
             _viewModeBeforeHome = null;
+            // PreferredViewMode는 일회성 — 한 번 사용 후 초기화
+            if (ActiveTab != null) ActiveTab.PreferredViewMode = null;
             return mode;
         }
 
@@ -104,6 +124,10 @@ namespace Span.ViewModels
                 _activeTabIndex = index;
                 Tabs[index].IsActive = true;
                 OnPropertyChanged(nameof(ActiveTab));
+
+                // 분할뷰 상태 복원 (모든 탭 공통 — Settings/ActionLog는 기본값 false)
+                _isSplitViewEnabled = Tabs[index].IsSplitEnabled;
+                _rightViewMode = Tabs[index].SplitRightViewMode;
 
                 // Settings/ActionLog 탭은 Explorer가 null — Explorer 바인딩 스킵
                 if (Tabs[index].ViewMode == ViewMode.Settings)
@@ -308,6 +332,10 @@ namespace Span.ViewModels
                 tab.IconSize = CurrentIconSize;
             tab.Path = tab.Explorer?.CurrentPath ?? "";
 
+            // 분할뷰 상태 저장
+            tab.IsSplitEnabled = IsSplitViewEnabled;
+            tab.SplitRightViewMode = RightViewMode;
+
             // Header도 동기화 (Home 모드 전환 후 저장 시 Header 불일치 방지)
             if (CurrentViewMode == ViewMode.Home)
                 tab.Header = HomeLabel;
@@ -439,120 +467,100 @@ namespace Span.ViewModels
 
         /// <summary>
         /// Load tab states from settings. Replaces current tabs.
-        /// StartupBehavior: 0 = Restore last session, 1 = Open Home
+        /// Uses per-tab startup settings (Tab1StartupBehavior, Tab2StartupBehavior).
+        /// Behavior per tab: 0=Home, 1=RestoreSession, 2=CustomPath.
         /// </summary>
         public void LoadTabsFromSettings()
         {
             try
             {
                 var settings = App.Current.Services.GetRequiredService<SettingsService>();
-                var startupBehavior = settings.StartupBehavior;
+                var tab1Behavior = settings.Tab1StartupBehavior;
+                var tab2Behavior = settings.Tab2StartupBehavior;
 
-                // StartupBehavior == 1: Always start with a single Home tab
-                if (startupBehavior == 1)
-                {
-                    Tabs.Clear();
-                    var root = new FolderItem { Name = "PC", Path = "PC" };
-                    var explorer = new ExplorerViewModel(root, _fileService);
-                    explorer.EnableAutoNavigation = ShouldAutoNavigate(ViewMode.Home);
-
-                    var tab = new TabItem
-                    {
-                        Header = HomeLabel,
-                        Path = "",
-                        ViewMode = ViewMode.Home,
-                        IconSize = ViewMode.IconMedium,
-                        IsActive = true,
-                        Explorer = explorer
-                    };
-                    Tabs.Add(tab);
-
-                    // Set LeftExplorer directly
-                    var old = _leftExplorer;
-                    if (old != null) old.PropertyChanged -= OnLeftExplorerPropertyChanged;
-                    _leftExplorer = explorer;
-                    _leftExplorer.PropertyChanged += OnLeftExplorerPropertyChanged;
-
-                    _activeTabIndex = 0;
-                    _currentViewMode = ViewMode.Home;
-                    _leftViewMode = ViewMode.Home;
-                    OnPropertyChanged(nameof(ActiveTab));
-                    OnPropertyChanged(nameof(Explorer));
-                    OnPropertyChanged(nameof(ActiveExplorer));
-                    OnPropertyChanged(nameof(CurrentViewMode));
-
-                    Helpers.DebugLogger.Log("[MainViewModel] StartupBehavior=Home: created single Home tab");
-                    return;
-                }
-
-                // StartupBehavior == 0 (default): Restore last session
+                // Load saved session data for RestoreSession mode
+                List<TabStateDto>? savedDtos = null;
                 var json = settings.TabsJson;
-
-                if (string.IsNullOrEmpty(json))
+                if (!string.IsNullOrEmpty(json))
                 {
-                    // 저장된 탭 없음 — 기본 탭 유지, Explorer 할당 확인
-                    if (Tabs.Count > 0)
-                    {
-                        if (Tabs[0].Explorer == null)
-                            Tabs[0].Explorer = LeftExplorer;
-                        Tabs[0].IsActive = true;
-                        ActiveTabIndex = 0;
-                        OnPropertyChanged(nameof(ActiveTab));
-                    }
-                    return;
-                }
-
-                var dtos = JsonSerializer.Deserialize<List<TabStateDto>>(json);
-                if (dtos == null || dtos.Count == 0)
-                {
-                    EnsureDefaultTab();
-                    Tabs[0].Explorer = LeftExplorer;
-                    return;
+                    try { savedDtos = JsonSerializer.Deserialize<List<TabStateDto>>(json); }
+                    catch { savedDtos = null; }
                 }
 
                 Tabs.Clear();
-                int savedIndex = Math.Clamp(settings.ActiveTabIndex, 0, dtos.Count - 1);
 
-                for (int i = 0; i < dtos.Count; i++)
+                // Create Tab 1
+                var tab1 = CreateStartupTab(tab1Behavior, settings.Tab1StartupPath,
+                    settings.Tab1StartupViewMode, savedDtos, 0);
+                tab1.Explorer ??= CreateDefaultExplorer(tab1.ViewMode);
+
+                // Assign LeftExplorer for Tab 1
+                var oldLeft = _leftExplorer;
+                if (oldLeft != null) oldLeft.PropertyChanged -= OnLeftExplorerPropertyChanged;
+                _leftExplorer = tab1.Explorer;
+                _leftExplorer.PropertyChanged += OnLeftExplorerPropertyChanged;
+
+                Tabs.Add(tab1);
+
+                // Tab 2 설정은 Split View 우측 패인 전용 — 탭 바에 추가하지 않음.
+                // RightViewMode와 RightExplorer만 아래에서 설정.
+
+                _activeTabIndex = 0;
+                tab1.IsActive = true;
+                _currentViewMode = tab1.ViewMode;
+                _leftViewMode = tab1.ViewMode;
+                if (Helpers.ViewModeExtensions.IsIconMode(tab1.ViewMode))
+                    _currentIconSize = tab1.IconSize;
+
+                // Tab 1 AutoNavigation을 뷰모드에 맞게 설정
+                if (tab1.Explorer != null)
+                    tab1.Explorer.EnableAutoNavigation = ShouldAutoNavigate(tab1.ViewMode);
+
+                // Tab 2 / Split view 우측 뷰모드: 시작 설정 적용
                 {
-                    var dto = dtos[i];
-                    var tabViewMode = System.Enum.IsDefined(typeof(ViewMode), dto.ViewMode)
-                        ? (ViewMode)dto.ViewMode : ViewMode.MillerColumns;
-                    var tabIconSize = System.Enum.IsDefined(typeof(ViewMode), dto.IconSize)
-                        ? (ViewMode)dto.IconSize : ViewMode.IconMedium;
-
-                    var tab = new TabItem
+                    var tab2VM = settings.Tab2StartupViewMode switch
                     {
-                        Id = dto.Id,
-                        Header = tabViewMode == ViewMode.Home ? HomeLabel : dto.Header,
-                        Path = dto.Path,
-                        ViewMode = tabViewMode,
-                        IconSize = tabIconSize,
-                        IsActive = false
+                        1 => ViewMode.Details,
+                        2 => ViewMode.List,
+                        3 => ViewMode.IconMedium,
+                        _ => ViewMode.MillerColumns
                     };
 
-                    // 활성 탭은 기존 LeftExplorer 재활용
-                    if (i == savedIndex)
+                    // behavior=0(Home): 홈 화면으로 시작, 드라이브 클릭 시 tab2VM으로 전환
+                    if (tab2Behavior == 0)
                     {
-                        tab.Explorer = LeftExplorer;
+                        RightViewMode = ViewMode.Home;
+                        _rightPreferredViewMode = tab2VM;
                     }
                     else
                     {
-                        // 비활성 탭은 ExplorerViewModel만 생성하고 NavigateToPath는 호출하지 않음
-                        // Path는 tab.Path에 저장되어 있으므로 최초 전환 시 InitializeTabExplorer에서 로드
-                        var root = new FolderItem { Name = "PC", Path = "PC" };
-                        var explorer = new ExplorerViewModel(root, _fileService);
-                        explorer.EnableAutoNavigation = ShouldAutoNavigate(tab.ViewMode);
-                        tab.Explorer = explorer;
+                        RightViewMode = tab2VM;
+                        _rightPreferredViewMode = null;
                     }
-
-                    Tabs.Add(tab);
+                    RightExplorer.EnableAutoNavigation = ShouldAutoNavigate(tab2VM);
+                    Helpers.DebugLogger.Log($"[LoadTabsFromSettings] Tab2: behavior={tab2Behavior}, viewMode={tab2VM}, rightVM={RightViewMode}, path={settings.Tab2StartupPath}");
                 }
 
-                ActiveTabIndex = -1; // Force switch
-                SwitchToTab(savedIndex);
+                OnPropertyChanged(nameof(ActiveTab));
+                OnPropertyChanged(nameof(Explorer));
+                OnPropertyChanged(nameof(ActiveExplorer));
+                OnPropertyChanged(nameof(CurrentViewMode));
 
-                Helpers.DebugLogger.Log($"[MainViewModel] Loaded {Tabs.Count} tabs from settings (active: {savedIndex})");
+                // Navigate custom path tabs (deferred)
+                // 모든 탭에 LoadDeferredTabPathAsync 사용 — CreateStartupTab이
+                // Explorer를 미리 생성하므로 InitializeTabExplorerAsync는 early return됨
+                for (int i = 0; i < Tabs.Count; i++)
+                {
+                    var tab = Tabs[i];
+                    if (!string.IsNullOrEmpty(tab.Path) && tab.ViewMode != ViewMode.Home)
+                    {
+                        _ = LoadDeferredTabPathAsync(tab);
+                    }
+                }
+
+                for (int t = 0; t < Tabs.Count; t++)
+                    Helpers.DebugLogger.Log($"[LoadTabsFromSettings] Tab[{t}]: id={Tabs[t].Id}, header='{Tabs[t].Header}', viewMode={Tabs[t].ViewMode}, preferred={Tabs[t].PreferredViewMode}, path='{Tabs[t].Path}'");
+                Helpers.DebugLogger.Log($"[MainViewModel] LoadTabsFromSettings: {Tabs.Count} tabs created (tab1={tab1Behavior}, tab2={tab2Behavior})");
             }
             catch (Exception ex)
             {
@@ -560,6 +568,105 @@ namespace Span.ViewModels
                 EnsureDefaultTab();
                 Tabs[0].Explorer = LeftExplorer;
             }
+        }
+
+        /// <summary>
+        /// Create a tab based on startup behavior.
+        /// 0=Home, 1=RestoreSession, 2=CustomPath.
+        /// </summary>
+        private TabItem CreateStartupTab(int behavior, string customPath, int viewModeInt,
+            List<TabStateDto>? savedDtos, int tabIndex)
+        {
+            // Resolve view mode from setting (0=Miller, 1=Details, 2=List, 3=Icon)
+            var startupViewMode = viewModeInt switch
+            {
+                1 => ViewMode.Details,
+                2 => ViewMode.List,
+                3 => ViewMode.IconMedium,
+                _ => ViewMode.MillerColumns
+            };
+
+            switch (behavior)
+            {
+                case 1: // Restore session — 경로는 세션에서, 뷰모드는 시작 설정에서
+                    if (savedDtos != null && tabIndex < savedDtos.Count)
+                    {
+                        var dto = savedDtos[tabIndex];
+                        var tabIconSize = System.Enum.IsDefined(typeof(ViewMode), dto.IconSize)
+                            ? (ViewMode)dto.IconSize : ViewMode.IconMedium;
+
+                        var root = new FolderItem { Name = "PC", Path = "PC" };
+                        var explorer = new ExplorerViewModel(root, _fileService);
+                        explorer.EnableAutoNavigation = ShouldAutoNavigate(startupViewMode);
+
+                        return new TabItem
+                        {
+                            Id = dto.Id,
+                            Header = startupViewMode == ViewMode.Home ? HomeLabel : dto.Header,
+                            Path = dto.Path,
+                            ViewMode = startupViewMode,
+                            IconSize = tabIconSize,
+                            IsActive = false,
+                            Explorer = explorer
+                        };
+                    }
+                    // Fallback to Home if no saved session for this tab
+                    goto case 0;
+
+                case 2: // Custom path
+                    if (!string.IsNullOrEmpty(customPath) && System.IO.Directory.Exists(customPath))
+                    {
+                        var folderName = System.IO.Path.GetFileName(customPath.TrimEnd('\\'));
+                        if (string.IsNullOrEmpty(folderName)) folderName = customPath;
+
+                        var root2 = new FolderItem { Name = "PC", Path = "PC" };
+                        var explorer2 = new ExplorerViewModel(root2, _fileService);
+                        explorer2.EnableAutoNavigation = ShouldAutoNavigate(startupViewMode);
+
+                        return new TabItem
+                        {
+                            Header = folderName,
+                            Path = customPath,
+                            ViewMode = startupViewMode,
+                            IconSize = ViewMode.IconMedium,
+                            IsActive = false,
+                            Explorer = explorer2
+                        };
+                    }
+                    // Fallback to Home if path invalid
+                    goto case 0;
+
+                case 0: // Home
+                default:
+                {
+                    var root0 = new FolderItem { Name = "PC", Path = "PC" };
+                    var explorer0 = new ExplorerViewModel(root0, _fileService);
+                    explorer0.EnableAutoNavigation = ShouldAutoNavigate(ViewMode.Home);
+
+                    return new TabItem
+                    {
+                        Header = HomeLabel,
+                        Path = "",
+                        ViewMode = ViewMode.Home,
+                        IconSize = ViewMode.IconMedium,
+                        IsActive = false,
+                        Explorer = explorer0,
+                        // 시작 뷰모드를 저장 — 홈에서 드라이브 클릭 시 이 뷰모드로 전환
+                        PreferredViewMode = startupViewMode != ViewMode.MillerColumns ? startupViewMode : null
+                    };
+                }
+            }
+        }
+
+        /// <summary>
+        /// Create a default ExplorerViewModel for a given view mode.
+        /// </summary>
+        private ExplorerViewModel CreateDefaultExplorer(ViewMode mode)
+        {
+            var root = new FolderItem { Name = "PC", Path = "PC" };
+            var explorer = new ExplorerViewModel(root, _fileService);
+            explorer.EnableAutoNavigation = ShouldAutoNavigate(mode);
+            return explorer;
         }
 
         /// <summary>

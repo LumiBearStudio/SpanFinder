@@ -670,7 +670,9 @@ namespace Span.ViewModels
             }
             finally
             {
+                Helpers.DebugLogger.Log($"[NavigateToPath] Restoring EnableAutoNavigation from {EnableAutoNavigation} to {previousAutoNav}");
                 EnableAutoNavigation = previousAutoNav;
+                Helpers.DebugLogger.Log($"[NavigateToPath] DONE. Columns={Columns.Count}, EnableAutoNav={EnableAutoNavigation}");
             }
         }
 
@@ -707,6 +709,7 @@ namespace Span.ViewModels
         public void NavigateToSegment(PathSegment segment)
         {
             if (segment == null) return;
+            Helpers.DebugLogger.Log($"[NavigateToSegment] path='{segment.FullPath}', Columns={Columns.Count}");
 
             // 1. 현재 컬럼들 중에서 해당 경로와 일치하는 폴더가 있는지 확인
             //    (마지막 컬럼은 선택된 '파일'이 뷰모델일 수도 있으므로, 폴더인 것들만 비교)
@@ -997,6 +1000,8 @@ namespace Span.ViewModels
                 if (e.PropertyName != nameof(FolderViewModel.SelectedChild)) return;
                 if (sender is not FolderViewModel parentFolder) return;
 
+                Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] SelectedChild changed on '{parentFolder.Name}', child={parentFolder.SelectedChild?.Name ?? "null"}, IsSorting={parentFolder.IsSorting}, AutoNav={EnableAutoNavigation}, MultiSel={parentFolder.HasMultiSelection}");
+
                 // CRITICAL: Ignore selection changes during sorting to prevent tab flickering
                 if (parentFolder.IsSorting) return;
 
@@ -1007,8 +1012,9 @@ namespace Span.ViewModels
                 if (parentFolder.HasMultiSelection) return;
 
                 int parentIndex = Columns.IndexOf(parentFolder);
-                if (parentIndex == -1) return;
+                if (parentIndex == -1) { Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] parentFolder '{parentFolder.Name}' NOT found in Columns!"); return; }
                 int nextIndex = parentIndex + 1;
+                Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] parentIndex={parentIndex}, nextIndex={nextIndex}, totalColumns={Columns.Count}");
 
                 if (parentFolder.SelectedChild is FileViewModel fileVm)
                 {
@@ -1016,6 +1022,22 @@ namespace Span.ViewModels
                 }
                 else if (parentFolder.SelectedChild == null)
                 {
+                    // Debounce null selection — UI 포커스 이동(주소창 클릭 등)으로
+                    // ListView가 일시적으로 선택 해제 후 즉시 복원하는 "null→value 바운스" 방지.
+                    // 50ms 후에도 SelectedChild가 null이면 실제 선택 해제로 처리.
+                    _selectionDebounce?.Cancel();
+                    _selectionDebounce = new CancellationTokenSource();
+                    var nullToken = _selectionDebounce.Token;
+                    try { await Task.Delay(50, nullToken); }
+                    catch (OperationCanceledException) { return; }
+                    if (nullToken.IsCancellationRequested) return;
+
+                    // 50ms 후 재검증: 선택이 복원되었으면 skip
+                    if (parentFolder.SelectedChild != null)
+                    {
+                        Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] Null selection bounce absorbed for '{parentFolder.Name}'");
+                        return;
+                    }
                     HandleNullSelection(parentFolder, nextIndex);
                 }
                 else if (parentFolder.SelectedChild is FolderViewModel selectedFolder)
@@ -1031,6 +1053,7 @@ namespace Span.ViewModels
 
         private void HandleFileSelection(FileViewModel fileVm, int nextIndex)
         {
+            Helpers.DebugLogger.Log($"[HandleFileSelection] file='{fileVm.Name}', nextIndex={nextIndex}");
             RemoveColumnsFrom(nextIndex);
             // Finder behavior: tab shows parent folder name, not file name
             var parentDir = System.IO.Path.GetDirectoryName(fileVm.Path);
@@ -1042,6 +1065,7 @@ namespace Span.ViewModels
 
         private void HandleNullSelection(FolderViewModel parentFolder, int nextIndex)
         {
+            Helpers.DebugLogger.Log($"[HandleNullSelection] parent='{parentFolder.Name}', nextIndex={nextIndex}");
             RemoveColumnsFrom(nextIndex);
             CurrentPath = parentFolder.Path;
             SelectedFile = null;
@@ -1077,6 +1101,7 @@ namespace Span.ViewModels
                 // Push current path to history before changing (Miller auto-navigation)
                 PushToHistory(selectedFolder.Path);
 
+                Helpers.DebugLogger.Log($"[HandleFolderSelectionAsync] folder='{selectedFolder.Name}', nextIndex={nextIndex}");
                 RemoveColumnsFrom(nextIndex + 1);
 
                 // 컬럼을 먼저 배치 → ProgressRing이 즉시 표시됨

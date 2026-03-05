@@ -331,7 +331,7 @@
                                 </StackPanel>
                             </Border>
 
-                            <!-- Startup Behavior -->
+                            <!-- Startup Behavior (Per-Tab) -->
                             <Border Style="{StaticResource SettingsCardBorder}">
                                 <StackPanel Spacing="12">
                                     <StackPanel Orientation="Horizontal">
@@ -339,28 +339,123 @@
                                             <FontIcon Glyph="&#xE7A5;" Style="{StaticResource CardIconStyle}" />
                                         </Border>
                                         <StackPanel Spacing="2" VerticalAlignment="Center">
-                                            <TextBlock x:Name="StartupLabel" Text="시작 시 동작" Style="{StaticResource SettingsCardLabel}" />
-                                            <TextBlock x:Name="StartupDesc" Text="앱을 실행할 때 보여줄 화면" Style="{StaticResource SettingsCardDesc}" />
+                                            <TextBlock x:Name="StartupLabel" Text="분할뷰 설정" Style="{StaticResource SettingsCardLabel}" />
+                                            <TextBlock x:Name="StartupDesc" Text="분할뷰의 왼쪽/오른쪽 탐색기 시작 동작" Style="{StaticResource SettingsCardDesc}" />
                                         </StackPanel>
                                     </StackPanel>
-                                    <RadioButtons x:Name="StartupRadios" Margin="48,0,0,0">
-                                        <RadioButton x:Name="StartupRestore" IsChecked="True">
-                                            <StackPanel Spacing="1">
-                                                <TextBlock x:Name="RestoreSessionLabel" Text="마지막 세션 복원" FontSize="13" />
-                                                <TextBlock x:Name="RestoreSessionDesc" Text="이전에 열어둔 탭과 경로를 유지합니다" FontSize="11"
-                                                           Foreground="{ThemeResource SpanTextSecondaryBrush}" />
-                                            </StackPanel>
-                                        </RadioButton>
-                                        <RadioButton x:Name="StartupHome" Content="내 PC (홈) 열기" />
-                                        <RadioButton x:Name="StartupFolder" Visibility="Collapsed">
-                                            <StackPanel Spacing="1">
-                                                <TextBlock x:Name="OpenFolderLabel" Text="특정 폴더 열기..." FontSize="13" />
-                                                <TextBlock x:Name="CustomPathDesc" Text="사용자 지정 경로" FontSize="11"
-                                                           Foreground="{ThemeResource SpanTextSecondaryBrush}" />
-                                            </StackPanel>
-                                        </RadioButton>
-                                    </RadioButtons>
+
+                                    <!-- Left Explorer -->
+                                    <Border Background="{ThemeResource SpanBgLayer2Brush}" CornerRadius="6" Padding="12" Margin="0,4,0,0">
+                                        <StackPanel Spacing="8">
+                                            <TextBlock x:Name="Tab1Label" Text="왼쪽 탐색기" FontSize="13" FontWeight="SemiBold"
+                                                       Foreground="{ThemeResource SpanTextPrimaryBrush}" />
+                                            <RadioButton x:Name="Tab1StartupHome" GroupName="Tab1Startup" IsChecked="True">
+                                                <TextBlock x:Name="Tab1HomeText" Text="내 PC (홈) 열기" FontSize="13" />
+                                            </RadioButton>
+                                            <RadioButton x:Name="Tab1StartupRestore" GroupName="Tab1Startup">
+                                                <TextBlock x:Name="Tab1RestoreText" Text="마지막 세션 복원" FontSize="13" />
+                                            </RadioButton>
+                                            <RadioButton x:Name="Tab1StartupCustom" GroupName="Tab1Startup">
+                                                <TextBlock x:Name="Tab1CustomText" Text="시작 경로:" FontSize="13" />
+                                            </RadioButton>
+                                            <Grid Margin="28,0,0,0" Visibility="{x:Bind Tab1StartupCustom.IsChecked, Mode=OneWay}">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBox x:Name="Tab1CustomPathBox" PlaceholderText="C:\Users\..." FontSize="12"
+                                                         VerticalAlignment="Center" />
+                                                <Button x:Name="Tab1BrowseBtn" Grid.Column="1" Content="..." Margin="4,0,0,0"
+                                                        MinWidth="36" VerticalAlignment="Center" />
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Right Explorer -->
+                                    <Border Background="{ThemeResource SpanBgLayer2Brush}" CornerRadius="6" Padding="12" Margin="0,4,0,0">
+                                        <StackPanel Spacing="8">
+                                            <TextBlock x:Name="Tab2Label" Text="오른쪽 탐색기" FontSize="13" FontWeight="SemiBold"
+                                                       Foreground="{ThemeResource SpanTextPrimaryBrush}" />
+                                            <RadioButton x:Name="Tab2StartupHome" GroupName="Tab2Startup" IsChecked="True">
+                                                <TextBlock x:Name="Tab2HomeText" Text="내 PC (홈) 열기" FontSize="13" />
+                                            </RadioButton>
+                                            <RadioButton x:Name="Tab2StartupRestore" GroupName="Tab2Startup">
+                                                <TextBlock x:Name="Tab2RestoreText" Text="마지막 세션 복원" FontSize="13" />
+                                            </RadioButton>
+                                            <RadioButton x:Name="Tab2StartupCustom" GroupName="Tab2Startup">
+                                                <TextBlock x:Name="Tab2CustomText" Text="시작 경로:" FontSize="13" />
+                                            </RadioButton>
+                                            <Grid Margin="28,0,0,0" Visibility="{x:Bind Tab2StartupCustom.IsChecked, Mode=OneWay}">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBox x:Name="Tab2CustomPathBox" PlaceholderText="C:\Users\..." FontSize="12"
+                                                         VerticalAlignment="Center" />
+                                                <Button x:Name="Tab2BrowseBtn" Grid.Column="1" Content="..." Margin="4,0,0,0"
+                                                        MinWidth="36" VerticalAlignment="Center" />
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
                                 </StackPanel>
+                            </Border>
+
+                            <!-- Startup View Mode (Per-Tab) -->
+                            <Border Style="{StaticResource SettingsCardBorder}">
+                                <StackPanel Spacing="12">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Style="{StaticResource CardIconContainer}">
+                                            <FontIcon Glyph="&#xE8A9;" Style="{StaticResource CardIconStyle}" />
+                                        </Border>
+                                        <StackPanel Spacing="2" VerticalAlignment="Center">
+                                            <TextBlock x:Name="StartupViewModeLabel" Text="시작 뷰 모드" Style="{StaticResource SettingsCardLabel}" />
+                                            <TextBlock x:Name="StartupViewModeDesc" Text="분할뷰 각 탐색기의 기본 보기 방식" Style="{StaticResource SettingsCardDesc}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                    <Grid Margin="48,0,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="Tab1ViewLabel" Text="왼쪽:" FontSize="13" VerticalAlignment="Center" Margin="0,0,8,0"
+                                                   Foreground="{ThemeResource SpanTextPrimaryBrush}" />
+                                        <ComboBox x:Name="Tab1ViewModeCombo" Grid.Column="1" MinWidth="130" SelectedIndex="0">
+                                            <ComboBoxItem x:Name="Tab1ViewMiller" Content="밀러 컬럼" />
+                                            <ComboBoxItem x:Name="Tab1ViewDetails" Content="상세 정보" />
+                                            <ComboBoxItem x:Name="Tab1ViewList" Content="리스트" />
+                                            <ComboBoxItem x:Name="Tab1ViewIcon" Content="아이콘" />
+                                        </ComboBox>
+                                        <TextBlock x:Name="Tab2ViewLabel" Text="오른쪽:" Grid.Column="2" FontSize="13" VerticalAlignment="Center" Margin="16,0,8,0"
+                                                   Foreground="{ThemeResource SpanTextPrimaryBrush}" />
+                                        <ComboBox x:Name="Tab2ViewModeCombo" Grid.Column="3" MinWidth="130" SelectedIndex="0">
+                                            <ComboBoxItem x:Name="Tab2ViewMiller" Content="밀러 컬럼" />
+                                            <ComboBoxItem x:Name="Tab2ViewDetails" Content="상세 정보" />
+                                            <ComboBoxItem x:Name="Tab2ViewList" Content="리스트" />
+                                            <ComboBoxItem x:Name="Tab2ViewIcon" Content="아이콘" />
+                                        </ComboBox>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Default Preview Panel -->
+                            <Border Style="{StaticResource SettingsCardBorder}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Style="{StaticResource CardIconContainer}">
+                                        <FontIcon Glyph="&#xE71E;" Style="{StaticResource CardIconStyle}" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock x:Name="DefaultPreviewLabel" Text="미리보기 패널" Style="{StaticResource SettingsCardLabel}" />
+                                        <TextBlock x:Name="DefaultPreviewDesc" Text="앱 시작 시 미리보기 패널 활성화 여부" Style="{StaticResource SettingsCardDesc}" />
+                                    </StackPanel>
+                                    <ToggleSwitch x:Name="DefaultPreviewToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="True" OnContent="" OffContent="" />
+                                </Grid>
                             </Border>
 
                             <!-- Favorites Tree -->

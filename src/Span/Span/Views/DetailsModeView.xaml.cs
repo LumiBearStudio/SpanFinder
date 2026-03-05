@@ -126,6 +126,12 @@ namespace Span.Views
                         ViewModel = IsRightPane ? mainVm.RightExplorer : mainVm.Explorer;
                     }
                 }
+                else if (_viewModel != null)
+                {
+                    // Per-tab panel: ViewModel was set before Loaded (_isLoaded was false),
+                    // so ApplyCurrentView() was skipped in the setter. Trigger it now.
+                    ApplyCurrentView();
+                }
 
                 // Apply ShowCheckboxes setting
                 try

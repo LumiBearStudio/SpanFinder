@@ -175,9 +175,11 @@ namespace Span.ViewModels
                 // Split view: 항상 단일 패널로 시작 (분할 상태는 세션 복원하지 않음)
                 IsSplitViewEnabled = false;
 
-                // Preview: Finder 방식 — 항상 활성 상태로 시작, Space 키로 토글
-                IsLeftPreviewEnabled = true;
-                IsRightPreviewEnabled = true;
+                // Preview: 설정에서 기본값 로드 (DefaultPreviewEnabled)
+                var settingsSvc = App.Current.Services.GetRequiredService<SettingsService>();
+                var previewDefault = settingsSvc.DefaultPreviewEnabled;
+                IsLeftPreviewEnabled = previewDefault;
+                IsRightPreviewEnabled = previewDefault;
 
                 // Set auto-navigation based on loaded view mode
                 LeftExplorer.EnableAutoNavigation = ShouldAutoNavigate(LeftViewMode);

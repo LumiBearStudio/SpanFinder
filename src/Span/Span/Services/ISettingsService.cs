@@ -71,5 +71,14 @@ namespace Span.Services
         bool ListShowSize { get; set; }
         bool ListShowDate { get; set; }
         int ListColumnWidth { get; set; }
+
+        // Per-tab startup settings
+        int Tab1StartupBehavior { get; set; }
+        int Tab2StartupBehavior { get; set; }
+        string Tab1StartupPath { get; set; }
+        string Tab2StartupPath { get; set; }
+        int Tab1StartupViewMode { get; set; }
+        int Tab2StartupViewMode { get; set; }
+        bool DefaultPreviewEnabled { get; set; }
     }
 }

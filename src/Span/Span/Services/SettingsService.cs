@@ -230,6 +230,50 @@ public class SettingsService : ISettingsService
         set => Set("StartupBehavior", value);
     }
 
+    // ── Per-tab startup settings ──
+
+    public int Tab1StartupBehavior
+    {
+        get => Get("Tab1StartupBehavior", 0);  // 0=Home, 1=RestoreSession, 2=CustomPath
+        set => Set("Tab1StartupBehavior", value);
+    }
+
+    public int Tab2StartupBehavior
+    {
+        get => Get("Tab2StartupBehavior", 0);
+        set => Set("Tab2StartupBehavior", value);
+    }
+
+    public string Tab1StartupPath
+    {
+        get => Get("Tab1StartupPath", "");
+        set => Set("Tab1StartupPath", value);
+    }
+
+    public string Tab2StartupPath
+    {
+        get => Get("Tab2StartupPath", "");
+        set => Set("Tab2StartupPath", value);
+    }
+
+    public int Tab1StartupViewMode
+    {
+        get => Get("Tab1StartupViewMode", 0);  // ViewMode enum int
+        set => Set("Tab1StartupViewMode", value);
+    }
+
+    public int Tab2StartupViewMode
+    {
+        get => Get("Tab2StartupViewMode", 0);
+        set => Set("Tab2StartupViewMode", value);
+    }
+
+    public bool DefaultPreviewEnabled
+    {
+        get => Get("DefaultPreviewEnabled", true);
+        set => Set("DefaultPreviewEnabled", value);
+    }
+
     public string LastSessionPath
     {
         get => Get("LastSessionPath", "");

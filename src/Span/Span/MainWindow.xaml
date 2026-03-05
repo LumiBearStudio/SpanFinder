@@ -1474,9 +1474,17 @@
                                 </ItemsControl>
                             </ScrollViewer>
 
+                            <!-- Home View (Right) -->
+                            <views:HomeModeView x:Name="HomeViewRight"
+                                                Visibility="{x:Bind IsHomeMode(ViewModel.RightViewMode), Mode=OneWay}"/>
+
                             <!-- Details View (Right) -->
                             <views:DetailsModeView x:Name="DetailsViewRight"
                                                    Visibility="{x:Bind IsDetailsMode(ViewModel.RightViewMode), Mode=OneWay}"/>
+
+                            <!-- List View (Right) -->
+                            <views:ListModeView x:Name="ListViewRight"
+                                                Visibility="{x:Bind IsListMode(ViewModel.RightViewMode), Mode=OneWay}"/>
 
                             <!-- Icon View (Right) -->
                             <views:IconModeView x:Name="IconViewRight"

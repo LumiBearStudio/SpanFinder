@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml.Controls;
 using Span.Helpers;
 using Span.Services;
 using System;
+using Windows.Storage.Pickers;
 
 namespace Span.Views;
 
@@ -98,10 +99,25 @@ public sealed partial class SettingsModeView : UserControl
                 _ => 0
             };
 
-            var startup = _settings.StartupBehavior;
-            StartupRestore.IsChecked = startup == 0;
-            StartupHome.IsChecked = startup == 1;
-            StartupFolder.IsChecked = startup == 2;
+            // Per-tab startup behavior
+            var tab1Startup = _settings.Tab1StartupBehavior;
+            Tab1StartupHome.IsChecked = tab1Startup == 0;
+            Tab1StartupRestore.IsChecked = tab1Startup == 1;
+            Tab1StartupCustom.IsChecked = tab1Startup == 2;
+            Tab1CustomPathBox.Text = _settings.Tab1StartupPath;
+
+            var tab2Startup = _settings.Tab2StartupBehavior;
+            Tab2StartupHome.IsChecked = tab2Startup == 0;
+            Tab2StartupRestore.IsChecked = tab2Startup == 1;
+            Tab2StartupCustom.IsChecked = tab2Startup == 2;
+            Tab2CustomPathBox.Text = _settings.Tab2StartupPath;
+
+            // Per-tab startup view mode
+            Tab1ViewModeCombo.SelectedIndex = Math.Clamp(_settings.Tab1StartupViewMode, 0, 3);
+            Tab2ViewModeCombo.SelectedIndex = Math.Clamp(_settings.Tab2StartupViewMode, 0, 3);
+
+            // Default preview
+            DefaultPreviewToggle.IsOn = _settings.DefaultPreviewEnabled;
 
             FavoritesTreeToggle.IsOn = _settings.ShowFavoritesTree;
             SystemTrayToggle.IsOn = _settings.MinimizeToTray;
@@ -218,9 +234,26 @@ public sealed partial class SettingsModeView : UserControl
 
     private void WireEvents()
     {
-        StartupRestore.Checked += (s, e) => { if (!_isLoading) _settings.StartupBehavior = 0; };
-        StartupHome.Checked += (s, e) => { if (!_isLoading) _settings.StartupBehavior = 1; };
-        StartupFolder.Checked += (s, e) => { if (!_isLoading) _settings.StartupBehavior = 2; };
+        // Tab 1 startup behavior
+        Tab1StartupHome.Checked += (s, e) => { if (!_isLoading) _settings.Tab1StartupBehavior = 0; };
+        Tab1StartupRestore.Checked += (s, e) => { if (!_isLoading) _settings.Tab1StartupBehavior = 1; };
+        Tab1StartupCustom.Checked += (s, e) => { if (!_isLoading) _settings.Tab1StartupBehavior = 2; };
+        Tab1CustomPathBox.TextChanged += (s, e) => { if (!_isLoading) _settings.Tab1StartupPath = Tab1CustomPathBox.Text; };
+        Tab1BrowseBtn.Click += async (s, e) => await BrowseFolder(Tab1CustomPathBox);
+
+        // Tab 2 startup behavior
+        Tab2StartupHome.Checked += (s, e) => { if (!_isLoading) _settings.Tab2StartupBehavior = 0; };
+        Tab2StartupRestore.Checked += (s, e) => { if (!_isLoading) _settings.Tab2StartupBehavior = 1; };
+        Tab2StartupCustom.Checked += (s, e) => { if (!_isLoading) _settings.Tab2StartupBehavior = 2; };
+        Tab2CustomPathBox.TextChanged += (s, e) => { if (!_isLoading) _settings.Tab2StartupPath = Tab2CustomPathBox.Text; };
+        Tab2BrowseBtn.Click += async (s, e) => await BrowseFolder(Tab2CustomPathBox);
+
+        // Per-tab startup view mode
+        Tab1ViewModeCombo.SelectionChanged += (s, e) => { if (!_isLoading) _settings.Tab1StartupViewMode = Tab1ViewModeCombo.SelectedIndex; };
+        Tab2ViewModeCombo.SelectionChanged += (s, e) => { if (!_isLoading) _settings.Tab2StartupViewMode = Tab2ViewModeCombo.SelectedIndex; };
+
+        // Default preview
+        DefaultPreviewToggle.Toggled += (s, e) => { if (!_isLoading) _settings.DefaultPreviewEnabled = DefaultPreviewToggle.IsOn; };
 
         FavoritesTreeToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowFavoritesTree = FavoritesTreeToggle.IsOn; };
         SystemTrayToggle.Toggled += (s, e) => { if (!_isLoading) _settings.MinimizeToTray = SystemTrayToggle.IsOn; };
@@ -320,7 +353,8 @@ public sealed partial class SettingsModeView : UserControl
             ThemeSystem, ThemeLight, ThemeDark, ThemeDracula,
             ThemeTokyoNight, ThemeCatppuccin, ThemeGruvbox,
             ThemeSolarizedLight, ThemeNord, ThemeOneDark, ThemeMonokai,
-            StartupRestore, StartupHome, StartupFolder,
+            Tab1StartupHome, Tab1StartupRestore, Tab1StartupCustom,
+            Tab2StartupHome, Tab2StartupRestore, Tab2StartupCustom,
             Density0, Density1, Density2, Density3, Density4, Density5,
             Scale0, Scale1, Scale2, Scale3, Scale4, Scale5 })
             Helpers.CursorHelper.SetHandCursor(rb);
@@ -328,12 +362,15 @@ public sealed partial class SettingsModeView : UserControl
         foreach (var toggle in new[] {
             FavoritesTreeToggle, SystemTrayToggle, WindowPositionToggle,
             ShellExtrasToggle, DeveloperMenuToggle, GitIntegrationToggle,
-            HexPreviewToggle, CopilotMenuToggle, ContextMenuToggle, CrashReportToggle })
+            HexPreviewToggle, CopilotMenuToggle, ContextMenuToggle, CrashReportToggle,
+            DefaultPreviewToggle })
             Helpers.CursorHelper.SetHandCursor(toggle);
 
         Helpers.CursorHelper.SetHandCursor(IconPackCombo);
         Helpers.CursorHelper.SetHandCursor(LanguageCombo);
         Helpers.CursorHelper.SetHandCursor(TerminalCombo);
+        Helpers.CursorHelper.SetHandCursor(Tab1ViewModeCombo);
+        Helpers.CursorHelper.SetHandCursor(Tab2ViewModeCombo);
     }
 
     // ── Responsive layout ──
@@ -438,11 +475,34 @@ public sealed partial class SettingsModeView : UserControl
             LangRestartText.Text = _loc.Get("Settings_RestartNotice");
             StartupLabel.Text = _loc.Get("Settings_StartupBehavior");
             StartupDesc.Text = _loc.Get("Settings_StartupBehaviorDesc");
-            RestoreSessionLabel.Text = _loc.Get("Settings_RestoreSession");
-            RestoreSessionDesc.Text = _loc.Get("Settings_RestoreSessionDesc");
-            StartupHome.Content = _loc.Get("Settings_OpenHome");
-            OpenFolderLabel.Text = _loc.Get("Settings_OpenSpecificFolder");
-            CustomPathDesc.Text = _loc.Get("Settings_CustomPath");
+            // Tab 1
+            Tab1Label.Text = _loc.Get("Settings_Tab1");
+            Tab1HomeText.Text = _loc.Get("Settings_OpenHome");
+            Tab1RestoreText.Text = _loc.Get("Settings_RestoreSession");
+            Tab1CustomText.Text = _loc.Get("Settings_StartupPath");
+            Tab1BrowseBtn.Content = "...";
+            // Tab 2
+            Tab2Label.Text = _loc.Get("Settings_Tab2");
+            Tab2HomeText.Text = _loc.Get("Settings_OpenHome");
+            Tab2RestoreText.Text = _loc.Get("Settings_RestoreSession");
+            Tab2CustomText.Text = _loc.Get("Settings_StartupPath");
+            Tab2BrowseBtn.Content = "...";
+            // View mode
+            StartupViewModeLabel.Text = _loc.Get("Settings_StartupViewMode");
+            StartupViewModeDesc.Text = _loc.Get("Settings_StartupViewModeDesc");
+            Tab1ViewLabel.Text = _loc.Get("Settings_LeftShort") + ":";
+            Tab2ViewLabel.Text = _loc.Get("Settings_RightShort") + ":";
+            Tab1ViewMiller.Content = _loc.Get("Settings_ViewMiller");
+            Tab1ViewDetails.Content = _loc.Get("Settings_ViewDetails");
+            Tab1ViewList.Content = _loc.Get("Settings_ViewList");
+            Tab1ViewIcon.Content = _loc.Get("Settings_ViewIcon");
+            Tab2ViewMiller.Content = _loc.Get("Settings_ViewMiller");
+            Tab2ViewDetails.Content = _loc.Get("Settings_ViewDetails");
+            Tab2ViewList.Content = _loc.Get("Settings_ViewList");
+            Tab2ViewIcon.Content = _loc.Get("Settings_ViewIcon");
+            // Preview
+            DefaultPreviewLabel.Text = _loc.Get("Settings_DefaultPreview");
+            DefaultPreviewDesc.Text = _loc.Get("Settings_DefaultPreviewDesc");
             FavTreeLabel.Text = _loc.Get("Settings_FavoritesTree");
             FavTreeDesc.Text = _loc.Get("Settings_FavoritesTreeDesc");
             SysTrayLabel.Text = _loc.Get("Settings_SystemTray");
@@ -594,6 +654,34 @@ public sealed partial class SettingsModeView : UserControl
         catch (Exception ex)
         {
             DebugLogger.Log($"[SettingsModeView] Timer error: {ex.Message}");
+        }
+    }
+
+    // ── Folder browse helper ──
+
+    private async System.Threading.Tasks.Task BrowseFolder(TextBox targetBox)
+    {
+        try
+        {
+            var picker = new FolderPicker();
+            picker.SuggestedStartLocation = PickerLocationId.Desktop;
+            picker.FileTypeFilter.Add("*");
+
+            // WinUI 3: Initialize with window handle
+            var windows = ((App)App.Current).GetRegisteredWindows();
+            if (windows.Count == 0) return;
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(windows[0]);
+            WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
+
+            var folder = await picker.PickSingleFolderAsync();
+            if (folder != null)
+            {
+                targetBox.Text = folder.Path;
+            }
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"[SettingsModeView] BrowseFolder error: {ex.Message}");
         }
     }
 

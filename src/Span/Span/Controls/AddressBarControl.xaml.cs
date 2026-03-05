@@ -188,13 +188,31 @@ namespace Span.Controls
             OverflowIndicator.Visibility = Visibility.Collapsed;
             AutoSuggest.Visibility = Visibility.Visible;
             AutoSuggest.Text = CurrentPath ?? string.Empty;
-            AutoSuggest.Focus(FocusState.Keyboard);
 
-            // Select all text after focus
-            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+            // Collapsed→Visible 전환 후 내부 TextBox 비주얼 트리가 materialize될 때까지
+            // 한 프레임 대기. UpdateLayout()은 AccessViolation 위험이 있어 사용하지 않음.
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Normal, () =>
             {
                 var textBox = FindDescendant<TextBox>(AutoSuggest);
-                textBox?.SelectAll();
+                if (textBox != null)
+                {
+                    textBox.Focus(FocusState.Programmatic);
+                    textBox.SelectAll();
+                }
+                else
+                {
+                    // TextBox가 아직 생성 안 된 경우: Focus로 트리 생성 촉진 후 재시도
+                    AutoSuggest.Focus(FocusState.Programmatic);
+                    DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+                    {
+                        var tb = FindDescendant<TextBox>(AutoSuggest);
+                        if (tb != null)
+                        {
+                            tb.Focus(FocusState.Programmatic);
+                            tb.SelectAll();
+                        }
+                    });
+                }
             });
         }
 
@@ -225,11 +243,13 @@ namespace Span.Controls
                 element = VisualTreeHelper.GetParent(element);
             }
 
+            e.Handled = true; // tap이 AutoSuggestBox의 TextBox로 전파되어 SelectAll을 해제하는 것을 방지
             ShowEditMode();
         }
 
         private void OnRightPadTapped(object sender, TappedRoutedEventArgs e)
         {
+            e.Handled = true;
             ShowEditMode();
         }
 

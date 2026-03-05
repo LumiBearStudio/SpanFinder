@@ -265,8 +265,11 @@ namespace Span
             SyncAddressBarControls(ViewModel.Explorer);
 
             // Set ViewModel for Details and Icon views (right pane)
+            HomeViewRight.MainViewModel = ViewModel;
             DetailsViewRight.IsRightPane = true;
             DetailsViewRight.ViewModel = ViewModel.RightExplorer;
+            ListViewRight.IsRightPane = true;
+            ListViewRight.ViewModel = ViewModel.RightExplorer;
             IconViewRight.IsRightPane = true;
             IconViewRight.ViewModel = ViewModel.RightExplorer;
 
@@ -303,6 +306,8 @@ namespace Span
             IconView.OwnerHwnd = _hwnd;
             HomeView.ContextMenuService = _contextMenuService;
             HomeView.ContextMenuHost = this;
+            HomeViewRight.ContextMenuService = _contextMenuService;
+            HomeViewRight.ContextMenuHost = this;
             DetailsViewRight.ContextMenuService = _contextMenuService;
             DetailsViewRight.ContextMenuHost = this;
             DetailsViewRight.OwnerHwnd = _hwnd;
@@ -520,20 +525,36 @@ namespace Span
                     }
 
                     // ── Normal startup: restore session tabs ──
+                    RestorePreviewState();
+                    ViewModel.LoadTabsFromSettings();
+
                     if (ViewModel.IsSplitViewEnabled)
                     {
                         SplitterCol.Width = new GridLength(0);
                         RightPaneCol.Width = new GridLength(1, GridUnitType.Star);
 
-                        // Navigate right pane to a real path (not conceptual "PC")
-                        if (ViewModel.RightExplorer.Columns.Count == 0 ||
-                            ViewModel.RightExplorer.CurrentPath == "PC")
+                        // Tab 2 설정에 따라 우측 창 동작 결정
+                        var tab2Behavior = _settings.Tab2StartupBehavior;
+                        if (tab2Behavior != 0) // 0=Home이 아니면 경로 탐색
                         {
-                            NavigateRightPaneToRealPath();
+                            if (ViewModel.RightExplorer.Columns.Count == 0 ||
+                                ViewModel.RightExplorer.CurrentPath == "PC")
+                            {
+                                if (tab2Behavior == 2 && !string.IsNullOrEmpty(_settings.Tab2StartupPath)
+                                    && System.IO.Directory.Exists(_settings.Tab2StartupPath))
+                                {
+                                    // 사용자 지정 경로
+                                    _ = ViewModel.RightExplorer.NavigateToPath(_settings.Tab2StartupPath);
+                                }
+                                else
+                                {
+                                    // 마지막 세션 복원 또는 fallback
+                                    NavigateRightPaneToRealPath();
+                                }
+                            }
                         }
+                        // tab2Behavior == 0: Home → 우측 창 탐색 안 함 (PC 상태 유지)
                     }
-                    RestorePreviewState();
-                    ViewModel.LoadTabsFromSettings();
 
                     // ── Per-Tab Miller Panels: 세션 복원 후 모든 탭에 대해 패널 생성 ──
                     InitializeTabMillerPanels();
@@ -1069,14 +1090,23 @@ namespace Span
         /// </summary>
         private void OnColumnsChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
+            Helpers.DebugLogger.Log($"[OnColumnsChanged] Action={e.Action}, ViewMode={ViewModel?.CurrentViewMode}, IsSwitchingTab={ViewModel?.IsSwitchingTab}, LeftColumns={ViewModel?.LeftExplorer?.Columns?.Count}, MillerItemsSource={MillerColumnsControl.ItemsSource != null}");
+
             // 탭 전환 중에는 ScrollToLastColumn + UpdateLayout 비용 회피
             if (ViewModel?.IsSwitchingTab == true) return;
+
+            // FileWatcher는 모든 뷰 모드에서 필요
+            UpdateFileSystemWatcherPaths();
+
+            // Miller Columns가 아닌 뷰 모드에서는 ItemsControl이 unloaded 상태이므로
+            // ContainerFromIndex/ScrollToLastColumn이 AccessViolationException을 일으킬 수 있음
+            if (ViewModel.CurrentViewMode != ViewMode.MillerColumns) return;
 
             if (e.Action == NotifyCollectionChangedAction.Add ||
                 e.Action == NotifyCollectionChangedAction.Replace)
             {
+                Helpers.DebugLogger.Log($"[OnColumnsChanged] ScrollToLastColumn for left explorer");
                 ScrollToLastColumn(ViewModel.LeftExplorer, GetActiveMillerScrollViewer());
-                // Apply checkbox mode to newly added columns after render
                 if (_millerSelectionMode != ListViewSelectionMode.Extended)
                 {
                     DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
@@ -1088,10 +1118,9 @@ namespace Span
             if (e.Action == NotifyCollectionChangedAction.Add &&
                 ViewModel.LeftExplorer.Columns.Count > 1)
             {
+                Helpers.DebugLogger.Log($"[OnColumnsChanged] PrepareAndAnimateNewColumn for left");
                 PrepareAndAnimateNewColumn(GetActiveMillerColumnsControl());
             }
-
-            UpdateFileSystemWatcherPaths();
         }
 
         /// <summary>
@@ -1100,9 +1129,18 @@ namespace Span
         /// </summary>
         private void OnRightColumnsChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
+            Helpers.DebugLogger.Log($"[OnRightColumnsChanged] Action={e.Action}, IsSplit={ViewModel.IsSplitViewEnabled}, RightViewMode={ViewModel.RightViewMode}, RightColumns={ViewModel.RightExplorer?.Columns?.Count}");
+
+            if (!ViewModel.IsSplitViewEnabled) return;
+
+            // 우측이 Miller 모드가 아니면 ItemsControl이 unloaded 상태이므로
+            // ContainerFromIndex/ScrollToLastColumn이 AccessViolation을 일으킬 수 있음
+            if (ViewModel.RightViewMode != ViewMode.MillerColumns) return;
+
             if (e.Action == NotifyCollectionChangedAction.Add ||
                 e.Action == NotifyCollectionChangedAction.Replace)
             {
+                Helpers.DebugLogger.Log($"[OnRightColumnsChanged] ScrollToLastColumn for right explorer");
                 ScrollToLastColumn(ViewModel.RightExplorer, MillerScrollViewerRight);
                 if (_millerSelectionMode != ListViewSelectionMode.Extended)
                 {
@@ -1115,6 +1153,7 @@ namespace Span
             if (e.Action == NotifyCollectionChangedAction.Add &&
                 ViewModel.RightExplorer.Columns.Count > 1)
             {
+                Helpers.DebugLogger.Log($"[OnRightColumnsChanged] PrepareAndAnimateNewColumn for right");
                 PrepareAndAnimateNewColumn(MillerColumnsControlRight);
             }
         }
@@ -1160,24 +1199,39 @@ namespace Span
         /// </summary>
         private void PrepareAndAnimateNewColumn(ItemsControl control)
         {
+            if (control == null) { Helpers.DebugLogger.Log("[PrepareAndAnimate] control is null"); return; }
             var lastIndex = control.Items.Count - 1;
+            if (lastIndex < 0) { Helpers.DebugLogger.Log("[PrepareAndAnimate] no items"); return; }
 
-            var container = control.ContainerFromIndex(lastIndex);
-            if (container is UIElement element)
+            Helpers.DebugLogger.Log($"[PrepareAndAnimate] lastIndex={lastIndex}, control={control.Name}, IsLoaded={control.IsLoaded}");
+
+            try
             {
-                HideAndAnimateColumn(element);
-                return;
+                var container = control.ContainerFromIndex(lastIndex);
+                Helpers.DebugLogger.Log($"[PrepareAndAnimate] ContainerFromIndex({lastIndex})={container?.GetType().Name ?? "null"}");
+                if (container is UIElement element)
+                {
+                    HideAndAnimateColumn(element);
+                    return;
+                }
             }
+            catch (System.Runtime.InteropServices.COMException ex) { Helpers.DebugLogger.Log($"[PrepareAndAnimate] COMException: {ex.Message}"); return; }
+            catch (AccessViolationException ex) { Helpers.DebugLogger.Log($"[PrepareAndAnimate] AccessViolation: {ex.Message}"); return; }
 
             // 컨테이너 미생성 시 → 다음 프레임에서 재시도
             DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
             {
                 if (_isClosed) return;
-                var retryContainer = control.ContainerFromIndex(lastIndex);
-                if (retryContainer is UIElement retryElement)
+                try
                 {
-                    HideAndAnimateColumn(retryElement);
+                    var retryContainer = control.ContainerFromIndex(lastIndex);
+                    if (retryContainer is UIElement retryElement)
+                    {
+                        HideAndAnimateColumn(retryElement);
+                    }
                 }
+                catch (System.Runtime.InteropServices.COMException) { }
+                catch (AccessViolationException) { }
             });
         }
 
@@ -1662,13 +1716,21 @@ namespace Span
                 HomeView.ApplyIconFontScale(_iconFontScaleLevel);
             }
 
-            // Settings 모드: 스플릿뷰 강제 해제
-            if (isSpecialMode && ViewModel.IsSplitViewEnabled)
+            // 분할뷰 UI 동기화 — 탭별 분할 상태에 따라 우측 패인 표시/숨김
+            if (ViewModel.IsSplitViewEnabled && !isSpecialMode)
             {
-                ViewModel.IsSplitViewEnabled = false;
+                SplitterCol.Width = new GridLength(0);
+                RightPaneCol.Width = new GridLength(1, GridUnitType.Star);
+                SyncRightAddressBar();
+                SubscribeRightExplorerForAddressBar();
+            }
+            else
+            {
                 SplitterCol.Width = new GridLength(0);
                 RightPaneCol.Width = new GridLength(0);
-                ViewModel.ActivePane = ActivePane.Left;
+                UnsubscribeRightExplorerForAddressBar();
+                if (ViewModel.ActivePane == ActivePane.Right)
+                    ViewModel.ActivePane = ActivePane.Left;
             }
 
             // Settings/Home 모드: 사이드바 + 프리뷰 패널 숨김
@@ -3779,6 +3841,9 @@ namespace Span
 
         public Visibility IsDetailsMode(Models.ViewMode mode)
             => mode == Models.ViewMode.Details ? Visibility.Visible : Visibility.Collapsed;
+
+        public Visibility IsListMode(Models.ViewMode mode)
+            => mode == Models.ViewMode.List ? Visibility.Visible : Visibility.Collapsed;
 
         public Visibility IsIconMode(Models.ViewMode mode)
             => Helpers.ViewModeExtensions.IsIconMode(mode) ? Visibility.Visible : Visibility.Collapsed;

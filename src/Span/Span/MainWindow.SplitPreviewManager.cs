@@ -394,11 +394,30 @@ namespace Span
                     LeftAddressBar.CurrentPath = ViewModel.Explorer.CurrentPath;
                 }
 
-                // Initialize right pane with a real filesystem path
+                // Initialize right pane based on Tab2 startup settings
                 if (ViewModel.RightExplorer.Columns.Count == 0 ||
                     ViewModel.RightExplorer.CurrentPath == "PC")
                 {
-                    NavigateRightPaneToRealPath();
+                    var tab2Behavior = _settings.Tab2StartupBehavior;
+                    if (tab2Behavior == 0)
+                    {
+                        // Home: 우측 패인에 홈 화면 표시
+                        ViewModel.RightViewMode = Models.ViewMode.Home;
+                        Helpers.DebugLogger.Log("[ToggleSplitView] Right pane → Home view");
+                    }
+                    else if (tab2Behavior == 2 && !string.IsNullOrEmpty(_settings.Tab2StartupPath)
+                        && System.IO.Directory.Exists(_settings.Tab2StartupPath))
+                    {
+                        // CustomPath: 사용자 지정 경로로 이동
+                        _ = ViewModel.RightExplorer.NavigateToPath(_settings.Tab2StartupPath);
+                        Helpers.DebugLogger.Log($"[ToggleSplitView] Right pane → custom path: {_settings.Tab2StartupPath}");
+                    }
+                    else
+                    {
+                        // RestoreSession (behavior=1) 또는 fallback: 저장된 경로 복원
+                        NavigateRightPaneToRealPath();
+                        Helpers.DebugLogger.Log("[ToggleSplitView] Right pane → restore session");
+                    }
                 }
 
                 // RightExplorer 네비게이션 시 RightAddressBar 자동 동기화

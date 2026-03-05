@@ -35,6 +35,25 @@ namespace Span.Models
 
         public string Id { get; set; } = System.Guid.NewGuid().ToString("N")[..8];
 
+        /// <summary>
+        /// Home 모드 탭이 탐색기로 전환될 때 사용할 뷰모드.
+        /// 시작 설정의 "시작 뷰모드"를 저장해두고, 드라이브 클릭 시 이 값으로 전환.
+        /// null이면 기본값(MillerColumns) 사용.
+        /// </summary>
+        public ViewMode? PreferredViewMode { get; set; }
+
+        /// <summary>
+        /// 이 탭에서 분할뷰가 활성화되어 있었는지 여부.
+        /// 탭 전환 시 저장/복원되어 탭별 독립적인 분할뷰 상태를 유지.
+        /// </summary>
+        public bool IsSplitEnabled { get; set; }
+
+        /// <summary>
+        /// 이 탭의 분할뷰 우측 패인 뷰모드.
+        /// 탭 전환 시 저장/복원.
+        /// </summary>
+        public ViewMode SplitRightViewMode { get; set; } = ViewMode.MillerColumns;
+
         // Computed visibility properties for XAML binding
         public Microsoft.UI.Xaml.Visibility IsHomeModeVisible
             => ViewMode == ViewMode.Home ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;

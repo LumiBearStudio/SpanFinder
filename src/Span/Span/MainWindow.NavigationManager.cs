@@ -513,6 +513,8 @@ namespace Span
         /// </summary>
         private void OnAddressBarBreadcrumbClicked(object sender, Controls.BreadcrumbClickEventArgs e)
         {
+            Helpers.DebugLogger.Log($"[OnAddressBarBreadcrumbClicked] path='{e.FullPath}', sender={sender.GetType().Name}, isRight={ReferenceEquals(sender, RightAddressBar)}, isLeft={ReferenceEquals(sender, LeftAddressBar)}");
+
             if (e.FullPath == "::home::")
             {
                 ViewModel.SwitchViewMode(ViewMode.Home);
@@ -521,6 +523,7 @@ namespace Span
 
             // Determine which explorer to navigate
             var explorer = ResolveExplorerForAddressBar(sender);
+            Helpers.DebugLogger.Log($"[OnAddressBarBreadcrumbClicked] explorer.CurrentPath='{explorer.CurrentPath}', EnableAutoNav={explorer.EnableAutoNavigation}, Columns={explorer.Columns.Count}");
             _ = explorer.NavigateToPath(e.FullPath);
         }
 
