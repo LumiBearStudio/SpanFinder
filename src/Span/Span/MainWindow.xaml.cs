@@ -522,7 +522,7 @@ namespace Span
                     // ── Normal startup: restore session tabs ──
                     if (ViewModel.IsSplitViewEnabled)
                     {
-                        SplitterCol.Width = new GridLength(2, GridUnitType.Pixel);
+                        SplitterCol.Width = new GridLength(0);
                         RightPaneCol.Width = new GridLength(1, GridUnitType.Star);
 
                         // Navigate right pane to a real path (not conceptual "PC")
@@ -3449,18 +3449,9 @@ namespace Span
                         else if (newSelection is ViewModels.FolderViewModel clickedFolder)
                         {
                             // Already selected folder clicked again — force navigation
-                            // if child column doesn't exist yet (e.g. auto-selected without navigation)
-                            var explorer = ViewModel.ActiveExplorer;
-                            if (explorer != null)
-                            {
-                                int colIdx = explorer.Columns.IndexOf(folderVm);
-                                if (colIdx >= 0 && colIdx + 1 >= explorer.Columns.Count)
-                                {
-                                    // Reset and re-set to trigger PropertyChanged
-                                    folderVm.SelectedChild = null;
-                                    folderVm.SelectedChild = clickedFolder;
-                                }
-                            }
+                            // Always re-trigger even if child column exists (e.g. arrow-key pre-selected)
+                            folderVm.SelectedChild = null;
+                            folderVm.SelectedChild = clickedFolder;
                         }
                         // Keep SelectedItems in sync for single selection too
                         folderVm.SyncSelectedItems(listView.SelectedItems);

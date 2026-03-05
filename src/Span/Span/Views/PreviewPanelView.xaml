@@ -3,13 +3,13 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:helpers="using:Span.Helpers"
-    Background="{ThemeResource SpanBgLayer2Brush}">
+    Background="Transparent">
 
     <UserControl.Resources>
         <helpers:VisibilityConverter x:Key="VisConv"/>
     </UserControl.Resources>
 
-    <Grid x:Name="RootPanel">
+    <Grid x:Name="RootPanel" Background="{ThemeResource SpanBgLayer1Brush}">
         <!-- Loading indicator -->
         <ProgressBar IsIndeterminate="True"
                      Visibility="{Binding IsLoading, Converter={StaticResource VisConv}}"

@@ -384,7 +384,7 @@ namespace Span
 
             if (ViewModel.IsSplitViewEnabled)
             {
-                SplitterCol.Width = new GridLength(2, GridUnitType.Pixel);
+                SplitterCol.Width = new GridLength(0);
                 RightPaneCol.Width = new GridLength(1, GridUnitType.Star);
 
                 // Sync left pane breadcrumb — 비활성 상태에서 탭 전환 시 갱신 안 된 경우 보정

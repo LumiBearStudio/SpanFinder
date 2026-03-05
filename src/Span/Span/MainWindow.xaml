@@ -360,7 +360,7 @@
             </Grid.ColumnDefinitions>
 
             <!-- Sidebar - Hybrid 3-Section Layout -->
-            <Border x:Name="SidebarBorder" AutomationProperties.AutomationId="Sidebar" Grid.Column="0" Background="{ThemeResource SpanBgLayer1Brush}" BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="0,0,1,0">
+            <Border x:Name="SidebarBorder" AutomationProperties.AutomationId="Sidebar" Grid.Column="0" Background="{ThemeResource SpanBgLayer1Brush}">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*"/>
@@ -652,9 +652,8 @@
             <Border x:Name="SidebarSplitter" Grid.Column="1" Width="6" Background="Transparent"
                     ManipulationMode="TranslateX" ManipulationStarted="OnSidebarSplitterManipulationStarted"
                     ManipulationDelta="OnSidebarSplitterManipulationDelta"
-                    PointerEntered="OnSidebarSplitterPointerEntered" PointerExited="OnSidebarSplitterPointerExited">
-                <Rectangle Width="2" Fill="{ThemeResource SpanBorderSubtleBrush}" HorizontalAlignment="Center"/>
-            </Border>
+                    PointerEntered="OnSidebarSplitterPointerEntered" PointerExited="OnSidebarSplitterPointerExited"/>
+
 
             <!-- Content (Split View Container) -->
             <Grid Grid.Column="2" Background="Transparent">
@@ -715,7 +714,7 @@
                             </Button>
                         </StackPanel>
                         <!-- Breadcrumb + Edit mode -->
-                        <appcontrols:AddressBarControl x:Name="LeftAddressBar" Grid.Column="1"
+                        <appcontrols:AddressBarControl x:Name="LeftAddressBar" Grid.Column="1" 
                             BreadcrumbSegmentClicked="OnAddressBarBreadcrumbClicked"
                             BreadcrumbChevronClicked="OnAddressBarChevronClicked"
                             PathNavigated="OnAddressBarPathNavigated"/>
@@ -1017,7 +1016,7 @@
                                     <!-- Inline Preview Column (appears when file is selected in Miller Columns) -->
                                     <Border x:Name="InlinePreviewColumn"
                                             Width="{StaticResource PreviewWidth}"
-                                            Background="{ThemeResource SpanBgLayer2Brush}"
+                                            Background="{ThemeResource SpanBgLayer3Brush}"
                                             BorderBrush="{ThemeResource SpanBorderSubtleBrush}"
                                             BorderThickness="1,0,0,0"
                                             Visibility="Collapsed">
@@ -1161,14 +1160,9 @@
                     </Grid>
                 </Grid>
 
-                <!-- ===== SPLITTER ===== -->
-                <controls:GridSplitter Grid.Column="1" Width="2"
-                                       Background="{ThemeResource SpanBorderSubtleBrush}"
-                                       Visibility="{x:Bind IsSplitVisible(ViewModel.IsSplitViewEnabled), Mode=OneWay}"/>
-
                 <!-- ===== RIGHT PANE ===== -->
                 <Grid x:Name="RightPaneContainer" AutomationProperties.AutomationId="RightPane" Grid.Column="2" GotFocus="OnRightPaneGotFocus"
-                      Background="Transparent"
+                      Background="Transparent" Margin="1,0,0,0"
                       AllowDrop="True" DragOver="OnPaneDragOver" Drop="OnPaneDrop" DragLeave="OnPaneDragLeave"
                       Visibility="{x:Bind IsSplitVisible(ViewModel.IsSplitViewEnabled), Mode=OneWay}">
                     <Grid.RowDefinitions>
@@ -1214,7 +1208,7 @@
                             </Button>
                         </StackPanel>
                         <!-- Breadcrumb + Edit mode -->
-                        <appcontrols:AddressBarControl x:Name="RightAddressBar" Grid.Column="1"
+                        <appcontrols:AddressBarControl x:Name="RightAddressBar" Grid.Column="1" 
                             BreadcrumbSegmentClicked="OnAddressBarBreadcrumbClicked"
                             BreadcrumbChevronClicked="OnAddressBarChevronClicked"
                             PathNavigated="OnAddressBarPathNavigated"/>
@@ -1499,12 +1493,16 @@
                             MinWidth="200"
                             Visibility="{x:Bind PreviewVisible(ViewModel.IsRightPreviewEnabled), Mode=OneWay}"/>
                     </Grid>
+
                 </Grid>
+
+                <!-- Split divider (RightPaneContainer의 Margin="1,0,0,0"으로 생긴 1px 갭에 배치) -->
+                <Border Grid.Column="2" Width="1" HorizontalAlignment="Left" IsHitTestVisible="False"
+                        Background="{ThemeResource SpanAccentDimBrush}"
+                        Visibility="{x:Bind IsSplitVisible(ViewModel.IsSplitViewEnabled), Mode=OneWay}"/>
             </Grid>
 
-            <!-- Sidebar edge shadow (renders on top of content for depth) -->
-            <Rectangle Grid.Column="2" Width="8" HorizontalAlignment="Left" IsHitTestVisible="False"
-                       Fill="{ThemeResource SpanSidebarShadowBrush}"/>
+            <!-- Sidebar edge shadow removed: splitter alone provides sufficient separation -->
         </Grid>
 
         <!-- 4. Status Bar -->

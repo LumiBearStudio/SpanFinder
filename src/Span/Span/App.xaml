@@ -22,7 +22,7 @@
                     <Color x:Key="SpanBgMicaColor">#202020</Color>
                     <Color x:Key="SpanBgLayer1Color">#2d2d2d</Color>
                     <Color x:Key="SpanBgLayer2Color">#383838</Color>
-                    <Color x:Key="SpanBgLayer3Color">#404040</Color>
+                    <Color x:Key="SpanBgLayer3Color">#484848</Color>
                     <Color x:Key="SpanBgLayer2TransparentColor">#00383838</Color>
 
                     <!-- Accent -->
@@ -40,6 +40,7 @@
                     <SolidColorBrush x:Key="SpanBgMicaBrush" Color="{StaticResource SpanBgMicaColor}" />
                     <SolidColorBrush x:Key="SpanBgLayer1Brush" Color="{StaticResource SpanBgLayer1Color}" />
                     <SolidColorBrush x:Key="SpanBgLayer2Brush" Color="{StaticResource SpanBgLayer2Color}" />
+                    <SolidColorBrush x:Key="SpanBgLayer3Brush" Color="{StaticResource SpanBgLayer3Color}" />
                     <SolidColorBrush x:Key="SpanAccentBrush" Color="{StaticResource SpanAccentColor}" />
                     <SolidColorBrush x:Key="SpanAccentHoverBrush" Color="{StaticResource SpanAccentHoverColor}" />
                     <SolidColorBrush x:Key="SpanAccentDimBrush" Color="{StaticResource SpanAccentDimColor}" />
@@ -91,7 +92,7 @@
                     <Color x:Key="SpanBgMicaColor">#F3F3F3</Color>
                     <Color x:Key="SpanBgLayer1Color">#F9F9F9</Color>
                     <Color x:Key="SpanBgLayer2Color">#F3F3F3</Color>
-                    <Color x:Key="SpanBgLayer3Color">#EEEEEE</Color>
+                    <Color x:Key="SpanBgLayer3Color">#E6E6E6</Color>
                     <Color x:Key="SpanBgLayer2TransparentColor">#00F3F3F3</Color>
 
                     <!-- Accent -->
@@ -109,6 +110,7 @@
                     <SolidColorBrush x:Key="SpanBgMicaBrush" Color="{StaticResource SpanBgMicaColor}" />
                     <SolidColorBrush x:Key="SpanBgLayer1Brush" Color="{StaticResource SpanBgLayer1Color}" />
                     <SolidColorBrush x:Key="SpanBgLayer2Brush" Color="{StaticResource SpanBgLayer2Color}" />
+                    <SolidColorBrush x:Key="SpanBgLayer3Brush" Color="{StaticResource SpanBgLayer3Color}" />
                     <SolidColorBrush x:Key="SpanAccentBrush" Color="{StaticResource SpanAccentColor}" />
                     <SolidColorBrush x:Key="SpanAccentHoverBrush" Color="{StaticResource SpanAccentHoverColor}" />
                     <SolidColorBrush x:Key="SpanAccentDimBrush" Color="{StaticResource SpanAccentDimColor}" />

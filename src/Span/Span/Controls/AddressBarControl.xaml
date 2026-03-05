@@ -56,7 +56,7 @@
         <!-- Overflow indicator -->
         <Border x:Name="OverflowIndicator" HorizontalAlignment="Left"
                 VerticalAlignment="Stretch" Visibility="Collapsed"
-                IsHitTestVisible="False" Padding="2,0,10,0" Margin="0,0,0,0">
+                IsHitTestVisible="False" Padding="2,0,10,0" Margin="0,1,0,1">
             <Border.Background>
                 <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
                     <GradientStop Color="{ThemeResource SpanBgLayer2Color}" Offset="0"/>

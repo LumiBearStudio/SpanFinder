@@ -159,16 +159,11 @@ namespace Span
 
                 var column = columns[columnIndex];
 
-                // 포커스용 자동 선택 시 auto-navigation 일시 억제
-                // — 선택이 없을 때 첫 항목을 선택하면 FolderVm_PropertyChanged가 발동하여
-                //   하위 폴더가 자동으로 열리는 부작용 방지
+                // 첫 항목 자동 선택 — Finder처럼 선택 = 네비게이션
+                // (폴더면 다음 컬럼이 자동 생성됨)
                 if (column.SelectedChild == null && column.Children.Count > 0)
                 {
-                    var explorer = ViewModel.ActiveExplorer;
-                    var savedAutoNav = explorer.EnableAutoNavigation;
-                    explorer.EnableAutoNavigation = false;
                     column.SelectedChild = column.Children[0];
-                    explorer.EnableAutoNavigation = savedAutoNav;
                 }
 
                 if (column.SelectedChild != null)

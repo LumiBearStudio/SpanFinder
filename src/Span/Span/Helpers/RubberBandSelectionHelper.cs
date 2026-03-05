@@ -198,6 +198,12 @@ namespace Span.Helpers
                 if (IsPointerOnItemContent(e))
                     return;
 
+                // Shift key → let ListView handle for native range selection (Extended mode)
+                // Shift+Click은 앵커~클릭 항목 범위 선택이므로 rubber band가 개입하면 안 됨
+                if (InputKeyboardSource.GetKeyStateForCurrentThread(
+                    Windows.System.VirtualKey.Shift).HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down))
+                    return;
+
                 // Determine if pointer is on an item's dead zone or truly empty space
                 var selectorItem = FindSelectorItemAtPointer(e);
 

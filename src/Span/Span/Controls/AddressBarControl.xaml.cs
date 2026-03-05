@@ -206,6 +206,9 @@ namespace Span.Controls
             AutoSuggest.Visibility = Visibility.Collapsed;
             AutoSuggest.ItemsSource = null;
             BreadcrumbScroller.Visibility = Visibility.Visible;
+
+            // Restore overflow indicator after edit mode exit
+            DispatcherQueue.TryEnqueue(() => UpdateOverflow(BreadcrumbScroller));
         }
 
         #endregion
