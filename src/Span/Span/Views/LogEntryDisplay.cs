@@ -86,6 +86,10 @@ namespace Span.Views
             "Delete" => "\uE74D",
             "Rename" => "\uE8AC",
             "NewFolder" => "\uE8B7",
+            "Undo" => "\uE7A7",
+            "Redo" => "\uE7A6",
+            "Compress" => "\uE8C5",
+            "Extract" => "\uE8B7",
             _ => "\uE946"
         };
 

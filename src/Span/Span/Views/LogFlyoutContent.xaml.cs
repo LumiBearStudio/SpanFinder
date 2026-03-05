@@ -60,6 +60,14 @@ namespace Span.Views
             LogViewHelper.ApplyFilter(_allEntries, _activeFilter, _entries);
             EmptyState.Visibility = _entries.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
             LogScrollViewer.Visibility = _entries.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+            UpdateErrorBadge();
+        }
+
+        private void UpdateErrorBadge()
+        {
+            var errorCount = LogViewHelper.CountErrors(_allEntries);
+            ErrorBadge.Visibility = errorCount > 0 ? Visibility.Visible : Visibility.Collapsed;
+            ErrorBadgeCount.Text = errorCount.ToString();
         }
 
         private void LocalizeUI()
@@ -76,7 +84,7 @@ namespace Span.Views
         private void OnFilterClick(object sender, RoutedEventArgs e)
         {
             if (sender is not ToggleButton clicked) return;
-            _activeFilter = LogViewHelper.HandleFilterClick(clicked, FilterAll, FilterCopy, FilterMove, FilterDelete, FilterRename);
+            _activeFilter = LogViewHelper.HandleFilterClick(clicked, FilterAll, FilterCopy, FilterMove, FilterDelete, FilterRename, FilterError);
             ApplyFilter();
         }
 

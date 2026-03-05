@@ -373,6 +373,9 @@ namespace Span.Services
             ("Log_Title", "Action Log", "작업 로그", "操作ログ", "操作日志", "操作記錄", "Aktionsprotokoll", "Registro de acciones", "Journal des actions", "Log de ações"),
             ("Log_Clear", "Clear", "지우기", "クリア", "清除", "清除", "Löschen", "Borrar", "Effacer", "Limpar"),
             ("Log_Empty", "No actions yet.", "아직 작업 내역이 없습니다.", "まだ操作履歴はありません。", "尚无操作记录。", "尚無操作記錄。", "Noch keine Aktionen.", "Aún no hay acciones.", "Aucune action pour le moment.", "Nenhuma ação ainda."),
+            ("FilterError", "Errors", "오류", "エラー", "错误", "錯誤", "Fehler", "Errores", "Erreurs", "Erros"),
+            ("LogUndo", "Undo", "실행 취소", "元に戻す", "撤消", "復原", "Rückgängig", "Deshacer", "Annuler", "Desfazer"),
+            ("LogRedo", "Redo", "다시 실행", "やり直し", "重做", "取消復原", "Wiederholen", "Rehacer", "Rétablir", "Refazer"),
 
             // ── Batch rename ────────────────────────────────────────────────
             ("BatchRename_Title", "Batch Rename", "일괄 이름 변경", "一括名前変更", "批量重命名", "批次重新命名", "Stapelumbenennung", "Cambio de nombre masivo", "Renommage par lot", "Renomear em lote"),

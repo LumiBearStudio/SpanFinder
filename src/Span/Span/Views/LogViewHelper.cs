@@ -11,6 +11,8 @@ namespace Span.Views;
 
 internal static class LogViewHelper
 {
+    internal const string ErrorFilter = "__Error__";
+
     /// <summary>
     /// 로그 항목 리프레시 (양쪽 뷰 공통)
     /// </summary>
@@ -28,12 +30,21 @@ internal static class LogViewHelper
         ObservableCollection<LogEntryDisplay> entries)
     {
         entries.Clear();
-        var filtered = activeFilter == null
-            ? allEntries
-            : allEntries.Where(e => e.OperationType == activeFilter).ToList();
+        var filtered = activeFilter switch
+        {
+            null => allEntries,
+            ErrorFilter => allEntries.Where(e => !e.Success).ToList(),
+            _ => allEntries.Where(e => e.OperationType == activeFilter).ToList()
+        };
         foreach (var entry in filtered)
             entries.Add(new LogEntryDisplay(entry));
     }
+
+    /// <summary>
+    /// 에러 항목 수 (뱃지 표시용)
+    /// </summary>
+    internal static int CountErrors(List<ActionLogEntry> allEntries)
+        => allEntries.Count(e => !e.Success);
 
     /// <summary>
     /// 필터 버튼 클릭 처리 (라디오 동작)
@@ -41,7 +52,8 @@ internal static class LogViewHelper
     internal static string? HandleFilterClick(
         ToggleButton clicked,
         ToggleButton filterAll, ToggleButton filterCopy,
-        ToggleButton filterMove, ToggleButton filterDelete, ToggleButton filterRename)
+        ToggleButton filterMove, ToggleButton filterDelete,
+        ToggleButton filterRename, ToggleButton filterError)
     {
         string? filter = clicked.Name switch
         {
@@ -49,6 +61,7 @@ internal static class LogViewHelper
             "FilterMove" => "Move",
             "FilterDelete" => "Delete",
             "FilterRename" => "Rename",
+            "FilterError" => ErrorFilter,
             _ => null
         };
         filterAll.IsChecked = clicked == filterAll;
@@ -56,6 +69,7 @@ internal static class LogViewHelper
         filterMove.IsChecked = clicked == filterMove;
         filterDelete.IsChecked = clicked == filterDelete;
         filterRename.IsChecked = clicked == filterRename;
+        filterError.IsChecked = clicked == filterError;
         return filter;
     }
 

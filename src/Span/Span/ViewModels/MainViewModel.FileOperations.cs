@@ -59,11 +59,19 @@ namespace Span.ViewModels
         [RelayCommand(CanExecute = nameof(CanUndo))]
         private async Task UndoAsync()
         {
+            var desc = UndoDescription;
             var result = await _operationHistory.UndoAsync();
+            _actionLogService.LogOperation(new Models.ActionLogEntry
+            {
+                OperationType = "Undo",
+                Description = desc ?? _loc.Get("LogUndo"),
+                Success = result.Success,
+                ErrorMessage = result.ErrorMessage
+            });
             if (result.Success)
             {
                 await RefreshCurrentFolderAsync();
-                ShowToast(string.Format(_loc.Get("Toast_Undone"), UndoDescription));
+                ShowToast(string.Format(_loc.Get("Toast_Undone"), desc));
             }
             else
             {
@@ -74,11 +82,19 @@ namespace Span.ViewModels
         [RelayCommand(CanExecute = nameof(CanRedo))]
         private async Task RedoAsync()
         {
+            var desc = RedoDescription;
             var result = await _operationHistory.RedoAsync();
+            _actionLogService.LogOperation(new Models.ActionLogEntry
+            {
+                OperationType = "Redo",
+                Description = desc ?? _loc.Get("LogRedo"),
+                Success = result.Success,
+                ErrorMessage = result.ErrorMessage
+            });
             if (result.Success)
             {
                 await RefreshCurrentFolderAsync();
-                ShowToast(string.Format(_loc.Get("Toast_Redone"), RedoDescription));
+                ShowToast(string.Format(_loc.Get("Toast_Redone"), desc));
             }
             else
             {

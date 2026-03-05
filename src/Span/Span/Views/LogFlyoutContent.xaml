@@ -46,6 +46,19 @@
                           FontSize="11" Padding="10,4" MinWidth="0" MinHeight="0"/>
             <ToggleButton x:Name="FilterRename" Content="이름변경" Click="OnFilterClick"
                           FontSize="11" Padding="10,4" MinWidth="0" MinHeight="0"/>
+            <ToggleButton x:Name="FilterError" Click="OnFilterClick"
+                          FontSize="11" Padding="10,4" MinWidth="0" MinHeight="0">
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                    <TextBlock x:Name="FilterErrorText" Text="오류"/>
+                    <Border x:Name="ErrorBadge" Visibility="Collapsed"
+                            Background="#E74856" CornerRadius="7"
+                            MinWidth="14" Height="14" Padding="3,0">
+                        <TextBlock x:Name="ErrorBadgeCount" Text="0"
+                                   FontSize="9" Foreground="White"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                </StackPanel>
+            </ToggleButton>
         </StackPanel>
 
         <!-- Empty State -->
@@ -87,7 +100,7 @@
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="26"/>
                                 </Grid.ColumnDefinitions>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
