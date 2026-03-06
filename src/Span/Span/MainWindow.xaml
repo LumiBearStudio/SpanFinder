@@ -648,8 +648,10 @@
                 </Grid>
             </Border>
 
-            <!-- Sidebar Resize Splitter -->
-            <Border x:Name="SidebarSplitter" Grid.Column="1" Width="6" Background="Transparent"
+            <!-- Sidebar Resize Splitter: 6px drag area, visually 1px right border -->
+            <Border x:Name="SidebarSplitter" Grid.Column="1" Width="6"
+                    Background="{ThemeResource SpanBgLayer1Brush}"
+                    BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="0,0,1,0"
                     ManipulationMode="TranslateX" ManipulationStarted="OnSidebarSplitterManipulationStarted"
                     ManipulationDelta="OnSidebarSplitterManipulationDelta"
                     PointerEntered="OnSidebarSplitterPointerEntered" PointerExited="OnSidebarSplitterPointerExited"/>

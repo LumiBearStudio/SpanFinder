@@ -487,11 +487,9 @@ public sealed partial class SettingsModeView : UserControl
             Tab2RestoreText.Text = _loc.Get("Settings_RestoreSession");
             Tab2CustomText.Text = _loc.Get("Settings_StartupPath");
             Tab2BrowseBtn.Content = "...";
-            // View mode
-            StartupViewModeLabel.Text = _loc.Get("Settings_StartupViewMode");
-            StartupViewModeDesc.Text = _loc.Get("Settings_StartupViewModeDesc");
-            Tab1ViewLabel.Text = _loc.Get("Settings_LeftShort") + ":";
-            Tab2ViewLabel.Text = _loc.Get("Settings_RightShort") + ":";
+            // View mode (now inline within each explorer card)
+            Tab1ViewLabel.Text = _loc.Get("Settings_StartupViewMode") + ":";
+            Tab2ViewLabel.Text = _loc.Get("Settings_StartupViewMode") + ":";
             Tab1ViewMiller.Content = _loc.Get("Settings_ViewMiller");
             Tab1ViewDetails.Content = _loc.Get("Settings_ViewDetails");
             Tab1ViewList.Content = _loc.Get("Settings_ViewList");

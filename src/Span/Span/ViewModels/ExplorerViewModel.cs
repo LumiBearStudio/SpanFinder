@@ -494,13 +494,33 @@ namespace Span.ViewModels
             }
             Columns.Clear();
 
+            // 초기 로딩 중 자동 네비게이션 억제 — 첫 항목 선택 시 연쇄 진입 방지
+            var prevAutoNav = EnableAutoNavigation;
+            EnableAutoNavigation = false;
+
             var rootVm = new FolderViewModel(folder, _fileService);
             AddColumn(rootVm);                          // 즉시 UI에 추가 → ProgressRing 표시
             CurrentPath = rootVm.Path;
             SelectedFile = null;
             await rootVm.EnsureChildrenLoadedAsync();   // 로딩 완료 시 항목 표시
 
-            Helpers.DebugLogger.Log($"[NavigateTo] Navigation complete. Current path: {CurrentPath}");
+            // UI의 ListView 선택 이벤트는 비동기로 디스패치되므로
+            // EnsureChildrenLoadedAsync 완료 직후에는 아직 발생하지 않음.
+            // 짧은 지연으로 UI 선택 이벤트가 flush된 후 AutoNav 복원.
+            await Task.Delay(400);
+            EnableAutoNavigation = prevAutoNav;
+
+            // AutoNav 억제 중에 정렬로 인해 SelectedChild가 설정된 경우,
+            // PropertyChanged가 무시되어 2단계 컬럼이 생성되지 않음.
+            // AutoNav 복원 후 수동으로 2단계 컬럼을 열어줌.
+            if (EnableAutoNavigation && Columns.Count == 1
+                && rootVm.SelectedChild is FolderViewModel selectedAfterLoad)
+            {
+                Helpers.DebugLogger.Log($"[NavigateTo] Post-load auto-nav: opening column 2 for '{selectedAfterLoad.Name}'");
+                await HandleFolderSelectionAsync(rootVm, selectedAfterLoad, 0, 1);
+            }
+
+            Helpers.DebugLogger.Log($"[NavigateTo] Navigation complete. Current path: {CurrentPath}, AutoNav restored={EnableAutoNavigation}");
         }
 
         /// <summary>

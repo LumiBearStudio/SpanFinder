@@ -26,9 +26,23 @@ namespace Span.ViewModels
                 return;
             }
 
-            // Home mode always targets the left pane (HomeView only exists in left pane)
+            // Home mode — targets whichever pane is active
             if (mode == ViewMode.Home)
             {
+                if (IsSplitViewEnabled && ActivePane == ActivePane.Right)
+                {
+                    // Right pane → Home
+                    Helpers.DebugLogger.Log($"[SwitchViewMode→Home] RightViewMode={RightViewMode} → Home");
+                    if (RightViewMode == ViewMode.Home) return;
+                    if (_rightPreferredViewMode == null)
+                        _rightPreferredViewMode = RightViewMode;
+                    RightViewMode = ViewMode.Home;
+                    Helpers.DebugLogger.Log($"[MainViewModel] ViewMode changed: Home (right pane)");
+                    UpdateStatusBar();
+                    return;
+                }
+
+                // Left pane → Home
                 Helpers.DebugLogger.Log($"[SwitchViewMode→Home] CurrentViewMode={CurrentViewMode}, _viewModeBeforeHome={_viewModeBeforeHome}, _lastClosedViewMode={_lastClosedViewMode}");
                 if (CurrentViewMode == ViewMode.Home) return;
                 // Home 전환 전 현재 ViewMode 저장 — 드라이브/즐겨찾기 클릭 시 이전 뷰모드 복원에 사용.
@@ -41,7 +55,7 @@ namespace Span.ViewModels
                 CurrentViewMode = ViewMode.Home;
                 LeftViewMode = ViewMode.Home;
                 SaveViewModePreference();
-                Helpers.DebugLogger.Log($"[MainViewModel] ViewMode changed: Home (always left pane)");
+                Helpers.DebugLogger.Log($"[MainViewModel] ViewMode changed: Home (left pane)");
                 UpdateStatusBar();
                 return;
             }
