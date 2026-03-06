@@ -72,7 +72,8 @@ namespace Span.Views
 
         private void LocalizeUI()
         {
-            LogViewHelper.LocalizeUI(_loc, TitleText, ClearButton, EmptyStateText);
+            LogViewHelper.LocalizeUI(_loc, TitleText, ClearButton, EmptyStateText,
+                FilterAll, FilterCopy, FilterMove, FilterDelete, FilterRename, FilterErrorText);
         }
 
         private void OnClearClick(object sender, RoutedEventArgs e)

@@ -212,7 +212,7 @@ public class SettingsService : ISettingsService
 
     public bool ShowWindowsShellExtras
     {
-        get => Get("ShowWindowsShellExtras", false);
+        get => Get("ShowWindowsShellExtras", true);
         set => Set("ShowWindowsShellExtras", value);
     }
 

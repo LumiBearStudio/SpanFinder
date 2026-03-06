@@ -804,11 +804,50 @@ namespace Span.ViewModels
                 {
                     Favorites.Add(item);
                 }
+                LocalizeFavoriteNames();
                 Helpers.DebugLogger.Log($"[MainViewModel] Loaded {items.Count} favorites");
             }
             catch (Exception ex)
             {
                 Helpers.DebugLogger.Log($"[MainViewModel] Error loading favorites: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 알려진 폴더(Desktop, Downloads 등)의 즐겨찾기 이름을 앱 언어로 변환.
+        /// </summary>
+        internal void LocalizeFavoriteNames()
+        {
+            var loc = App.Current.Services.GetService<LocalizationService>();
+            if (loc == null) return;
+
+            var knownFolders = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [Environment.GetFolderPath(Environment.SpecialFolder.Desktop)] = loc.Get("KnownFolder_Desktop"),
+                [System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads")] = loc.Get("KnownFolder_Downloads"),
+                [Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)] = loc.Get("KnownFolder_Documents"),
+                [System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Pictures")] = loc.Get("KnownFolder_Pictures"),
+                [Environment.GetFolderPath(Environment.SpecialFolder.MyMusic)] = loc.Get("KnownFolder_Music"),
+                [Environment.GetFolderPath(Environment.SpecialFolder.MyVideos)] = loc.Get("KnownFolder_Videos"),
+            };
+
+            bool changed = false;
+            foreach (var fav in Favorites)
+            {
+                if (knownFolders.TryGetValue(fav.Path, out var localizedName) && fav.Name != localizedName)
+                {
+                    fav.Name = localizedName;
+                    changed = true;
+                }
+            }
+
+            // FavoriteItem에 INotifyPropertyChanged가 없으므로 컬렉션 교체로 UI 갱신
+            if (changed)
+            {
+                var snapshot = Favorites.ToList();
+                Favorites.Clear();
+                foreach (var item in snapshot)
+                    Favorites.Add(item);
             }
         }
 
@@ -924,10 +963,28 @@ namespace Span.ViewModels
                 // Clean up old format
                 if (settings.Values.ContainsKey("RecentFolders"))
                     settings.Values.Remove("RecentFolders");
+
+                // Update Jump List
+                _ = UpdateJumpListAsync();
             }
             catch (Exception ex)
             {
                 Helpers.DebugLogger.Log($"[MainViewModel] Error saving recent folders: {ex.Message}");
+            }
+        }
+
+        private async Task UpdateJumpListAsync()
+        {
+            try
+            {
+                var jumpListService = App.Current.Services.GetService<Services.JumpListService>();
+                if (jumpListService == null) return;
+                var folders = RecentFolders.Select(r => (r.Name, r.Path));
+                await jumpListService.UpdateAsync(folders);
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[MainViewModel] JumpList update error: {ex.Message}");
             }
         }
 
@@ -1025,7 +1082,7 @@ namespace Span.ViewModels
             // 새 Settings 탭 생성 (Explorer 없음)
             var tab = new TabItem
             {
-                Header = "Settings",
+                Header = App.Current.Services.GetService<LocalizationService>()?.Get("Settings") ?? "Settings",
                 Path = "",
                 ViewMode = ViewMode.Settings,
                 IconSize = ViewMode.IconMedium,
@@ -1055,7 +1112,7 @@ namespace Span.ViewModels
 
             var tab = new TabItem
             {
-                Header = "작업 로그",
+                Header = App.Current.Services.GetService<LocalizationService>()?.Get("Log_Title") ?? "Action Log",
                 Path = "",
                 ViewMode = ViewMode.ActionLog,
                 IconSize = ViewMode.IconMedium,

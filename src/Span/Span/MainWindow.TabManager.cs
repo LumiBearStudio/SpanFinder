@@ -28,7 +28,7 @@ namespace Span
         /// 탭에 표시할 이름을 반환한다. Home 모드이면 "Home", 아니면 폴더명.
         /// </summary>
         public string GetTabDisplayName(Models.ViewMode mode, string folderName)
-            => mode == Models.ViewMode.Home ? "Home" : folderName;
+            => mode == Models.ViewMode.Home ? _loc.Get("Home") : folderName;
 
         // =================================================================
         //  Per-Tab Miller Panel Management (Show/Hide pattern)
@@ -611,7 +611,7 @@ namespace Span
                 ViewModel.SaveActiveTabState();
                 var activeTab = ViewModel.ActiveTab;
                 var currentPath = ViewModel.ActiveExplorer?.CurrentPath ?? string.Empty;
-                var header = activeTab?.Header ?? "Home";
+                var header = activeTab?.Header ?? _loc.Get("Home");
                 var viewMode = activeTab != null ? (int)activeTab.ViewMode : (int)ViewMode.MillerColumns;
                 var iconSize = activeTab != null ? (int)activeTab.IconSize : (int)ViewMode.IconMedium;
 

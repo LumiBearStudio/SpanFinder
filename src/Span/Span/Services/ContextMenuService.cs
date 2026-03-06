@@ -31,6 +31,12 @@ namespace Span.Services
         /// <summary>HWND of the owner window (set by MainWindow)</summary>
         public IntPtr OwnerHwnd { get; set; }
 
+        /// <summary>Callback invoked when a shell extension command fails. Set by MainWindow to show toast.</summary>
+        public Action<string>? InvokeFailedCallback { get; set; }
+
+        /// <summary>Callback invoked after a shell extension command completes to refresh the file list.</summary>
+        public Action? ShellCommandExecutedCallback { get; set; }
+
         /// <summary>Lazy XamlRoot provider (Content.XamlRoot is only available after Loaded)</summary>
         public Func<Microsoft.UI.Xaml.XamlRoot?>? XamlRootProvider { get; set; }
 
@@ -561,6 +567,21 @@ namespace Span.Services
 
         private async Task AppendShellExtensionItemsCoreAsync(MenuFlyout menu, string path)
         {
+            // Insert loading indicator before Properties (last 2 items = separator + Properties)
+            int loadingIdx = Math.Max(0, menu.Items.Count - 2);
+            var loadingSep = new MenuFlyoutSeparator();
+            var loadingItem = new MenuFlyoutItem
+            {
+                Text = _loc.Get("Shell_Loading"),
+                FontSize = 12,
+                Padding = CompactPadding,
+                MinHeight = 24,
+                IsEnabled = false,
+                Icon = new FontIcon { Glyph = "\uE117", FontSize = 14 }  // Sync glyph as loading indicator
+            };
+            menu.Items.Insert(loadingIdx, loadingSep);
+            menu.Items.Insert(loadingIdx + 1, loadingItem);
+
             try
             {
                 // 이전 세션 정리
@@ -570,12 +591,6 @@ namespace Span.Services
                 Helpers.DebugLogger.Log($"[ContextMenuService] Shell CreateSessionAsync START: {path}");
                 _currentSession = await ShellContextMenu.CreateSessionAsync(OwnerHwnd, path);
                 Helpers.DebugLogger.Log($"[ContextMenuService] Shell CreateSessionAsync END: items={_currentSession?.Items.Count ?? 0}");
-
-                if (_currentSession == null || _currentSession.Items.Count == 0)
-                    return;
-
-                InsertShellItemsToMenu(menu, _currentSession.Items);
-                Helpers.DebugLogger.Log($"[ContextMenuService] Shell items inserted: menu.Items.Count={menu.Items.Count}");
             }
             catch (Exception ex)
             {
@@ -584,6 +599,24 @@ namespace Span.Services
                 if (ex.InnerException != null)
                     Helpers.DebugLogger.Log($"[ContextMenuService] Shell extension Inner: {ex.InnerException.GetType().Name}: {ex.InnerException.Message}");
             }
+            finally
+            {
+                // Remove loading indicator (menu may have been closed during await)
+                try
+                {
+                    menu.Items.Remove(loadingItem);
+                    menu.Items.Remove(loadingSep);
+                }
+                catch { }
+            }
+
+            if (_currentSession == null || _currentSession.Items.Count == 0)
+                return;
+
+            if (!menu.IsOpen) return; // Menu was closed while loading
+
+            InsertShellItemsToMenu(menu, _currentSession.Items);
+            Helpers.DebugLogger.Log($"[ContextMenuService] Shell items inserted: menu.Items.Count={menu.Items.Count}");
         }
 
         /// <summary>Shell 항목 목록을 필터링/그룹핑하여 메뉴에 삽입</summary>
@@ -743,7 +776,14 @@ namespace Span.Services
             // 세션 참조와 CommandId 캡처
             int cmdId = shellItem.CommandId;
             var session = _currentSession;
-            Action invokeAction = () => session?.InvokeCommand(cmdId);
+            Action invokeAction = () =>
+            {
+                var success = session?.InvokeCommand(cmdId) ?? false;
+                if (!success)
+                {
+                    InvokeFailedCallback?.Invoke(translatedText);
+                }
+            };
 
             Helpers.DebugLogger.Log($"[ConvertShell] Creating MenuFlyoutItem text='{translatedText}' cmdId={cmdId}");
             var item = new MenuFlyoutItem
@@ -756,7 +796,11 @@ namespace Span.Services
                 Tag = invokeAction // TryInvokeAccessKey에서 사용
             };
 
-            item.Click += (s, e) => invokeAction();
+            item.Click += (s, e) =>
+            {
+                try { invokeAction(); }
+                finally { ShellCommandExecutedCallback?.Invoke(); }
+            };
             Helpers.DebugLogger.Log($"[ConvertShell] MenuFlyoutItem created OK");
 
             return item;

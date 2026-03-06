@@ -168,6 +168,7 @@ namespace Span
             services.AddSingleton<Services.ConnectionManagerService>();
             services.AddSingleton<Services.GitStatusService>();
             services.AddSingleton<Services.CrashReportingService>();
+            services.AddSingleton<Services.JumpListService>();
 
             // Interface registrations (for testability — resolve to same singleton)
             services.AddSingleton<Services.IFileSystemService>(sp => sp.GetRequiredService<Services.FileSystemService>());
@@ -231,6 +232,27 @@ namespace Span
                 Resources["Icon_NewFolder"] = iconService.NewFolderGlyph;
                 Resources["Icon_SplitView"] = iconService.SplitViewGlyph;
 
+                // Check for Jump List activation arguments
+                // Note: args.Arguments is unreliable in WinUI 3 (WindowsAppSDK #1619)
+                // Use AppLifecycle API instead
+                StartupArguments = null;
+                try
+                {
+                    var activatedArgs = Microsoft.Windows.AppLifecycle.AppInstance.GetCurrent().GetActivatedEventArgs();
+                    if (activatedArgs.Kind == Microsoft.Windows.AppLifecycle.ExtendedActivationKind.Launch)
+                    {
+                        var launchData = activatedArgs.Data as Windows.ApplicationModel.Activation.ILaunchActivatedEventArgs;
+                        if (!string.IsNullOrEmpty(launchData?.Arguments))
+                            StartupArguments = launchData.Arguments;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Helpers.DebugLogger.Log($"[App] Activation args check failed: {ex.Message}");
+                }
+                if (StartupArguments != null)
+                    Helpers.DebugLogger.Log($"[App] Launch arguments: {StartupArguments}");
+
                 m_window = new MainWindow();
                 RegisterWindow(m_window);
                 m_window.Activate();
@@ -243,5 +265,11 @@ namespace Span
         }
 
         private Window m_window;
+
+        /// <summary>
+        /// Jump List (or other) startup arguments passed via activation.
+        /// Consumed by MainWindow on Loaded, then set to null.
+        /// </summary>
+        internal static string? StartupArguments { get; set; }
     }
 }

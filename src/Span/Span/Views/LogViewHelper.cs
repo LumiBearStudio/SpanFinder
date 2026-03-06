@@ -108,11 +108,21 @@ internal static class LogViewHelper
     /// <summary>
     /// UI 현지화 (양쪽 뷰 공통)
     /// </summary>
-    internal static void LocalizeUI(LocalizationService? loc, TextBlock titleText, object clearButton, TextBlock emptyStateText)
+    internal static void LocalizeUI(LocalizationService? loc, TextBlock titleText, object clearButton, TextBlock emptyStateText,
+        ToggleButton? filterAll = null, ToggleButton? filterCopy = null, ToggleButton? filterMove = null,
+        ToggleButton? filterDelete = null, ToggleButton? filterRename = null, TextBlock? filterErrorText = null)
     {
         if (loc == null) return;
         titleText.Text = loc.Get("Log_Title");
         if (clearButton is Button btn) btn.Content = loc.Get("Log_Clear");
         emptyStateText.Text = loc.Get("Log_Empty");
+
+        // Filter buttons
+        if (filterAll != null) filterAll.Content = loc.Get("FilterAll");
+        if (filterCopy != null) filterCopy.Content = loc.Get("Copy");
+        if (filterMove != null) filterMove.Content = loc.Get("Move");
+        if (filterDelete != null) filterDelete.Content = loc.Get("Delete");
+        if (filterRename != null) filterRename.Content = loc.Get("Rename");
+        if (filterErrorText != null) filterErrorText.Text = loc.Get("FilterError");
     }
 }

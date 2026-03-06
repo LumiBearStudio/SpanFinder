@@ -356,8 +356,7 @@ namespace Span.Services
                 if (pidl != IntPtr.Zero) CoTaskMemFree(pidl);
                 if (contextMenuObj != null) try { Marshal.ReleaseComObject(contextMenuObj); } catch { }
                 if (shellFolderObj != null) try { Marshal.ReleaseComObject(shellFolderObj); } catch { }
-                if (contextMenuPtr != IntPtr.Zero) Marshal.Release(contextMenuPtr);
-                if (shellFolderPtr != IntPtr.Zero) Marshal.Release(shellFolderPtr);
+                // ReleaseComObject already calls IUnknown::Release via RCW — do NOT double-release raw ptrs
             }
         }
 
@@ -470,7 +469,7 @@ namespace Span.Services
         /// If the shell extension takes too long (e.g. unresponsive third-party),
         /// returns null so the caller can show custom-only menu items.
         /// </summary>
-        public static async Task<Session?> CreateSessionAsync(IntPtr hwnd, string path, int timeoutMs = 1500)
+        public static async Task<Session?> CreateSessionAsync(IntPtr hwnd, string path, int timeoutMs = 3000)
         {
             // Throttle concurrent STA threads — 슬롯 없으면 500ms만 대기 후 포기
             if (!await s_staThrottle.WaitAsync(Math.Min(timeoutMs, 500)))
@@ -506,8 +505,12 @@ namespace Span.Services
                 if (!completed)
                 {
                     Helpers.DebugLogger.Log($"[ShellContextMenu] CreateSession timed out ({timeoutMs}ms) for: {path}");
-                    // Thread is still blocked in QueryContextMenu — it will eventually finish
-                    // and the Session will be orphaned (COM cleanup on thread exit).
+                    // Clean up orphaned session when STA thread eventually completes
+                    _ = Task.Run(() =>
+                    {
+                        staThread.Join();
+                        result?.Dispose();
+                    });
                     return null;
                 }
 
@@ -758,9 +761,9 @@ namespace Span.Services
             /// Invoke a shell extension command by its command ID.
             /// Call this when the user clicks a shell extension menu item.
             /// </summary>
-            public void InvokeCommand(int commandId)
+            public bool InvokeCommand(int commandId)
             {
-                if (_disposed) return;
+                if (_disposed) return false;
                 try
                 {
                     var invokeInfo = new CMINVOKECOMMANDINFO
@@ -773,10 +776,19 @@ namespace Span.Services
                     };
                     ((IContextMenu)_contextMenuImpl).InvokeCommand(ref invokeInfo);
                     Helpers.DebugLogger.Log($"[ShellContextMenu.Session] Command invoked: {commandId}");
+                    return true;
+                }
+                catch (System.Runtime.InteropServices.COMException comEx)
+                    when (comEx.HResult == unchecked((int)0x80004004)   // E_ABORT
+                       || comEx.HResult == unchecked((int)0x800704C7)) // ERROR_CANCELLED
+                {
+                    Helpers.DebugLogger.Log($"[ShellContextMenu.Session] Command cancelled by user: {commandId}");
+                    return true; // User cancelled — not a failure
                 }
                 catch (Exception ex)
                 {
                     Helpers.DebugLogger.Log($"[ShellContextMenu.Session] InvokeCommand error: {ex.Message}");
+                    return false;
                 }
             }
 

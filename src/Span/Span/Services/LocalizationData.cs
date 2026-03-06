@@ -2,7 +2,7 @@ namespace Span.Services
 {
     public partial class LocalizationService
     {
-        private static readonly (string key, string en, string ko, string ja, string zhHans, string zhHant, string de, string es, string fr, string ptBR)[] Entries =
+        internal static readonly (string key, string en, string ko, string ja, string zhHans, string zhHant, string de, string es, string fr, string ptBR)[] Entries =
         {
             // ── Context menu items ──────────────────────────────────────────
             ("Open", "Open", "열기", "開く", "打开", "開啟", "Öffnen", "Abrir", "Ouvrir", "Abrir"),
@@ -73,6 +73,9 @@ namespace Span.Services
             // ── Edit-with ───────────────────────────────────────────────────
             ("EditWith", "Edit with...", "편집 앱 선택...", "別のアプリで編集...", "使用其他应用编辑...", "使用其他應用程式編輯...", "Bearbeiten mit...", "Editar con...", "Modifier avec...", "Editar com..."),
 
+            // ── Shell extensions loading ──────────────────────────────────
+            ("Shell_Loading", "Loading extensions...", "확장 프로그램 로드 중...", "拡張機能を読み込み中...", "正在加载扩展...", "正在載入擴充功能...", "Erweiterungen werden geladen...", "Cargando extensiones...", "Chargement des extensions...", "Carregando extensões..."),
+
             // ── Compress/Extract ────────────────────────────────────────────
             ("CompressToZip", "Compress to ZIP", "ZIP으로 압축", "ZIPに圧縮", "压缩为 ZIP", "壓縮為 ZIP", "Als ZIP komprimieren", "Comprimir a ZIP", "Compresser en ZIP", "Compactar para ZIP"),
             ("ExtractHere", "Extract here", "여기에 압축 풀기", "ここに展開", "解压到此处", "解壓縮到此處", "Hier entpacken", "Extraer aquí", "Extraire ici", "Extrair aqui"),
@@ -131,6 +134,12 @@ namespace Span.Services
             ("CloudStorage", "Cloud storage", "클라우드 저장소", "クラウドストレージ", "云存储", "雲端儲存空間", "Cloudspeicher", "Almacenamiento en la nube", "Stockage cloud", "Armazenamento em nuvem"),
             ("NetworkLocations", "Network locations", "네트워크 위치", "ネットワークの場所", "网络位置", "網路位置", "Netzwerkadressen", "Ubicaciones de red", "Emplacements réseau", "Locais de rede"),
             ("Favorites", "Favorites", "즐겨찾기", "お気に入り", "收藏夹", "我的最愛", "Favoriten", "Favoritos", "Favoris", "Favoritos"),
+            ("KnownFolder_Desktop", "Desktop", "바탕 화면", "デスクトップ", "桌面", "桌面", "Desktop", "Escritorio", "Bureau", "Área de Trabalho"),
+            ("KnownFolder_Downloads", "Downloads", "다운로드", "ダウンロード", "下载", "下載", "Downloads", "Descargas", "Téléchargements", "Downloads"),
+            ("KnownFolder_Documents", "Documents", "문서", "ドキュメント", "文档", "文件", "Dokumente", "Documentos", "Documents", "Documentos"),
+            ("KnownFolder_Pictures", "Pictures", "사진", "ピクチャ", "图片", "圖片", "Bilder", "Imágenes", "Images", "Imagens"),
+            ("KnownFolder_Music", "Music", "음악", "ミュージック", "音乐", "音樂", "Musik", "Música", "Musique", "Música"),
+            ("KnownFolder_Videos", "Videos", "비디오", "ビデオ", "视频", "影片", "Videos", "Vídeos", "Vidéos", "Vídeos"),
             ("LocalDrives", "Local Drives", "로컬 드라이브", "ローカルドライブ", "本地磁盘", "本機磁碟機", "Lokale Laufwerke", "Unidades locales", "Lecteurs locaux", "Unidades locais"),
             ("Cloud", "Cloud", "클라우드", "クラウド", "云", "雲端", "Cloud", "Nube", "Cloud", "Nuvem"),
             ("Network", "Network", "네트워크", "ネットワーク", "网络", "網路", "Netzwerk", "Red", "Réseau", "Rede"),
@@ -216,6 +225,10 @@ namespace Span.Services
             ("Help_Properties", "Properties", "속성", "プロパティ", "属性", "內容", "Eigenschaften", "Propiedades", "Propriétés", "Propriedades"),
             ("Help_Help", "Help", "도움말", "ヘルプ", "帮助", "說明", "Hilfe", "Ayuda", "Aide", "Ajuda"),
             ("Help_CloseHint", "Press Esc or click anywhere to close", "Esc 또는 아무 곳이나 클릭하여 닫기", "Escまたは任意の場所をクリックして閉じる", "按 Esc 或单击任意位置关闭", "按 Esc 或按一下任意位置以關閉", "Esc drücken oder irgendwo klicken zum Schließen", "Pulse Esc o haga clic en cualquier lugar para cerrar", "Appuyez sur Échap ou cliquez n'importe où pour fermer", "Pressione Esc ou clique em qualquer lugar para fechar"),
+
+            // ── Jump List ────────────────────────────────────────────────────
+            ("JumpList_RecentFolders", "Recent Folders", "최근 폴더", "最近のフォルダー", "最近的文件夹", "最近的資料夾", "Zuletzt verwendete Ordner", "Carpetas recientes", "Dossiers récents", "Pastas recentes"),
+            ("JumpList_NewWindow", "New Window", "새 창", "新しいウィンドウ", "新窗口", "新視窗", "Neues Fenster", "Nueva ventana", "Nouvelle fenêtre", "Nova janela"),
 
             // ── Settings ────────────────────────────────────────────────────
             ("Settings", "Settings", "설정", "設定", "设置", "設定", "Einstellungen", "Configuración", "Paramètres", "Configurações"),
@@ -388,6 +401,7 @@ namespace Span.Services
             ("Log_Title", "Action Log", "작업 로그", "操作ログ", "操作日志", "操作記錄", "Aktionsprotokoll", "Registro de acciones", "Journal des actions", "Log de ações"),
             ("Log_Clear", "Clear", "지우기", "クリア", "清除", "清除", "Löschen", "Borrar", "Effacer", "Limpar"),
             ("Log_Empty", "No actions yet.", "아직 작업 내역이 없습니다.", "まだ操作履歴はありません。", "尚无操作记录。", "尚無操作記錄。", "Noch keine Aktionen.", "Aún no hay acciones.", "Aucune action pour le moment.", "Nenhuma ação ainda."),
+            ("FilterAll", "All", "전체", "すべて", "全部", "全部", "Alle", "Todo", "Tous", "Todos"),
             ("FilterError", "Errors", "오류", "エラー", "错误", "錯誤", "Fehler", "Errores", "Erreurs", "Erros"),
             ("LogUndo", "Undo", "실행 취소", "元に戻す", "撤消", "復原", "Rückgängig", "Deshacer", "Annuler", "Desfazer"),
             ("LogRedo", "Redo", "다시 실행", "やり直し", "重做", "取消復原", "Wiederholen", "Rehacer", "Rétablir", "Refazer"),
@@ -441,6 +455,7 @@ namespace Span.Services
             ("Toast_Completed", "Completed: {0}", "완료: {0}", "完了: {0}", "已完成: {0}", "已完成: {0}", "Abgeschlossen: {0}", "Completado: {0}", "Terminé : {0}", "Concluído: {0}"),
             ("Toast_CompletedUndo", "Completed: {0} — Press Ctrl+Z to undo", "완료: {0} — Ctrl+Z로 실행 취소", "完了: {0} — Ctrl+Zで元に戻す", "已完成: {0} — 按Ctrl+Z撤消", "已完成: {0} — 按Ctrl+Z復原", "Abgeschlossen: {0} — Strg+Z zum Rückgängig", "Completado: {0} — Ctrl+Z para deshacer", "Terminé : {0} — Ctrl+Z pour annuler", "Concluído: {0} — Ctrl+Z para desfazer"),
             ("Toast_OperationFailed", "Operation failed", "작업 실패", "操作に失敗しました", "操作失败", "操作失敗", "Vorgang fehlgeschlagen", "Operación fallida", "Opération échouée", "Operação falhou"),
+            ("Toast_ShellCommandFailed", "{0} failed", "{0} 실행 실패", "{0} の実行に失敗しました", "{0} 执行失败", "{0} 執行失敗", "{0} fehlgeschlagen", "{0} ha fallado", "{0} a échoué", "{0} falhou"),
             ("Toast_HiddenFilesShown", "Hidden files shown", "숨김 파일 표시", "隠しファイルを表示", "显示隐藏文件", "顯示隱藏檔案", "Versteckte Dateien angezeigt", "Archivos ocultos mostrados", "Fichiers cachés affichés", "Arquivos ocultos mostrados"),
             ("Toast_HiddenFilesHidden", "Hidden files hidden", "숨김 파일 숨김", "隠しファイルを非表示", "隐藏文件已隐藏", "隱藏檔案已隱藏", "Versteckte Dateien ausgeblendet", "Archivos ocultos ocultados", "Fichiers cachés masqués", "Arquivos ocultos ocultados"),
             ("Toast_ColumnsEqualized", "All columns equalized to default width", "모든 컬럼이 기본 너비로 동일화됨", "全カラムをデフォルト幅に揃えました", "所有列已调整为默认宽度", "所有欄已調整為預設寬度", "Alle Spalten auf Standardbreite angeglichen", "Todas las columnas igualadas al ancho predeterminado", "Toutes les colonnes égalisées à la largeur par défaut", "Todas as colunas equalizadas para largura padrão"),

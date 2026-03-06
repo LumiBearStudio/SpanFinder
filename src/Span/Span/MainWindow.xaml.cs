@@ -295,6 +295,31 @@ namespace Span
             // Pass context menu service and HWND to child views
             _contextMenuService.OwnerHwnd = _hwnd;
             _contextMenuService.XamlRootProvider = () => Content.XamlRoot;
+            _contextMenuService.InvokeFailedCallback = (itemName) =>
+            {
+                DispatcherQueue.TryEnqueue(() =>
+                {
+                    ViewModel.ShowToast(string.Format(_loc.Get("Toast_ShellCommandFailed"), itemName), 3000, isError: true);
+                });
+            };
+            _contextMenuService.ShellCommandExecutedCallback = () =>
+            {
+                var currentPath = ViewModel?.ActiveExplorer?.CurrentPath;
+                DispatcherQueue.TryEnqueue(async () =>
+                {
+                    try
+                    {
+                        await Task.Delay(1000);
+                        // Only refresh if still on the same folder
+                        if (currentPath != null && ViewModel?.ActiveExplorer?.CurrentPath == currentPath)
+                            await ViewModel.RefreshCurrentFolderAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        Helpers.DebugLogger.Log($"[MainWindow] Post-shell refresh error: {ex.Message}");
+                    }
+                });
+            };
             DetailsView.ContextMenuService = _contextMenuService;
             DetailsView.ContextMenuHost = this;
             DetailsView.OwnerHwnd = _hwnd;
@@ -565,6 +590,19 @@ namespace Span
                     ListView.ViewModel = ViewModel.Explorer;
                     IconView.ViewModel = ViewModel.Explorer;
                     ResubscribeLeftExplorer();
+
+                    // ── Jump List activation: navigate to the specified folder ──
+                    if (!string.IsNullOrEmpty(App.StartupArguments))
+                    {
+                        var jumpArg = App.StartupArguments;
+                        App.StartupArguments = null; // Consume to prevent re-navigation
+
+                        if (jumpArg != "--new-window" && System.IO.Directory.Exists(jumpArg))
+                        {
+                            Helpers.DebugLogger.Log($"[JumpList] Navigating to: {jumpArg}");
+                            _ = ViewModel.ActiveExplorer.NavigateToPath(jumpArg);
+                        }
+                    }
 
                     // ── Populate Favorites Tree and observe changes ──
                     ApplyFavoritesTreeMode(_settings.ShowFavoritesTree);

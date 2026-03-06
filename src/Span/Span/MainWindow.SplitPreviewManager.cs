@@ -333,6 +333,20 @@ namespace Span
             RightVm_Large.Text = _loc.Get("LargeIcons");
             RightVm_Medium.Text = _loc.Get("MediumIcons");
             RightVm_Small.Text = _loc.Get("SmallIcons");
+
+            // --- Tab headers (Home / Settings / ActionLog) ---
+            foreach (var tab in ViewModel.Tabs)
+            {
+                if (tab.ViewMode == Models.ViewMode.Home)
+                    tab.Header = _loc.Get("Home");
+                else if (tab.ViewMode == Models.ViewMode.Settings)
+                    tab.Header = _loc.Get("Settings");
+                else if (tab.ViewMode == Models.ViewMode.ActionLog)
+                    tab.Header = _loc.Get("Log_Title");
+            }
+
+            // --- Sidebar favorites: localize known folder names ---
+            ViewModel.LocalizeFavoriteNames();
         }
 
         #endregion
