@@ -1394,7 +1394,7 @@
                                         <FontIcon Glyph="&#xE80F;" FontSize="40" Foreground="{ThemeResource SpanAccentBrush}" />
                                         <StackPanel Spacing="2">
                                             <TextBlock Text="SPAN Finder" FontSize="22" FontWeight="Bold" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
-                                            <TextBlock Text="v1.0.1 (Build 20260226)" FontSize="12" Foreground="{ThemeResource SpanTextSecondaryBrush}" />
+                                            <TextBlock Text="v1.0.4 (Build 20260306)" FontSize="12" Foreground="{ThemeResource SpanTextSecondaryBrush}" />
                                         </StackPanel>
                                     </StackPanel>
                                     <Button x:Name="UpdateButton" Grid.Column="1" VerticalAlignment="Center"
@@ -1600,7 +1600,7 @@
 
                             <!-- Full license link -->
                             <HyperlinkButton Style="{StaticResource LinkButtonStyle}" Margin="0,12,0,0"
-                                             NavigateUri="https://github.com/LumiBearStudio/SpanFinder/blob/main/LICENSES.md">
+                                             NavigateUri="https://github.com/LumiBearStudio/SpanFinder/blob/main/OpenSourceLicenses.md">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <FontIcon Glyph="&#xE8A7;" FontSize="14" />
                                     <TextBlock x:Name="FullLicenseLink" Text="View full license text on GitHub" />

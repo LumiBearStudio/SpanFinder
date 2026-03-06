@@ -41,6 +41,7 @@ SPAN Finder는 수많은 기능으로 무장한 무거운 서드파티 탐색기
 [ 내 눈에 맞추는 초개인화 UI ]
   - 10가지 테마: Light, Dark, Dracula, Tokyo Night, Catppuccin, Gruvbox, Solarized, Nord, One Dark, Monokai
   - 6단계 행 높이 조절 & 6단계 폰트/아이콘 크기 독립 제어
+  - 10종 폰트: Segoe UI Variable, Consolas, Cascadia Code/Mono, D2Coding, JetBrains Mono 등 — CJK 대체 폰트 자동 적용
   - 9개 언어 지원: 한국어, English, 日本語, 中文(简/繁), Deutsch, Español, Français, Português
 
 [ 쾌적한 미리보기 (Quick Look) ]
@@ -111,5 +112,9 @@ SPAN Finder는 수많은 기능으로 무장한 무거운 서드파티 탐색기
 
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[Microsoft Store](https://www.microsoft.com/store/apps/9P42MFRMH07X) | [GitHub](https://github.com/LumiBearStudio/SpanFinder) | [버그 제보](https://github.com/LumiBearStudio/SpanFinder/issues) | [개인정보처리방침](https://github.com/LumiBearStudio/SpanFinder/blob/main/github-docs/PRIVACY.md)
 
 윈도우에서 가장 빠르고 쾌적한 Miller Columns 탐색을 경험해 보세요.

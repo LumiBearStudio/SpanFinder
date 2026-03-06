@@ -52,6 +52,7 @@ Navigieren Sie tiefe Ordnerhierarchien, ohne den Kontext zu verlieren. Jede Spal
 
 - **10 Themes**: Light, Dark, Dracula, Tokyo Night, Catppuccin, Gruvbox, Solarized, Nord, One Dark, Monokai
 - **6-stufige Zeilenhöhe** & **6-stufige Schrift-/Symbolgröße**
+- **10 Schriftarten**: Segoe UI Variable, Consolas, Cascadia Code/Mono, D2Coding, JetBrains Mono u.a. — CJK-Fallback-Schriften automatisch
 - **9 Sprachen**: English, 한국어, 日本語, 中文(简/繁), Deutsch, Español, Français, Português
 
 ### Entwickler-Tools
@@ -91,3 +92,7 @@ Siehe [CONTRIBUTING.md](CONTRIBUTING.md).
 [GNU General Public License v3.0](LICENSE) (mit Microsoft Store-Vertriebsausnahme)
 
 „SPAN Finder" und das offizielle Logo sind Marken von LumiBear Studio. Details unter [LICENSE.md](LICENSE.md).
+
+---
+
+[Microsoft Store](https://www.microsoft.com/store/apps/9P42MFRMH07X) | [GitHub](https://github.com/LumiBearStudio/SpanFinder) | [Fehler melden](https://github.com/LumiBearStudio/SpanFinder/issues) | [Datenschutz](https://github.com/LumiBearStudio/SpanFinder/blob/main/github-docs/PRIVACY.md)

@@ -7,6 +7,8 @@ English | [한국어](README/README.ko.md) | [日本語](README/README.ja.md) | 
 SPAN Finder reimagines file navigation on Windows. Inspired by the elegance of macOS Finder's column view and supercharged with features Windows Explorer never had — multi-tab, split view, async operations, and keyboard-driven workflows that make file management feel effortless.
 
 > **Why settle for Windows Explorer when you can fly?**
+>
+> **Now available on the [Microsoft Store](https://www.microsoft.com/store/apps/9P42MFRMH07X).**
 
 ![SPAN Finder — Miller Columns + Preview Panel](README/1.jpg)
 
@@ -107,6 +109,7 @@ Press **Space** for Quick Look (macOS Finder style):
 
 - **10 Themes**: Light, Dark, Dracula, Tokyo Night, Catppuccin, Gruvbox, Solarized, Nord, One Dark, Monokai
 - **6-Level Row Height** and **6-Level Font/Icon Size** — independent controls
+- **10 Font Options**: Segoe UI Variable, Consolas, Cascadia Code/Mono, D2Coding, JetBrains Mono, Fira Code, and more — with CJK fallback font chain
 - **3 Icon Packs**: Remix Icon, Phosphor Icons, Tabler Icons
 - **9 Languages**: English, Korean, Japanese, Chinese (Simplified/Traditional), German, Spanish, French, Portuguese
 
@@ -194,6 +197,7 @@ This project is licensed under the [GNU General Public License v3.0](LICENSE).
 
 ## Links
 
+- [Microsoft Store](https://www.microsoft.com/store/apps/9P42MFRMH07X)
 - [Privacy Policy](github-docs/PRIVACY.md)
 - [Open Source Licenses](OpenSourceLicenses.md)
 - [Bug Reports & Feature Requests](https://github.com/LumiBearStudio/SpanFinder/issues)

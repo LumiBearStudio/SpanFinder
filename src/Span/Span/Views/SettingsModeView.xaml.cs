@@ -498,6 +498,10 @@ public sealed partial class SettingsModeView : UserControl
             Tab2ViewDetails.Content = _loc.Get("Settings_ViewDetails");
             Tab2ViewList.Content = _loc.Get("Settings_ViewList");
             Tab2ViewIcon.Content = _loc.Get("Settings_ViewIcon");
+            // WinUI 3: ComboBox 닫힌 상태에서 Item.Content 변경 시 표시 텍스트가 캐시되어 갱신 안 됨
+            // SelectedIndex를 다시 설정해서 표시 텍스트 강제 갱신
+            RefreshComboDisplay(Tab1ViewModeCombo);
+            RefreshComboDisplay(Tab2ViewModeCombo);
             // Preview
             DefaultPreviewLabel.Text = _loc.Get("Settings_DefaultPreview");
             DefaultPreviewDesc.Text = _loc.Get("Settings_DefaultPreviewDesc");
@@ -547,6 +551,7 @@ public sealed partial class SettingsModeView : UserControl
             MillerDesc.Text = _loc.Get("Settings_MillerBehaviorDesc");
             SingleClickItem.Content = _loc.Get("Settings_SingleClick");
             DoubleClickItem.Content = _loc.Get("Settings_DoubleClick");
+            RefreshComboDisplay(MillerClickCombo);
             ThumbnailLabel.Text = _loc.Get("Settings_Thumbnails");
             ThumbnailDesc.Text = _loc.Get("Settings_ThumbnailsDesc");
             QuickLookLabel.Text = _loc.Get("Settings_QuickLook");
@@ -560,6 +565,7 @@ public sealed partial class SettingsModeView : UserControl
             Undo20.Content = string.Format(_loc.Get("Settings_UndoCount"), 20);
             Undo50.Content = string.Format(_loc.Get("Settings_UndoCount"), 50);
             Undo100.Content = string.Format(_loc.Get("Settings_UndoCount"), 100);
+            RefreshComboDisplay(UndoHistoryCombo);
 
             // Tools
             ToolsTitle.Text = _loc.Get("Settings_Tools");
@@ -608,6 +614,22 @@ public sealed partial class SettingsModeView : UserControl
         {
             Helpers.DebugLogger.Log($"[SettingsModeView] LocalizeUI error: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// WinUI 3: ComboBox가 닫힌 상태에서 ComboBoxItem.Content를 변경하면
+    /// 선택된 아이템의 표시 텍스트가 캐시되어 이전 언어 그대로 보이는 문제.
+    /// SelectedIndex를 -1 → 원래값으로 재설정하여 표시 텍스트 강제 갱신.
+    /// </summary>
+    private void RefreshComboDisplay(ComboBox combo)
+    {
+        var idx = combo.SelectedIndex;
+        if (idx < 0) return;
+        var prev = _isLoading;
+        _isLoading = true;
+        combo.SelectedIndex = -1;
+        combo.SelectedIndex = idx;
+        _isLoading = prev;
     }
 
     // ── Update check animation ──

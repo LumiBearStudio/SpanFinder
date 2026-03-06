@@ -1,7 +1,7 @@
 # SPAN Finder - Feature Reference
 
 > Windows용 고성능 Miller Columns 파일 탐색기
-> 최종 업데이트: 2026-03-02
+> 최종 업데이트: 2026-03-06
 
 ---
 
@@ -155,6 +155,8 @@
 - 좌/우 패널 독립 탐색, 독립 뷰 모드
 - `Ctrl+Tab`으로 패널 전환
 - 패널별 독립 미리보기 패널
+- **탭별 분할 상태**: 각 탭이 독립적인 분할 뷰 상태 유지 (탭 전환 시 복원)
+- **우측 패널 뷰 모드**: Home 화면, List 뷰 등 모든 뷰 모드 지원
 - 상태 저장/복원
 
 ---
@@ -173,6 +175,7 @@
 - 이미지/파일 메타데이터 (해상도, 크기, 날짜, 생성일, 타입)
 - 200ms 디바운싱 (빠른 선택 최적화)
 - 클라우드 전용 파일: 캐시된 썸네일만 사용 (다운로드 방지)
+- **클라우드 MP4 미리보기**: 클라우드 전용 동영상 파일도 Shell 썸네일로 미리보기 지원
 - FTP/SFTP 원격 파일 미리보기 지원
 
 ---
@@ -193,10 +196,11 @@
 ## 컨텍스트 메뉴
 
 - **Windows Shell 네이티브 메뉴**: 셸 확장 프로그램 메뉴 100% 지원
-- 셸 Verb 다국어 번역 (한국어, 일본어)
+- 셸 Verb 다국어 번역 (한국어, 일본어, 독일어, 스페인어, 프랑스어, 포르투갈어)
 - **파일/폴더 메뉴**: 열기, 연결 프로그램, 잘라내기, 복사, 붙여넣기, 이름 변경, 삭제, 영구 삭제, 복제, 바로가기 생성, 속성
 - **빈 영역 메뉴**: 새 파일/폴더, 정렬(서브메뉴), 그룹화(서브메뉴), 탐색기에서 열기
 - **추가 항목**: 터미널 열기, 경로 복사, 빠른 액세스에 고정, ZIP 압축/해제
+- **AccessKey 지원**: 메뉴 항목 앞 밑줄 문자(AccessKey)로 키보드 빠른 접근, CJK 언어 자동 처리
 - **즐겨찾기 메뉴**: 탐색, 고정 해제, 이름 편집
 - **정렬 서브메뉴**: 이름/날짜/크기/종류, 오름차순/내림차순, 그룹화 옵션
 
@@ -205,8 +209,9 @@
 ## 드래그 & 드롭
 
 - **내부**: Span 내 파일 이동/복사 (Ctrl=복사, Shift=이동)
-- **외부 → Span**: Windows Explorer, Desktop에서 파일 드롭
+- **외부 → Span**: Windows Explorer, Desktop, 기타 앱에서 파일 드롭
 - **Span → 외부**: Windows Explorer, Desktop으로 파일 드래그
+- **커서 피드백**: 드래그 중 복사/이동/금지 커서 아이콘 실시간 표시
 - **즐겨찾기 드롭**: 사이드바에 파일 드롭으로 즐겨찾기 추가
 - **분할 뷰 간 드래그**: 좌↔우 패널 간 파일 이동/복사
 - **Spring-loaded 폴더**: 드래그 중 폴더 위 호버 시 자동 열림 (800ms 지연)
@@ -341,10 +346,11 @@
 
 | 항목 | 옵션 |
 |------|------|
-| 테마 | Light / Dark / System / Dracula / Tokyo Night / Catppuccin / Gruvbox |
-| 레이아웃 밀도 | Compact / Comfortable / Spacious |
-| 폰트 | Segoe UI Variable (기본) + 시스템 폰트 선택 가능 |
+| 테마 | Light / Dark / System / Dracula / Tokyo Night / Catppuccin / Gruvbox / Solarized / Nord / One Dark / Monokai |
+| 레이아웃 밀도 | Compact / Comfortable / Spacious (6단계 행 높이 + 6단계 폰트/아이콘 크기 독립 조절) |
+| 폰트 | 10가지 옵션: Segoe UI Variable (기본), Consolas, Cascadia Code/Mono, D2Coding, JetBrains Mono, Fira Code, Source Code Pro, Noto Sans, IBM Plex Sans — CJK 대체 폰트 체인 자동 적용 (맑은 고딕/Yu Gothic/Microsoft YaHei) |
 | 아이콘 팩 | Remix / Phosphor / Tabler |
+| 3종 아이콘 팩 | 각 아이콘 팩은 파일/폴더/드라이브 등 60+ 카테고리의 고유 아이콘 제공 |
 | 언어 | System / EN / KO / JA / ZH-CN / ZH-TW / DE / ES / FR / PT-BR |
 
 ### 탐색 동작
@@ -466,6 +472,10 @@
 - JSON 기반 영속화 (최대 1,000 항목, FIFO)
 - 비동기 디스크 기록 (UI 블로킹 없음)
 - 로그 뷰어 (LogModeView/LogFlyoutContent)
+- **에러 필터**: 실패 항목만 필터링하여 확인 가능
+- **Undo/Redo 로깅**: 실행 취소/다시 실행 작업도 이력에 기록
+- **아이콘 매핑**: 작업 유형별 아이콘 표시 (복사, 이동, 삭제, 이름변경, 압축 등)
+- **컬럼 정렬 개선**: 타임스탬프, 작업 유형, 상태 컬럼 정렬
 - 히스토리 삭제 기능
 
 ---
@@ -489,6 +499,8 @@
 - **Directory.CreateDirectory 보호**: 대상 폴더 생성 실패 시 조기 반환 + 로깅
 - **빈 catch 블록 로깅**: 재귀 검색, 드래그 앤 드롭 등 파일 I/O 관련 5곳 로깅 추가
 - **ContinueWith → async/await**: ThreadPool에서 DispatcherQueue 접근 문제 해결
+- **SafeEnqueue**: DispatcherQueue.TryEnqueue 실패 시 크래시 방지 래퍼 (앱 종료 중 UI 업데이트 보호)
+- **파일 작업 다국어**: 복사/이동/삭제 진행 메시지 9개 언어 로컬라이즈
 
 ---
 

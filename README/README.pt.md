@@ -52,6 +52,7 @@ Pressione **Espaço** para Quick Look (estilo macOS Finder):
 
 - **10 Temas**: Light, Dark, Dracula, Tokyo Night, Catppuccin, Gruvbox, Solarized, Nord, One Dark, Monokai
 - **6 níveis de altura de linha** e **6 níveis de tamanho de fonte/ícone**
+- **10 fontes**: Segoe UI Variable, Consolas, Cascadia Code/Mono, D2Coding, JetBrains Mono e mais — com fallback CJK automático
 - **9 idiomas**: English, 한국어, 日本語, 中文(简/繁), Deutsch, Español, Français, Português
 
 ### Ferramentas para desenvolvedores
@@ -91,3 +92,7 @@ Consulte [CONTRIBUTING.md](CONTRIBUTING.md).
 [GNU General Public License v3.0](LICENSE) (com exceção de distribuição na Microsoft Store)
 
 O nome "SPAN Finder" e o logotipo oficial são marcas registradas da LumiBear Studio. Veja [LICENSE.md](LICENSE.md).
+
+---
+
+[Microsoft Store](https://www.microsoft.com/store/apps/9P42MFRMH07X) | [GitHub](https://github.com/LumiBearStudio/SpanFinder) | [Reportar bugs](https://github.com/LumiBearStudio/SpanFinder/issues) | [Privacidade](https://github.com/LumiBearStudio/SpanFinder/blob/main/github-docs/PRIVACY.md)
