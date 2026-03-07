@@ -27,23 +27,16 @@ namespace Span.Services
 
         public ConnectionManagerService()
         {
-            try
-            {
-                _storagePath = Windows.Storage.ApplicationData.Current.LocalFolder.Path;
-            }
-            catch (Exception ex)
-            {
-                DebugLogger.Log($"[ConnectionManager] Failed to get LocalFolder path: {ex.Message}");
-                // Fallback to AppData\Local
-                _storagePath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    "SPAN Finder");
-                Directory.CreateDirectory(_storagePath);
-            }
+            _storagePath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "Span");
+            Directory.CreateDirectory(_storagePath);
         }
 
         public async Task LoadConnectionsAsync()
         {
+            MigrateFromPackageFolder();
+
             try
             {
                 var filePath = Path.Combine(_storagePath, ConnectionsFileName);
@@ -223,6 +216,33 @@ namespace Span.Services
             var plainBytes = Encoding.UTF8.GetBytes(json);
             var encrypted = ProtectedData.Protect(plainBytes, null, DataProtectionScope.CurrentUser);
             File.WriteAllBytes(filePath, encrypted);
+        }
+
+        /// <summary>
+        /// One-time migration from MSIX package LocalState to %LOCALAPPDATA%\Span.
+        /// </summary>
+        private void MigrateFromPackageFolder()
+        {
+            try
+            {
+                var packagePath = Windows.Storage.ApplicationData.Current.LocalFolder.Path;
+                if (string.Equals(packagePath, _storagePath, StringComparison.OrdinalIgnoreCase)) return;
+
+                foreach (var fileName in new[] { ConnectionsFileName, CredentialsFileName })
+                {
+                    var src = Path.Combine(packagePath, fileName);
+                    var dst = Path.Combine(_storagePath, fileName);
+                    if (File.Exists(src) && !File.Exists(dst))
+                    {
+                        File.Copy(src, dst);
+                        DebugLogger.Log($"[ConnectionManager] Migrated {fileName} from package folder");
+                    }
+                }
+            }
+            catch
+            {
+                // Package folder not accessible (unpackaged mode) — skip
+            }
         }
 
         private static readonly JsonSerializerOptions _jsonOptions = new()
