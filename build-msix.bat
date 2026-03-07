@@ -6,7 +6,7 @@ echo   Span MSIX Store Upload Build (x64/x86/ARM64)
 echo =========================================
 echo.
 
-:: Package.appxmanifest에서 버전 추출
+:: Extract version from Package.appxmanifest
 for /f "usebackq delims=" %%V in (`powershell -NoProfile -Command "([xml](Get-Content 'D:\11.AI\Span\src\Span\Span\Package.appxmanifest')).Package.Identity.Version"`) do set VER=%%V
 
 if "%VER%"=="" (
@@ -27,7 +27,7 @@ if not exist "%OUTDIR%" mkdir "%OUTDIR%"
 
 set FAILED=0
 
-:: ── x64 Build ──
+:: -- x64 Build --
 echo [1/3] Building x64...
 %MSBUILD% "%CSPROJ%" /restore /v:minimal ^
     /p:Configuration=Release /p:Platform=x64 ^
@@ -42,7 +42,7 @@ if %ERRORLEVEL% NEQ 0 (
 )
 echo.
 
-:: ── x86 Build ──
+:: -- x86 Build --
 echo [2/3] Building x86...
 %MSBUILD% "%CSPROJ%" /restore /v:minimal ^
     /p:Configuration=Release /p:Platform=x86 ^
@@ -57,7 +57,7 @@ if %ERRORLEVEL% NEQ 0 (
 )
 echo.
 
-:: ── ARM64 Build ──
+:: -- ARM64 Build --
 echo [3/3] Building ARM64...
 %MSBUILD% "%CSPROJ%" /restore /v:minimal ^
     /p:Configuration=Release /p:Platform=ARM64 ^
@@ -72,11 +72,9 @@ if %ERRORLEVEL% NEQ 0 (
 )
 echo.
 
-:: ── GitHub Release용 ZIP 생성 ──
+:: -- Create ZIP packages for GitHub Release --
 echo Creating ZIP packages for GitHub Release...
 for %%P in (x64 x86 ARM64) do (
-    set "TESTDIR=%OUTDIR%\Span_%VER%_%%P_Test"
-    set "ZIPFILE=%OUTDIR%\SpanFinder_v%VER%_%%P.zip"
     if exist "%OUTDIR%\Span_%VER%_%%P_Test" (
         powershell -NoProfile -Command "Compress-Archive -Path '%OUTDIR%\Span_%VER%_%%P_Test\*' -DestinationPath '%OUTDIR%\SpanFinder_v%VER%_%%P.zip' -Force"
         echo [OK] SpanFinder_v%VER%_%%P.zip
@@ -86,7 +84,7 @@ for %%P in (x64 x86 ARM64) do (
 )
 echo.
 
-:: ── Results ──
+:: -- Results --
 if %FAILED%==0 (
     echo =========================================
     echo   ALL BUILDS SUCCESS - v%VER%
