@@ -1,18 +1,17 @@
 @echo off
-setlocal enabledelayedexpansion
+setlocal
 
 echo === Span MSIX Store Upload Build ===
 echo.
 
-:: Package.appxmanifest에서 버전 추출
-for /f "tokens=2 delims==" %%a in ('findstr /i "Version=" "D:\11.AI\Span\src\Span\Span\Package.appxmanifest" ^| findstr "Identity"') do (
-    set RAW=%%a
+:: Package.appxmanifest에서 버전 추출 (PowerShell XML 파싱)
+for /f "usebackq delims=" %%V in (`powershell -NoProfile -Command "([xml](Get-Content 'D:\11.AI\Span\src\Span\Span\Package.appxmanifest')).Package.Identity.Version"`) do set VER=%%V
+
+if "%VER%"=="" (
+    echo ERROR: Version not found in Package.appxmanifest
+    pause
+    exit /b 1
 )
-:: 따옴표, 공백, /> 제거
-set VER=%RAW:"=%
-set VER=%VER: =%
-set VER=%VER:/=%
-set VER=%VER:>=%
 
 :: 출력 디렉토리: builds\v{버전}
 set OUTDIR=D:\11.AI\Span\builds\v%VER%
@@ -35,7 +34,9 @@ if not exist "%OUTDIR%" mkdir "%OUTDIR%"
 
 if %ERRORLEVEL% EQU 0 (
     echo.
-    echo === BUILD SUCCESS ===
+    echo =========================================
+    echo   BUILD SUCCESS - v%VER%
+    echo =========================================
     echo.
     dir /s /b "%OUTDIR%\*.msixupload" 2>nul
     echo.
