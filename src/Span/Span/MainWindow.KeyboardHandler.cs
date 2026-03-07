@@ -121,7 +121,7 @@ namespace Span
                 }
                 if (e.Key == Windows.System.VirtualKey.Escape && ViewModel.CurrentViewMode == ViewMode.ActionLog)
                 {
-                    CloseCurrentLogTab();
+                    CloseCurrentActionLogTab();
                     e.Handled = true;
                     return;
                 }
@@ -256,7 +256,7 @@ namespace Span
                         }
                         else if (ViewModel.ActiveTab?.ViewMode == ViewMode.ActionLog)
                         {
-                            CloseCurrentLogTab();
+                            CloseCurrentActionLogTab();
                         }
                         else
                         {

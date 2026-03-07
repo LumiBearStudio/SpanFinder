@@ -87,6 +87,10 @@
                                         <FontIcon Glyph="&#xE713;" FontSize="14"
                                                   Foreground="{ThemeResource SpanAccentBrush}"
                                                   Visibility="{x:Bind IsSettingsModeVisible, Mode=OneWay}"/>
+                                        <!-- ActionLog icon (clock) -->
+                                        <FontIcon Glyph="&#xE81C;" FontSize="14"
+                                                  Foreground="{ThemeResource SpanAccentBrush}"
+                                                  Visibility="{x:Bind IsActionLogModeVisible, Mode=OneWay}"/>
                                         <!-- Folder icon (RemixIcons) -->
                                         <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Folder}" FontSize="14"
                                                   Foreground="#FFD54F"

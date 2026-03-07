@@ -556,8 +556,8 @@ namespace Span
         {
             var explorer = ResolveExplorerForAddressBar(sender);
 
-            // Home/ActionLog 모드에서 경로 입력 시 MillerColumns로 전환
-            if (ViewModel.CurrentViewMode == Models.ViewMode.Home || ViewModel.CurrentViewMode == Models.ViewMode.ActionLog)
+            // Home 모드에서 경로 입력 시 MillerColumns로 전환
+            if (ViewModel.CurrentViewMode == Models.ViewMode.Home)
             {
                 ViewModel.SwitchViewMode(Models.ViewMode.MillerColumns);
                 UpdateViewModeVisibility();

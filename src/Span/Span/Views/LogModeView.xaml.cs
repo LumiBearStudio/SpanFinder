@@ -1,15 +1,15 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
 using Span.Services;
+using System;
 using System.Collections.ObjectModel;
 
 namespace Span.Views;
 
 /// <summary>
-/// 작업 로그 탭 뷰. Home 탭과 동일한 패턴으로 사이드바를 유지한 채 탐색기 영역에 표시.
-/// LogEntryDisplay는 LogEntryDisplay.cs에 정의되어 있으며 공유한다.
+/// 작업 로그 탭 뷰. Settings와 동일한 NavigationView 패턴.
+/// 자체 사이드바(필터 메뉴)를 NavigationView로 내장한다.
 /// </summary>
 public sealed partial class LogModeView : UserControl
 {
@@ -18,6 +18,11 @@ public sealed partial class LogModeView : UserControl
     private List<Models.ActionLogEntry> _allEntries = new();
     private string? _activeFilter;
     private LocalizationService? _loc;
+
+    /// <summary>
+    /// 뒤로가기 요청 이벤트 (MainWindow에서 구독)
+    /// </summary>
+    public event EventHandler? BackRequested;
 
     public LogModeView()
     {
@@ -44,6 +49,16 @@ public sealed partial class LogModeView : UserControl
     {
         _allEntries = LogViewHelper.RefreshEntries(_logService);
         ApplyFilter();
+        UpdateErrorBadge();
+    }
+
+    /// <summary>
+    /// 필터를 설정한다 (외부에서 호출 가능).
+    /// </summary>
+    public void SetFilter(string? filter)
+    {
+        _activeFilter = filter;
+        ApplyFilter();
     }
 
     private void ApplyFilter()
@@ -51,21 +66,71 @@ public sealed partial class LogModeView : UserControl
         LogViewHelper.ApplyFilter(_allEntries, _activeFilter, _entries);
         EmptyState.Visibility = _entries.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         LogListView.Visibility = _entries.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-        UpdateErrorBadge();
+    }
+
+    private void LocalizeUI()
+    {
+        if (_loc == null) return;
+        TitleText.Text = _loc.Get("Log_Title");
+        ClearButton.Content = _loc.Get("Log_Clear");
+        EmptyStateText.Text = _loc.Get("Log_Empty");
+
+        NavFilterAll.Content = _loc.Get("FilterAll");
+        NavFilterCopy.Content = _loc.Get("Copy");
+        NavFilterMove.Content = _loc.Get("Move");
+        NavFilterDelete.Content = _loc.Get("Delete");
+        NavFilterRename.Content = _loc.Get("Rename");
+        NavFilterError.Content = _loc.Get("FilterError");
     }
 
     private void UpdateErrorBadge()
     {
         var errorCount = LogViewHelper.CountErrors(_allEntries);
-        ErrorBadge.Visibility = errorCount > 0 ? Visibility.Visible : Visibility.Collapsed;
-        ErrorBadgeCount.Text = errorCount.ToString();
+        if (errorCount > 0)
+            NavFilterError.Content = $"{(_loc?.Get("FilterError") ?? "오류")} ({errorCount})";
     }
 
-    private void LocalizeUI()
+    // ── Back button ──
+
+    private void OnBackClick(object sender, RoutedEventArgs e)
     {
-        LogViewHelper.LocalizeUI(_loc, TitleText, ClearButton, EmptyStateText,
-            FilterAll, FilterCopy, FilterMove, FilterDelete, FilterRename, FilterErrorText);
+        BackRequested?.Invoke(this, EventArgs.Empty);
     }
+
+    // ── NavigationView ──
+
+    private void LogNav_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
+    {
+        if (args.SelectedItem is NavigationViewItem item && item.Tag is string tag)
+        {
+            _activeFilter = tag switch
+            {
+                "Copy" => "Copy",
+                "Move" => "Move",
+                "Delete" => "Delete",
+                "Rename" => "Rename",
+                "Error" => LogViewHelper.ErrorFilter,
+                _ => null // "All"
+            };
+            ApplyFilter();
+        }
+    }
+
+    private void LogNav_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        var width = e.NewSize.Width;
+        var mode = width < 500
+            ? NavigationViewPaneDisplayMode.Top
+            : NavigationViewPaneDisplayMode.Left;
+
+        if (LogNav.PaneDisplayMode != mode)
+        {
+            LogNav.PaneDisplayMode = mode;
+            LogNav.IsPaneOpen = true;
+        }
+    }
+
+    // ── Actions ──
 
     private void OnClearClick(object sender, RoutedEventArgs e)
     {
@@ -73,21 +138,11 @@ public sealed partial class LogModeView : UserControl
         Refresh();
     }
 
-    private void OnFilterClick(object sender, RoutedEventArgs e)
-    {
-        if (sender is not ToggleButton clicked) return;
-        _activeFilter = LogViewHelper.HandleFilterClick(clicked, FilterAll, FilterCopy, FilterMove, FilterDelete, FilterRename, FilterError);
-        ApplyFilter();
-    }
-
     private void OnExpandClick(object sender, RoutedEventArgs e)
     {
         LogViewHelper.HandleExpandClick(sender);
     }
 
-    /// <summary>
-    /// "폴더 열기" 버튼 클릭 — Windows Explorer에서 해당 폴더를 연다.
-    /// </summary>
     private void OnOpenFolderClick(object sender, RoutedEventArgs e)
     {
         LogViewHelper.HandleOpenFolderClick(sender, "LogModeView");

@@ -64,10 +64,10 @@ namespace Span
             => isSplitViewEnabled ? Visibility.Collapsed : Visibility.Visible;
 
         /// <summary>
-        /// Split/Preview buttons: hidden in Settings mode
+        /// Split/Preview buttons: hidden in Settings/ActionLog mode
         /// </summary>
         public Visibility IsNotSettingsMode(Models.ViewMode mode)
-            => mode != Models.ViewMode.Settings ? Visibility.Visible : Visibility.Collapsed;
+            => (mode != Models.ViewMode.Settings && mode != Models.ViewMode.ActionLog) ? Visibility.Visible : Visibility.Collapsed;
 
         /// <summary>
         /// Single mode toolbar/address bar: visible when NOT split AND NOT Home mode
@@ -76,10 +76,10 @@ namespace Span
             => (!isSplitViewEnabled && mode != Models.ViewMode.Home) ? Visibility.Visible : Visibility.Collapsed;
 
         /// <summary>
-        /// Single mode nav/address bar: visible when NOT split AND NOT Settings mode (Home included)
+        /// Single mode nav/address bar: visible when NOT split AND NOT Settings/ActionLog mode (Home included)
         /// </summary>
         public Visibility IsSingleNonSettingsVisible(bool isSplitViewEnabled, Models.ViewMode mode)
-            => (!isSplitViewEnabled && mode != Models.ViewMode.Settings) ? Visibility.Visible : Visibility.Collapsed;
+            => (!isSplitViewEnabled && mode != Models.ViewMode.Settings && mode != Models.ViewMode.ActionLog) ? Visibility.Visible : Visibility.Collapsed;
 
         /// <summary>
         /// Left pane header (split mode): visible when split enabled (including Home mode for accent bar)

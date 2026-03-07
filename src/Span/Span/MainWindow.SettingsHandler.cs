@@ -924,6 +924,40 @@ namespace Span
         }
 
         /// <summary>
+        /// ActionLog 탭을 닫고 이전 탭으로 복귀.
+        /// 유일한 탭이면 Home 탭을 먼저 생성.
+        /// </summary>
+        private void CloseCurrentActionLogTab()
+        {
+            var tab = ViewModel.ActiveTab;
+            if (tab == null || tab.ViewMode != ViewMode.ActionLog) return;
+
+            int index = ViewModel.ActiveTabIndex;
+
+            if (ViewModel.Tabs.Count <= 1)
+            {
+                ViewModel.AddNewTab();
+                var newTab = ViewModel.ActiveTab;
+                if (newTab != null)
+                {
+                    CreateMillerPanelForTab(newTab);
+                    SwitchMillerPanel(newTab.Id);
+                }
+                ViewModel.CloseTab(0);
+            }
+            else
+            {
+                ViewModel.CloseTab(index);
+                if (ViewModel.ActiveTab != null)
+                    SwitchMillerPanel(ViewModel.ActiveTab.Id);
+            }
+
+            ResubscribeLeftExplorer();
+            UpdateViewModeVisibility();
+            FocusActiveView();
+        }
+
+        /// <summary>
         /// Settings 탭을 열거나 기존 탭으로 전환 (UI 연동 포함).
         /// </summary>
         private void OpenSettingsTab()
@@ -1023,68 +1057,6 @@ namespace Span
             ResubscribeLeftExplorer();
             UpdateViewModeVisibility();
             Helpers.DispatcherHelper.SafeEnqueue(DispatcherQueue, Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, UpdateTitleBarRegions);
-        }
-
-        /// <summary>
-        /// 작업 로그 탭을 닫고 이전 탭으로 복귀.
-        /// 유일한 탭이면 Home 탭을 먼저 생성.
-        /// </summary>
-        private void CloseCurrentLogTab()
-        {
-            var tab = ViewModel.ActiveTab;
-            if (tab == null || tab.ViewMode != ViewMode.ActionLog) return;
-
-            int index = ViewModel.ActiveTabIndex;
-
-            if (ViewModel.Tabs.Count <= 1)
-            {
-                ViewModel.AddNewTab();
-                var newTab = ViewModel.ActiveTab;
-                if (newTab != null)
-                {
-                    CreateMillerPanelForTab(newTab);
-                    SwitchMillerPanel(newTab.Id);
-                }
-                ViewModel.CloseTab(0);
-            }
-            else
-            {
-                ViewModel.CloseTab(index);
-                if (ViewModel.ActiveTab != null)
-                    SwitchMillerPanel(ViewModel.ActiveTab.Id);
-            }
-
-            ResubscribeLeftExplorer();
-            UpdateViewModeVisibility();
-            FocusActiveView();
-        }
-
-        /// <summary>
-        /// ActionLog 탭을 탐색기 탭으로 변환한다.
-        /// Explorer가 null인 ActionLog 탭에 ExplorerViewModel을 생성하고
-        /// Miller 패널을 만들어 정상 탐색이 가능하도록 초기화한다.
-        /// </summary>
-        private void ConvertLogTabToExplorer()
-        {
-            var tab = ViewModel.ActiveTab;
-            if (tab == null) return;
-
-            // Explorer가 없으면 생성
-            if (tab.Explorer == null)
-            {
-                var root = new Models.FolderItem { Name = "PC", Path = "PC" };
-                var explorer = new ExplorerViewModel(root,
-                    App.Current.Services.GetRequiredService<Services.FileSystemService>());
-                tab.Explorer = explorer;
-
-                // ViewModel의 LeftExplorer 갱신
-                ViewModel.SetLeftExplorer(explorer);
-            }
-
-            // Miller 패널 생성 및 전환
-            CreateMillerPanelForTab(tab);
-            SwitchMillerPanel(tab.Id);
-            ResubscribeLeftExplorer();
         }
 
         // #endregion Help Overlay, Settings/Log Button Handlers

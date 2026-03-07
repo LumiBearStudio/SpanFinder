@@ -56,6 +56,12 @@
     <x:String x:Key="Icon_File_Spreadsheet">&#xECDE;</x:String> <!-- ri-file-excel-fill -->
     <x:String x:Key="Icon_File_Presentation">&#xED00;</x:String> <!-- ri-file-ppt-fill -->
 
+    <!-- Action Log -->
+    <x:String x:Key="Icon_ActionLog">&#xEE14;</x:String> <!-- ri-history-line -->
+    <x:String x:Key="Icon_Move">&#xEC69;</x:String> <!-- ri-drag-move-2-line -->
+    <x:String x:Key="Icon_Error">&#xEBB6;</x:String> <!-- ri-close-circle-line -->
+    <x:String x:Key="Icon_FilterAll">&#xEEB8;</x:String> <!-- ri-list-check-2 -->
+
     <!-- Structural UI Icons (overridden per icon pack in App.xaml.cs) -->
     <x:String x:Key="Icon_NewFolder">&#xED59;</x:String> <!-- ri-folder-add-fill -->
     <x:String x:Key="Icon_SplitView">&#xEE8C;</x:String> <!-- ri-layout-column-fill -->

@@ -260,6 +260,7 @@ namespace Span
             IconView.ViewModel = ViewModel.Explorer;
             HomeView.MainViewModel = ViewModel;
             SettingsView.BackRequested += (s, e) => CloseCurrentSettingsTab();
+            LogView.BackRequested += (s, e) => CloseCurrentActionLogTab();
 
             // AddressBarControl에 PathSegments/CurrentPath 바인딩
             SyncAddressBarControls(ViewModel.Explorer);
@@ -1696,7 +1697,7 @@ namespace Span
         /// <param name="mode">적용할 뷰 모드.</param>
         private void SetViewModeVisibility(ViewMode mode)
         {
-            bool isSpecialMode = mode == ViewMode.Settings;
+            bool isSpecialMode = mode == ViewMode.Settings || mode == ViewMode.ActionLog;
 
             // ★ Host Visible 전에 per-tab 패널 정리 (이전 탭 잔상 방지)
             var tabId = ViewModel.ActiveTab?.Id;
@@ -1772,7 +1773,7 @@ namespace Span
                     ViewModel.ActivePane = ActivePane.Left;
             }
 
-            // Settings/Home 모드: 사이드바 + 프리뷰 패널 숨김
+            // Settings/ActionLog 모드: 사이드바 + 프리뷰 패널 완전 숨김
             if (isSpecialMode)
             {
                 if (!_sidebarHiddenForSpecialMode)
@@ -1797,7 +1798,7 @@ namespace Span
                     SidebarCol.MinWidth = 150;
                     _sidebarHiddenForSpecialMode = false;
 
-                    // Settings 모드에서 사이드바가 Collapsed → ItemsPanelRoot null → 스케일 누락.
+                    // Settings/ActionLog 모드에서 사이드바가 Collapsed → ItemsPanelRoot null → 스케일 누락.
                     // Visible 복원 직후 사이드바 폰트 스케일 재적용.
                     DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
                     {
@@ -1806,12 +1807,12 @@ namespace Span
                         ApplyIconFontScaleToSidebar(itemFont, iconFont);
                     });
                 }
-                // 프리뷰 패널 복원 (활성화 상태에 따라, Home/ActionLog에서는 숨김)
-                bool hidePreview = mode == ViewMode.Home || mode == ViewMode.ActionLog;
+                // 프리뷰 패널 복원 (활성화 상태에 따라, Home에서는 숨김)
+                bool hidePreview = mode == ViewMode.Home;
                 if (!hidePreview && ViewModel.IsLeftPreviewEnabled)
                 {
                     LeftPreviewSplitterCol.Width = new GridLength(2, GridUnitType.Pixel);
-                    // Home/ActionLog에서 Width=0으로 숨긴 후 복원 시,
+                    // Home에서 Width=0으로 숨긴 후 복원 시,
                     // LeftPreviewCol.Width도 함께 복원해야 프리뷰 패널이 표시됨
                     if (LeftPreviewCol.Width.Value < 1)
                     {
@@ -2001,8 +2002,6 @@ namespace Span
             if (e.ClickedItem is DriveItem drive)
             {
                 Helpers.DebugLogger.Log($"[OnDriveItemClick] BEFORE: CurrentViewMode={ViewModel.CurrentViewMode}");
-                if (ViewModel.CurrentViewMode == ViewMode.ActionLog)
-                    ConvertLogTabToExplorer();
                 ViewModel.OpenDrive(drive);
                 Helpers.DebugLogger.Log($"[OnDriveItemClick] AFTER OpenDrive: CurrentViewMode={ViewModel.CurrentViewMode}");
                 UpdateViewModeVisibility();
@@ -2049,8 +2048,6 @@ namespace Span
                     else
                     {
                         Helpers.DebugLogger.Log($"[OnDriveItemTapped] BEFORE: CurrentViewMode={ViewModel.CurrentViewMode}");
-                        if (ViewModel.CurrentViewMode == ViewMode.ActionLog)
-                            ConvertLogTabToExplorer();
                         ViewModel.OpenDrive(drive);
                         Helpers.DebugLogger.Log($"[OnDriveItemTapped] AFTER OpenDrive: CurrentViewMode={ViewModel.CurrentViewMode}");
                         UpdateViewModeVisibility();
@@ -2800,9 +2797,8 @@ namespace Span
                 {
                     var activeViewMode = (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
                         ? ViewModel.RightViewMode : ViewModel.CurrentViewMode;
-                    if (activeViewMode == ViewMode.ActionLog)
-                        ConvertLogTabToExplorer();
-                    if (activeViewMode == ViewMode.Home || activeViewMode == ViewMode.ActionLog)
+                    // ActionLog 모드에서는 사이드바가 필터 메뉴이므로 즐겨찾기 클릭이 발생하지 않음
+                    if (activeViewMode == ViewMode.Home)
                         ViewModel.SwitchViewMode(ViewModel.ResolveViewModeFromHome());
 
                     var folder = new FolderItem
@@ -2993,12 +2989,10 @@ namespace Span
 
             if (!string.IsNullOrEmpty(path) && System.IO.Directory.Exists(path))
             {
-                // Switch away from Home/ActionLog mode if needed
+                // Switch away from Home mode if needed (ActionLog has its own sidebar, no navigation)
                 var activeViewMode = (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
                     ? ViewModel.RightViewMode : ViewModel.CurrentViewMode;
-                if (activeViewMode == ViewMode.ActionLog)
-                    ConvertLogTabToExplorer();
-                if (activeViewMode == ViewMode.Home || activeViewMode == ViewMode.ActionLog)
+                if (activeViewMode == ViewMode.Home)
                 {
                     ViewModel.SwitchViewMode(ViewMode.MillerColumns);
                 }
