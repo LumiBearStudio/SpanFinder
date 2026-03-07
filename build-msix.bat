@@ -1,10 +1,12 @@
 @echo off
 setlocal
 
-echo === Span MSIX Store Upload Build ===
+echo =========================================
+echo   Span MSIX Store Upload Build (x64/x86/ARM64)
+echo =========================================
 echo.
 
-:: Package.appxmanifest에서 버전 추출 (PowerShell XML 파싱)
+:: Package.appxmanifest에서 버전 추출
 for /f "usebackq delims=" %%V in (`powershell -NoProfile -Command "([xml](Get-Content 'D:\11.AI\Span\src\Span\Span\Package.appxmanifest')).Package.Identity.Version"`) do set VER=%%V
 
 if "%VER%"=="" (
@@ -13,36 +15,81 @@ if "%VER%"=="" (
     exit /b 1
 )
 
-:: 출력 디렉토리: builds\v{버전}
-set OUTDIR=D:\11.AI\Span\builds\v%VER%
+set OUTDIR=D:\11.AI\Span\AppPackages\VER_%VER%
+set CSPROJ=D:\11.AI\Span\src\Span\Span\Span.csproj
+set MSBUILD="C:\Program Files\Microsoft Visual Studio\2022\Professional\MSBuild\Current\Bin\MSBuild.exe"
+
 echo Version: %VER%
 echo Output:  %OUTDIR%
 echo.
 
 if not exist "%OUTDIR%" mkdir "%OUTDIR%"
 
-"C:\Program Files\Microsoft Visual Studio\2022\Professional\MSBuild\Current\Bin\MSBuild.exe" ^
-    "D:\11.AI\Span\src\Span\Span\Span.csproj" ^
-    /restore ^
-    /p:Configuration=Release ^
-    /p:Platform=x64 ^
-    /p:GenerateAppxPackageOnBuild=true ^
-    /p:AppxBundle=Never ^
-    /p:PublishTrimmed=false ^
-    /p:UapAppxPackageBuildMode=StoreUpload ^
-    /p:AppxPackageDir="%OUTDIR%\\"
+set FAILED=0
 
-if %ERRORLEVEL% EQU 0 (
-    echo.
-    echo =========================================
-    echo   BUILD SUCCESS - v%VER%
-    echo =========================================
-    echo.
-    dir /s /b "%OUTDIR%\*.msixupload" 2>nul
-    echo.
-    echo Output: %OUTDIR%
+:: ── x64 Build ──
+echo [1/3] Building x64...
+%MSBUILD% "%CSPROJ%" /restore /v:minimal ^
+    /p:Configuration=Release /p:Platform=x64 ^
+    /p:GenerateAppxPackageOnBuild=true /p:AppxBundle=Never ^
+    /p:PublishTrimmed=false /p:UapAppxPackageBuildMode=StoreUpload ^
+    /p:AppxPackageDir="%OUTDIR%\\"
+if %ERRORLEVEL% NEQ 0 (
+    echo [FAILED] x64 build failed
+    set FAILED=1
 ) else (
-    echo.
-    echo === BUILD FAILED ===
+    echo [OK] x64
 )
+echo.
+
+:: ── x86 Build ──
+echo [2/3] Building x86...
+%MSBUILD% "%CSPROJ%" /restore /v:minimal ^
+    /p:Configuration=Release /p:Platform=x86 ^
+    /p:GenerateAppxPackageOnBuild=true /p:AppxBundle=Never ^
+    /p:PublishTrimmed=false /p:UapAppxPackageBuildMode=StoreUpload ^
+    /p:AppxPackageDir="%OUTDIR%\\"
+if %ERRORLEVEL% NEQ 0 (
+    echo [FAILED] x86 build failed
+    set FAILED=1
+) else (
+    echo [OK] x86
+)
+echo.
+
+:: ── ARM64 Build ──
+echo [3/3] Building ARM64...
+%MSBUILD% "%CSPROJ%" /restore /v:minimal ^
+    /p:Configuration=Release /p:Platform=ARM64 ^
+    /p:GenerateAppxPackageOnBuild=true /p:AppxBundle=Never ^
+    /p:PublishTrimmed=false /p:UapAppxPackageBuildMode=StoreUpload ^
+    /p:AppxPackageDir="%OUTDIR%\\"
+if %ERRORLEVEL% NEQ 0 (
+    echo [FAILED] ARM64 build failed
+    set FAILED=1
+) else (
+    echo [OK] ARM64
+)
+echo.
+
+:: ── Results ──
+if %FAILED%==0 (
+    echo =========================================
+    echo   ALL BUILDS SUCCESS - v%VER%
+    echo =========================================
+) else (
+    echo =========================================
+    echo   SOME BUILDS FAILED
+    echo =========================================
+)
+echo.
+echo Output: %OUTDIR%
+echo.
+echo MSIX uploads:
+dir /b "%OUTDIR%\*.msixupload" 2>nul
+echo.
+echo ZIP packages:
+dir /b "%OUTDIR%\*_Test\*.zip" 2>nul
+if not exist "%OUTDIR%\*_Test\*.zip" dir /b /s "%OUTDIR%\*.msix" 2>nul
+echo.
 pause
