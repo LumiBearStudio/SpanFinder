@@ -1101,12 +1101,16 @@ namespace Span.ViewModels
             _selectionDebounce = new CancellationTokenSource();
             var token = _selectionDebounce.Token;
 
-            // 캐시 히트 시 디바운스 건너뜀 — 이미 로드된 폴더는 즉시 표시
-            if (!selectedFolder.IsAlreadyLoaded)
+            // Debounce: large cached folders get short delay to avoid UI stutter during rapid keyboard navigation.
+            // Small/uncached folders get full debounce to wait for disk I/O.
+            int debounceMs = selectedFolder.IsAlreadyLoaded
+                ? (selectedFolder.TotalChildCount > 2000 ? 50 : 0)
+                : SelectionDebounceMs;
+            if (debounceMs > 0)
             {
                 try
                 {
-                    await Task.Delay(SelectionDebounceMs, token);
+                    await Task.Delay(debounceMs, token);
                 }
                 catch (OperationCanceledException) { return; }
                 if (token.IsCancellationRequested) return;

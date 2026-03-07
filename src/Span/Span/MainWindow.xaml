@@ -874,7 +874,7 @@
                                                                       ContainerContentChanging="OnMillerContainerContentChanging">
                                                                 <ListView.ItemsPanel>
                                                                     <ItemsPanelTemplate>
-                                                                        <ItemsStackPanel CacheLength="2.0"/>
+                                                                        <ItemsStackPanel CacheLength="1.0"/>
                                                                     </ItemsPanelTemplate>
                                                                 </ListView.ItemsPanel>
                                                                 <ListView.ItemContainerTransitions>
@@ -932,7 +932,7 @@
                                                                                         <!-- Opacity 전환: Visibility→Opacity로 레이아웃 패스 없이 렌더링만 전환 (14K 스크롤 지터 방지) -->
                                                                                         <Image Source="{x:Bind ThumbnailSource, Mode=OneWay}" Stretch="UniformToFill"
                                                                                                Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfTrue(HasThumbnail), Mode=OneWay}"
-                                                                                               IsHitTestVisible="False"/>
+                                                                                               IsHitTestVisible="False" x:Phase="1"/>
                                                                                         <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{x:Bind IconGlyph}" FontSize="16" Foreground="{x:Bind IconBrush}"
                                                                                                   Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfFalse(HasThumbnail), Mode=OneWay}"
                                                                                                   IsHitTestVisible="False"/>
@@ -940,7 +940,7 @@
                                                                                                 HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-4,-4"
                                                                                                 Width="12" Height="12" CornerRadius="6"
                                                                                                 Background="{x:Bind CloudBadgeBrush, Mode=OneWay}"
-                                                                                                IsHitTestVisible="False">
+                                                                                                IsHitTestVisible="False" x:Phase="1">
                                                                                             <FontIcon Glyph="{x:Bind CloudStateGlyph, Mode=OneWay}" FontSize="8"
                                                                                                       Foreground="{ThemeResource SpanTextSecondaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                                                         </Border>
@@ -949,7 +949,7 @@
                                                                                                 HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-4,-4"
                                                                                                 Width="14" Height="14" CornerRadius="7"
                                                                                                 Background="{x:Bind GitStatusBrush, Mode=OneWay}"
-                                                                                                IsHitTestVisible="False">
+                                                                                                IsHitTestVisible="False" x:Phase="1">
                                                                                             <TextBlock Text="{x:Bind GitStatusText, Mode=OneWay}" FontSize="8" FontWeight="Bold"
                                                                                                        Foreground="{x:Bind GitBadgeTextBrush, Mode=OneWay}" HorizontalAlignment="Center" VerticalAlignment="Center"
                                                                                                        Margin="0,-1,0,0"/>
@@ -1334,7 +1334,7 @@
                                                                       ContainerContentChanging="OnMillerContainerContentChanging">
                                                                 <ListView.ItemsPanel>
                                                                     <ItemsPanelTemplate>
-                                                                        <ItemsStackPanel CacheLength="2.0"/>
+                                                                        <ItemsStackPanel CacheLength="1.0"/>
                                                                     </ItemsPanelTemplate>
                                                                 </ListView.ItemsPanel>
                                                                 <ListView.ItemContainerTransitions>
@@ -1392,7 +1392,7 @@
                                                                                         <!-- Opacity 전환: Visibility→Opacity로 레이아웃 패스 없이 렌더링만 전환 (14K 스크롤 지터 방지) -->
                                                                                         <Image Source="{x:Bind ThumbnailSource, Mode=OneWay}" Stretch="UniformToFill"
                                                                                                Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfTrue(HasThumbnail), Mode=OneWay}"
-                                                                                               IsHitTestVisible="False"/>
+                                                                                               IsHitTestVisible="False" x:Phase="1"/>
                                                                                         <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{x:Bind IconGlyph}" FontSize="16" Foreground="{x:Bind IconBrush}"
                                                                                                   Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfFalse(HasThumbnail), Mode=OneWay}"
                                                                                                   IsHitTestVisible="False"/>
@@ -1400,7 +1400,7 @@
                                                                                                 HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-4,-4"
                                                                                                 Width="12" Height="12" CornerRadius="6"
                                                                                                 Background="{x:Bind CloudBadgeBrush, Mode=OneWay}"
-                                                                                                IsHitTestVisible="False">
+                                                                                                IsHitTestVisible="False" x:Phase="1">
                                                                                             <FontIcon Glyph="{x:Bind CloudStateGlyph, Mode=OneWay}" FontSize="8"
                                                                                                       Foreground="{ThemeResource SpanTextSecondaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                                                         </Border>
@@ -1409,7 +1409,7 @@
                                                                                                 HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-4,-4"
                                                                                                 Width="14" Height="14" CornerRadius="7"
                                                                                                 Background="{x:Bind GitStatusBrush, Mode=OneWay}"
-                                                                                                IsHitTestVisible="False">
+                                                                                                IsHitTestVisible="False" x:Phase="1">
                                                                                             <TextBlock Text="{x:Bind GitStatusText, Mode=OneWay}" FontSize="8" FontWeight="Bold"
                                                                                                        Foreground="{x:Bind GitBadgeTextBrush, Mode=OneWay}" HorizontalAlignment="Center" VerticalAlignment="Center"
                                                                                                        Margin="0,-1,0,0"/>

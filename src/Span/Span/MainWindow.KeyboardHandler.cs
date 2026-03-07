@@ -648,7 +648,8 @@ namespace Span
         /// </summary>
         private void HandleRightArrow(int activeIndex)
         {
-            var columns = ViewModel.ActiveExplorer.Columns;
+            var columns = ViewModel.ActiveExplorer?.Columns;
+            if (columns == null) return;
             var currentColumn = columns[activeIndex];
 
             if (currentColumn.SelectedChild is FolderViewModel selectedFolder)
@@ -668,7 +669,7 @@ namespace Span
                     DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
                         () =>
                         {
-                            if (activeIndex + 1 < ViewModel.ActiveExplorer.Columns.Count)
+                            if (activeIndex + 1 < (ViewModel.ActiveExplorer?.Columns.Count ?? 0))
                                 FocusColumnAsync(activeIndex + 1);
                         });
                 }
@@ -692,7 +693,8 @@ namespace Span
         /// </summary>
         private void HandleEnter(int activeIndex)
         {
-            var columns = ViewModel.ActiveExplorer.Columns;
+            var columns = ViewModel.ActiveExplorer?.Columns;
+            if (columns == null) return;
             var currentColumn = columns[activeIndex];
 
             if (currentColumn.SelectedChild is FolderViewModel selectedFolder)
@@ -711,8 +713,8 @@ namespace Span
         /// </summary>
         private void HandleHomeEnd(int activeIndex, bool first)
         {
-            var columns = ViewModel.ActiveExplorer.Columns;
-            if (activeIndex < 0 || activeIndex >= columns.Count) return;
+            var columns = ViewModel.ActiveExplorer?.Columns;
+            if (columns == null || activeIndex < 0 || activeIndex >= columns.Count) return;
 
             var column = columns[activeIndex];
             if (column.Children.Count == 0) return;
@@ -799,8 +801,8 @@ namespace Span
             _typeAheadTimer?.Stop();
             _typeAheadTimer?.Start();
 
-            var columns = ViewModel.ActiveExplorer.Columns;
-            if (activeIndex < 0 || activeIndex >= columns.Count) return;
+            var columns = ViewModel.ActiveExplorer?.Columns;
+            if (columns == null || activeIndex < 0 || activeIndex >= columns.Count) return;
 
             var column = columns[activeIndex];
             var match = column.Children.FirstOrDefault(c =>

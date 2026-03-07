@@ -87,6 +87,7 @@ namespace Span
         /// </summary>
         private int GetActiveColumnIndex()
         {
+            if (_isClosed || Content?.XamlRoot == null) return -1;
             var focused = FocusManager.GetFocusedElement(this.Content.XamlRoot) as DependencyObject;
             Helpers.DebugLogger.Log($"[GetActiveColumnIndex] focused={focused?.GetType().Name ?? "null"} ({(focused as FrameworkElement)?.Name ?? ""})");
             if (focused == null) return -1;

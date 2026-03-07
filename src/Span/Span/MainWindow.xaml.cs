@@ -600,7 +600,7 @@ namespace Span
                         if (jumpArg != "--new-window" && System.IO.Directory.Exists(jumpArg))
                         {
                             Helpers.DebugLogger.Log($"[JumpList] Navigating to: {jumpArg}");
-                            _ = ViewModel.ActiveExplorer.NavigateToPath(jumpArg);
+                            _ = ViewModel.ActiveExplorer?.NavigateToPath(jumpArg);
                         }
                     }
 
@@ -1477,6 +1477,7 @@ namespace Span
         /// </summary>
         private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
+            if (_isClosed) return;
             if (e.PropertyName == nameof(MainViewModel.CurrentViewMode) ||
                 e.PropertyName == nameof(MainViewModel.RightViewMode))
             {
@@ -1946,8 +1947,8 @@ namespace Span
                 switch (viewMode)
                 {
                     case Models.ViewMode.MillerColumns:
-                        var columns = ViewModel.ActiveExplorer.Columns;
-                        if (columns.Count > 0)
+                        var columns = ViewModel.ActiveExplorer?.Columns;
+                        if (columns != null && columns.Count > 0)
                         {
                             // H3: 동기 스크롤 (이미 Low priority 내부이므로 추가 디스패치 불필요)
                             ScrollToLastColumnSync(ViewModel.LeftExplorer, GetActiveMillerScrollViewer());
@@ -2235,7 +2236,7 @@ namespace Span
                         ViewModel.SwitchViewMode(ViewMode.MillerColumns);
                     }
 
-                    await ViewModel.ActiveExplorer.NavigateToPath(targetPath);
+                    if (ViewModel.ActiveExplorer != null) await ViewModel.ActiveExplorer.NavigateToPath(targetPath);
                     FocusColumnAsync(0);
                 }
             }
@@ -2507,7 +2508,7 @@ namespace Span
             if (ViewModel.CurrentViewMode == ViewMode.Home)
                 ViewModel.SwitchViewMode(ViewMode.MillerColumns);
 
-            await ViewModel.ActiveExplorer.NavigateToPath(connInfo.ToUri());
+            if (ViewModel.ActiveExplorer != null) await ViewModel.ActiveExplorer.NavigateToPath(connInfo.ToUri());
             FocusColumnAsync(0);
         }
 
@@ -2597,7 +2598,7 @@ namespace Span
                 if (ViewModel.CurrentViewMode == ViewMode.Home)
                     ViewModel.SwitchViewMode(ViewMode.MillerColumns);
 
-                await ViewModel.ActiveExplorer.NavigateToPath(connInfo.UncPath);
+                if (ViewModel.ActiveExplorer != null) await ViewModel.ActiveExplorer.NavigateToPath(connInfo.UncPath);
                 FocusColumnAsync(0);
                 return;
             }
@@ -2613,7 +2614,7 @@ namespace Span
                 if (ViewModel.CurrentViewMode == ViewMode.Home)
                     ViewModel.SwitchViewMode(ViewMode.MillerColumns);
 
-                await ViewModel.ActiveExplorer.NavigateToPath(connInfo.ToUri());
+                if (ViewModel.ActiveExplorer != null) await ViewModel.ActiveExplorer.NavigateToPath(connInfo.ToUri());
                 FocusColumnAsync(0);
                 return;
             }
@@ -2692,7 +2693,7 @@ namespace Span
             if (ViewModel.CurrentViewMode == ViewMode.Home)
                 ViewModel.SwitchViewMode(ViewMode.MillerColumns);
 
-            await ViewModel.ActiveExplorer.NavigateToPath(connInfo.ToUri());
+            if (ViewModel.ActiveExplorer != null) await ViewModel.ActiveExplorer.NavigateToPath(connInfo.ToUri());
             FocusColumnAsync(0);
         }
 
@@ -2809,7 +2810,7 @@ namespace Span
                         Name = System.IO.Path.GetFileName(fav.Path) ?? fav.Path,
                         Path = fav.Path
                     };
-                    _ = ViewModel.ActiveExplorer.NavigateTo(folder);
+                    _ = ViewModel.ActiveExplorer?.NavigateTo(folder);
                     if (ViewModel.CurrentViewMode == ViewMode.MillerColumns)
                         FocusColumnAsync(0);
                 }
@@ -3007,7 +3008,7 @@ namespace Span
                     Name = System.IO.Path.GetFileName(path) ?? path,
                     Path = path
                 };
-                _ = ViewModel.ActiveExplorer.NavigateTo(folder);
+                _ = ViewModel.ActiveExplorer?.NavigateTo(folder);
                 FocusColumnAsync(0);
                 Helpers.DebugLogger.Log($"[Sidebar] Favorites tree item invoked: {path}");
             }
@@ -3079,7 +3080,7 @@ namespace Span
                             Name = folderNode.Name,
                             Path = folderNode.Path
                         };
-                        _ = ViewModel.ActiveExplorer.NavigateTo(folder);
+                        _ = ViewModel.ActiveExplorer?.NavigateTo(folder);
                         FocusColumnAsync(0);
                     }
                 };
@@ -3609,11 +3610,15 @@ namespace Span
         /// </summary>
         private async void OnRetryFolderLoad(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
         {
-            if (sender is Microsoft.UI.Xaml.Controls.HyperlinkButton btn && btn.Tag is FolderViewModel folder)
+            try
             {
-                folder.ResetLoadState();
-                await folder.EnsureChildrenLoadedAsync();
+                if (sender is Microsoft.UI.Xaml.Controls.HyperlinkButton btn && btn.Tag is FolderViewModel folder)
+                {
+                    folder.ResetLoadState();
+                    await folder.EnsureChildrenLoadedAsync();
+                }
             }
+            catch (Exception ex) { Helpers.DebugLogger.Log($"[MainWindow] OnRetryFolderLoad failed: {ex.Message}"); }
         }
 
         /// <summary>
@@ -3628,11 +3633,12 @@ namespace Span
             if (viewMode != ViewMode.MillerColumns)
             {
                 // Details/List/Icon: CurrentFolder에서 선택된 항목을 가져옴
-                return ViewModel.ActiveExplorer.CurrentFolder?.SelectedChild;
+                return ViewModel.ActiveExplorer?.CurrentFolder?.SelectedChild;
             }
 
             // Miller Columns
-            var columns = ViewModel.ActiveExplorer.Columns;
+            var columns = ViewModel.ActiveExplorer?.Columns;
+            if (columns == null) return null;
             int activeIndex = GetActiveColumnIndex();
             if (activeIndex < 0) activeIndex = columns.Count - 1;
             if (activeIndex < 0 || activeIndex >= columns.Count) return null;
@@ -4113,6 +4119,8 @@ namespace Span
 
         async void Services.IContextMenuHost.PerformPaste(string targetFolderPath)
         {
+            try
+            {
             List<string> sourcePaths;
             bool isCut;
 
@@ -4145,7 +4153,8 @@ namespace Span
 
             // Find target column index for targeted refresh
             int? targetColumnIndex = null;
-            var columns = ViewModel.ActiveExplorer.Columns;
+            var columns = ViewModel.ActiveExplorer?.Columns;
+            if (columns == null) return;
             for (int i = 0; i < columns.Count; i++)
             {
                 if (columns[i].Path.Equals(targetFolderPath, StringComparison.OrdinalIgnoreCase))
@@ -4164,10 +4173,14 @@ namespace Span
 
             if (isCut && _clipboardPaths.Count > 0) _clipboardPaths.Clear();
             UpdateToolbarButtonStates();
+            }
+            catch (Exception ex) { Helpers.DebugLogger.Log($"[ContextMenu] PerformPaste failed: {ex.Message}"); }
         }
 
         async void Services.IContextMenuHost.PerformDelete(string path, string itemName)
         {
+            try
+            {
             var dialog = new ContentDialog
             {
                 Title = _loc.Get("DeleteConfirmTitle"),
@@ -4189,18 +4202,21 @@ namespace Span
             if (activeIndex >= 0)
             {
                 await ViewModel.ExecuteFileOperationAsync(operation, activeIndex);
-                ViewModel.ActiveExplorer.CleanupColumnsFrom(activeIndex + 1);
+                ViewModel.ActiveExplorer?.CleanupColumnsFrom(activeIndex + 1);
                 FocusColumnAsync(activeIndex);
             }
+            }
+            catch (Exception ex) { Helpers.DebugLogger.Log($"[ContextMenu] PerformDelete failed: {ex.Message}"); }
         }
 
         void Services.IContextMenuHost.PerformRename(FileSystemViewModel item)
         {
+            try
+            {
             Helpers.DebugLogger.Log($"[Rename] PerformRename START: '{item.Name}'");
 
-            // 컨텍스트 메뉴가 닫히면 포커스가 유실되므로,
-            // 포커스 기반 GetCurrentColumnIndex() 대신 item이 속한 컬럼을 직접 찾는다.
-            var columns = ViewModel.ActiveExplorer.Columns;
+            var columns = ViewModel.ActiveExplorer?.Columns;
+            if (columns == null) return;
             int targetIndex = -1;
             for (int i = 0; i < columns.Count; i++)
             {
@@ -4230,13 +4246,15 @@ namespace Span
                 _renamePendingFocus = false;
                 FocusRenameTextBox(colIdx);
             });
+            }
+            catch (Exception ex) { Helpers.DebugLogger.Log($"[ContextMenu] PerformRename failed: {ex.Message}"); }
         }
 
         void Services.IContextMenuHost.PerformOpen(FileSystemViewModel item)
         {
             if (item is FolderViewModel folder)
             {
-                ViewModel.ActiveExplorer.NavigateIntoFolder(folder);
+                ViewModel.ActiveExplorer?.NavigateIntoFolder(folder);
             }
             else if (item is FileViewModel file)
             {
@@ -4301,7 +4319,7 @@ namespace Span
                 System.IO.Directory.CreateDirectory(newPath);
 
                 // Find and refresh the column for this parent
-                var columns = ViewModel.ActiveExplorer.Columns;
+                var columns = ViewModel.ActiveExplorer?.Columns; if (columns == null) return;
                 var parentColumn = columns.FirstOrDefault(c =>
                     c.Path.Equals(parentFolderPath, StringComparison.OrdinalIgnoreCase));
                 if (parentColumn != null)
@@ -4346,7 +4364,7 @@ namespace Span
                 if (!result.Success) return;
 
                 // Refresh column and start rename
-                var columns = ViewModel.ActiveExplorer.Columns;
+                var columns = ViewModel.ActiveExplorer?.Columns; if (columns == null) return;
                 var parentColumn = columns.FirstOrDefault(c =>
                     c.Path.Equals(parentFolderPath, StringComparison.OrdinalIgnoreCase));
                 if (parentColumn != null)
@@ -4397,7 +4415,7 @@ namespace Span
                 if (result.Success)
                 {
                     // Refresh the active column
-                    var columns = ViewModel.ActiveExplorer.Columns;
+                    var columns = ViewModel.ActiveExplorer?.Columns; if (columns == null) return;
                     var parentColumn = columns.FirstOrDefault(c =>
                         c.Path.Equals(parentDir, StringComparison.OrdinalIgnoreCase));
                     if (parentColumn != null)
@@ -4432,7 +4450,7 @@ namespace Span
 
                 if (result.Success)
                 {
-                    var columns = ViewModel.ActiveExplorer.Columns;
+                    var columns = ViewModel.ActiveExplorer?.Columns; if (columns == null) return;
                     var parentColumn = columns.FirstOrDefault(c =>
                         c.Path.Equals(parentDir, StringComparison.OrdinalIgnoreCase));
                     if (parentColumn != null)
@@ -4479,7 +4497,7 @@ namespace Span
                 if (result.Success)
                 {
                     // Navigate to extracted folder
-                    ViewModel.ActiveExplorer.NavigateToPath(destPath);
+                    ViewModel.ActiveExplorer?.NavigateToPath(destPath);
                 }
             }
             catch (Exception ex)
@@ -4500,6 +4518,8 @@ namespace Span
 
         async void Services.IContextMenuHost.RemoveRemoteConnection(string connectionId)
         {
+            try
+            {
             var connService = App.Current.Services.GetRequiredService<ConnectionManagerService>();
             var connInfo = ViewModel.SavedConnections.FirstOrDefault(c => c.Id == connectionId);
             string displayName = connInfo?.DisplayName ?? connectionId;
@@ -4529,10 +4549,14 @@ namespace Span
                 Helpers.DebugLogger.Log($"[Sidebar] 원격 연결 제거: {displayName}");
                 ViewModel.ShowToast(string.Format(_loc.Get("ConnectionRemoved"), displayName));
             }
+            }
+            catch (Exception ex) { Helpers.DebugLogger.Log($"[ContextMenu] RemoveRemoteConnection failed: {ex.Message}"); }
         }
 
         async void Services.IContextMenuHost.EditRemoteConnection(string connectionId)
         {
+            try
+            {
             var connService = App.Current.Services.GetRequiredService<ConnectionManagerService>();
             var existing = ViewModel.SavedConnections.FirstOrDefault(c => c.Id == connectionId);
             if (existing == null) return;
@@ -4554,6 +4578,8 @@ namespace Span
                 connService.SaveCredential(updated.Id, password);
 
             Helpers.DebugLogger.Log($"[Sidebar] 원격 연결 편집 완료: {updated.DisplayName}");
+            }
+            catch (Exception ex) { Helpers.DebugLogger.Log($"[ContextMenu] EditRemoteConnection failed: {ex.Message}"); }
         }
 
         bool Services.IContextMenuHost.IsFavorite(string path)

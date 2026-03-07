@@ -184,6 +184,8 @@ namespace Span.ViewModels
 
                 dispatcherQueue.TryEnqueue(async () =>
                 {
+                    try
+                    {
                     LogOperationResult(operation, e.Result);
 
                     if (e.Result.Success)
@@ -205,6 +207,8 @@ namespace Span.ViewModels
                     {
                         ShowError(e.Result.ErrorMessage ?? _loc.Get("Toast_OperationFailed"));
                     }
+                    }
+                    catch (Exception ex) { Helpers.DebugLogger.Log($"[FileOps] Post-operation dispatch failed: {ex.Message}"); }
                 });
             }
 

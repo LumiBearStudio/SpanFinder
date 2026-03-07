@@ -84,6 +84,13 @@ for %%P in (x64 x86 ARM64) do (
 )
 echo.
 
+:: -- Cleanup: keep only .msixupload and .zip files --
+echo Cleaning up build artifacts...
+powershell -NoProfile -Command ^
+    "Get-ChildItem '%OUTDIR%' -Recurse -Force | Where-Object { -not $_.PSIsContainer } | Where-Object { $_.Extension -notin '.msixupload','.zip' } | Remove-Item -Force -ErrorAction SilentlyContinue; Get-ChildItem '%OUTDIR%' -Directory -Force | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue"
+echo [OK] Cleanup done
+echo.
+
 :: -- Results --
 if %FAILED%==0 (
     echo =========================================
