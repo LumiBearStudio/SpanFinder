@@ -72,6 +72,20 @@ if %ERRORLEVEL% NEQ 0 (
 )
 echo.
 
+:: ── GitHub Release용 ZIP 생성 ──
+echo Creating ZIP packages for GitHub Release...
+for %%P in (x64 x86 ARM64) do (
+    set "TESTDIR=%OUTDIR%\Span_%VER%_%%P_Test"
+    set "ZIPFILE=%OUTDIR%\SpanFinder_v%VER%_%%P.zip"
+    if exist "%OUTDIR%\Span_%VER%_%%P_Test" (
+        powershell -NoProfile -Command "Compress-Archive -Path '%OUTDIR%\Span_%VER%_%%P_Test\*' -DestinationPath '%OUTDIR%\SpanFinder_v%VER%_%%P.zip' -Force"
+        echo [OK] SpanFinder_v%VER%_%%P.zip
+    ) else (
+        echo [SKIP] %%P test folder not found
+    )
+)
+echo.
+
 :: ── Results ──
 if %FAILED%==0 (
     echo =========================================
@@ -85,11 +99,10 @@ if %FAILED%==0 (
 echo.
 echo Output: %OUTDIR%
 echo.
-echo MSIX uploads:
+echo --- MS Store uploads (.msixupload) ---
 dir /b "%OUTDIR%\*.msixupload" 2>nul
 echo.
-echo ZIP packages:
-dir /b "%OUTDIR%\*_Test\*.zip" 2>nul
-if not exist "%OUTDIR%\*_Test\*.zip" dir /b /s "%OUTDIR%\*.msix" 2>nul
+echo --- GitHub Release (.zip) ---
+dir /b "%OUTDIR%\*.zip" 2>nul
 echo.
 pause
