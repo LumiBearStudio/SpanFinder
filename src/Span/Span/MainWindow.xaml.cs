@@ -1138,7 +1138,7 @@ namespace Span
 
             // Miller Columns가 아닌 뷰 모드에서는 ItemsControl이 unloaded 상태이므로
             // ContainerFromIndex/ScrollToLastColumn이 AccessViolationException을 일으킬 수 있음
-            if (ViewModel.CurrentViewMode != ViewMode.MillerColumns) return;
+            if (ViewModel == null || ViewModel.CurrentViewMode != ViewMode.MillerColumns) return;
 
             if (e.Action == NotifyCollectionChangedAction.Add ||
                 e.Action == NotifyCollectionChangedAction.Replace)

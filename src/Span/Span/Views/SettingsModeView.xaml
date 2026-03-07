@@ -238,44 +238,39 @@
                         SizeChanged="SettingsNav_SizeChanged"
                         Background="Transparent">
 
-            <NavigationView.MenuItemContainerStyle>
-                <Style TargetType="NavigationViewItem">
-                    <Setter Property="helpers:CursorHelper.IsHandCursor" Value="True"/>
-                </Style>
-            </NavigationView.MenuItemContainerStyle>
             <NavigationView.MenuItems>
-                <NavigationViewItem x:Name="NavGeneral" Content="일반" Tag="General" IsSelected="True">
+                <NavigationViewItem x:Name="NavGeneral" Content="일반" Tag="General" IsSelected="True" helpers:CursorHelper.IsHandCursor="True">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE713;" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem x:Name="NavAppearance" Content="모양" Tag="Appearance">
+                <NavigationViewItem x:Name="NavAppearance" Content="모양" Tag="Appearance" helpers:CursorHelper.IsHandCursor="True">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE790;" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem x:Name="NavBrowsing" Content="탐색" Tag="Browsing">
+                <NavigationViewItem x:Name="NavBrowsing" Content="탐색" Tag="Browsing" helpers:CursorHelper.IsHandCursor="True">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE8B0;" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem x:Name="NavTools" Content="도구" Tag="Tools">
+                <NavigationViewItem x:Name="NavTools" Content="도구" Tag="Tools" helpers:CursorHelper.IsHandCursor="True">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE756;" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem x:Name="NavAdvanced" Content="고급" Tag="Advanced">
+                <NavigationViewItem x:Name="NavAdvanced" Content="고급" Tag="Advanced" helpers:CursorHelper.IsHandCursor="True">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE90F;" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
                 <NavigationViewItemSeparator />
-                <NavigationViewItem x:Name="NavAbout" Content="정보" Tag="About">
+                <NavigationViewItem x:Name="NavAbout" Content="정보" Tag="About" helpers:CursorHelper.IsHandCursor="True">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE946;" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem x:Name="NavOpenSource" Content="오픈소스" Tag="OpenSource">
+                <NavigationViewItem x:Name="NavOpenSource" Content="오픈소스" Tag="OpenSource" helpers:CursorHelper.IsHandCursor="True">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE943;" />
                     </NavigationViewItem.Icon>

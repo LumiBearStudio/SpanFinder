@@ -107,7 +107,7 @@ namespace Span.ViewModels
         public async Task ExecuteFileOperationAsync(IFileOperation operation, int? targetColumnIndex = null)
         {
             Helpers.DebugLogger.Log($"[ExecuteFileOperationAsync] START - Operation: {operation.Description}, TargetColumnIndex: {targetColumnIndex}");
-            Helpers.DebugLogger.Log($"[ExecuteFileOperationAsync] Columns: {string.Join(" > ", ActiveExplorer.Columns.Select(c => c.Name))}");
+            Helpers.DebugLogger.Log($"[ExecuteFileOperationAsync] Columns: {string.Join(" > ", ActiveExplorer?.Columns?.Select(c => c.Name) ?? Array.Empty<string>())}");
 
             // Copy/Move operations go through the FileOperationManager for concurrent execution
             // with pause/resume/cancel support. Other operations use the legacy synchronous path.

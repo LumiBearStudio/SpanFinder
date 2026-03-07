@@ -19,11 +19,13 @@ namespace Span.Services;
 /// </summary>
 public sealed class CrashReportingService : IDisposable
 {
-    // Sentry DSN: 환경변수 SPAN_SENTRY_DSN 또는 앱 설정에서 로드
-    // 빌드 시 CI/CD에서 주입하거나 로컬 개발 시 환경변수로 설정
+    // Sentry DSN: 환경변수 > 앱 설정 > 기본값 순으로 로드
+    // Note: Sentry DSN은 이벤트 전송 전용 (읽기 불가)이므로 클라이언트 앱에 포함해도 안전
+    private const string DefaultDsn = "https://a7e1e9d16763c38024a495176e723b2a@o4510949994266624.ingest.de.sentry.io/4510950010191952";
     private static readonly string? SentryDsn =
         Environment.GetEnvironmentVariable("SPAN_SENTRY_DSN")
-        ?? GetDsnFromAppSettings();
+        ?? GetDsnFromAppSettings()
+        ?? DefaultDsn;
 
     private volatile IDisposable? _sentryDisposable;
     private volatile bool _isEnabled;

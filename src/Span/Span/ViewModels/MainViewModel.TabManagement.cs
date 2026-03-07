@@ -159,14 +159,17 @@ namespace Span.ViewModels
                     var old = _leftExplorer;
                     if (old != null) old.PropertyChanged -= OnLeftExplorerPropertyChanged;
                     _leftExplorer = Tabs[index].Explorer!;
-                    if (_leftExplorer != null) _leftExplorer.PropertyChanged += OnLeftExplorerPropertyChanged;
+                    if (_leftExplorer != null)
+                    {
+                        _leftExplorer.PropertyChanged += OnLeftExplorerPropertyChanged;
+                        _leftExplorer.EnableAutoNavigation = ShouldAutoNavigate(Tabs[index].ViewMode);
+                    }
 
                     // ★ ViewMode도 backing field 직접 설정 — PropertyChanged 미발생
                     _currentViewMode = Tabs[index].ViewMode;
                     _leftViewMode = Tabs[index].ViewMode;
                     if (Helpers.ViewModeExtensions.IsIconMode(Tabs[index].ViewMode))
                         _currentIconSize = Tabs[index].IconSize;
-                    _leftExplorer.EnableAutoNavigation = ShouldAutoNavigate(Tabs[index].ViewMode);
                 }
 
                 Helpers.DebugLogger.Log($"[MainViewModel] Switched to tab {index}: {Tabs[index].Header}");

@@ -91,7 +91,10 @@ namespace Span
             Helpers.DebugLogger.Log($"[GetActiveColumnIndex] focused={focused?.GetType().Name ?? "null"} ({(focused as FrameworkElement)?.Name ?? ""})");
             if (focused == null) return -1;
 
-            for (int i = 0; i < ViewModel.ActiveExplorer.Columns.Count; i++)
+            var explorer = ViewModel.ActiveExplorer;
+            if (explorer == null) return -1;
+
+            for (int i = 0; i < explorer.Columns.Count; i++)
             {
                 var listView = GetListViewForColumn(i);
                 if (listView != null && IsDescendant(listView, focused))
@@ -112,7 +115,9 @@ namespace Span
         /// </summary>
         private int GetCurrentColumnIndex()
         {
-            var columns = ViewModel.ActiveExplorer.Columns;
+            var explorer = ViewModel.ActiveExplorer;
+            if (explorer == null) return -1;
+            var columns = explorer.Columns;
             if (columns.Count == 0) return -1;
 
             // First try to get the focused column
@@ -467,31 +472,38 @@ namespace Span
             if (_isClosed) return;
             if (!DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, async () =>
             {
-                if (_isClosed) return;
-
-                // Retry up to 5 times (50ms each) to wait for column rendering
-                for (int attempt = 0; attempt < 5; attempt++)
+                try
                 {
-                    var columns = ViewModel.ActiveExplorer?.Columns;
-                    if (columns == null || columns.Count == 0) break;
+                    if (_isClosed) return;
 
-                    int targetIndex = columns.Count - 1;
-                    var listView = GetListViewForColumn(targetIndex);
-                    if (listView != null)
+                    // Retry up to 5 times (50ms each) to wait for column rendering
+                    for (int attempt = 0; attempt < 5; attempt++)
                     {
-                        FocusColumnAsync(targetIndex);
-                        return;
+                        var columns = ViewModel.ActiveExplorer?.Columns;
+                        if (columns == null || columns.Count == 0) break;
+
+                        int targetIndex = columns.Count - 1;
+                        var listView = GetListViewForColumn(targetIndex);
+                        if (listView != null)
+                        {
+                            FocusColumnAsync(targetIndex);
+                            return;
+                        }
+
+                        await Task.Delay(50);
+                        if (_isClosed) return;
                     }
 
-                    await Task.Delay(50);
-                    if (_isClosed) return;
+                    // Last resort: try focusing anyway
+                    var cols = ViewModel.ActiveExplorer?.Columns;
+                    if (cols != null && cols.Count > 0)
+                    {
+                        FocusColumnAsync(cols.Count - 1);
+                    }
                 }
-
-                // Last resort: try focusing anyway
-                var cols = ViewModel.ActiveExplorer?.Columns;
-                if (cols != null && cols.Count > 0)
+                catch (Exception ex)
                 {
-                    FocusColumnAsync(cols.Count - 1);
+                    Helpers.DebugLogger.Log($"[FocusLastColumn] Error: {ex.Message}");
                 }
             })) { /* DispatcherQueue shut down */ }
         }
@@ -567,7 +579,7 @@ namespace Span
         /// </summary>
         private void OnCopyPathClick(object sender, RoutedEventArgs e)
         {
-            var path = ViewModel.ActiveExplorer.CurrentPath;
+            var path = ViewModel.ActiveExplorer?.CurrentPath;
             if (!string.IsNullOrEmpty(path))
             {
                 var dataPackage = new DataPackage();

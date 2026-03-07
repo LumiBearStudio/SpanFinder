@@ -124,8 +124,14 @@ namespace Span
             }
             _lastCrashTime = now;
             // Sentry: DI 서비스 우선, 실패 시 static fallback (FlushAsync 포함)
-            try { Services.GetRequiredService<Services.CrashReportingService>().CaptureException(e.Exception, "UI.UnhandledException"); }
-            catch { Span.Services.CrashReportingService.CaptureFatalException(e.Exception, "UI.UnhandledException"); }
+            try
+            {
+                var crashSvc = Services.GetRequiredService<Services.CrashReportingService>();
+                crashSvc.CaptureException(e.Exception, "UI.UnhandledException");
+            }
+            catch { }
+            // Static fallback도 항상 시도 (인스턴스 메서드가 조용히 return할 수 있으므로)
+            Span.Services.CrashReportingService.CaptureFatalException(e.Exception, "UI.UnhandledException");
             e.Handled = true;
         }
 

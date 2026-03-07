@@ -580,7 +580,9 @@ namespace Span
                       .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
             if (ctrl || alt) return;
 
-            var columns = ViewModel.ActiveExplorer.Columns;
+            var explorer = ViewModel.ActiveExplorer;
+            if (explorer == null) return;
+            var columns = explorer.Columns;
             if (columns.Count == 0) return;
 
             int activeIndex = GetActiveColumnIndex();
