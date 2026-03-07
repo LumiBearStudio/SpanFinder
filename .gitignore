@@ -14,6 +14,7 @@ Thumbs.db
 *.pdb
 *.cache
 AppPackages/
+builds/
 
 # Development internal files
 .claude/
