@@ -566,11 +566,12 @@ namespace Span.Services
                 }
 
                 // Get text (second pass)
+                // OwnerDrawn 항목(반디집, 7-Zip 등)도 텍스트를 설정하는 경우가 많으므로
+                // 항상 MIIM_STRING으로 텍스트 읽기를 시도한다.
                 string text = string.Empty;
                 string? accelerator = null;
                 bool isOwnerDrawn = (mii.fType & MFT_OWNERDRAW) != 0;
 
-                if (!isOwnerDrawn)
                 {
                     // Get text length first
                     var miiText = new MENUITEMINFOW

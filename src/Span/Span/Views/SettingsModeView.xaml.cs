@@ -194,6 +194,7 @@ public sealed partial class SettingsModeView : UserControl
                 _ => 0
             };
             ShellExtrasToggle.IsOn = _settings.ShowWindowsShellExtras;
+            ShellExtensionsToggle.IsOn = _settings.ShowShellExtensions;
             DeveloperMenuToggle.IsOn = _settings.ShowDeveloperMenu;
             GitIntegrationToggle.IsOn = _settings.ShowGitIntegration;
             HexPreviewToggle.IsOn = _settings.ShowHexPreview;
@@ -341,6 +342,7 @@ public sealed partial class SettingsModeView : UserControl
             };
         };
         ShellExtrasToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowWindowsShellExtras = ShellExtrasToggle.IsOn; };
+        ShellExtensionsToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowShellExtensions = ShellExtensionsToggle.IsOn; };
         DeveloperMenuToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowDeveloperMenu = DeveloperMenuToggle.IsOn; };
         GitIntegrationToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowGitIntegration = GitIntegrationToggle.IsOn; };
         HexPreviewToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowHexPreview = HexPreviewToggle.IsOn; };
@@ -361,7 +363,7 @@ public sealed partial class SettingsModeView : UserControl
 
         foreach (var toggle in new[] {
             FavoritesTreeToggle, SystemTrayToggle, WindowPositionToggle,
-            ShellExtrasToggle, DeveloperMenuToggle, GitIntegrationToggle,
+            ShellExtrasToggle, ShellExtensionsToggle, DeveloperMenuToggle, GitIntegrationToggle,
             HexPreviewToggle, CopilotMenuToggle, ContextMenuToggle, CrashReportToggle,
             DefaultPreviewToggle })
             Helpers.CursorHelper.SetHandCursor(toggle);
@@ -571,6 +573,8 @@ public sealed partial class SettingsModeView : UserControl
             ToolsTitle.Text = _loc.Get("Settings_Tools");
             ShellExtLabel.Text = _loc.Get("Settings_ShellExtras");
             ShellExtDesc.Text = _loc.Get("Settings_ShellExtrasDesc");
+            ShellExtensionsLabel.Text = _loc.Get("Settings_ShellExtensions");
+            ShellExtensionsDesc.Text = _loc.Get("Settings_ShellExtensionsDesc");
             CopilotLabel.Text = _loc.Get("Settings_CopilotMenu");
             CopilotDesc.Text = _loc.Get("Settings_CopilotMenuDesc");
             CtxMenuLabel.Text = _loc.Get("Settings_ContextMenu");

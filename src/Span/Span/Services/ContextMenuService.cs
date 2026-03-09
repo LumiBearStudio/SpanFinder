@@ -37,6 +37,45 @@ namespace Span.Services
         /// <summary>Callback invoked after a shell extension command completes to refresh the file list.</summary>
         public Action? ShellCommandExecutedCallback { get; set; }
 
+        /// <summary>마지막 메뉴 빌드 컨텍스트 (셸 확장 재표시용)</summary>
+        private FileSystemViewModel? _lastMenuTarget;
+        private IContextMenuHost? _lastMenuHost;
+        private Microsoft.UI.Xaml.FrameworkElement? _lastMenuElement;
+        private Windows.Foundation.Point _lastMenuPosition;
+
+        /// <summary>셸 확장 재표시를 위해 마지막 우클릭 컨텍스트를 저장한다.</summary>
+        public void SetLastMenuContext(FileSystemViewModel target, IContextMenuHost host,
+            Microsoft.UI.Xaml.FrameworkElement element, Windows.Foundation.Point position)
+        {
+            _lastMenuTarget = target;
+            _lastMenuHost = host;
+            _lastMenuElement = element;
+            _lastMenuPosition = position;
+        }
+
+        /// <summary>셸 확장 포함으로 메뉴를 재빌드하여 같은 위치에 다시 표시한다.</summary>
+        public async Task RebuildMenuWithShellExtensionsAsync()
+        {
+            if (_lastMenuTarget == null || _lastMenuHost == null || _lastMenuElement == null)
+                return;
+
+            // 현재 열린 메뉴 닫기
+            _activeFlyout?.Hide();
+
+            MenuFlyout flyout;
+            if (_lastMenuTarget is FolderViewModel folder)
+                flyout = await BuildFolderMenuAsync(folder, _lastMenuHost, forceShellExtensions: true);
+            else if (_lastMenuTarget is FileViewModel file)
+                flyout = await BuildFileMenuAsync(file, _lastMenuHost, forceShellExtensions: true);
+            else
+                return;
+
+            flyout.ShowAt(_lastMenuElement, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
+            {
+                Position = _lastMenuPosition
+            });
+        }
+
         /// <summary>Lazy XamlRoot provider (Content.XamlRoot is only available after Loaded)</summary>
         public Func<Microsoft.UI.Xaml.XamlRoot?>? XamlRootProvider { get; set; }
 
@@ -269,7 +308,7 @@ namespace Span.Services
             _settings = settingsService;
         }
 
-        public async Task<MenuFlyout> BuildFileMenuAsync(FileViewModel file, IContextMenuHost host)
+        public async Task<MenuFlyout> BuildFileMenuAsync(FileViewModel file, IContextMenuHost host, bool forceShellExtensions = false)
         {
             var menu = new MenuFlyout();
             bool isRemote = FileSystemRouter.IsRemotePath(file.Path);
@@ -328,7 +367,7 @@ namespace Span.Services
 
                 // Shell 항목: 캐시 히트 → 메뉴 표시 전 삽입 + 백그라운드 재검증
                 //              캐시 미스 → await로 대기 후 삽입 (최대 1.5초)
-                await AppendShellExtensionItemsAsync(menu, file.Path);
+                await AppendShellExtensionItemsAsync(menu, file.Path, forceShellExtensions);
             }
 
             // Cleanup session when menu closes
@@ -338,7 +377,7 @@ namespace Span.Services
             return menu;
         }
 
-        public async Task<MenuFlyout> BuildFolderMenuAsync(FolderViewModel folder, IContextMenuHost host)
+        public async Task<MenuFlyout> BuildFolderMenuAsync(FolderViewModel folder, IContextMenuHost host, bool forceShellExtensions = false)
         {
             var menu = new MenuFlyout();
             bool isRemote = FileSystemRouter.IsRemotePath(folder.Path);
@@ -387,7 +426,7 @@ namespace Span.Services
             // Shell 항목: 캐시 히트 → 메뉴 표시 전 삽입 + 백그라운드 재검증
             //              캐시 미스 → await로 대기 후 삽입 (최대 1.5초)
             if (!isRemote)
-                await AppendShellExtensionItemsAsync(menu, folder.Path);
+                await AppendShellExtensionItemsAsync(menu, folder.Path, forceShellExtensions);
 
             menu.Closed += OnMenuClosed;
             TrackFlyout(menu);
@@ -559,9 +598,22 @@ namespace Span.Services
         /// <summary>
         /// Shell 확장 항목을 메뉴에 추가 (await로 대기, 최대 1.5초 타임아웃).
         /// </summary>
-        private Task AppendShellExtensionItemsAsync(MenuFlyout menu, string path)
+        private Task AppendShellExtensionItemsAsync(MenuFlyout menu, string path, bool forceLoad = false)
         {
             if (OwnerHwnd == IntPtr.Zero) return Task.CompletedTask;
+
+            // ShowShellExtensions OFF + forceLoad가 아닌 경우 → "셸 확장 항목 표시" 메뉴만 추가
+            if (!forceLoad && !_settings.ShowShellExtensions)
+            {
+                var showShellItem = CreateItem(_loc.Get("Shell_ShowExtensions"), "\uE8B7", async () =>
+                {
+                    await RebuildMenuWithShellExtensionsAsync();
+                });
+                menu.Items.Add(new MenuFlyoutSeparator());
+                menu.Items.Add(showShellItem);
+                return Task.CompletedTask;
+            }
+
             return AppendShellExtensionItemsCoreAsync(menu, path);
         }
 
@@ -613,8 +665,6 @@ namespace Span.Services
             if (_currentSession == null || _currentSession.Items.Count == 0)
                 return;
 
-            if (!menu.IsOpen) return; // Menu was closed while loading
-
             InsertShellItemsToMenu(menu, _currentSession.Items);
             Helpers.DebugLogger.Log($"[ContextMenuService] Shell items inserted: menu.Items.Count={menu.Items.Count}");
         }
@@ -645,8 +695,10 @@ namespace Span.Services
                         continue;
                     }
 
-                    // OwnerDrawn 항목은 WinUI MenuFlyout으로 표현 불가 — 스킵
-                    if (shellItem.IsOwnerDrawn && string.IsNullOrWhiteSpace(shellItem.Text))
+                    // OwnerDrawn 항목: 텍스트도 verb도 없으면 WinUI로 표현 불가 → 스킵
+                    // 반디집, 7-Zip 등은 OwnerDrawn이면서 텍스트를 설정하므로 통과시킨다.
+                    if (shellItem.IsOwnerDrawn && string.IsNullOrWhiteSpace(shellItem.Text)
+                        && string.IsNullOrEmpty(shellItem.Verb))
                         continue;
 
                     if (!showCopilot && IsCopilotItem(shellItem)) continue;

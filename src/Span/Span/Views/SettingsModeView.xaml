@@ -1225,6 +1225,25 @@
                                 </Grid>
                             </Border>
 
+                            <!-- Shell Extensions (3rd party) -->
+                            <Border Style="{StaticResource SettingsCardBorder}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Style="{StaticResource CardIconContainer}">
+                                        <FontIcon Glyph="&#xE74C;" Style="{StaticResource CardIconStyle}" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock x:Name="ShellExtensionsLabel" Text="셸 확장 프로그램" Style="{StaticResource SettingsCardLabel}" />
+                                        <TextBlock x:Name="ShellExtensionsDesc" Text="우클릭 메뉴에 Bandizip, 7-Zip 등 셸 확장 항목 표시" Style="{StaticResource SettingsCardDesc}" />
+                                    </StackPanel>
+                                    <ToggleSwitch x:Name="ShellExtensionsToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="False" OnContent="" OffContent="" />
+                                </Grid>
+                            </Border>
+
                             <!-- Copilot Menu Toggle -->
                             <Border Style="{StaticResource SettingsCardBorder}">
                                 <Grid>

@@ -210,6 +210,12 @@ public class SettingsService : ISettingsService
         set => Set("EnableCrashReporting", value);
     }
 
+    public bool ShowShellExtensions
+    {
+        get => Get("ShowShellExtensions", false);
+        set => Set("ShowShellExtensions", value);
+    }
+
     public bool ShowWindowsShellExtras
     {
         get => Get("ShowWindowsShellExtras", true);
