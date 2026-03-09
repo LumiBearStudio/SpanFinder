@@ -5,7 +5,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    MaxWidth="720"
+    MaxWidth="1020"
     HorizontalAlignment="Center"
     VerticalAlignment="Center">
 
@@ -40,8 +40,7 @@
 
     <Border Background="{ThemeResource SpanBgLayer1Brush}"
             BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="1"
-            CornerRadius="12" Padding="28,24"
-            MaxHeight="620"
+            CornerRadius="12" Padding="24,20"
             Opacity="0.90">
         <Border.Shadow>
             <ThemeShadow/>
@@ -55,31 +54,28 @@
             </Grid.RowDefinitions>
 
             <!-- Title -->
-            <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="10" Margin="0,0,0,16">
+            <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="10" Margin="0,0,0,14">
                 <FontIcon Glyph="&#xE897;" FontSize="18"
                           Foreground="{ThemeResource SpanAccentBrush}"/>
                 <TextBlock x:Name="HelpTitleText" Text="키보드 단축키" FontSize="18" FontWeight="SemiBold"
                            Foreground="{ThemeResource SpanTextPrimaryBrush}"/>
             </StackPanel>
 
-            <!-- Content: 2-column layout -->
+            <!-- Content: 3-column layout -->
             <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                <Grid ColumnSpacing="32" RowSpacing="20">
+                <Grid ColumnSpacing="28" RowSpacing="16">
                     <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
-                    <!-- ===== Left Column ===== -->
-
-                    <!-- 탐색 -->
-                    <StackPanel Grid.Row="0" Grid.Column="0" Spacing="5">
+                    <!-- ===== Row 0, Col 0: 탐색 ===== -->
+                    <StackPanel Grid.Row="0" Grid.Column="0" Spacing="4">
                         <TextBlock x:Name="NavHeader" Style="{StaticResource CategoryHeader}" Text="탐색"/>
                         <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="← →"/></Border>
@@ -107,8 +103,8 @@
                             <TextBlock x:Name="DescQuickLook" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="Quick Look 미리보기"/></Grid>
                     </StackPanel>
 
-                    <!-- 편집 -->
-                    <StackPanel Grid.Row="1" Grid.Column="0" Spacing="5">
+                    <!-- ===== Row 0, Col 1: 편집 ===== -->
+                    <StackPanel Grid.Row="0" Grid.Column="1" Spacing="4">
                         <TextBlock x:Name="EditHeader" Style="{StaticResource CategoryHeader}" Text="편집"/>
                         <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+C"/></Border>
@@ -142,24 +138,8 @@
                             <TextBlock x:Name="DescUndoRedo" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="실행 취소 / 다시 실행"/></Grid>
                     </StackPanel>
 
-                    <!-- ===== Right Column ===== -->
-
-                    <!-- 선택 -->
-                    <StackPanel Grid.Row="0" Grid.Column="1" Spacing="5">
-                        <TextBlock x:Name="SelectionHeader" Style="{StaticResource CategoryHeader}" Text="선택"/>
-                        <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                            <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+A"/></Border>
-                            <TextBlock x:Name="DescSelectAll" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="전체 선택"/></Grid>
-                        <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                            <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+Shift+A"/></Border>
-                            <TextBlock x:Name="DescDeselectAll" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="선택 해제"/></Grid>
-                        <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                            <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+I"/></Border>
-                            <TextBlock x:Name="DescInvertSel" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="선택 반전"/></Grid>
-                    </StackPanel>
-
-                    <!-- 보기 & 레이아웃 -->
-                    <StackPanel Grid.Row="1" Grid.Column="1" Spacing="5">
+                    <!-- ===== Row 0, Col 2: 보기 ===== -->
+                    <StackPanel Grid.Row="0" Grid.Column="2" Spacing="4">
                         <TextBlock x:Name="ViewHeader" Style="{StaticResource CategoryHeader}" Text="보기"/>
                         <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+1"/></Border>
@@ -193,8 +173,22 @@
                             <TextBlock x:Name="DescRefresh" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="새로고침"/></Grid>
                     </StackPanel>
 
-                    <!-- 창 & 탭 -->
-                    <StackPanel Grid.Row="2" Grid.Column="0" Spacing="5">
+                    <!-- ===== Row 1, Col 0: 선택 ===== -->
+                    <StackPanel Grid.Row="1" Grid.Column="0" Spacing="4">
+                        <TextBlock x:Name="SelectionHeader" Style="{StaticResource CategoryHeader}" Text="선택"/>
+                        <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+A"/></Border>
+                            <TextBlock x:Name="DescSelectAll" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="전체 선택"/></Grid>
+                        <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+Shift+A"/></Border>
+                            <TextBlock x:Name="DescDeselectAll" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="선택 해제"/></Grid>
+                        <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+I"/></Border>
+                            <TextBlock x:Name="DescInvertSel" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="선택 반전"/></Grid>
+                    </StackPanel>
+
+                    <!-- ===== Row 1, Col 1: 창 / 탭 ===== -->
+                    <StackPanel Grid.Row="1" Grid.Column="1" Spacing="4">
                         <TextBlock x:Name="WindowTabHeader" Style="{StaticResource CategoryHeader}" Text="창 / 탭"/>
                         <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+T"/></Border>
@@ -223,7 +217,7 @@
             </ScrollViewer>
 
             <!-- Footer hint -->
-            <TextBlock x:Name="FooterHint" Grid.Row="2" Margin="0,16,0,0"
+            <TextBlock x:Name="FooterHint" Grid.Row="2" Margin="0,14,0,0"
                        HorizontalAlignment="Center"
                        FontSize="11" Foreground="{ThemeResource SpanTextSecondaryBrush}"
                        Text="Esc 또는 아무 곳이나 클릭하여 닫기"/>

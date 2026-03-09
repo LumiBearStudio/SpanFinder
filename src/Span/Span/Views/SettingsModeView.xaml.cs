@@ -69,13 +69,6 @@ public sealed partial class SettingsModeView : UserControl
         LoadSettingsToUI();
     }
 
-    // ── Back button ──
-
-    private void OnBackClick(object sender, RoutedEventArgs e)
-    {
-        BackRequested?.Invoke(this, EventArgs.Empty);
-    }
-
     // ── Load saved settings into UI controls ──
 
     private void LoadSettingsToUI()

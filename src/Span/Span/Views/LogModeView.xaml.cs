@@ -90,13 +90,6 @@ public sealed partial class LogModeView : UserControl
             NavFilterError.Content = $"{(_loc?.Get("FilterError") ?? "오류")} ({errorCount})";
     }
 
-    // ── Back button ──
-
-    private void OnBackClick(object sender, RoutedEventArgs e)
-    {
-        BackRequested?.Invoke(this, EventArgs.Empty);
-    }
-
     // ── NavigationView ──
 
     private void LogNav_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)

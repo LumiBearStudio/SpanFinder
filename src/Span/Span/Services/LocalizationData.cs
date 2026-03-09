@@ -13,7 +13,7 @@ namespace Span.Services
             ("Delete", "Delete", "삭제", "削除", "删除", "刪除", "Löschen", "Eliminar", "Supprimer", "Excluir"),
             ("Rename", "Rename", "이름 바꾸기", "名前の変更", "重命名", "重新命名", "Umbenennen", "Cambiar nombre", "Renommer", "Renomear"),
             ("CopyPath", "Copy path", "경로 복사", "パスをコピー", "复制路径", "複製路徑", "Pfad kopieren", "Copiar ruta", "Copier le chemin", "Copiar caminho"),
-            ("OpenInExplorer", "Open in SPAN", "SPAN으로 열기", "SPANで開く", "在SPAN中打开", "在SPAN中開啟", "In SPAN öffnen", "Abrir en SPAN", "Ouvrir dans SPAN", "Abrir no SPAN"),
+            ("OpenInExplorer", "Open in Explorer", "파일 탐색기에서 열기", "エクスプローラーで開く", "在资源管理器中打开", "在檔案總管中開啟", "Im Explorer öffnen", "Abrir en Explorador", "Ouvrir dans l'Explorateur", "Abrir no Explorador"),
             ("Properties", "Properties", "속성", "プロパティ", "属性", "內容", "Eigenschaften", "Propiedades", "Propriétés", "Propriedades"),
             ("AddToFavorites", "Add to favorites", "즐겨찾기에 추가", "お気に入りに追加", "添加到收藏夹", "新增到我的最愛", "Zu Favoriten hinzufügen", "Agregar a favoritos", "Ajouter aux favoris", "Adicionar aos favoritos"),
             ("RemoveFromFavorites", "Remove from favorites", "즐겨찾기에서 제거", "お気に入りから削除", "从收藏夹中删除", "從我的最愛中移除", "Aus Favoriten entfernen", "Quitar de favoritos", "Supprimer des favoris", "Remover dos favoritos"),

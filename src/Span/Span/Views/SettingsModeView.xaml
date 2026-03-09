@@ -215,12 +215,9 @@
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
-            <Button x:Name="BackButton" Grid.Column="0" Click="OnBackClick"
-                    Background="Transparent" BorderThickness="0"
-                    Padding="8,6" CornerRadius="6" VerticalAlignment="Center"
-                    ToolTipService.ToolTip="뒤로">
-                <FontIcon Glyph="&#xE72B;" FontSize="14"/>
-            </Button>
+            <FontIcon Grid.Column="0" Glyph="&#xE713;" FontSize="18"
+                      Foreground="{ThemeResource SpanAccentBrush}"
+                      VerticalAlignment="Center" Margin="4,0,0,0"/>
             <TextBlock x:Name="SettingsTitle" Grid.Column="1" Text="설정" FontSize="20" FontWeight="SemiBold"
                        VerticalAlignment="Center" Margin="12,0,0,0"/>
         </Grid>
@@ -1408,7 +1405,7 @@
                                         <FontIcon Glyph="&#xE80F;" FontSize="40" Foreground="{ThemeResource SpanAccentBrush}" />
                                         <StackPanel Spacing="2">
                                             <TextBlock Text="SPAN Finder" FontSize="22" FontWeight="Bold" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
-                                            <TextBlock Text="v1.0.5 (Build 20260307)" FontSize="12" Foreground="{ThemeResource SpanTextSecondaryBrush}" />
+                                            <TextBlock Text="v1.0.6 (Build 20260310)" FontSize="12" Foreground="{ThemeResource SpanTextSecondaryBrush}" />
                                         </StackPanel>
                                     </StackPanel>
                                     <Button x:Name="UpdateButton" Grid.Column="1" VerticalAlignment="Center"
