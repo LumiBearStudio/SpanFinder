@@ -175,6 +175,7 @@ namespace Span
             services.AddSingleton<Services.GitStatusService>();
             services.AddSingleton<Services.CrashReportingService>();
             services.AddSingleton<Services.JumpListService>();
+            services.AddSingleton<Services.ArchiveReaderService>();
 
             // Interface registrations (for testability — resolve to same singleton)
             services.AddSingleton<Services.IFileSystemService>(sp => sp.GetRequiredService<Services.FileSystemService>());
@@ -191,10 +192,12 @@ namespace Span
 
             // File system provider abstraction
             services.AddSingleton<Services.LocalFileSystemProvider>();
+            services.AddSingleton<Services.ArchiveProvider>();
             services.AddSingleton<Services.FileSystemRouter>(sp =>
             {
                 var router = new Services.FileSystemRouter();
                 router.RegisterProvider(sp.GetRequiredService<Services.LocalFileSystemProvider>());
+                router.RegisterProvider(sp.GetRequiredService<Services.ArchiveProvider>());
                 return router;
             });
 

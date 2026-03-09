@@ -49,6 +49,12 @@ namespace Span.Services
             ".ttf", ".otf", ".woff", ".woff2", ".ttc"
         };
 
+        private static readonly HashSet<string> ArchiveExtensions = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".zip", ".7z", ".rar", ".tar", ".gz", ".bz2", ".xz",
+            ".tgz", ".tbz2", ".txz", ".iso", ".cab"
+        };
+
         private static readonly HashSet<string> BinaryExtensions = new(StringComparer.OrdinalIgnoreCase)
         {
             ".dll", ".exe", ".sys", ".bin", ".dat", ".so", ".dylib", ".o", ".obj",
@@ -72,6 +78,7 @@ namespace Span.Services
             if (PdfExtensions.Contains(ext)) return PreviewType.Pdf;
             if (MediaExtensions.Contains(ext)) return PreviewType.Media;
             if (FontExtensions.Contains(ext)) return PreviewType.Font;
+            if (ArchiveExtensions.Contains(ext)) return PreviewType.Archive;
             if (BinaryExtensions.Contains(ext)) return PreviewType.HexBinary;
 
             return PreviewType.Generic;

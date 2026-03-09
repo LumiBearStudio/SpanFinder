@@ -212,7 +212,9 @@ namespace Span.ViewModels
             _isNavigatingHistory = true;
             try
             {
-                if (FileSystemRouter.IsRemotePath(previousPath) || System.IO.Directory.Exists(previousPath))
+                if (FileSystemRouter.IsRemotePath(previousPath)
+                    || Helpers.ArchivePathHelper.IsArchivePath(previousPath)
+                    || System.IO.Directory.Exists(previousPath))
                 {
                     await NavigateToPath(previousPath);
                 }
@@ -254,7 +256,9 @@ namespace Span.ViewModels
             _isNavigatingHistory = true;
             try
             {
-                if (FileSystemRouter.IsRemotePath(nextPath) || System.IO.Directory.Exists(nextPath))
+                if (FileSystemRouter.IsRemotePath(nextPath)
+                    || Helpers.ArchivePathHelper.IsArchivePath(nextPath)
+                    || System.IO.Directory.Exists(nextPath))
                 {
                     await NavigateToPath(nextPath);
                 }
@@ -403,6 +407,51 @@ namespace Span.ViewModels
             PathSegments.Clear();
             if (string.IsNullOrWhiteSpace(path)) return;
 
+            // 아카이브 경로: archive://D:\8.ZIP\file.zip/src/main
+            // → [D:] > [8.ZIP] > [file.zip] > [src] > [main]
+            if (Helpers.ArchivePathHelper.IsArchivePath(path))
+            {
+                var (archiveFilePath, internalPath) = Helpers.ArchivePathHelper.Parse(path);
+
+                // 1) 아카이브 파일까지의 로컬 경로 세그먼트 (일반 폴더 탐색용)
+                var localParts = archiveFilePath.Split(
+                    System.IO.Path.DirectorySeparatorChar,
+                    System.StringSplitOptions.RemoveEmptyEntries);
+                string accumulated = string.Empty;
+                for (int i = 0; i < localParts.Length; i++)
+                {
+                    if (i == 0 && localParts[i].EndsWith(":"))
+                        accumulated = localParts[i] + "\\";
+                    else
+                        accumulated = System.IO.Path.Combine(accumulated, localParts[i]);
+
+                    bool isArchiveFile = (i == localParts.Length - 1);
+                    bool isLast = isArchiveFile && string.IsNullOrEmpty(internalPath);
+                    // 아카이브 파일 자체 세그먼트: FullPath는 archive:// URI
+                    var fullPath = isArchiveFile
+                        ? Helpers.ArchivePathHelper.Combine(archiveFilePath, "")
+                        : accumulated;
+                    PathSegments.Add(new PathSegment(localParts[i], fullPath, isLast));
+                }
+
+                // 2) 아카이브 내부 경로 세그먼트
+                if (!string.IsNullOrEmpty(internalPath))
+                {
+                    var internalParts = internalPath.Split('/', System.StringSplitOptions.RemoveEmptyEntries);
+                    string internalAccum = string.Empty;
+                    for (int i = 0; i < internalParts.Length; i++)
+                    {
+                        internalAccum = string.IsNullOrEmpty(internalAccum)
+                            ? internalParts[i]
+                            : internalAccum + "/" + internalParts[i];
+                        var segPath = Helpers.ArchivePathHelper.Combine(archiveFilePath, internalAccum);
+                        PathSegments.Add(new PathSegment(
+                            internalParts[i], segPath, i == internalParts.Length - 1));
+                    }
+                }
+                return;
+            }
+
             // 원격 URI 경로: ftp://user@host:21/upload/docs → [host:21] > [upload] > [docs]
             if (FileSystemRouter.IsRemotePath(path) && System.Uri.TryCreate(path, System.UriKind.Absolute, out var remoteUri))
             {
@@ -535,6 +584,13 @@ namespace Span.ViewModels
             // \\?\ 접두사 제거 (.NET 8은 long path를 네이티브 지원)
             if (path.StartsWith(@"\\?\"))
                 path = path.Substring(4);
+
+            // 아카이브 경로: archive:// 프리픽스가 있으면 아카이브 내부 탐색
+            if (Helpers.ArchivePathHelper.IsArchivePath(path))
+            {
+                await NavigateToArchivePath(path);
+                return;
+            }
 
             // 원격 경로: Directory.Exists 스킵, URI 그대로 사용
             if (FileSystemRouter.IsRemotePath(path))
@@ -693,6 +749,36 @@ namespace Span.ViewModels
                 Helpers.DebugLogger.Log($"[NavigateToPath] Restoring EnableAutoNavigation from {EnableAutoNavigation} to {previousAutoNav}");
                 EnableAutoNavigation = previousAutoNav;
                 Helpers.DebugLogger.Log($"[NavigateToPath] DONE. Columns={Columns.Count}, EnableAutoNav={EnableAutoNavigation}");
+            }
+        }
+
+        /// <summary>
+        /// archive:// 경로로 직접 탐색 (주소창 입력, 브레드크럼 클릭 등).
+        /// </summary>
+        private async Task NavigateToArchivePath(string archiveUri)
+        {
+            PushToHistory(archiveUri);
+
+            var (archiveFilePath, internalPath) = Helpers.ArchivePathHelper.Parse(archiveUri);
+            var archiveName = System.IO.Path.GetFileName(archiveFilePath);
+
+            var folder = new FolderItem
+            {
+                Name = string.IsNullOrEmpty(internalPath)
+                    ? archiveName
+                    : internalPath.Split('/').LastOrDefault(s => s.Length > 0) ?? archiveName,
+                Path = archiveUri
+            };
+
+            var wasNavigating = _isNavigatingHistory;
+            _isNavigatingHistory = true;
+            try
+            {
+                await NavigateTo(folder);
+            }
+            finally
+            {
+                _isNavigatingHistory = wasNavigating;
             }
         }
 
@@ -1073,6 +1159,13 @@ namespace Span.ViewModels
 
         private void HandleFileSelection(FileViewModel fileVm, int nextIndex)
         {
+            // Archive files: navigate into them like folders
+            if (Helpers.ArchivePathHelper.IsArchiveFile(fileVm.Path))
+            {
+                _ = NavigateIntoArchiveAsync(fileVm, nextIndex);
+                return;
+            }
+
             Helpers.DebugLogger.Log($"[HandleFileSelection] file='{fileVm.Name}', nextIndex={nextIndex}");
             RemoveColumnsFrom(nextIndex);
             // Finder behavior: tab shows parent folder name, not file name
@@ -1081,6 +1174,48 @@ namespace Span.ViewModels
                 CurrentPath = parentDir;
             SelectedFile = fileVm;
             UpdatePathHighlights();
+        }
+
+        /// <summary>
+        /// 압축 파일을 폴더처럼 열어 Miller Column에 표시한다.
+        /// </summary>
+        private async Task NavigateIntoArchiveAsync(FileViewModel archiveFile, int nextIndex)
+        {
+            Helpers.DebugLogger.Log($"[NavigateIntoArchive] archive='{archiveFile.Name}', nextIndex={nextIndex}");
+
+            var archiveFolderPath = Helpers.ArchivePathHelper.Combine(archiveFile.Path, "");
+            var archiveFolder = new Models.FolderItem
+            {
+                Name = archiveFile.Name,
+                Path = archiveFolderPath,
+                DateModified = (archiveFile.Model is Models.FileItem fi) ? fi.DateModified : DateTime.Now,
+            };
+
+            var folderVm = new FolderViewModel(archiveFolder, _fileService);
+            folderVm.PropertyChanged -= FolderVm_PropertyChanged;
+            folderVm.LoadError -= OnColumnLoadError;
+            folderVm.PropertyChanged += FolderVm_PropertyChanged;
+            folderVm.LoadError += OnColumnLoadError;
+
+            if (nextIndex < Columns.Count)
+            {
+                var old = Columns[nextIndex];
+                old.PropertyChanged -= FolderVm_PropertyChanged;
+                old.LoadError -= OnColumnLoadError;
+                old.CancelLoading();
+                old.SelectedChild = null;
+                Columns[nextIndex] = folderVm;
+            }
+            else
+            {
+                Columns.Add(folderVm);
+            }
+            RemoveColumnsFrom(nextIndex + 1);
+
+            await folderVm.EnsureChildrenLoadedAsync();
+
+            CurrentPath = archiveFolderPath; // triggers OnCurrentPathChanged → UpdatePathSegments
+            SelectedFile = null;
         }
 
         private void HandleNullSelection(FolderViewModel parentFolder, int nextIndex)

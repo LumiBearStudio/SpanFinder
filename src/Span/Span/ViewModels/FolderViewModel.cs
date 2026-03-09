@@ -416,11 +416,16 @@ namespace Span.ViewModels
                 var folderPath = _folderModel.Path;
 
                 var cached = folderCache?.TryGet(folderPath, showHidden);
+                Helpers.DebugLogger.Log($"[EnsureChildrenLoaded] path='{folderPath}', cached={cached != null}, isArchive={Helpers.ArchivePathHelper.IsArchivePath(folderPath)}, isRemote={FileSystemRouter.IsRemotePath(folderPath)}");
                 if (cached != null)
                 {
                     // Yield to let UI render ProgressRing before synchronous cache load
                     await Task.Yield();
                     await LoadFromCacheAsync(cached, token);
+                }
+                else if (Helpers.ArchivePathHelper.IsArchivePath(folderPath))
+                {
+                    await LoadFromArchiveAsync(folderPath, token);
                 }
                 else if (FileSystemRouter.IsRemotePath(folderPath))
                 {
@@ -476,6 +481,39 @@ namespace Span.ViewModels
 
             if (!token.IsCancellationRequested)
                 PopulateChildren(items, token, preSorted: true);
+        }
+
+        private async Task LoadFromArchiveAsync(string archivePath, System.Threading.CancellationToken token)
+        {
+            try
+            {
+                var router = App.Current.Services.GetRequiredService<FileSystemRouter>();
+                var provider = router.GetProvider(archivePath);
+                Helpers.DebugLogger.Log($"[LoadFromArchiveAsync] path='{archivePath}', provider={provider?.GetType().Name ?? "null"}");
+                var archiveItems = await provider.GetItemsAsync(archivePath, token);
+                Helpers.DebugLogger.Log($"[LoadFromArchiveAsync] Got {archiveItems.Count} items from provider");
+
+                if (token.IsCancellationRequested) return;
+
+                var items = new List<FileSystemViewModel>();
+                foreach (var item in archiveItems)
+                {
+                    if (token.IsCancellationRequested) break;
+                    if (item is Models.FolderItem folder)
+                        items.Add(new FolderViewModel(folder, _fileService));
+                    else if (item is Models.FileItem file)
+                        items.Add(new FileViewModel(file));
+                }
+
+                Helpers.DebugLogger.Log($"[LoadFromArchiveAsync] Populating {items.Count} children");
+                if (!token.IsCancellationRequested)
+                    PopulateChildren(items, token);
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[LoadFromArchiveAsync] Error: {ex.Message}\n{ex.StackTrace}");
+                ErrorMessage = ex.Message;
+            }
         }
 
         private async Task LoadFromRemoteAsync(string folderPath, System.Threading.CancellationToken token)

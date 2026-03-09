@@ -388,6 +388,13 @@ namespace Span.Services
             ("Preview_Git", "Git", "Git", "Git", "Git", "Git", "Git", "Git", "Git", "Git"),
             ("Preview_RecentCommits", "Recent Commits", "최근 커밋", "最近のコミット", "最近的提交", "最近的提交", "Letzte Commits", "Confirmaciones recientes", "Commits récents", "Commits recentes"),
             ("Preview_ChangedFiles", "Changed Files", "변경된 파일", "変更されたファイル", "已更改的文件", "已變更的檔案", "Geänderte Dateien", "Archivos modificados", "Fichiers modifiés", "Arquivos alterados"),
+            ("Preview_ArchiveFiles", "{0} files, {1} folders", "{0}개 파일, {1}개 폴더", "{0}ファイル、{1}フォルダー", "{0}个文件、{1}个文件夹", "{0}個檔案、{1}個資料夾", "{0} Dateien, {1} Ordner", "{0} archivos, {1} carpetas", "{0} fichiers, {1} dossiers", "{0} arquivos, {1} pastas"),
+            ("Preview_Compressed", "Compressed", "압축 크기", "圧縮サイズ", "压缩大小", "壓縮大小", "Komprimiert", "Comprimido", "Compressé", "Compactado"),
+            ("Preview_Original", "Original", "원본 크기", "元のサイズ", "原始大小", "原始大小", "Original", "Original", "Original", "Original"),
+            ("Preview_ArchiveError", "Cannot read archive", "압축 파일을 읽을 수 없습니다", "アーカイブを読み取れません", "无法读取压缩文件", "無法讀取壓縮檔", "Archiv kann nicht gelesen werden", "No se puede leer el archivo", "Impossible de lire l'archive", "Não é possível ler o arquivo"),
+            ("Preview_ArchiveEmpty", "Empty archive", "빈 압축 파일", "空のアーカイブ", "空压缩文件", "空壓縮檔", "Leeres Archiv", "Archivo vacío", "Archive vide", "Arquivo vazio"),
+            ("Preview_ArchiveItems", "items", "항목", "アイテム", "项", "項", "Elemente", "elementos", "éléments", "itens"),
+            ("Preview_ArchiveMore", "... and {0} more", "... 외 {0}개", "... 他{0}件", "... 另外{0}个", "... 另外{0}個", "... und {0} weitere", "... y {0} más", "... et {0} de plus", "... e mais {0}"),
 
             // ── Column headers/filters ──────────────────────────────────────
             ("FileName", "File name", "파일 이름", "ファイル名", "文件名", "檔案名稱", "Dateiname", "Nombre de archivo", "Nom du fichier", "Nome do arquivo"),

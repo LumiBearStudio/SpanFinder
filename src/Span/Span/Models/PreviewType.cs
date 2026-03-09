@@ -22,6 +22,8 @@ namespace Span.Models
         HexBinary,
         /// <summary>폰트 파일 미리보기.</summary>
         Font,
+        /// <summary>아카이브 파일 (ZIP, 7z, RAR, TAR 등).</summary>
+        Archive,
         /// <summary>기타 파일 (기본 정보만 표시).</summary>
         Generic
     }

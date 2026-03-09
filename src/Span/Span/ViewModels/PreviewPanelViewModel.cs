@@ -22,6 +22,7 @@ namespace Span.ViewModels
     {
         private readonly PreviewService _previewService;
         private readonly GitStatusService? _gitService;
+        private readonly ArchiveReaderService? _archiveReader;
         private readonly ISettingsService _settings;
         private readonly Microsoft.UI.Dispatching.DispatcherQueue _dispatcherQueue;
         private CancellationTokenSource? _currentCts;
@@ -63,6 +64,7 @@ namespace Span.ViewModels
         [NotifyPropertyChangedFor(nameof(IsHexBinaryVisible))]
         [NotifyPropertyChangedFor(nameof(IsFontVisible))]
         [NotifyPropertyChangedFor(nameof(IsGenericVisible))]
+        [NotifyPropertyChangedFor(nameof(IsArchiveVisible))]
         private PreviewType _currentPreviewType = PreviewType.None;
 
         [ObservableProperty] private BitmapImage? _imagePreview;
@@ -72,6 +74,14 @@ namespace Span.ViewModels
         [ObservableProperty] private string? _hexPreview;
         [ObservableProperty] private string _fontFamilySource = "";
         [ObservableProperty] private string _fontFormat = "";
+
+        // --- Archive preview ---
+
+        [ObservableProperty] private string _archiveContentTree = "";
+        [ObservableProperty] private string _archiveStats = "";
+        [ObservableProperty] private string _archiveCompressedSize = "";
+        [ObservableProperty] private string _archiveUncompressedSize = "";
+        [ObservableProperty] private string _archiveCompressionRatio = "";
 
         // --- Git info (Tier 1: 파일 마지막 커밋) ---
 
@@ -96,11 +106,15 @@ namespace Span.ViewModels
         public bool IsHexBinaryVisible => CurrentPreviewType == PreviewType.HexBinary;
         public bool IsFontVisible => CurrentPreviewType == PreviewType.Font;
         public bool IsGenericVisible => CurrentPreviewType == PreviewType.Generic;
+        public bool IsArchiveVisible => CurrentPreviewType == PreviewType.Archive;
 
         public PreviewPanelViewModel(PreviewService previewService)
         {
             _previewService = previewService;
             _dispatcherQueue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
+
+            // Archive reader (optional)
+            _archiveReader = App.Current.Services.GetService<ArchiveReaderService>();
 
             // Git 서비스 (optional — ShowGitIntegration이 꺼져 있으면 null)
             try
@@ -206,7 +220,7 @@ namespace Span.ViewModels
             switch (previewType)
             {
                 case PreviewType.Folder:
-                    LoadFolderInfo(item.Path);
+                    await LoadFolderInfoAsync(item, ct);
                     break;
 
                 case PreviewType.Image:
@@ -250,6 +264,10 @@ namespace Span.ViewModels
                         FontFamilySource = fontData.FamilyName;
                         FontFormat = fontData.Extension;
                     }
+                    break;
+
+                case PreviewType.Archive:
+                    await LoadArchiveInfoAsync(item.Path, ct);
                     break;
 
                 case PreviewType.Generic:
@@ -415,7 +433,8 @@ namespace Span.ViewModels
             if (item is FolderViewModel)
             {
                 FileSizeFormatted = "";
-                if (!Services.FileSystemRouter.IsRemotePath(item.Path))
+                if (!Services.FileSystemRouter.IsRemotePath(item.Path)
+                    && !Helpers.ArchivePathHelper.IsArchivePath(item.Path))
                 {
                     try
                     {
@@ -445,11 +464,12 @@ namespace Span.ViewModels
             }
             else
             {
-                // 원격 파일(FTP/SFTP): FileInfo로 로컬 읽기 불가 → 모델 데이터 사용
-                if (Services.FileSystemRouter.IsRemotePath(item.Path))
+                // 원격/아카이브 파일: FileInfo로 로컬 읽기 불가 → 모델 데이터 사용
+                if (Services.FileSystemRouter.IsRemotePath(item.Path)
+                    || Helpers.ArchivePathHelper.IsArchivePath(item.Path))
                 {
                     FileSizeFormatted = item.Size; // FileSystemViewModel.Size (이미 포맷됨)
-                    DateCreated = "";              // FTP는 생성일자 미지원
+                    DateCreated = "";              // 아카이브/원격은 생성일자 미지원
                     DateModified = item.DateModified;
                 }
                 else
@@ -462,11 +482,103 @@ namespace Span.ViewModels
             }
         }
 
-        private void LoadFolderInfo(string path)
+        private async Task LoadFolderInfoAsync(FileSystemViewModel item, CancellationToken ct)
         {
-            var count = _previewService.GetFolderItemCount(path);
+            var path = item.Path;
+            int count;
+
+            if (Helpers.ArchivePathHelper.IsArchivePath(path)
+                || Services.FileSystemRouter.IsRemotePath(path))
+            {
+                // For archive/remote folders, use the provider to get item count
+                try
+                {
+                    var router = App.Current.Services.GetRequiredService<Services.FileSystemRouter>();
+                    var provider = router.GetProvider(path);
+                    var items = await provider.GetItemsAsync(path, ct);
+                    count = items.Count;
+                }
+                catch
+                {
+                    count = 0;
+                }
+            }
+            else
+            {
+                count = _previewService.GetFolderItemCount(path);
+            }
+
             var loc = App.Current.Services.GetRequiredService<Services.LocalizationService>();
             FolderItemCount = string.Format(loc.Get("FolderItemCount"), count);
+        }
+
+        private async Task LoadArchiveInfoAsync(string path, CancellationToken ct)
+        {
+            if (_archiveReader == null) return;
+
+            try
+            {
+                var info = await _archiveReader.GetArchiveInfoAsync(path, ct);
+                if (ct.IsCancellationRequested) return;
+
+                var loc = App.Current.Services.GetRequiredService<Services.LocalizationService>();
+
+                // TotalFiles == -1 means archive is unreadable (corrupted, password-protected, etc.)
+                if (info.TotalFiles < 0)
+                {
+                    ArchiveStats = loc.Get("Preview_ArchiveError") ?? "Cannot read archive (corrupted or password-protected)";
+                    ArchiveCompressedSize = FormatFileSize(info.CompressedSize);
+                    ArchiveUncompressedSize = "-";
+                    ArchiveCompressionRatio = "-";
+                    ArchiveContentTree = "";
+                    return;
+                }
+
+                ArchiveStats = string.Format(loc.Get("Preview_ArchiveFiles"),
+                    info.TotalFiles.ToString("N0"), info.TotalFolders.ToString("N0"));
+                ArchiveCompressedSize = FormatFileSize(info.CompressedSize);
+                ArchiveUncompressedSize = FormatFileSize(info.UncompressedSize);
+                ArchiveCompressionRatio = info.CompressionRatio > 0
+                    ? $"{info.CompressionRatio:F1}%"
+                    : "-";
+
+                // Build tree text — use tree-style lines for readability
+                var sb = new StringBuilder();
+                var entries = info.TopEntries;
+                for (int i = 0; i < entries.Count; i++)
+                {
+                    var entry = entries[i];
+                    var indent = entry.Depth > 0
+                        ? new string(' ', (entry.Depth - 1) * 2) + "└ "
+                        : "";
+
+                    if (entry.IsDirectory)
+                        sb.AppendLine($"{indent}📁 {entry.Name}  ({entry.ChildCount})");
+                    else
+                        sb.AppendLine($"{indent}📄 {entry.Name}  {FormatFileSize(entry.Size)}");
+                }
+
+                if (info.TotalFiles + info.TotalFolders > entries.Count)
+                {
+                    var remaining = info.TotalFiles + info.TotalFolders - entries.Count;
+                    sb.AppendLine($"… +{remaining:N0} more");
+                }
+
+                ArchiveContentTree = sb.ToString().TrimEnd();
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[Preview] Archive info error: {ex.Message}");
+                ArchiveContentTree = "Error reading archive";
+            }
+        }
+
+        private static string FormatFileSize(long bytes)
+        {
+            if (bytes < 1024) return $"{bytes} B";
+            if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F1} KB";
+            if (bytes < 1024L * 1024 * 1024) return $"{bytes / (1024.0 * 1024):F1} MB";
+            return $"{bytes / (1024.0 * 1024 * 1024):F1} GB";
         }
 
         private void ClearPreviewContent()
@@ -487,6 +599,13 @@ namespace Span.ViewModels
             FolderItemCount = "";
             Artist = "";
             Album = "";
+
+            // Archive 정보 초기화
+            ArchiveContentTree = "";
+            ArchiveStats = "";
+            ArchiveCompressedSize = "";
+            ArchiveUncompressedSize = "";
+            ArchiveCompressionRatio = "";
 
             // Git 정보 초기화
             GitLastCommitInfo = "";

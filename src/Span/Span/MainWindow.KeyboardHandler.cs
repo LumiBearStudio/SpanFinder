@@ -703,8 +703,16 @@ namespace Span
             }
             else if (currentColumn.SelectedChild is FileViewModel fileVm)
             {
-                var shellService = App.Current.Services.GetRequiredService<Services.ShellService>();
-                shellService.OpenFile(fileVm.Path);
+                if (Helpers.ArchivePathHelper.IsArchiveFile(fileVm.Path))
+                {
+                    // Archive already navigated on selection; Enter is no-op
+                    Helpers.DebugLogger.Log($"[Keyboard] Enter on archive: {fileVm.Name} (already navigated)");
+                }
+                else
+                {
+                    var shellService = App.Current.Services.GetRequiredService<Services.ShellService>();
+                    shellService.OpenFile(fileVm.Path);
+                }
             }
         }
 

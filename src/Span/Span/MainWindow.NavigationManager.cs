@@ -563,15 +563,39 @@ namespace Span
                 UpdateViewModeVisibility();
             }
 
+            // archive:// 경로 직접 입력 지원
+            if (Helpers.ArchivePathHelper.IsArchivePath(path))
+            {
+                _ = explorer.NavigateToPath(path);
+                return;
+            }
+
             if (System.IO.Directory.Exists(path))
             {
                 _ = explorer.NavigateToPath(path);
             }
             else if (System.IO.File.Exists(path))
             {
-                var parent = System.IO.Path.GetDirectoryName(path);
-                if (!string.IsNullOrEmpty(parent))
-                    _ = explorer.NavigateToPath(parent);
+                // 압축 파일이면 아카이브로 진입
+                if (Helpers.ArchivePathHelper.IsArchiveFile(path))
+                {
+                    var archivePath = Helpers.ArchivePathHelper.Combine(path, "");
+                    _ = explorer.NavigateToPath(archivePath);
+                }
+                else
+                {
+                    var parent = System.IO.Path.GetDirectoryName(path);
+                    if (!string.IsNullOrEmpty(parent))
+                        _ = explorer.NavigateToPath(parent);
+                }
+            }
+            else
+            {
+                // 경로가 존재하지 않으면 아카이브 내부 경로인지 확인
+                // (예: D:\folder\archive.zip\internal\path — archive:// 프리픽스 없이 입력)
+                var archiveUri = Helpers.ArchivePathHelper.TryBuildArchiveUri(path);
+                if (archiveUri != null)
+                    _ = explorer.NavigateToPath(archiveUri);
             }
         }
 
@@ -583,8 +607,12 @@ namespace Span
             var path = ViewModel.ActiveExplorer?.CurrentPath;
             if (!string.IsNullOrEmpty(path))
             {
+                // archive:// 프리픽스 제거하여 Windows 탐색기 스타일 경로로 복사
+                var copyPath = Helpers.ArchivePathHelper.IsArchivePath(path)
+                    ? path.Substring(Helpers.ArchivePathHelper.Prefix.Length)
+                    : path;
                 var dataPackage = new DataPackage();
-                dataPackage.SetText(path);
+                dataPackage.SetText(copyPath);
                 Clipboard.SetContent(dataPackage);
                 ViewModel.ShowToast(_loc.Get("Toast_PathCopied"), 2000);
             }

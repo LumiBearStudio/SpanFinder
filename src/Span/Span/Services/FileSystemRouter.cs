@@ -125,7 +125,9 @@ namespace Span.Services
         // ── URI 헬퍼 (정적) ──
 
         public static bool IsRemotePath(string path)
-            => !string.IsNullOrEmpty(path) && path.Contains("://") && !path.StartsWith("file://", StringComparison.OrdinalIgnoreCase);
+            => !string.IsNullOrEmpty(path) && path.Contains("://")
+               && !path.StartsWith("file://", StringComparison.OrdinalIgnoreCase)
+               && !path.StartsWith("archive://", StringComparison.OrdinalIgnoreCase);
 
         public static string ExtractRemotePath(string fullUri)
         {

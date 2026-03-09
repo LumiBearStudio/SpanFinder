@@ -3585,10 +3585,18 @@ namespace Span
                 var selected = folderVm.SelectedChild;
                 if (selected is FileViewModel file)
                 {
-                    // Open file with default application via ShellExecute (faster than WinRT Launcher)
-                    var shellService = App.Current.Services.GetRequiredService<ShellService>();
-                    shellService.OpenFile(file.Path);
-                    Helpers.DebugLogger.Log($"[MainWindow] Miller Column DoubleClick: Opening file {file.Name}");
+                    if (Helpers.ArchivePathHelper.IsArchiveFile(file.Path))
+                    {
+                        // Archive already navigated on selection; double-click is no-op
+                        Helpers.DebugLogger.Log($"[MainWindow] Miller Column DoubleClick: Archive {file.Name} (already navigated)");
+                    }
+                    else
+                    {
+                        // Open file with default application via ShellExecute (faster than WinRT Launcher)
+                        var shellService = App.Current.Services.GetRequiredService<ShellService>();
+                        shellService.OpenFile(file.Path);
+                        Helpers.DebugLogger.Log($"[MainWindow] Miller Column DoubleClick: Opening file {file.Name}");
+                    }
                 }
                 else if (selected is FolderViewModel folder && _settings.MillerClickBehavior == "double")
                 {
@@ -4254,8 +4262,29 @@ namespace Span
             }
             else if (item is FileViewModel file)
             {
-                var shellService = App.Current.Services.GetRequiredService<ShellService>();
-                shellService.OpenFile(file.Path);
+                if (Helpers.ArchivePathHelper.IsArchiveFile(file.Path))
+                {
+                    // Archive: navigate into it instead of opening externally
+                    var explorer = ViewModel.ActiveExplorer;
+                    if (explorer != null)
+                    {
+                        // Selecting the archive triggers HandleFileSelection → NavigateIntoArchiveAsync
+                        // For PerformOpen from context menu, we need to find the parent column
+                        foreach (var col in explorer.Columns)
+                        {
+                            if (col.SelectedChild == file || col.Children.Contains(file))
+                            {
+                                col.SelectedChild = file;
+                                break;
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    var shellService = App.Current.Services.GetRequiredService<ShellService>();
+                    shellService.OpenFile(file.Path);
+                }
             }
         }
 

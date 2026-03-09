@@ -122,6 +122,8 @@ namespace Span.Views
             LabelGit.Text = _loc.Get("Preview_Git");
             LabelRecentCommits.Text = _loc.Get("Preview_RecentCommits");
             LabelChangedFiles.Text = _loc.Get("Preview_ChangedFiles");
+            LabelCompressed.Text = _loc.Get("Preview_Compressed");
+            LabelOriginal.Text = _loc.Get("Preview_Original");
         }
 
         public void Cleanup()

@@ -187,7 +187,11 @@ namespace Span.Controls
             BreadcrumbScroller.Visibility = Visibility.Collapsed;
             OverflowIndicator.Visibility = Visibility.Collapsed;
             AutoSuggest.Visibility = Visibility.Visible;
-            AutoSuggest.Text = CurrentPath ?? string.Empty;
+            // archive:// 프리픽스 제거하여 Windows 탐색기 스타일 표시
+            var displayPath = CurrentPath ?? string.Empty;
+            if (Helpers.ArchivePathHelper.IsArchivePath(displayPath))
+                displayPath = displayPath.Substring(Helpers.ArchivePathHelper.Prefix.Length);
+            AutoSuggest.Text = displayPath;
 
             // Collapsed→Visible 전환 후 내부 TextBox 비주얼 트리가 materialize될 때까지
             // 한 프레임 대기. UpdateLayout()은 AccessViolation 위험이 있어 사용하지 않음.

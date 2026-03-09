@@ -160,6 +160,54 @@
                     </StackPanel>
                 </StackPanel>
 
+                <!-- Archive Contents -->
+                <StackPanel Visibility="{Binding IsArchiveVisible, Converter={StaticResource VisConv}}"
+                            Spacing="8" Margin="0,4,0,0">
+
+                    <!-- Stats row -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="{Binding ArchiveStats}"
+                                   FontSize="13" FontWeight="SemiBold"/>
+                        <TextBlock Grid.Column="1" Text="{Binding ArchiveCompressionRatio}"
+                                   FontSize="12" Foreground="{ThemeResource SpanAccentBrush}"
+                                   FontWeight="SemiBold"/>
+                    </Grid>
+
+                    <!-- Size info -->
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Spacing="2">
+                            <TextBlock x:Name="LabelCompressed" Text="Compressed" FontSize="11"
+                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                            <TextBlock Text="{Binding ArchiveCompressedSize}" FontSize="13"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Spacing="2">
+                            <TextBlock x:Name="LabelOriginal" Text="Original" FontSize="11"
+                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                            <TextBlock Text="{Binding ArchiveUncompressedSize}" FontSize="13"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Content tree -->
+                    <Border Background="{ThemeResource SpanBgLayer1Brush}"
+                            CornerRadius="4" Padding="10" MaxHeight="300">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Auto">
+                            <TextBlock Text="{Binding ArchiveContentTree}"
+                                       FontSize="12" LineHeight="20"
+                                       TextWrapping="NoWrap"
+                                       IsTextSelectionEnabled="True"/>
+                        </ScrollViewer>
+                    </Border>
+                </StackPanel>
+
                 <!-- Folder Info -->
                 <StackPanel Visibility="{Binding IsFolderVisible, Converter={StaticResource VisConv}}"
                             HorizontalAlignment="Center" Spacing="8" Margin="0,8">
