@@ -145,6 +145,9 @@ namespace Span
                 var storageItems = new List<Windows.Storage.IStorageItem>();
                 foreach (var p in paths)
                 {
+                    if (Helpers.ArchivePathHelper.IsArchivePath(p))
+                        continue;
+
                     try
                     {
                         if (System.IO.Directory.Exists(p))
@@ -234,6 +237,13 @@ namespace Span
         {
             if (sender is not Grid grid || grid.DataContext is not FolderViewModel targetFolder) return;
 
+            if (Helpers.ArchivePathHelper.IsArchivePath(targetFolder.Path))
+            {
+                e.AcceptedOperation = DataPackageOperation.None;
+                e.Handled = true;
+                return;
+            }
+
             // Check if data contains paths (internal or external app)
             if (!e.DataView.Contains(StandardDataFormats.Text) &&
                 !e.DataView.Properties.ContainsKey("SourcePaths") &&
@@ -292,6 +302,8 @@ namespace Span
         private async void OnFolderItemDrop(object sender, DragEventArgs e)
         {
             if (sender is not Grid grid || grid.DataContext is not FolderViewModel targetFolder) return;
+            if (Helpers.ArchivePathHelper.IsArchivePath(targetFolder.Path))
+                return;
             e.Handled = true; // Prevent bubbling BEFORE await (avoid duplicate execution)
             HideDragTooltip();
 
@@ -401,6 +413,14 @@ namespace Span
         private void OnColumnDragOver(object sender, DragEventArgs e)
         {
             if (sender is not ListView listView || listView.DataContext is not FolderViewModel folderVm) return;
+
+            if (Helpers.ArchivePathHelper.IsArchivePath(folderVm.Path))
+            {
+                e.AcceptedOperation = DataPackageOperation.None;
+                e.Handled = true;
+                return;
+            }
+
             if (!e.DataView.Contains(StandardDataFormats.Text) &&
                 !e.DataView.Properties.ContainsKey("SourcePaths") &&
                 !e.DataView.Contains(StandardDataFormats.StorageItems)) return;
@@ -447,6 +467,8 @@ namespace Span
         private async void OnColumnDrop(object sender, DragEventArgs e)
         {
             if (sender is not ListView listView || listView.DataContext is not FolderViewModel folderVm) return;
+            if (Helpers.ArchivePathHelper.IsArchivePath(folderVm.Path))
+                return;
             e.Handled = true; // Prevent bubbling to OnPaneDrop (duplicate execution)
             HideDragTooltip();
 
@@ -820,6 +842,14 @@ namespace Span
         /// </summary>
         private async System.Threading.Tasks.Task HandleDropAsync(List<string> sourcePaths, string destFolder, DragDropMode mode)
         {
+            // Archive safety: block all drops into archives (read-only)
+            if (Helpers.ArchivePathHelper.IsArchivePath(destFolder))
+                return;
+
+            // Archive safety: block drag from archives (not yet supported)
+            if (sourcePaths.Any(p => Helpers.ArchivePathHelper.IsArchivePath(p)))
+                return;
+
             // Validate: don't drop onto itself or into child
             sourcePaths = sourcePaths.Where(p =>
                 !p.Equals(destFolder, StringComparison.OrdinalIgnoreCase) &&
@@ -1105,6 +1135,14 @@ namespace Span
 
             var targetExplorer = isLeftTarget ? ViewModel.Explorer : ViewModel.RightExplorer;
             var destFolder = targetExplorer?.CurrentFolder?.Path ?? "";
+
+            if (Helpers.ArchivePathHelper.IsArchivePath(destFolder))
+            {
+                e.AcceptedOperation = DataPackageOperation.None;
+                e.Handled = true;
+                return;
+            }
+
             var mode = ResolveDragDropMode(e, destFolder);
 
             // Same-folder Move → block (items already in destFolder). Copy/Link allowed.
@@ -1158,6 +1196,8 @@ namespace Span
                 var targetExplorer = isLeftTarget ? ViewModel.Explorer : ViewModel.RightExplorer;
                 var destFolder = targetExplorer?.CurrentFolder?.Path ?? "";
                 if (string.IsNullOrEmpty(destFolder)) return;
+                if (Helpers.ArchivePathHelper.IsArchivePath(destFolder))
+                    return;
 
                 var mode = ResolveDragDropMode(e, destFolder);
 

@@ -331,43 +331,58 @@ namespace Span.Services
             else
             {
                 // ── Local file menu ──
+                bool isArchive = Helpers.ArchivePathHelper.IsArchivePath(file.Path);
+
                 menu.Items.Add(CreateItem(_loc.Get("Open"), "\uE8E5", () => host.PerformOpen(file), "O"));
-                menu.Items.Add(CreateItem(_loc.Get("OpenWith"), "\uE7AC", () => _ = _shellService.OpenWithAsync(file.Path), "A"));
+                if (!isArchive)
+                {
+                    menu.Items.Add(CreateItem(_loc.Get("OpenWith"), "\uE7AC", () => _ = _shellService.OpenWithAsync(file.Path), "A"));
+                }
                 menu.Items.Add(new MenuFlyoutSeparator());
 
-                menu.Items.Add(CreateItem(_loc.Get("Cut"), "\uE8C6", () => host.PerformCut(file.Path), "X"));
+                if (!isArchive)
+                {
+                    menu.Items.Add(CreateItem(_loc.Get("Cut"), "\uE8C6", () => host.PerformCut(file.Path), "X"));
+                }
                 menu.Items.Add(CreateItem(_loc.Get("Copy"), "\uE8C8", () => host.PerformCopy(file.Path), "C"));
                 menu.Items.Add(new MenuFlyoutSeparator());
 
-                // Compress / Extract
-                string ext = System.IO.Path.GetExtension(file.Path).ToLowerInvariant();
-                if (ext == ".zip")
+                if (!isArchive)
                 {
-                    menu.Items.Add(CreateItem(_loc.Get("ExtractHere"), "\uE8B7", () => host.PerformExtractHere(file.Path), "E"));
-                    menu.Items.Add(CreateItem(_loc.Get("ExtractTo"), "\uE8B7", () => host.PerformExtractTo(file.Path), "T"));
+                    // Compress / Extract
+                    string ext = System.IO.Path.GetExtension(file.Path).ToLowerInvariant();
+                    if (ext == ".zip")
+                    {
+                        menu.Items.Add(CreateItem(_loc.Get("ExtractHere"), "\uE8B7", () => host.PerformExtractHere(file.Path), "E"));
+                        menu.Items.Add(CreateItem(_loc.Get("ExtractTo"), "\uE8B7", () => host.PerformExtractTo(file.Path), "T"));
+                        menu.Items.Add(new MenuFlyoutSeparator());
+                    }
+                    menu.Items.Add(CreateItem(_loc.Get("CompressToZip"), "\uE8C5", () => host.PerformCompress(new[] { file.Path }), "P"));
+                    menu.Items.Add(new MenuFlyoutSeparator());
+
+                    menu.Items.Add(CreateItem(_loc.Get("Delete"), "\uE74D", () => host.PerformDelete(file.Path, file.Name), "D"));
+                    menu.Items.Add(CreateItem(_loc.Get("Rename"), "\uE70F", () =>
+                    {
+                        Helpers.DebugLogger.Log($"[Rename] Menu Click handler fired for '{file.Name}'");
+                        try { host.PerformRename(file); }
+                        catch (Exception ex) { Helpers.DebugLogger.Log($"[Rename] Menu Click EXCEPTION: {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}"); }
+                    }, "M"));
                     menu.Items.Add(new MenuFlyoutSeparator());
                 }
-                menu.Items.Add(CreateItem(_loc.Get("CompressToZip"), "\uE8C5", () => host.PerformCompress(new[] { file.Path }), "P"));
-                menu.Items.Add(new MenuFlyoutSeparator());
-
-                menu.Items.Add(CreateItem(_loc.Get("Delete"), "\uE74D", () => host.PerformDelete(file.Path, file.Name), "D"));
-                menu.Items.Add(CreateItem(_loc.Get("Rename"), "\uE70F", () =>
-                {
-                    Helpers.DebugLogger.Log($"[Rename] Menu Click handler fired for '{file.Name}'");
-                    try { host.PerformRename(file); }
-                    catch (Exception ex) { Helpers.DebugLogger.Log($"[Rename] Menu Click EXCEPTION: {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}"); }
-                }, "M"));
-                menu.Items.Add(new MenuFlyoutSeparator());
 
                 menu.Items.Add(CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => _shellService.CopyPathToClipboard(file.Path), "H"));
-                menu.Items.Add(CreateItem(_loc.Get("OpenInExplorer"), "\uED25", () => _shellService.OpenInExplorer(file.Path), "L"));
+                if (!isArchive)
+                {
+                    menu.Items.Add(CreateItem(_loc.Get("OpenInExplorer"), "\uED25", () => _shellService.OpenInExplorer(file.Path), "L"));
+                }
 
                 menu.Items.Add(new MenuFlyoutSeparator());
                 menu.Items.Add(CreateItem(_loc.Get("Properties"), "\uE946", () => ShowProperties(file), "R"));
 
                 // Shell 항목: 캐시 히트 → 메뉴 표시 전 삽입 + 백그라운드 재검증
                 //              캐시 미스 → await로 대기 후 삽입 (최대 1.5초)
-                await AppendShellExtensionItemsAsync(menu, file.Path, forceShellExtensions);
+                if (!isArchive)
+                    await AppendShellExtensionItemsAsync(menu, file.Path, forceShellExtensions);
             }
 
             // Cleanup session when menu closes
@@ -381,29 +396,39 @@ namespace Span.Services
         {
             var menu = new MenuFlyout();
             bool isRemote = FileSystemRouter.IsRemotePath(folder.Path);
+            bool isArchive = Helpers.ArchivePathHelper.IsArchivePath(folder.Path);
 
             menu.Items.Add(CreateItem(_loc.Get("Open"), "\uE8E5", () => host.PerformOpen(folder), "O"));
             menu.Items.Add(new MenuFlyoutSeparator());
 
-            menu.Items.Add(CreateItem(_loc.Get("Cut"), "\uE8C6", () => host.PerformCut(folder.Path), "X"));
+            if (!isArchive)
+            {
+                menu.Items.Add(CreateItem(_loc.Get("Cut"), "\uE8C6", () => host.PerformCut(folder.Path), "X"));
+            }
             menu.Items.Add(CreateItem(_loc.Get("Copy"), "\uE8C8", () => host.PerformCopy(folder.Path), "C"));
-            var folderPaste = CreateItem(_loc.Get("Paste"), "\uE77F", () => host.PerformPaste(folder.Path), "V");
-            folderPaste.IsEnabled = host.HasClipboardContent;
-            menu.Items.Add(folderPaste);
+            if (!isArchive)
+            {
+                var folderPaste = CreateItem(_loc.Get("Paste"), "\uE77F", () => host.PerformPaste(folder.Path), "V");
+                folderPaste.IsEnabled = host.HasClipboardContent;
+                menu.Items.Add(folderPaste);
+            }
             menu.Items.Add(new MenuFlyoutSeparator());
 
-            if (!isRemote)
+            if (!isRemote && !isArchive)
             {
                 // Compress (local only)
                 menu.Items.Add(CreateItem(_loc.Get("CompressToZip"), "\uE8C5", () => host.PerformCompress(new[] { folder.Path }), "P"));
                 menu.Items.Add(new MenuFlyoutSeparator());
             }
 
-            menu.Items.Add(CreateItem(_loc.Get("Delete"), "\uE74D", () => host.PerformDelete(folder.Path, folder.Name), "D"));
-            menu.Items.Add(CreateItem(_loc.Get("Rename"), "\uE70F", () => host.PerformRename(folder), "M"));
-            menu.Items.Add(new MenuFlyoutSeparator());
+            if (!isArchive)
+            {
+                menu.Items.Add(CreateItem(_loc.Get("Delete"), "\uE74D", () => host.PerformDelete(folder.Path, folder.Name), "D"));
+                menu.Items.Add(CreateItem(_loc.Get("Rename"), "\uE70F", () => host.PerformRename(folder), "M"));
+                menu.Items.Add(new MenuFlyoutSeparator());
+            }
 
-            if (!isRemote)
+            if (!isRemote && !isArchive)
             {
                 bool isFav = host.IsFavorite(folder.Path);
                 if (isFav)
@@ -415,7 +440,7 @@ namespace Span.Services
 
             menu.Items.Add(CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => _shellService.CopyPathToClipboard(folder.Path), "H"));
 
-            if (!isRemote)
+            if (!isRemote && !isArchive)
             {
                 menu.Items.Add(CreateItem(_loc.Get("OpenInExplorer"), "\uED25", () => _shellService.OpenInExplorer(folder.Path), "L"));
             }
@@ -425,7 +450,7 @@ namespace Span.Services
 
             // Shell 항목: 캐시 히트 → 메뉴 표시 전 삽입 + 백그라운드 재검증
             //              캐시 미스 → await로 대기 후 삽입 (최대 1.5초)
-            if (!isRemote)
+            if (!isRemote && !isArchive)
                 await AppendShellExtensionItemsAsync(menu, folder.Path, forceShellExtensions);
 
             menu.Closed += OnMenuClosed;
@@ -525,26 +550,30 @@ namespace Span.Services
         public MenuFlyout BuildEmptyAreaMenu(string folderPath, IContextMenuHost host)
         {
             var menu = new MenuFlyout();
+            bool isArchive = Helpers.ArchivePathHelper.IsArchivePath(folderPath);
 
-            // New submenu: folder + common file types
-            var newSub = new MenuFlyoutSubItem { Text = _loc.Get("New"), Icon = new FontIcon { Glyph = "\uE710", FontSize = 14 } };
-            ApplyCompact(newSub, "W");
-            newSub.Items.Add(CreateItem(_loc.Get("NewFolder"), "\uE8B7", () => host.PerformNewFolder(folderPath), "F"));
-            newSub.Items.Add(new MenuFlyoutSeparator());
-            newSub.Items.Add(CreateItem(_loc.Get("NewTextDocument"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Text Document.txt"), "T"));
-            newSub.Items.Add(CreateItem(_loc.Get("NewWordDocument"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Document.docx"), "W"));
-            newSub.Items.Add(CreateItem(_loc.Get("NewExcelSpreadsheet"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Spreadsheet.xlsx"), "E"));
-            newSub.Items.Add(CreateItem(_loc.Get("NewPowerPoint"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Presentation.pptx"), "P"));
-            newSub.Items.Add(new MenuFlyoutSeparator());
-            newSub.Items.Add(CreateItem(_loc.Get("NewBitmapImage"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Bitmap Image.bmp"), "B"));
-            newSub.Items.Add(CreateItem(_loc.Get("NewRichTextDocument"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Rich Text Document.rtf"), "R"));
-            newSub.Items.Add(CreateItem(_loc.Get("NewZipArchive"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Compressed (zipped) Folder.zip"), "Z"));
-            menu.Items.Add(newSub);
+            if (!isArchive)
+            {
+                // New submenu: folder + common file types
+                var newSub = new MenuFlyoutSubItem { Text = _loc.Get("New"), Icon = new FontIcon { Glyph = "\uE710", FontSize = 14 } };
+                ApplyCompact(newSub, "W");
+                newSub.Items.Add(CreateItem(_loc.Get("NewFolder"), "\uE8B7", () => host.PerformNewFolder(folderPath), "F"));
+                newSub.Items.Add(new MenuFlyoutSeparator());
+                newSub.Items.Add(CreateItem(_loc.Get("NewTextDocument"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Text Document.txt"), "T"));
+                newSub.Items.Add(CreateItem(_loc.Get("NewWordDocument"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Document.docx"), "W"));
+                newSub.Items.Add(CreateItem(_loc.Get("NewExcelSpreadsheet"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Spreadsheet.xlsx"), "E"));
+                newSub.Items.Add(CreateItem(_loc.Get("NewPowerPoint"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Presentation.pptx"), "P"));
+                newSub.Items.Add(new MenuFlyoutSeparator());
+                newSub.Items.Add(CreateItem(_loc.Get("NewBitmapImage"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Bitmap Image.bmp"), "B"));
+                newSub.Items.Add(CreateItem(_loc.Get("NewRichTextDocument"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Rich Text Document.rtf"), "R"));
+                newSub.Items.Add(CreateItem(_loc.Get("NewZipArchive"), "\uE8A5", () => host.PerformNewFile(folderPath, "New Compressed (zipped) Folder.zip"), "Z"));
+                menu.Items.Add(newSub);
 
-            var emptyPaste = CreateItem(_loc.Get("Paste"), "\uE77F", () => host.PerformPaste(folderPath), "V");
-            emptyPaste.IsEnabled = host.HasClipboardContent;
-            menu.Items.Add(emptyPaste);
-            menu.Items.Add(new MenuFlyoutSeparator());
+                var emptyPaste = CreateItem(_loc.Get("Paste"), "\uE77F", () => host.PerformPaste(folderPath), "V");
+                emptyPaste.IsEnabled = host.HasClipboardContent;
+                menu.Items.Add(emptyPaste);
+                menu.Items.Add(new MenuFlyoutSeparator());
+            }
 
             // View submenu
             var viewSub = new MenuFlyoutSubItem { Text = _loc.Get("View"), Icon = new FontIcon { Glyph = "\uE8FD", FontSize = 14 } };
@@ -1116,6 +1145,7 @@ namespace Span.Services
         /// </summary>
         public MenuFlyout BuildNewItemMenu(string folderPath, IContextMenuHost host)
         {
+            if (Helpers.ArchivePathHelper.IsArchivePath(folderPath)) return new MenuFlyout();
             var menu = new MenuFlyout();
             menu.Items.Add(CreateItem(_loc.Get("NewFolder"), "\uE8B7", () => host.PerformNewFolder(folderPath), "F"));
             menu.Items.Add(new MenuFlyoutSeparator());

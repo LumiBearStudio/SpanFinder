@@ -301,6 +301,12 @@ namespace Span
             }
             if (selectedItems.Count == 0) return;
 
+            if (selectedItems.Any(i => Helpers.ArchivePathHelper.IsArchivePath(i.Path)))
+            {
+                ViewModel.ShowToast("Archive is read-only");
+                return;
+            }
+
             _clipboardPaths.Clear();
             foreach (var item in selectedItems)
                 _clipboardPaths.Add(item.Path);
@@ -381,6 +387,12 @@ namespace Span
                 destDir = col.Path;
                 targetFolder = col;
                 Helpers.DebugLogger.Log($"[HandlePaste] FINAL destDir={destDir}");
+            }
+
+            if (Helpers.ArchivePathHelper.IsArchivePath(destDir))
+            {
+                ViewModel.ShowToast("Archive is read-only");
+                return;
             }
 
             List<string> sourcePaths;
@@ -590,6 +602,12 @@ namespace Span
             }
             if (string.IsNullOrEmpty(destDir)) return;
 
+            if (Helpers.ArchivePathHelper.IsArchivePath(destDir))
+            {
+                ViewModel.ShowToast("Archive is read-only");
+                return;
+            }
+
             // 소스 경로 수집 (내부 or 외부 클립보드)
             List<string> sourcePaths;
             if (_clipboardPaths.Count > 0)
@@ -691,6 +709,12 @@ namespace Span
                     currentFolder = columns[activeIndex];
                 }
                 if (currentFolder == null) return;
+
+                if (Helpers.ArchivePathHelper.IsArchivePath(currentFolder.Path))
+                {
+                    ViewModel.ShowToast("Archive is read-only");
+                    return;
+                }
 
                 string baseName = _loc.Get("NewFolderBaseName");
                 bool isRemote = Services.FileSystemRouter.IsRemotePath(currentFolder.Path);
@@ -843,6 +867,13 @@ namespace Span
             }
 
             if (selected == null) return;
+
+            var selectedPath = (selected as FolderViewModel)?.Path ?? (selected as FileViewModel)?.Path;
+            if (selectedPath != null && Helpers.ArchivePathHelper.IsArchivePath(selectedPath))
+            {
+                ViewModel.ShowToast("Archive is read-only");
+                return;
+            }
 
             // F2 cycling: if already renaming the same item, advance selection cycle
             var itemPath = (selected as FolderViewModel)?.Path ?? (selected as FileViewModel)?.Path;
@@ -1166,6 +1197,12 @@ namespace Span
             }
             if (selectedItems.Count == 0) return;
 
+            if (selectedItems.Any(i => Helpers.ArchivePathHelper.IsArchivePath(i.Path)))
+            {
+                ViewModel.ShowToast("Archive is read-only");
+                return;
+            }
+
             var selected = selectedItems[0]; // For display name in dialog
             // Remember the selected item's index for smart selection after delete
             int selectedIndex = currentColumn.Children.IndexOf(selected);
@@ -1261,6 +1298,12 @@ namespace Span
             // Multi-selection support
             var selectedItems = GetCurrentSelectedItems();
             if (selectedItems.Count == 0) return;
+
+            if (selectedItems.Any(i => Helpers.ArchivePathHelper.IsArchivePath(i.Path)))
+            {
+                ViewModel.ShowToast("Archive is read-only");
+                return;
+            }
 
             var selected = selectedItems[0];
             int selectedIndex = currentColumn.Children.IndexOf(selected);
@@ -1624,6 +1667,12 @@ namespace Span
                 if (sel != null) selectedItems = new List<FileSystemViewModel> { sel };
             }
             if (selectedItems.Count == 0) return;
+
+            if (selectedItems.Any(i => Helpers.ArchivePathHelper.IsArchivePath(i.Path)))
+            {
+                ViewModel.ShowToast("Archive is read-only");
+                return;
+            }
 
             var suffix = _loc.Get("DuplicateSuffix"); // " - Copy" / " - 복사본" / " - コピー"
             var paths = selectedItems.Select(item => item.Path).ToList();

@@ -558,8 +558,13 @@ namespace Span.Views
             {
                 try
                 {
-                    var shellService = App.Current.Services.GetRequiredService<Services.ShellService>();
-                    shellService.OpenFile(file.Path);
+                    if (Helpers.ArchivePathHelper.IsArchivePath(file.Path))
+                        MainWindow.OpenArchiveEntryStaticAsync(file.Path);
+                    else
+                    {
+                        var shellService = App.Current.Services.GetRequiredService<Services.ShellService>();
+                        shellService.OpenFile(file.Path);
+                    }
                 }
                 catch (Exception ex) { Helpers.DebugLogger.Log($"[ListModeView] OpenFile error (double-tap): {ex.Message}"); }
             }
@@ -636,8 +641,13 @@ namespace Span.Views
             {
                 try
                 {
-                    var shellService = App.Current.Services.GetRequiredService<Services.ShellService>();
-                    shellService.OpenFile(file.Path);
+                    if (Helpers.ArchivePathHelper.IsArchivePath(file.Path))
+                        MainWindow.OpenArchiveEntryStaticAsync(file.Path);
+                    else
+                    {
+                        var shellService = App.Current.Services.GetRequiredService<Services.ShellService>();
+                        shellService.OpenFile(file.Path);
+                    }
                 }
                 catch (Exception ex) { Helpers.DebugLogger.Log($"[ListModeView] OpenFile error (enter key): {ex.Message}"); }
             }

@@ -708,6 +708,10 @@ namespace Span
                     // Archive already navigated on selection; Enter is no-op
                     Helpers.DebugLogger.Log($"[Keyboard] Enter on archive: {fileVm.Name} (already navigated)");
                 }
+                else if (Helpers.ArchivePathHelper.IsArchivePath(fileVm.Path))
+                {
+                    _ = OpenArchiveEntryAsync(fileVm.Path);
+                }
                 else
                 {
                     var shellService = App.Current.Services.GetRequiredService<Services.ShellService>();

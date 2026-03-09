@@ -3590,6 +3590,12 @@ namespace Span
                         // Archive already navigated on selection; double-click is no-op
                         Helpers.DebugLogger.Log($"[MainWindow] Miller Column DoubleClick: Archive {file.Name} (already navigated)");
                     }
+                    else if (Helpers.ArchivePathHelper.IsArchivePath(file.Path))
+                    {
+                        // File inside archive: extract to temp and open
+                        _ = OpenArchiveEntryAsync(file.Path);
+                        Helpers.DebugLogger.Log($"[MainWindow] Miller Column DoubleClick: Extracting archive entry {file.Name}");
+                    }
                     else
                     {
                         // Open file with default application via ShellExecute (faster than WinRT Launcher)
@@ -4097,6 +4103,7 @@ namespace Span
 
         void Services.IContextMenuHost.PerformCut(string path)
         {
+            if (Helpers.ArchivePathHelper.IsArchivePath(path)) { ViewModel.ShowToast("Archive is read-only"); return; }
             _clipboardPaths.Clear();
             _clipboardPaths.Add(path);
             _isCutOperation = true;
@@ -4123,6 +4130,7 @@ namespace Span
 
         async void Services.IContextMenuHost.PerformPaste(string targetFolderPath)
         {
+            if (Helpers.ArchivePathHelper.IsArchivePath(targetFolderPath)) { ViewModel.ShowToast("Archive is read-only"); return; }
             try
             {
             List<string> sourcePaths;
@@ -4183,6 +4191,7 @@ namespace Span
 
         async void Services.IContextMenuHost.PerformDelete(string path, string itemName)
         {
+            if (Helpers.ArchivePathHelper.IsArchivePath(path)) { ViewModel.ShowToast("Archive is read-only"); return; }
             try
             {
             var dialog = new ContentDialog
@@ -4215,6 +4224,7 @@ namespace Span
 
         void Services.IContextMenuHost.PerformRename(FileSystemViewModel item)
         {
+            if (Helpers.ArchivePathHelper.IsArchivePath(item.Path)) { ViewModel.ShowToast("Archive is read-only"); return; }
             try
             {
             Helpers.DebugLogger.Log($"[Rename] PerformRename START: '{item.Name}'");
@@ -4280,11 +4290,57 @@ namespace Span
                         }
                     }
                 }
+                else if (Helpers.ArchivePathHelper.IsArchivePath(file.Path))
+                {
+                    // File inside archive: extract to temp and open
+                    _ = OpenArchiveEntryAsync(file.Path);
+                }
                 else
                 {
                     var shellService = App.Current.Services.GetRequiredService<ShellService>();
                     shellService.OpenFile(file.Path);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Extract a file from inside an archive to temp and open it with the default app.
+        /// </summary>
+        private async Task OpenArchiveEntryAsync(string archivePath)
+        {
+            await OpenArchiveEntryStaticAsync(archivePath);
+        }
+
+        /// <summary>
+        /// Extract a file from inside an archive to temp and open it with the default app.
+        /// Callable from any view (ListModeView, ViewItemHelper, etc.).
+        /// </summary>
+        internal static async Task OpenArchiveEntryStaticAsync(string archivePath)
+        {
+            try
+            {
+                var (archiveFilePath, internalPath) = Helpers.ArchivePathHelper.Parse(archivePath);
+                if (string.IsNullOrEmpty(internalPath)) return;
+
+                var reader = App.Current.Services.GetRequiredService<Services.ArchiveReaderService>();
+                using var stream = await reader.OpenEntryAsync(archiveFilePath, internalPath);
+
+                var fileName = System.IO.Path.GetFileName(internalPath);
+                var tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "Span_Archive");
+                System.IO.Directory.CreateDirectory(tempDir);
+                var tempFile = System.IO.Path.Combine(tempDir, fileName);
+
+                using (var fs = new System.IO.FileStream(tempFile, System.IO.FileMode.Create, System.IO.FileAccess.Write))
+                {
+                    await stream.CopyToAsync(fs);
+                }
+
+                var shellService = App.Current.Services.GetRequiredService<Services.ShellService>();
+                shellService.OpenFile(tempFile);
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[OpenArchiveEntry] Error: {ex.Message}");
             }
         }
 
@@ -4329,6 +4385,7 @@ namespace Span
 
         async void Services.IContextMenuHost.PerformNewFolder(string parentFolderPath)
         {
+            if (Helpers.ArchivePathHelper.IsArchivePath(parentFolderPath)) { ViewModel.ShowToast("Archive is read-only"); return; }
             string baseName = _loc.Get("NewFolderBaseName");
             string newPath = System.IO.Path.Combine(parentFolderPath, baseName);
 
@@ -4371,6 +4428,7 @@ namespace Span
 
         async void Services.IContextMenuHost.PerformNewFile(string parentFolderPath, string fileName)
         {
+            if (Helpers.ArchivePathHelper.IsArchivePath(parentFolderPath)) { ViewModel.ShowToast("Archive is read-only"); return; }
             string baseName = System.IO.Path.GetFileNameWithoutExtension(fileName);
             string ext = System.IO.Path.GetExtension(fileName);
             string newPath = System.IO.Path.Combine(parentFolderPath, fileName);
@@ -4417,6 +4475,7 @@ namespace Span
         async void Services.IContextMenuHost.PerformCompress(string[] paths)
         {
             if (paths == null || paths.Length == 0) return;
+            if (paths.Any(p => Helpers.ArchivePathHelper.IsArchivePath(p))) { ViewModel.ShowToast("Archive is read-only"); return; }
 
             try
             {

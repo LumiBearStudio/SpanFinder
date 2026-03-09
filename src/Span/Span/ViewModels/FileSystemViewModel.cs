@@ -456,6 +456,8 @@ namespace Span.ViewModels
             // Windows Explorer 방식: 전체 이름(확장자 포함) 그대로 사용
             if (string.IsNullOrEmpty(newName) || newName == Name)
                 return false;
+            if (Helpers.ArchivePathHelper.IsArchivePath(Path))
+                return false;
             string fullNewName = newName;
 
             try

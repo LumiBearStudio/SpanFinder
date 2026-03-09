@@ -37,9 +37,17 @@ namespace Span.Helpers
             {
                 try
                 {
-                    var shellService = App.Current.Services.GetRequiredService<Services.ShellService>();
-                    shellService.OpenFile(file.Path);
-                    DebugLogger.Log($"[{viewName}] Opening file {file.Name}");
+                    if (ArchivePathHelper.IsArchivePath(file.Path))
+                    {
+                        MainWindow.OpenArchiveEntryStaticAsync(file.Path);
+                        DebugLogger.Log($"[{viewName}] Extracting archive entry {file.Name}");
+                    }
+                    else
+                    {
+                        var shellService = App.Current.Services.GetRequiredService<Services.ShellService>();
+                        shellService.OpenFile(file.Path);
+                        DebugLogger.Log($"[{viewName}] Opening file {file.Name}");
+                    }
                 }
                 catch (Exception ex)
                 {
