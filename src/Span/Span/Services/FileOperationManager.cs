@@ -361,6 +361,7 @@ public partial class FileOperationEntry : ObservableObject
     public string SpeedText => FormatSpeed(SpeedBytesPerSecond);
     public string RemainingTimeText => FormatTime(EstimatedTimeRemaining);
     public string FileCountText => TotalFileCount > 0 ? $"{CurrentFileIndex} / {TotalFileCount}" : "";
+    public string PercentageText => $"{Percentage}%";
 
     // Internal references - not for UI binding
     internal IFileOperation Operation { get; init; } = null!;
@@ -370,6 +371,7 @@ public partial class FileOperationEntry : ObservableObject
     internal OperationResult? Result { get; set; }
     internal Microsoft.UI.Dispatching.DispatcherQueue? DispatcherQueue { get; set; }
 
+    partial void OnPercentageChanged(int value) => OnPropertyChanged(nameof(PercentageText));
     partial void OnSpeedBytesPerSecondChanged(double value) => OnPropertyChanged(nameof(SpeedText));
     partial void OnEstimatedTimeRemainingChanged(TimeSpan value) => OnPropertyChanged(nameof(RemainingTimeText));
     partial void OnCurrentFileIndexChanged(int value) => OnPropertyChanged(nameof(FileCountText));

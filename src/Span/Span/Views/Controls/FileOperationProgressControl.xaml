@@ -11,10 +11,11 @@
     <Grid>
         <!-- Multi-operation list panel: shown when FileOperationManager has active operations.
              SolidBackgroundFillColorQuarternaryBrush: 불투명 배경 사용 — 탐색기 콘텐츠 위에
-             오버레이되므로 반투명이면 텍스트 가독성이 떨어짐. 카드형 UI로 명확히 분리. -->
+             오버레이되므로 반투명이면 텍스트 가독성이 떨어짐. 카드형 UI로 명확히 분리.
+             SpanAccentDimBrush: 탭과 동일한 액센트 테두리로 패널 존재감 강조. -->
         <Border x:Name="MultiOperationPanel"
                 Background="{ThemeResource SolidBackgroundFillColorQuarternaryBrush}"
-                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderBrush="{ThemeResource SpanAccentDimBrush}"
                 BorderThickness="1"
                 CornerRadius="8"
                 Padding="0"
@@ -60,24 +61,35 @@
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
 
-                                <!-- Row 0: Description + buttons -->
+                                <!-- Row 0: Description + Percentage + buttons -->
                                 <Grid Grid.Row="0">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
 
                                     <TextBlock Grid.Column="0"
                                                Text="{x:Bind Description, Mode=OneWay}"
-                                               FontSize="12" FontWeight="SemiBold"
+                                               FontSize="13" FontWeight="SemiBold"
                                                TextTrimming="CharacterEllipsis"
                                                VerticalAlignment="Center"/>
 
+                                    <!-- Percentage text -->
+                                    <TextBlock Grid.Column="1"
+                                               Text="{x:Bind PercentageText, Mode=OneWay}"
+                                               FontSize="12"
+                                               Foreground="{ThemeResource SpanAccentBrush}"
+                                               FontWeight="SemiBold"
+                                               VerticalAlignment="Center"
+                                               Margin="8,0,4,0"/>
+
                                     <!-- Pause/Resume button: Cancelling 상태에서 비활성화 -->
-                                    <Button Grid.Column="1"
+                                    <Button Grid.Column="2"
                                             Width="28" Height="28" Padding="0"
                                             helpers:CursorHelper.IsHandCursor="True"
                                             ToolTipService.ToolTip="{x:Bind PauseResumeTooltip, Mode=OneWay}"
@@ -89,7 +101,7 @@
                                     </Button>
 
                                     <!-- Cancel button: Cancelling 상태에서 비활성화 (중복 클릭 방지) -->
-                                    <Button Grid.Column="2"
+                                    <Button Grid.Column="3"
                                             Width="28" Height="28" Padding="0"
                                             helpers:CursorHelper.IsHandCursor="True"
                                             ToolTipService.ToolTip="Cancel"
@@ -107,39 +119,52 @@
                                              Maximum="100"
                                              ShowPaused="{x:Bind IsPaused, Mode=OneWay}"
                                              ShowError="{x:Bind IsCancelling, Mode=OneWay}"
-                                             Height="4"
-                                             Margin="0,4,0,2"/>
+                                             Height="6"
+                                             CornerRadius="3"
+                                             Margin="0,6,0,4"/>
 
-                                <!-- Row 2: Details — Cancelling 시 StatusText("취소 중...") 표시 -->
+                                <!-- Row 2: Current file + file count -->
                                 <Grid Grid.Row="2" ColumnSpacing="8">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
 
                                     <TextBlock Grid.Column="0"
                                                Text="{x:Bind CurrentFile, Mode=OneWay}"
-                                               FontSize="11"
+                                               FontSize="12"
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                TextTrimming="CharacterEllipsis"/>
 
-                                    <!-- Cancelling 상태: "취소 중..." 텍스트 (IsRunning=false → SpeedText 숨김) -->
                                     <TextBlock Grid.Column="1"
+                                               Text="{x:Bind FileCountText, Mode=OneWay}"
+                                               FontSize="12"
+                                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                                </Grid>
+
+                                <!-- Row 3: Speed/Status + Remaining time -->
+                                <Grid Grid.Row="3" ColumnSpacing="8" Margin="0,2,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Cancelling 상태: "취소 중..." 텍스트 (IsRunning=false → SpeedText 숨김) -->
+                                    <TextBlock Grid.Column="0"
                                                Text="{x:Bind StatusText, Mode=OneWay}"
-                                               FontSize="11"
+                                               FontSize="12"
                                                FontStyle="Italic"
                                                Foreground="{ThemeResource SystemFillColorCautionBrush}"
                                                Visibility="{x:Bind IsCancelling, Mode=OneWay}"/>
-                                    <TextBlock Grid.Column="1"
+                                    <TextBlock Grid.Column="0"
                                                Text="{x:Bind SpeedText, Mode=OneWay}"
-                                               FontSize="11"
+                                               FontSize="12"
                                                Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                                                Visibility="{x:Bind IsRunning, Mode=OneWay}"/>
 
-                                    <TextBlock Grid.Column="2"
+                                    <TextBlock Grid.Column="1"
                                                Text="{x:Bind RemainingTimeText, Mode=OneWay}"
-                                               FontSize="11"
+                                               FontSize="12"
                                                Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                                                Visibility="{x:Bind IsRunning, Mode=OneWay}"/>
                                 </Grid>

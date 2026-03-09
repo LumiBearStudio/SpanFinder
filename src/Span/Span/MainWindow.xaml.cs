@@ -4404,17 +4404,8 @@ namespace Span
                 }
 
                 var op = new Span.Services.FileOperations.CompressOperation(paths, zipPath);
-                var result = await op.ExecuteAsync();
-
-                if (result.Success)
-                {
-                    // Refresh the active column
-                    var columns = ViewModel.ActiveExplorer?.Columns; if (columns == null) return;
-                    var parentColumn = columns.FirstOrDefault(c =>
-                        c.Path.Equals(parentDir, StringComparison.OrdinalIgnoreCase));
-                    if (parentColumn != null)
-                        await parentColumn.ReloadAsync();
-                }
+                var activeIndex = GetActiveColumnIndex();
+                await ViewModel.ExecuteFileOperationAsync(op, activeIndex >= 0 ? activeIndex : null);
             }
             catch (Exception ex)
             {
@@ -4440,16 +4431,8 @@ namespace Span
                 }
 
                 var op = new Span.Services.FileOperations.ExtractOperation(zipPath, destPath);
-                var result = await op.ExecuteAsync();
-
-                if (result.Success)
-                {
-                    var columns = ViewModel.ActiveExplorer?.Columns; if (columns == null) return;
-                    var parentColumn = columns.FirstOrDefault(c =>
-                        c.Path.Equals(parentDir, StringComparison.OrdinalIgnoreCase));
-                    if (parentColumn != null)
-                        await parentColumn.ReloadAsync();
-                }
+                var activeIndex = GetActiveColumnIndex();
+                await ViewModel.ExecuteFileOperationAsync(op, activeIndex >= 0 ? activeIndex : null);
             }
             catch (Exception ex)
             {
@@ -4486,13 +4469,8 @@ namespace Span
                 }
 
                 var op = new Span.Services.FileOperations.ExtractOperation(zipPath, destPath);
-                var result = await op.ExecuteAsync();
-
-                if (result.Success)
-                {
-                    // Navigate to extracted folder
-                    ViewModel.ActiveExplorer?.NavigateToPath(destPath);
-                }
+                var activeIndex = GetActiveColumnIndex();
+                await ViewModel.ExecuteFileOperationAsync(op, activeIndex >= 0 ? activeIndex : null);
             }
             catch (Exception ex)
             {

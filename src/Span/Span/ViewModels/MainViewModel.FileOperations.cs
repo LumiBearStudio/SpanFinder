@@ -111,7 +111,7 @@ namespace Span.ViewModels
 
             // Copy/Move operations go through the FileOperationManager for concurrent execution
             // with pause/resume/cancel support. Other operations use the legacy synchronous path.
-            if (operation is CopyFileOperation or MoveFileOperation)
+            if (operation is CopyFileOperation or MoveFileOperation or CompressOperation or ExtractOperation)
             {
                 await ExecuteViaConcurrentManagerAsync(operation, targetColumnIndex);
                 return;

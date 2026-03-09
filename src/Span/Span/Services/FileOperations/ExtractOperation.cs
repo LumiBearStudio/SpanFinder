@@ -1,14 +1,17 @@
 using System.IO.Compression;
+using System.Threading;
 
 namespace Span.Services.FileOperations;
 
 /// <summary>
 /// ZIP 압축 해제 작업.
+/// FileOperationManager를 통해 백그라운드 실행, 진행률/일시정지/취소 지원.
 /// </summary>
-public class ExtractOperation : IFileOperation
+public class ExtractOperation : IFileOperation, IPausableOperation
 {
     private readonly string _zipPath;
     private readonly string _destinationPath;
+    private ManualResetEventSlim? _pauseEvent;
 
     public ExtractOperation(string zipPath, string destinationPath)
     {
@@ -16,69 +19,87 @@ public class ExtractOperation : IFileOperation
         _destinationPath = destinationPath;
     }
 
-    public string Description => $"Extract '{Path.GetFileName(_zipPath)}'";
+    public string Description => LocalizationService.L("Op_ExtractFrom") is string s && s != "Op_ExtractFrom"
+        ? string.Format(s, Path.GetFileName(_zipPath))
+        : $"Extract '{Path.GetFileName(_zipPath)}'";
+
     public bool CanUndo => true;
 
-    public Task<OperationResult> ExecuteAsync(
+    public void SetPauseEvent(ManualResetEventSlim pauseEvent) => _pauseEvent = pauseEvent;
+
+    public async Task<OperationResult> ExecuteAsync(
         IProgress<FileOperationProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        try
+        return await Task.Run(() =>
         {
-            Directory.CreateDirectory(_destinationPath);
-
-            using var archive = ZipFile.OpenRead(_zipPath);
-            int total = archive.Entries.Count;
-            int current = 0;
-
-            foreach (var entry in archive.Entries)
+            try
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                Directory.CreateDirectory(_destinationPath);
 
-                string fullPath;
-                try
-                {
-                    fullPath = Path.GetFullPath(Path.Combine(_destinationPath, entry.FullName));
-                }
-                catch (PathTooLongException)
-                {
-                    continue; // Skip entries with paths exceeding MAX_PATH
-                }
+                using var archive = ZipFile.OpenRead(_zipPath);
 
-                // Security: prevent path traversal
-                if (!fullPath.StartsWith(Path.GetFullPath(_destinationPath), StringComparison.OrdinalIgnoreCase))
-                    continue;
-
-                if (string.IsNullOrEmpty(entry.Name))
+                // Calculate total bytes from entries
+                long totalBytes = 0;
+                var fileEntries = new List<ZipArchiveEntry>();
+                foreach (var entry in archive.Entries)
                 {
-                    // Directory entry
-                    Directory.CreateDirectory(fullPath);
-                }
-                else
-                {
-                    Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
-                    entry.ExtractToFile(fullPath, overwrite: true);
+                    totalBytes += entry.Length;
+                    fileEntries.Add(entry);
                 }
 
-                current++;
-                progress?.Report(new FileOperationProgress
+                long processedBytes = 0;
+                int current = 0;
+                var startTime = DateTime.Now;
+
+                foreach (var entry in fileEntries)
                 {
-                    CurrentFile = entry.FullName,
-                    CurrentFileIndex = current,
-                    TotalFileCount = total
-                });
+                    FileOperationHelpers.WaitIfPaused(_pauseEvent, cancellationToken);
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    string fullPath;
+                    try
+                    {
+                        fullPath = Path.GetFullPath(Path.Combine(_destinationPath, entry.FullName));
+                    }
+                    catch (PathTooLongException)
+                    {
+                        continue;
+                    }
+
+                    // Security: prevent path traversal
+                    if (!fullPath.StartsWith(Path.GetFullPath(_destinationPath), StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    if (string.IsNullOrEmpty(entry.Name))
+                    {
+                        Directory.CreateDirectory(fullPath);
+                    }
+                    else
+                    {
+                        Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
+                        entry.ExtractToFile(fullPath, overwrite: true);
+                    }
+
+                    processedBytes += entry.Length;
+                    current++;
+                    FileOperationHelpers.ReportProgress(
+                        progress, entry.FullName,
+                        current - 1, fileEntries.Count,
+                        processedBytes, totalBytes, startTime);
+                }
+
+                return OperationResult.CreateSuccess(_destinationPath);
             }
-
-            return Task.FromResult(OperationResult.CreateSuccess(_destinationPath));
-        }
-        catch (OperationCanceledException)
-        {
-            return Task.FromResult(OperationResult.CreateFailure("Operation cancelled"));
-        }
-        catch (Exception ex)
-        {
-            return Task.FromResult(OperationResult.CreateFailure(ex.Message));
-        }
+            catch (OperationCanceledException)
+            {
+                return OperationResult.CreateFailure("Operation cancelled");
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.CreateFailure(ex.Message);
+            }
+        }, cancellationToken);
     }
 
     public Task<OperationResult> UndoAsync(CancellationToken cancellationToken = default)
