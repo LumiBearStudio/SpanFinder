@@ -7,8 +7,8 @@
 SPAN Finder는 Windows의 파일 탐색을 새롭게 정의합니다. macOS Finder 컬럼 뷰의 우아함에서 영감을 받아, Windows 탐색기에는 없었던 기능들을 탑재했습니다 — 멀티 탭, 분할 뷰, 비동기 작업, 키보드 중심 워크플로우로 파일 관리가 한결 수월해집니다.
 
 > **Windows 탐색기에 만족하고 계신가요?**
->
-> **지금 [Microsoft Store](https://www.microsoft.com/store/apps/9P42MFRMH07X)에서 만나보세요.**
+
+[![Microsoft Store에서 다운로드](https://get.microsoft.com/images/ko-kr%20dark.svg)](https://apps.microsoft.com/detail/9P7NJ351X9TL)
 
 ![SPAN Finder — 밀러 컬럼 + 미리보기 패널](1.jpg)
 

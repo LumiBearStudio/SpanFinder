@@ -8,6 +8,8 @@ SPAN Finder réinvente la navigation de fichiers sous Windows. Inspiré par l'é
 
 > **Pourquoi se contenter de l'Explorateur Windows ?**
 
+[![Télécharger depuis le Microsoft Store](https://get.microsoft.com/images/fr-fr%20dark.svg)](https://apps.microsoft.com/detail/9P7NJ351X9TL)
+
 ---
 
 ## Pourquoi SPAN Finder ?

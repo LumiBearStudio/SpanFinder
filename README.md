@@ -7,8 +7,8 @@ English | [한국어](README/README.ko.md) | [日本語](README/README.ja.md) | 
 SPAN Finder reimagines file navigation on Windows. Inspired by the elegance of macOS Finder's column view and supercharged with features Windows Explorer never had — multi-tab, split view, async operations, and keyboard-driven workflows that make file management feel effortless.
 
 > **Why settle for Windows Explorer when you can fly?**
->
-> **Now available on the [Microsoft Store](https://www.microsoft.com/store/apps/9P42MFRMH07X).**
+
+[![Download from Microsoft Store](https://get.microsoft.com/images/en-us%20dark.svg)](https://apps.microsoft.com/detail/9P7NJ351X9TL)
 
 ![SPAN Finder — Miller Columns + Preview Panel](README/1.jpg)
 
