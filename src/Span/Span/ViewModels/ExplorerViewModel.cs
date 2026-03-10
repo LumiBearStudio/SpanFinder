@@ -812,7 +812,7 @@ namespace Span.ViewModels
         /// 브레드크럼 세그먼트 클릭 시 해당 경로까지 탐색.
         /// Finder 스타일: 이미 열려있는 컬럼 내의 경로라면 컬럼을 유지하고 하위만 정리.
         /// </summary>
-        public void NavigateToSegment(PathSegment segment)
+        public async void NavigateToSegment(PathSegment segment)
         {
             if (segment == null) return;
             Helpers.DebugLogger.Log($"[NavigateToSegment] path='{segment.FullPath}', Columns={Columns.Count}");
@@ -846,6 +846,9 @@ namespace Span.ViewModels
 
                 // Push current path to history for column-truncation navigation
                 PushToHistory(segment.FullPath);
+
+                // Yield to escape any active layout pass (same guard as FolderVm_PropertyChanged)
+                await Task.Yield();
 
                 RemoveColumnsFrom(index + 1);
 

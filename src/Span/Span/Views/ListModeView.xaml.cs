@@ -435,26 +435,35 @@ namespace Span.Views
 
         private void OnListSelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            if (_isSyncingSelection) return; // Prevent circular updates
             if (ViewModel?.CurrentFolder == null) return;
             if (sender is not GridView gridView) return;
 
-            // Filter out ".." from selection sync — prevents file operations on parent dir
-            var realItems = gridView.SelectedItems
-                .OfType<FileSystemViewModel>()
-                .Where(x => !IsParentDotDot(x))
-                .Cast<object>()
-                .ToList();
-
-            ViewModel.CurrentFolder.SyncSelectedItems(realItems);
-
-            // Also set SelectedChild for single selection (excluding "..")
-            if (gridView.SelectedItems.Count == 1)
+            _isSyncingSelection = true;
+            try
             {
-                var single = gridView.SelectedItems[0] as FileSystemViewModel;
-                if (single != null && !IsParentDotDot(single))
+                // Filter out ".." from selection sync — prevents file operations on parent dir
+                var realItems = gridView.SelectedItems
+                    .OfType<FileSystemViewModel>()
+                    .Where(x => !IsParentDotDot(x))
+                    .Cast<object>()
+                    .ToList();
+
+                ViewModel.CurrentFolder.SyncSelectedItems(realItems);
+
+                // Also set SelectedChild for single selection (excluding "..")
+                if (gridView.SelectedItems.Count == 1)
                 {
-                    ViewModel.CurrentFolder.SelectedChild = single;
+                    var single = gridView.SelectedItems[0] as FileSystemViewModel;
+                    if (single != null && !IsParentDotDot(single))
+                    {
+                        ViewModel.CurrentFolder.SelectedChild = single;
+                    }
                 }
+            }
+            finally
+            {
+                _isSyncingSelection = false;
             }
         }
 
