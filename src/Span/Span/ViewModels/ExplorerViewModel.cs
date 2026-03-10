@@ -1114,6 +1114,17 @@ namespace Span.ViewModels
                 // CRITICAL: In Details/Icon mode, disable auto-navigation (only allow double-click)
                 if (!EnableAutoNavigation) return;
 
+                // CRITICAL: Yield to escape any active layout pass.
+                // When switching to MillerColumns, the ItemsControl becomes Visible and
+                // triggers measure/arrange. During layout, ListView fires SelectionChanged
+                // synchronously. If we modify Columns (via RemoveColumnsFrom/AddColumn)
+                // during that layout pass, WinUI throws COMException:
+                // "Child collection must not be modified during measure or arrange".
+                // Task.Yield() posts the continuation after the current synchronous
+                // execution (including layout) completes.
+                await Task.Yield();
+                if (!EnableAutoNavigation) return; // Re-check after yield
+
                 // CRITICAL: Suppress navigation when multiple items are selected
                 if (parentFolder.HasMultiSelection) return;
 
