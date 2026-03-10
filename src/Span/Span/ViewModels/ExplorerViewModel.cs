@@ -815,6 +815,9 @@ namespace Span.ViewModels
         public async void NavigateToSegment(PathSegment segment)
         {
             if (segment == null) return;
+
+            try
+            {
             Helpers.DebugLogger.Log($"[NavigateToSegment] path='{segment.FullPath}', Columns={Columns.Count}");
 
             // 1. 현재 컬럼들 중에서 해당 경로와 일치하는 폴더가 있는지 확인
@@ -872,6 +875,11 @@ namespace Span.ViewModels
             {
                 // 3. 컬럼에 없다면 (완전히 다른 경로로 점프하는 경우) 기존 방식대로 전체 이동
                 _ = NavigateToPath(segment.FullPath);
+            }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[NavigateToSegment] Error: {ex.Message}");
             }
         }
 

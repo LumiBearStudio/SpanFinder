@@ -624,7 +624,7 @@ namespace Span
                     sourcePaths = items.Select(i => i.Path).Where(p => !string.IsNullOrEmpty(p)).ToList();
                     if (sourcePaths.Count == 0) return;
                 }
-                catch { return; }
+                catch (Exception ex) { Helpers.DebugLogger.Log($"[HandlePasteAsShortcut] Clipboard access failed: {ex.Message}"); return; }
             }
 
             int created = 0;
