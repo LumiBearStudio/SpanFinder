@@ -232,8 +232,10 @@ namespace Span
             _subscribedLeftExplorer = ViewModel.Explorer;
             ViewModel.Explorer.Columns.CollectionChanged += OnColumnsChanged;
             ViewModel.Explorer.NavigationError += OnNavigationError;
+            ViewModel.Explorer.PathHighlightsUpdated += OnPathHighlightsUpdated;
             ViewModel.RightExplorer.Columns.CollectionChanged += OnRightColumnsChanged;
             ViewModel.RightExplorer.NavigationError += OnNavigationError;
+            ViewModel.RightExplorer.PathHighlightsUpdated += OnPathHighlightsUpdated;
 
             // ── Per-Tab Miller Panel 초기화 ──
             // XAML에서 ItemsSource가 제거되었으므로 코드에서 설정
@@ -491,9 +493,13 @@ namespace Span
 
                         // Resubscribe column changes
                         if (_subscribedLeftExplorer != null)
+                        {
                             _subscribedLeftExplorer.Columns.CollectionChanged -= OnColumnsChanged;
+                            _subscribedLeftExplorer.PathHighlightsUpdated -= OnPathHighlightsUpdated;
+                        }
                         _subscribedLeftExplorer = ViewModel.Explorer;
                         ViewModel.Explorer.Columns.CollectionChanged += OnColumnsChanged;
+                        ViewModel.Explorer.PathHighlightsUpdated += OnPathHighlightsUpdated;
 
                         _previousViewMode = ViewModel.CurrentViewMode;
                         SetViewModeVisibility(ViewModel.CurrentViewMode);
@@ -910,6 +916,7 @@ namespace Span
                     _subscribedLeftExplorer.Columns.CollectionChanged -= OnColumnsChanged;
                     _subscribedLeftExplorer.Columns.CollectionChanged -= OnLeftColumnsChangedForPreview;
                     _subscribedLeftExplorer.NavigationError -= OnNavigationError;
+                    _subscribedLeftExplorer.PathHighlightsUpdated -= OnPathHighlightsUpdated;
                     _subscribedLeftExplorer = null;
                 }
                 if (ViewModel?.RightExplorer != null)
@@ -1557,6 +1564,7 @@ namespace Span
                 _subscribedLeftExplorer.Columns.CollectionChanged -= OnLeftColumnsChangedForPreview;
                 _subscribedLeftExplorer.PropertyChanged -= OnLeftExplorerCurrentPathChanged;
                 _subscribedLeftExplorer.NavigationError -= OnNavigationError;
+                _subscribedLeftExplorer.PathHighlightsUpdated -= OnPathHighlightsUpdated;
             }
 
             // 새 Explorer 구독
@@ -1567,6 +1575,7 @@ namespace Span
                 newExplorer.Columns.CollectionChanged += OnLeftColumnsChangedForPreview;
                 newExplorer.PropertyChanged += OnLeftExplorerCurrentPathChanged;
                 newExplorer.NavigationError += OnNavigationError;
+                newExplorer.PathHighlightsUpdated += OnPathHighlightsUpdated;
 
                 // AddressBarControl 동기화
                 SyncAddressBarControls(newExplorer);
@@ -3196,6 +3205,20 @@ namespace Span
                 val => _isSyncingSelection = val);
 
             _rubberBandHelpers[grid] = helper;
+
+            // 컬럼 Grid Loaded 시점에 path highlight 리프레시
+            // PathHighlightsUpdated 이벤트가 Loaded 전에 발생한 경우를 보완
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+            {
+                try
+                {
+                    var explorer = ViewModel?.Explorer;
+                    explorer?.RefreshPathHighlights();
+                    if (ViewModel?.IsSplitViewEnabled == true)
+                        ViewModel.RightExplorer?.RefreshPathHighlights();
+                }
+                catch { /* ignore */ }
+            });
         }
 
         /// <summary>
@@ -3263,6 +3286,14 @@ namespace Span
         private void OnMillerColumnContentGridUnloaded(object sender, RoutedEventArgs e)
         {
             if (sender is not Grid grid) return;
+
+            // PathIndicator 정리
+            if (_pathIndicators.TryGetValue(grid, out var indicator))
+            {
+                grid.Children.Remove(indicator);
+                _pathIndicators.Remove(grid);
+            }
+            _prevIndicatorY.Remove(grid.GetHashCode());
 
             if (_rubberBandHelpers.TryGetValue(grid, out var helper))
             {
@@ -3526,6 +3557,11 @@ namespace Span
 
             if (sender is ListView listView && listView.DataContext is FolderViewModel folderVm)
             {
+                // Suppress selection sync during bulk Children updates (reload/refresh).
+                // SyncChildren may replace the collection, causing ListView to lose selection
+                // temporarily. Without this guard, SelectedChild would be nulled and child columns removed.
+                if (folderVm.IsBulkUpdating) return;
+
                 _isSyncingSelection = true;
                 try
                 {
@@ -3572,6 +3608,223 @@ namespace Span
                 }
             }
         }
+
+        #region Floating Path Indicator Animation
+
+        /// <summary>
+        /// 각 컬럼 콘텐츠 Grid → 플로팅 PathIndicator Border 매핑.
+        /// OnMillerColumnContentGridLoaded에서 생성, Unloaded에서 제거.
+        /// </summary>
+        private readonly Dictionary<Grid, Border> _pathIndicators = new();
+
+        /// <summary>
+        /// 각 컬럼의 플로팅 인디케이터의 이전 Y 위치를 추적하여 슬라이드 방향 결정에 사용.
+        /// Key = content Grid hashcode, Value = previous Y offset.
+        /// </summary>
+        private readonly Dictionary<int, double> _prevIndicatorY = new();
+
+        /// <summary>
+        /// ExplorerViewModel.PathHighlightsUpdated 이벤트 핸들러.
+        /// 각 컬럼의 플로팅 인디케이터를 on-path 아이템 위치로 슬라이드 애니메이션.
+        /// NavigationView의 SelectionIndicator 이동 효과를 Composition API로 재현.
+        /// </summary>
+        private void OnPathHighlightsUpdated(ViewModels.ExplorerViewModel sender, Dictionary<int, ViewModels.FileSystemViewModel?> highlightMap)
+        {
+            // Dispatch to Low priority so it runs after Loaded and layout pass
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+            {
+                try
+                {
+                    ApplyPathIndicators(sender, highlightMap);
+                }
+                catch (Exception ex)
+                {
+                    Helpers.DebugLogger.Log($"[PathIndicator] Animation error: {ex.Message}");
+                }
+            });
+        }
+
+        private void ApplyPathIndicators(ViewModels.ExplorerViewModel sender, Dictionary<int, ViewModels.FileSystemViewModel?> highlightMap)
+        {
+            // Determine which ItemsControl based on sender (left vs right pane)
+            ItemsControl control;
+            string paneLabel;
+            if (sender == ViewModel.RightExplorer)
+            {
+                control = MillerColumnsControlRight;
+                paneLabel = "Right";
+            }
+            else if (_activeMillerTabId != null && _tabMillerPanels.TryGetValue(_activeMillerTabId, out var panel))
+            {
+                control = panel.items;
+                paneLabel = "Left(tab)";
+            }
+            else
+            {
+                control = MillerColumnsControl;
+                paneLabel = "Left(fallback)";
+            }
+            Helpers.DebugLogger.Log($"[PathIndicator] ApplyPathIndicators pane={paneLabel}, controlNull={control == null}, highlightCount={highlightMap.Count}, controlName={control?.Name}");
+            if (control == null) return;
+
+            foreach (var (colIndex, onPathItem) in highlightMap)
+            {
+                var colContainer = control.ContainerFromIndex(colIndex);
+                if (colContainer == null)
+                {
+                    Helpers.DebugLogger.Log($"[PathIndicator] col={colIndex}: ContainerFromIndex returned NULL");
+                    continue;
+                }
+
+                // Find ListView inside this column, then get its parent Grid (content grid)
+                var listView = VisualTreeHelpers.FindChild<ListView>(colContainer);
+                if (listView == null)
+                {
+                    Helpers.DebugLogger.Log($"[PathIndicator] col={colIndex}: ListView not found in container");
+                    continue;
+                }
+                var contentGrid = listView.Parent as Grid;
+                if (contentGrid == null)
+                {
+                    Helpers.DebugLogger.Log($"[PathIndicator] col={colIndex}: contentGrid is null (parent type={listView.Parent?.GetType().Name})");
+                    continue;
+                }
+
+                // Get or create indicator for this content grid
+                var indicator = GetOrCreateIndicator(contentGrid);
+
+                if (onPathItem == null)
+                {
+                    AnimateIndicator(indicator, 0, null, null);
+                    continue;
+                }
+
+                // Find the ListViewItem container for the on-path item
+                var itemContainer = listView.ContainerFromItem(onPathItem) as ListViewItem;
+                if (itemContainer == null)
+                {
+                    Helpers.DebugLogger.Log($"[PathIndicator] col={colIndex}: ContainerFromItem returned NULL for '{onPathItem.Name}', listView.Items.Count={listView.Items.Count}");
+                    AnimateIndicator(indicator, 0, null, null);
+                    continue;
+                }
+                Helpers.DebugLogger.Log($"[PathIndicator] col={colIndex}: indicator SHOWN for '{onPathItem.Name}' at pane={paneLabel}");
+
+                // Get Y offset of the item relative to the contentGrid (indicator's parent)
+                double targetY;
+                try
+                {
+                    var transform = itemContainer.TransformToVisual(contentGrid);
+                    var point = transform.TransformPoint(new Windows.Foundation.Point(0, 0));
+                    targetY = point.Y + (itemContainer.ActualHeight / 2) - (indicator.Height / 2);
+                }
+                catch { continue; }
+
+                // Determine animation direction from previous position
+                int key = contentGrid.GetHashCode();
+                double? fromY = _prevIndicatorY.TryGetValue(key, out var prev) ? prev : null;
+                _prevIndicatorY[key] = targetY;
+
+                AnimateIndicator(indicator, 1, targetY, fromY);
+            }
+        }
+
+        /// <summary>
+        /// content Grid에 대한 PathIndicator Border를 가져오거나, 없으면 새로 생성.
+        /// Canvas.ZIndex를 높게 설정하여 ListView 위에 렌더링되도록 보장.
+        /// </summary>
+        private Border GetOrCreateIndicator(Grid contentGrid)
+        {
+            if (_pathIndicators.TryGetValue(contentGrid, out var existing))
+                return existing;
+
+            var indicator = new Border
+            {
+                HorizontalAlignment = Microsoft.UI.Xaml.HorizontalAlignment.Left,
+                VerticalAlignment = Microsoft.UI.Xaml.VerticalAlignment.Top,
+                Width = 3,
+                Height = 16,
+                CornerRadius = new CornerRadius(1.5),
+                Margin = new Thickness(3, 0, 0, 0),
+                Background = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SpanAccentBrush"],
+                Opacity = 0,
+                IsHitTestVisible = false,
+            };
+            // Z-index 최상위 — ListView 및 다른 요소 위에 렌더링
+            Microsoft.UI.Xaml.Controls.Canvas.SetZIndex(indicator, 100);
+            contentGrid.Children.Add(indicator);
+            _pathIndicators[contentGrid] = indicator;
+            return indicator;
+        }
+
+        /// <summary>
+        /// Composition API를 사용하여 플로팅 인디케이터를 애니메이션.
+        /// opacity=1이면 targetY 위치로 슬라이드, opacity=0이면 페이드아웃.
+        /// fromY가 있으면 이전 위치에서 현재 위치로 슬라이드 + 스케일 효과.
+        /// </summary>
+        private static void AnimateIndicator(Border indicator, double opacity, double? targetY, double? fromY)
+        {
+            try
+            {
+                var visual = Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.GetElementVisual(indicator);
+                var compositor = visual.Compositor;
+
+                if (opacity <= 0)
+                {
+                    // Fade out
+                    var fadeOut = compositor.CreateScalarKeyFrameAnimation();
+                    fadeOut.InsertKeyFrame(1f, 0f, compositor.CreateCubicBezierEasingFunction(
+                        new System.Numerics.Vector2(0.1f, 0.9f), new System.Numerics.Vector2(0.2f, 1f)));
+                    fadeOut.Duration = TimeSpan.FromMilliseconds(150);
+                    visual.StartAnimation("Opacity", fadeOut);
+                    return;
+                }
+
+                if (targetY == null) return;
+
+                // Set Translation.Y (the indicator uses VerticalAlignment=Top, so Translation.Y positions it)
+                var targetOffset = new System.Numerics.Vector3(3, (float)targetY.Value, 0);
+
+                if (fromY != null && Math.Abs(fromY.Value - targetY.Value) > 2)
+                {
+                    // Slide animation: move from old position to new position
+                    float startY = (float)fromY.Value;
+                    float endY = (float)targetY.Value;
+
+                    // Offset animation (slide)
+                    var slideAnim = compositor.CreateVector3KeyFrameAnimation();
+                    slideAnim.InsertKeyFrame(0f, new System.Numerics.Vector3(3, startY, 0));
+                    slideAnim.InsertKeyFrame(1f, new System.Numerics.Vector3(3, endY, 0),
+                        compositor.CreateCubicBezierEasingFunction(
+                            new System.Numerics.Vector2(0.1f, 0.9f), new System.Numerics.Vector2(0.2f, 1f)));
+                    slideAnim.Duration = TimeSpan.FromMilliseconds(250);
+                    visual.StartAnimation("Offset", slideAnim);
+
+                    // Fade in (in case it was hidden)
+                    var fadeIn = compositor.CreateScalarKeyFrameAnimation();
+                    fadeIn.InsertKeyFrame(0f, visual.Opacity);
+                    fadeIn.InsertKeyFrame(1f, 1f);
+                    fadeIn.Duration = TimeSpan.FromMilliseconds(150);
+                    visual.StartAnimation("Opacity", fadeIn);
+                }
+                else
+                {
+                    // First appearance or same position: just set offset and fade in
+                    visual.Offset = targetOffset;
+
+                    var fadeIn = compositor.CreateScalarKeyFrameAnimation();
+                    fadeIn.InsertKeyFrame(1f, 1f, compositor.CreateCubicBezierEasingFunction(
+                        new System.Numerics.Vector2(0.1f, 0.9f), new System.Numerics.Vector2(0.2f, 1f)));
+                    fadeIn.Duration = TimeSpan.FromMilliseconds(200);
+                    visual.StartAnimation("Opacity", fadeIn);
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[PathIndicator] AnimateIndicator error: {ex.Message}");
+            }
+        }
+
+        #endregion
 
         /// <summary>
         /// Miller Column 더블 탭 이벤트.

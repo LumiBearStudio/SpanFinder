@@ -438,6 +438,22 @@ namespace Span
                 SyncRightAddressBar();
                 SubscribeRightExplorerForAddressBar();
 
+                // Close preview panels when entering split view (saves screen space)
+                if (ViewModel.IsLeftPreviewEnabled)
+                {
+                    ViewModel.IsLeftPreviewEnabled = false;
+                    LeftPreviewSplitterCol.Width = new GridLength(0);
+                    LeftPreviewCol.Width = new GridLength(0);
+                    LeftPreviewPanel.StopMedia();
+                }
+                if (ViewModel.IsRightPreviewEnabled)
+                {
+                    ViewModel.IsRightPreviewEnabled = false;
+                    RightPreviewSplitterCol.Width = new GridLength(0);
+                    RightPreviewCol.Width = new GridLength(0);
+                    RightPreviewPanel.StopMedia();
+                }
+
                 // Set active pane to right and focus it after UI has updated
                 ViewModel.ActivePane = ActivePane.Right;
                 FocusActivePane();

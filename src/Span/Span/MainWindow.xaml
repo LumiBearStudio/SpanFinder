@@ -890,7 +890,6 @@
                                                                             <DataTemplate x:DataType="viewmodels:FolderViewModel">
                                                                                 <Grid Padding="12,2" MinHeight="24" RightTapped="OnFolderRightTapped"
                                                                                       ToolTipService.ToolTip="{x:Bind TooltipText}"
-                                                                                      Background="{x:Bind PathBackground, Mode=OneWay}"
                                                                                       Opacity="{x:Bind ItemOpacity}"
                                                                                       AllowDrop="True" DragOver="OnFolderItemDragOver" Drop="OnFolderItemDrop" DragLeave="OnFolderItemDragLeave">
                                                                                     <Grid.ColumnDefinitions>
@@ -900,10 +899,7 @@
                                                                                         <ColumnDefinition Width="Auto"/>
                                                                                         <ColumnDefinition Width="Auto"/>
                                                                                     </Grid.ColumnDefinitions>
-                                                                                    <!-- Path indicator bar (accent left edge for items on navigation path) -->
-                                                                                    <Border Grid.Column="0" Width="1" CornerRadius="0.5" Margin="-8,2,0,2"
-                                                                                            Background="{ThemeResource SpanAccentBrush}"
-                                                                                            Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfTrue(IsOnPath), Mode=OneWay}"/>
+                                                                                    <!-- Col0: reserved for layout alignment (indicator handled by floating overlay) -->
                                                                                     <FontIcon Grid.Column="1" FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Folder}" FontSize="16" Foreground="{x:Bind IconBrush}" Margin="0,0,12,0"/>
                                                                                     <TextBlock Grid.Column="2" Text="{x:Bind TruncatedDisplayName, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontSize="13"
                                                                                                Visibility="{x:Bind viewmodels:FileSystemViewModel.NotRenaming(IsRenaming), Mode=OneWay}"/>
@@ -923,7 +919,6 @@
                                                                             <DataTemplate x:DataType="viewmodels:FileViewModel">
                                                                                 <Grid Padding="12,2" MinHeight="24" RightTapped="OnFileRightTapped"
                                                                                       ToolTipService.ToolTip="{x:Bind TooltipText}"
-                                                                                      Background="{x:Bind PathBackground, Mode=OneWay}"
                                                                                       Opacity="{x:Bind ItemOpacity}">
                                                                                     <Grid.ColumnDefinitions>
                                                                                         <ColumnDefinition Width="Auto"/>
@@ -1350,7 +1345,6 @@
                                                                             <DataTemplate x:DataType="viewmodels:FolderViewModel">
                                                                                 <Grid Padding="12,2" MinHeight="24" RightTapped="OnFolderRightTapped"
                                                                                       ToolTipService.ToolTip="{x:Bind TooltipText}"
-                                                                                      Background="{x:Bind PathBackground, Mode=OneWay}"
                                                                                       Opacity="{x:Bind ItemOpacity}"
                                                                                       AllowDrop="True" DragOver="OnFolderItemDragOver" Drop="OnFolderItemDrop" DragLeave="OnFolderItemDragLeave">
                                                                                     <Grid.ColumnDefinitions>
@@ -1360,10 +1354,7 @@
                                                                                         <ColumnDefinition Width="Auto"/>
                                                                                         <ColumnDefinition Width="Auto"/>
                                                                                     </Grid.ColumnDefinitions>
-                                                                                    <!-- Path indicator bar (accent left edge for items on navigation path) -->
-                                                                                    <Border Grid.Column="0" Width="1" CornerRadius="0.5" Margin="-8,2,0,2"
-                                                                                            Background="{ThemeResource SpanAccentBrush}"
-                                                                                            Visibility="{x:Bind viewmodels:FileSystemViewModel.ShowIfTrue(IsOnPath), Mode=OneWay}"/>
+                                                                                    <!-- Col0: reserved for layout alignment (indicator handled by floating overlay) -->
                                                                                     <FontIcon Grid.Column="1" FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Folder}" FontSize="16" Foreground="{x:Bind IconBrush}" Margin="0,0,12,0"/>
                                                                                     <TextBlock Grid.Column="2" Text="{x:Bind TruncatedDisplayName, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontSize="13"
                                                                                                Visibility="{x:Bind viewmodels:FileSystemViewModel.NotRenaming(IsRenaming), Mode=OneWay}"/>
@@ -1383,7 +1374,6 @@
                                                                             <DataTemplate x:DataType="viewmodels:FileViewModel">
                                                                                 <Grid Padding="12,2" MinHeight="24" RightTapped="OnFileRightTapped"
                                                                                       ToolTipService.ToolTip="{x:Bind TooltipText}"
-                                                                                      Background="{x:Bind PathBackground, Mode=OneWay}"
                                                                                       Opacity="{x:Bind ItemOpacity}">
                                                                                     <Grid.ColumnDefinitions>
                                                                                         <ColumnDefinition Width="Auto"/>
