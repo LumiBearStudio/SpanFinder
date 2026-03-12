@@ -81,6 +81,20 @@
     <PublishTrimmed Condition="'$(Configuration)' != 'Debug'">False</PublishTrimmed>
   </PropertyGroup>
 
+  <!-- Auto-generate BuildInfo.g.cs with build date -->
+  <Target Name="_GenerateBuildInfo" BeforeTargets="BeforeCompile;CoreCompile;_GenerateCompileInputs" AfterTargets="_CheckForNETCoreSdkIsPreview">
+    <PropertyGroup>
+      <_BuildDate>$([System.DateTime]::UtcNow.ToString("yyyyMMdd"))</_BuildDate>
+      <_BuildInfoPath>$(ProjectDir)BuildInfo.g.cs</_BuildInfoPath>
+    </PropertyGroup>
+    <WriteLinesToFile File="$(_BuildInfoPath)"
+                     Lines="namespace Span%3B;internal static class BuildInfo;{;    public const string BuildDate = &quot;$(_BuildDate)&quot;%3B;}"
+                     Overwrite="true" />
+    <ItemGroup>
+      <Compile Include="$(_BuildInfoPath)" Condition="!@(Compile->AnyHaveMetadataValue('Identity','$(_BuildInfoPath)'))" />
+    </ItemGroup>
+  </Target>
+
   <!-- Fix VS MSBuild flattening XBF paths in embed directory.
        VS build strips directory prefixes from embed.resfiles, causing
        "Cannot locate resource from 'ms-appx:///Controls/...'" at runtime.
