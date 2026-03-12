@@ -10,7 +10,7 @@
   <Identity
     Name="LumiBearStudio.SPANFinder"
     Publisher="CN=A55D3041-E7F5-46CB-8707-AD9C81D7CB43"
-    Version="1.0.6.0" />
+    Version="1.0.7.0" />
 
   <mp:PhoneIdentity PhoneProductId="8ee278b6-c527-4e2c-b8ae-9ac71fe2ad4a" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
