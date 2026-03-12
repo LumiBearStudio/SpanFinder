@@ -1015,6 +1015,12 @@ namespace Span.ViewModels
         /// </summary>
         private readonly List<FileSystemViewModel> _pathHighlightedItems = new();
 
+        /// <summary>
+        /// Fired after path highlights are updated. View layer uses this to animate floating indicators.
+        /// Key = column index, Value = on-path item (null if no item is on path for that column).
+        /// </summary>
+        public event Action<ExplorerViewModel, Dictionary<int, FileSystemViewModel?>>? PathHighlightsUpdated;
+
         private void UpdatePathHighlights()
         {
             var accentBrush = FileSystemViewModel.GetPathHighlightBrush();
@@ -1027,18 +1033,33 @@ namespace Span.ViewModels
             }
             _pathHighlightedItems.Clear();
 
-            // 2) Set new highlights (only SelectedChild of non-last columns)
-            for (int i = 0; i < Columns.Count - 1; i++)
+            // 2) Set new highlights
+            var highlightMap = new Dictionary<int, FileSystemViewModel?>();
+            for (int i = 0; i < Columns.Count; i++)
             {
                 var selected = Columns[i].SelectedChild;
-                if (selected != null)
+                // Last column: only folders get indicator (files don't lead to another column)
+                bool isLastColumn = (i == Columns.Count - 1);
+                if (selected != null && !(isLastColumn && selected is FileViewModel))
                 {
                     selected.IsOnPath = true;
                     selected.PathBackground = accentBrush;
                     _pathHighlightedItems.Add(selected);
+                    highlightMap[i] = selected;
+                }
+                else
+                {
+                    highlightMap[i] = null;
                 }
             }
+
+            PathHighlightsUpdated?.Invoke(this, highlightMap);
         }
+
+        /// <summary>
+        /// 외부에서 path highlight 재계산을 트리거. 컬럼 Loaded 시점에 호출.
+        /// </summary>
+        public void RefreshPathHighlights() => UpdatePathHighlights();
 
         /// <summary>
         /// Remove columns from index+1 onwards (keep columns[0..index]).
@@ -1121,6 +1142,12 @@ namespace Span.ViewModels
 
                 // CRITICAL: Ignore selection changes during sorting to prevent tab flickering
                 if (parentFolder.IsSorting) return;
+
+                // CRITICAL: Ignore selection changes during bulk Children updates (reload/refresh).
+                // SyncChildren fallback replaces the collection, causing ListView to clear selection
+                // and set SelectedChild=null. Without this guard, HandleNullSelection would remove
+                // child columns that should remain after a refresh.
+                if (parentFolder.IsBulkUpdating) return;
 
                 // CRITICAL: In Details/Icon mode, disable auto-navigation (only allow double-click)
                 if (!EnableAutoNavigation) return;

@@ -80,4 +80,28 @@
     <PublishTrimmed Condition="'$(Configuration)' == 'Debug'">False</PublishTrimmed>
     <PublishTrimmed Condition="'$(Configuration)' != 'Debug'">False</PublishTrimmed>
   </PropertyGroup>
+
+  <!-- Fix VS MSBuild flattening XBF paths in embed directory.
+       VS build strips directory prefixes from embed.resfiles, causing
+       "Cannot locate resource from 'ms-appx:///Controls/...'" at runtime.
+       This target copies XBFs with correct relative paths and rewrites embed.resfiles. -->
+  <Target Name="_FixEmbedXbfPaths" BeforeTargets="_GenerateProjectPriFileCore;_GenerateProjectPriConfigFileCore" AfterTargets="CompileXaml;Prep_MakeEmbedFiles;_CreateEmbedFiles" Condition="Exists('$(IntermediateOutputPath)embed\embed.resfiles')">
+    <ItemGroup>
+      <_XbfWithPath Include="$(IntermediateOutputPath)Controls\*.xbf" />
+      <_XbfWithPath Include="$(IntermediateOutputPath)Views\**\*.xbf" />
+      <_XbfWithPath Include="$(IntermediateOutputPath)Assets\**\*.xbf" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_XbfWithPath)"
+          DestinationFiles="@(_XbfWithPath->'$(IntermediateOutputPath)embed\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true"
+          Condition="'@(_XbfWithPath)' != ''" />
+    <!-- Rebuild embed.resfiles with correct relative paths -->
+    <ItemGroup>
+      <_EmbedXbf Remove="@(_EmbedXbf)" />
+      <_EmbedXbf Include="$(IntermediateOutputPath)embed\**\*.xbf" />
+    </ItemGroup>
+    <WriteLinesToFile File="$(IntermediateOutputPath)embed\embed.resfiles"
+                     Lines="@(_EmbedXbf->'%(RecursiveDir)%(Filename)%(Extension)')"
+                     Overwrite="true" />
+  </Target>
 </Project>

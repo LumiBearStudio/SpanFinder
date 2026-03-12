@@ -890,7 +890,7 @@
                                                                             <DataTemplate x:DataType="viewmodels:FolderViewModel">
                                                                                 <Grid Padding="12,2" MinHeight="24" RightTapped="OnFolderRightTapped"
                                                                                       ToolTipService.ToolTip="{x:Bind TooltipText}"
-                                                                                      Opacity="{x:Bind ItemOpacity}"
+                                                                                      Opacity="{x:Bind ItemOpacity, Mode=OneWay}"
                                                                                       AllowDrop="True" DragOver="OnFolderItemDragOver" Drop="OnFolderItemDrop" DragLeave="OnFolderItemDragLeave">
                                                                                     <Grid.ColumnDefinitions>
                                                                                         <ColumnDefinition Width="Auto"/>
@@ -919,7 +919,7 @@
                                                                             <DataTemplate x:DataType="viewmodels:FileViewModel">
                                                                                 <Grid Padding="12,2" MinHeight="24" RightTapped="OnFileRightTapped"
                                                                                       ToolTipService.ToolTip="{x:Bind TooltipText}"
-                                                                                      Opacity="{x:Bind ItemOpacity}">
+                                                                                      Opacity="{x:Bind ItemOpacity, Mode=OneWay}">
                                                                                     <Grid.ColumnDefinitions>
                                                                                         <ColumnDefinition Width="Auto"/>
                                                                                         <ColumnDefinition Width="Auto"/>
@@ -1345,7 +1345,7 @@
                                                                             <DataTemplate x:DataType="viewmodels:FolderViewModel">
                                                                                 <Grid Padding="12,2" MinHeight="24" RightTapped="OnFolderRightTapped"
                                                                                       ToolTipService.ToolTip="{x:Bind TooltipText}"
-                                                                                      Opacity="{x:Bind ItemOpacity}"
+                                                                                      Opacity="{x:Bind ItemOpacity, Mode=OneWay}"
                                                                                       AllowDrop="True" DragOver="OnFolderItemDragOver" Drop="OnFolderItemDrop" DragLeave="OnFolderItemDragLeave">
                                                                                     <Grid.ColumnDefinitions>
                                                                                         <ColumnDefinition Width="Auto"/>
@@ -1374,7 +1374,7 @@
                                                                             <DataTemplate x:DataType="viewmodels:FileViewModel">
                                                                                 <Grid Padding="12,2" MinHeight="24" RightTapped="OnFileRightTapped"
                                                                                       ToolTipService.ToolTip="{x:Bind TooltipText}"
-                                                                                      Opacity="{x:Bind ItemOpacity}">
+                                                                                      Opacity="{x:Bind ItemOpacity, Mode=OneWay}">
                                                                                     <Grid.ColumnDefinitions>
                                                                                         <ColumnDefinition Width="Auto"/>
                                                                                         <ColumnDefinition Width="Auto"/>

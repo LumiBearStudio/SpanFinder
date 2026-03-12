@@ -65,6 +65,8 @@ namespace Span.ViewModels
             if (oldItems.Count == 0 || newItems.Count == 0)
             {
                 Children = new ObservableCollection<FileSystemViewModel>(newItems);
+                // Children 전체 교체 시 SelectedItems도 정리 (고아 참조 방지)
+                PruneSelectedItems();
                 return false;
             }
 
@@ -118,6 +120,8 @@ namespace Span.ViewModels
             if (totalChanges > threshold)
             {
                 Children = new ObservableCollection<FileSystemViewModel>(newItems);
+                // Children 전체 교체 시 SelectedItems도 정리 (고아 참조 방지)
+                PruneSelectedItems();
                 return false;
             }
 
@@ -168,6 +172,9 @@ namespace Span.ViewModels
             // 3단계: 초과 항목 제거
             while (oldItems.Count > newItems.Count)
                 oldItems.RemoveAt(oldItems.Count - 1);
+
+            // 증분 업데이트 후 SelectedItems에서 Children에 없는 항목 제거 (고아 참조 방지)
+            PruneSelectedItems();
 
             return true;
         }
@@ -850,6 +857,12 @@ namespace Span.ViewModels
                     displayItems = sortedItems;
                 }
 
+                // Save SelectedChild path before collection update.
+                // SyncChildren fallback (or full replace) creates new ViewModel instances,
+                // which breaks the old SelectedChild reference → ListView clears selection
+                // → SelectedChild becomes null → HandleNullSelection removes child columns.
+                var savedSelectedPath = SelectedChild?.Path;
+
                 // 기존 Children이 있으면 diff 기반 증분 업데이트 시도 (스크롤/선택/썸네일 보존)
                 bool usedSync = false;
                 if (Children.Count > 0)
@@ -859,6 +872,18 @@ namespace Span.ViewModels
                 else
                 {
                     Children = new ObservableCollection<FileSystemViewModel>(displayItems);
+                }
+
+                // Restore SelectedChild if its reference was lost during collection replacement.
+                // Setting SelectedChild fires PropertyChanged, but IsBulkUpdating is true so
+                // ExplorerViewModel.FolderVm_PropertyChanged ignores it (no auto-navigation).
+                // The OneWay binding updates ListView.SelectedItem to the matched instance.
+                if (savedSelectedPath != null && (SelectedChild == null || !Children.Contains(SelectedChild)))
+                {
+                    var match = Children.FirstOrDefault(c =>
+                        string.Equals(c.Path, savedSelectedPath, StringComparison.OrdinalIgnoreCase));
+                    if (match != null)
+                        SelectedChild = match;
                 }
 
                 Helpers.DebugLogger.Log($"[FolderViewModel] Children populated: {sortedItems.Count} items (incremental={usedSync}), displayed={Children.Count}");
@@ -1266,6 +1291,35 @@ namespace Span.ViewModels
             // → 상태바 선택 수는 SelectedItems.Count 기준으로 별도 처리
 
             OnPropertyChanged(nameof(HasMultiSelection));
+        }
+
+        /// <summary>
+        /// Children에 없는 SelectedItems 항목을 제거한다 (고아 참조 방지).
+        /// SyncChildren에서 Children이 변경된 후 호출된다.
+        /// SelectedChild도 Children에 없으면 null로 설정한다.
+        /// </summary>
+        private void PruneSelectedItems()
+        {
+            if (SelectedItems.Count > 0)
+            {
+                var childPaths = new HashSet<string>(
+                    Children.Select(c => c.Path), StringComparer.OrdinalIgnoreCase);
+
+                for (int i = SelectedItems.Count - 1; i >= 0; i--)
+                {
+                    if (!childPaths.Contains(SelectedItems[i].Path))
+                        SelectedItems.RemoveAt(i);
+                }
+
+                OnPropertyChanged(nameof(HasMultiSelection));
+            }
+
+            // SelectedChild도 Children에 없으면 null로 설정
+            if (SelectedChild != null &&
+                !Children.Any(c => string.Equals(c.Path, SelectedChild.Path, StringComparison.OrdinalIgnoreCase)))
+            {
+                SelectedChild = null;
+            }
         }
 
         /// <summary>

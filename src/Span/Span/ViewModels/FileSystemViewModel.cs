@@ -23,6 +23,21 @@ namespace Span.ViewModels
         private bool _isRenaming;
 
         /// <summary>
+        /// 잘라내기(Ctrl+X) 상태. true이면 반투명(0.5)으로 표시.
+        /// 붙여넣기/Esc/다른 복사 시 false로 복원.
+        /// </summary>
+        private bool _isCut;
+        public bool IsCut
+        {
+            get => _isCut;
+            set
+            {
+                if (SetProperty(ref _isCut, value))
+                    OnPropertyChanged(nameof(ItemOpacity));
+            }
+        }
+
+        /// <summary>
         /// True when this item is on the active navigation path (selected in a parent column).
         /// Used to show a dimmed highlight in non-active columns for breadcrumb trail visualization.
         /// </summary>
@@ -210,10 +225,10 @@ namespace Span.ViewModels
         }
 
         /// <summary>
-        /// 숨김 파일/폴더 반투명 표시를 위한 불투명도.
-        /// Hidden=0.5, Normal=1.0
+        /// 숨김 파일/폴더 반투명 + 잘라내기 항목 반투명 표시를 위한 불투명도.
+        /// Hidden=0.5, IsCut=0.5, Hidden+IsCut=0.25, Normal=1.0
         /// </summary>
-        public double ItemOpacity => _model.IsHidden ? 0.5 : 1.0;
+        public double ItemOpacity => (_model.IsHidden ? 0.5 : 1.0) * (_isCut ? 0.5 : 1.0);
 
         /// <summary>
         /// Display name that respects ShowFileExtensions setting.

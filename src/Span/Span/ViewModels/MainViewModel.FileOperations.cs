@@ -199,12 +199,27 @@ namespace Span.ViewModels
                                 default);
                         }
 
+                        // Move operations: also refresh source folder columns (items moved OUT)
+                        // to prevent ghost entries remaining in the source column.
+                        if (operation is MoveFileOperation moveOp)
+                        {
+                            await RefreshSourceColumnsForMove(moveOp);
+                        }
+
                         await RefreshCurrentFolderAsync(targetColumnIndex);
                         await RefreshOppositeExplorerAsync();
                         ShowToast(string.Format(_loc.Get("Toast_Completed"), operation.Description));
                     }
                     else if (e.Entry.Status != Services.OperationStatus.Cancelled)
                     {
+                        // Partial failure: still refresh to clean up ghost entries
+                        if (operation is MoveFileOperation moveOpFail)
+                        {
+                            await RefreshSourceColumnsForMove(moveOpFail);
+                        }
+                        await RefreshCurrentFolderAsync(targetColumnIndex);
+                        await RefreshOppositeExplorerAsync();
+
                         ShowError(e.Result.ErrorMessage ?? _loc.Get("Toast_OperationFailed"));
                     }
                     }
@@ -242,6 +257,44 @@ namespace Span.ViewModels
                     _ => null
                 }
             });
+        }
+
+        /// <summary>
+        /// Move 완료 후 소스 폴더에 해당하는 컬럼을 리프레시하여 고스트 항목을 제거한다.
+        /// targetColumnIndex cascade는 대상(dest) 컬럼부터 시작하므로,
+        /// 소스 컬럼이 대상보다 상위(이전 인덱스)이면 cascade에 포함되지 않는다.
+        /// </summary>
+        private async Task RefreshSourceColumnsForMove(MoveFileOperation moveOp)
+        {
+            var explorer = ActiveExplorer;
+            if (explorer?.Columns == null) return;
+
+            // Collect unique source folder paths
+            var sourceFolders = moveOp.SourcePaths
+                .Select(p => System.IO.Path.GetDirectoryName(p))
+                .Where(d => !string.IsNullOrEmpty(d))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            for (int i = 0; i < explorer.Columns.Count; i++)
+            {
+                if (sourceFolders.Contains(explorer.Columns[i].Path))
+                {
+                    Helpers.DebugLogger.Log($"[RefreshSourceColumnsForMove] Refreshing source column '{explorer.Columns[i].Name}' at index {i}");
+                    await explorer.Columns[i].ReloadAsync();
+
+                    // ReloadAsync 후 SelectedChild가 null이 되었을 수 있음
+                    // (이동된 항목이 PruneSelectedItems에 의해 제거됨).
+                    // _isBulkUpdating 가드로 인해 PropertyChanged가 무시되었으므로,
+                    // 자식 컬럼이 고아 상태로 남는 것을 방지하기 위해 명시적으로 정리.
+                    if (explorer.Columns[i].SelectedChild == null)
+                    {
+                        explorer.CleanupColumnsFrom(i + 1);
+                    }
+
+                    explorer.NotifyCurrentItemsChanged();
+                }
+            }
         }
 
         /// <summary>
@@ -295,9 +348,33 @@ namespace Span.ViewModels
             int lastIndex = explorer.Columns.Count - 1;
             for (int i = targetIndex; i <= lastIndex; i++)
             {
+                // Guard: column count may shrink during cascade (e.g. auto-nav removes columns)
+                if (i >= explorer.Columns.Count) break;
+
                 var col = explorer.Columns[i];
+
+                // If the column's folder was moved/deleted, remove it and all subsequent columns
+                // instead of reloading (which would trigger "폴더를 찾을 수 없습니다" error toast).
+                if (!System.IO.Directory.Exists(col.Path))
+                {
+                    Helpers.DebugLogger.Log($"[RefreshCurrentFolderAsync] Column '{col.Name}' path no longer exists, removing from index {i}");
+                    explorer.CleanupColumnsFrom(i);
+                    break;
+                }
+
                 Helpers.DebugLogger.Log($"[RefreshCurrentFolderAsync] Reloading column '{col.Name}' (index {i})");
                 await col.ReloadAsync();
+
+                // ReloadAsync 후 SelectedChild가 null이 되었을 수 있음
+                // (삭제/이동된 항목이 PruneSelectedItems에 의해 제거됨).
+                // _isBulkUpdating 가드로 인해 PropertyChanged가 무시되었으므로,
+                // 자식 컬럼이 고아 상태로 남는 것을 방지하기 위해 명시적으로 정리.
+                if (col.SelectedChild == null && i + 1 < explorer.Columns.Count)
+                {
+                    Helpers.DebugLogger.Log($"[RefreshCurrentFolderAsync] Column '{col.Name}' SelectedChild=null after reload, cleaning up child columns from {i + 1}");
+                    explorer.CleanupColumnsFrom(i + 1);
+                    break; // 자식 컬럼 모두 제거됨, cascade 중단
+                }
             }
 
             // Notify ExplorerViewModel so Details/List/Icon views rebind

@@ -39,5 +39,8 @@ namespace Span.Services
         void PerformSelectAll();
         void PerformSelectNone();
         void PerformInvertSelection();
+        void PerformOpenInNewTab(string folderPath);
+        void PerformOpenTerminal(string folderPath);
+        void PerformRefresh();
     }
 }

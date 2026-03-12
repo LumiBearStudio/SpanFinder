@@ -244,15 +244,21 @@ internal static class FileOperationHelpers
     {
         if (errors.Count == 0) return;
 
+        // Truncate error list to avoid extremely long toast messages (e.g., 24 items failing)
+        const int MaxDisplayErrors = 3;
+        var displayErrors = errors.Count <= MaxDisplayErrors
+            ? string.Join("\n", errors)
+            : string.Join("\n", errors.Take(MaxDisplayErrors)) + $"\n... (+{errors.Count - MaxDisplayErrors})";
+
         if (result.AffectedPaths.Count == 0)
         {
             result.Success = false;
-            result.ErrorMessage = string.Join("\n", errors);
+            result.ErrorMessage = displayErrors;
         }
         else
         {
             result.Success = true;
-            result.ErrorMessage = $"{L(partialSuccessKey)}:\n{string.Join("\n", errors)}";
+            result.ErrorMessage = $"{L(partialSuccessKey)}:\n{displayErrors}";
         }
     }
 }

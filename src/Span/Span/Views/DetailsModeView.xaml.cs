@@ -790,7 +790,31 @@ namespace Span.Views
                 }
 
                 SortItems(sortBy, _isAscending);
+                UpdateSortIndicators();
                 Helpers.DebugLogger.Log($"[DetailsModeView] Sorted by {sortBy} ({(_isAscending ? "Asc" : "Desc")})");
+            }
+        }
+
+        private void UpdateSortIndicators()
+        {
+            if (_loc == null) return;
+            var headers = new[] { NameHeaderButton, DateHeaderButton, TypeHeaderButton, SizeHeaderButton, GitHeaderButton };
+            string[] tags = { "Name", "DateModified", "Type", "Size", "Git" };
+            string[] locKeys = { "Name", "DateModified", "Type", "Size", "ColumnGit" };
+
+            if (LocationHeaderButton != null)
+            {
+                var locLabel = _loc.Get("Location") ?? "Location";
+                LocationHeaderButton.Content = _currentSortBy == "Location" ? $"{locLabel} {(_isAscending ? "▲" : "▼")}" : locLabel;
+            }
+
+            for (int i = 0; i < headers.Length; i++)
+            {
+                if (headers[i] == null) continue;
+                var label = _loc.Get(locKeys[i]) ?? tags[i];
+                headers[i].Content = _currentSortBy == tags[i]
+                    ? $"{label} {(_isAscending ? "▲" : "▼")}"
+                    : label;
             }
         }
 

@@ -155,6 +155,20 @@ namespace Span
                 // Alt 키 조합(Alt+Left/Right 등)은 허용
             }
 
+            // Escape: 잘라내기 반투명 효과 해제 (클립보드 초기화)
+            if (e.Key == Windows.System.VirtualKey.Escape && !ctrl && !shift && !alt)
+            {
+                if (_cutItems.Count > 0)
+                {
+                    ClearCutState();
+                    _clipboardPaths.Clear();
+                    _isCutOperation = false;
+                    UpdateToolbarButtonStates();
+                    e.Handled = true;
+                    return;
+                }
+            }
+
             // Alt+Left/Right: Back/Forward navigation (highest priority)
             // Alt+Enter: Show Properties dialog
             // Alt+D: Address bar focus (Explorer 호환)
@@ -233,6 +247,22 @@ namespace Span
                                 ? ActivePane.Right : ActivePane.Left;
                             FocusActivePane();
                             e.Handled = true;
+                        }
+                        break;
+
+                    case Windows.System.VirtualKey.Enter:
+                        // Ctrl+Enter: 선택된 폴더를 새 탭으로 열기
+                        {
+                            var openInTabItems = GetCurrentSelectedItems();
+                            foreach (var item in openInTabItems)
+                            {
+                                if (item is ViewModels.FolderViewModel folder
+                                    && !string.IsNullOrEmpty(folder.Path) && folder.Name != "..")
+                                {
+                                    ((Services.IContextMenuHost)this).PerformOpenInNewTab(folder.Path);
+                                }
+                            }
+                            if (openInTabItems.Count > 0) e.Handled = true;
                         }
                         break;
 
@@ -530,6 +560,7 @@ namespace Span
                 _ = GoForwardAndFocusAsync();
                 e.Handled = true;
             }
+            // Middle-click → 새 탭: Ctrl+Enter 단축키로 대체 (WinUI 3 ScrollViewer 제약)
             else if (properties.IsLeftButtonPressed)
             {
                 // 좌클릭: 빈 영역 클릭 시에도 진행 중인 리네임 취소

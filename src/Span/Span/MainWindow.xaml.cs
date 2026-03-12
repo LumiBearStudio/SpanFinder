@@ -54,6 +54,7 @@ namespace Span
         [DllImport("comctl32.dll", SetLastError = true)]
         private static extern IntPtr DefSubclassProc(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam);
 
+
         [DllImport("user32.dll")]
         private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
         [DllImport("user32.dll")]
@@ -123,6 +124,7 @@ namespace Span
         // Clipboard
         private readonly List<string> _clipboardPaths = new();
         private bool _isCutOperation = false;
+        private readonly List<ViewModels.FileSystemViewModel> _cutItems = new();
 
         // Rename 완료 직후 Enter가 파일 실행으로 이어지는 것을 방지
         private bool _justFinishedRename = false;
@@ -402,6 +404,7 @@ namespace Span
             // WM_DEVICECHANGE: detect USB drive plug/unplug
             _subclassProc = new SUBCLASSPROC(WndProc);
             SetWindowSubclass(_hwnd, _subclassProc, IntPtr.Zero, IntPtr.Zero);
+
 
             _deviceChangeDebounceTimer = new DispatcherTimer();
             _deviceChangeDebounceTimer.Interval = TimeSpan.FromMilliseconds(1000);
@@ -3503,6 +3506,9 @@ namespace Span
             if (sender is not Grid grid) return;
             try
             {
+                var props = e.GetCurrentPoint(grid).Properties;
+                if (props.IsMiddleButtonPressed) return;
+
                 // 주소창 편집 모드 해제 — 빈 공간 클릭 시에도 포커스가 이동하지 않으므로 명시적 해제
                 DismissAddressBarEditMode();
 
@@ -4357,27 +4363,64 @@ namespace Span
         void Services.IContextMenuHost.PerformCut(string path)
         {
             if (Helpers.ArchivePathHelper.IsArchivePath(path)) { ViewModel.ShowToast("Archive is read-only"); return; }
+
+            // Multi-selection support: path 기반으로 올바른 컬럼의 선택 항목을 가져옴
+            var paths = GetSelectedPathsForContextMenu(path);
+            if (paths.Any(p => Helpers.ArchivePathHelper.IsArchivePath(p))) { ViewModel.ShowToast("Archive is read-only"); return; }
+
+            // 잘라내기 반투명 효과 적용
+            var viewModels = GetViewModelsForPaths(paths);
+            ApplyCutState(viewModels);
+
             _clipboardPaths.Clear();
-            _clipboardPaths.Add(path);
+            foreach (var p in paths)
+                _clipboardPaths.Add(p);
             _isCutOperation = true;
 
             var dataPackage = new DataPackage();
-            dataPackage.SetText(path);
+            dataPackage.RequestedOperation = DataPackageOperation.Move;
+            dataPackage.SetText(string.Join("\n", _clipboardPaths));
+
+            // Provide StorageItems for Windows Explorer compatibility
+            var capturedPaths = new List<string>(_clipboardPaths);
+            dataPackage.SetDataProvider(StandardDataFormats.StorageItems, request =>
+            {
+                var deferral = request.GetDeferral();
+                _ = Helpers.ViewDragDropHelper.ProvideStorageItemsAsync(request, capturedPaths, deferral);
+            });
+
             Clipboard.SetContent(dataPackage);
-            Helpers.DebugLogger.Log($"[ContextMenu] Cut: {path}");
+            Helpers.DebugLogger.Log($"[ContextMenu] Cut: {_clipboardPaths.Count} item(s)");
             UpdateToolbarButtonStates();
         }
 
         void Services.IContextMenuHost.PerformCopy(string path)
         {
+            // 이전 잘라내기 항목의 반투명 효과 해제
+            ClearCutState();
+
+            // Multi-selection support: path 기반으로 올바른 컬럼의 선택 항목을 가져옴
+            var paths = GetSelectedPathsForContextMenu(path);
+
             _clipboardPaths.Clear();
-            _clipboardPaths.Add(path);
+            foreach (var p in paths)
+                _clipboardPaths.Add(p);
             _isCutOperation = false;
 
             var dataPackage = new DataPackage();
-            dataPackage.SetText(path);
+            dataPackage.RequestedOperation = DataPackageOperation.Copy;
+            dataPackage.SetText(string.Join("\n", _clipboardPaths));
+
+            // Provide StorageItems for Windows Explorer compatibility
+            var capturedPaths = new List<string>(_clipboardPaths);
+            dataPackage.SetDataProvider(StandardDataFormats.StorageItems, request =>
+            {
+                var deferral = request.GetDeferral();
+                _ = Helpers.ViewDragDropHelper.ProvideStorageItemsAsync(request, capturedPaths, deferral);
+            });
+
             Clipboard.SetContent(dataPackage);
-            Helpers.DebugLogger.Log($"[ContextMenu] Copy: {path}");
+            Helpers.DebugLogger.Log($"[ContextMenu] Copy: {_clipboardPaths.Count} item(s)");
             UpdateToolbarButtonStates();
         }
 
@@ -4447,10 +4490,15 @@ namespace Span
             if (Helpers.ArchivePathHelper.IsArchivePath(path)) { ViewModel.ShowToast("Archive is read-only"); return; }
             try
             {
+            // Multi-selection support: path 기반으로 올바른 컬럼의 선택 항목을 가져옴
+            // (Flyout 열린 상태에서 포커스 기반 검색은 잘못된 컬럼을 찾을 수 있음)
+            var paths = GetSelectedPathsForContextMenu(path);
+            string displayName = paths.Count > 1 ? $"{paths.Count} items" : itemName;
+
             var dialog = new ContentDialog
             {
                 Title = _loc.Get("DeleteConfirmTitle"),
-                Content = string.Format(_loc.Get("DeleteConfirmContent"), itemName),
+                Content = string.Format(_loc.Get("DeleteConfirmContent"), displayName),
                 PrimaryButtonText = _loc.Get("Delete"),
                 CloseButtonText = _loc.Get("Cancel"),
                 XamlRoot = this.Content.XamlRoot,
@@ -4462,9 +4510,9 @@ namespace Span
 
             var router = App.Current.Services.GetRequiredService<Services.FileSystemRouter>();
             var operation = new Services.FileOperations.DeleteFileOperation(
-                new List<string> { path }, permanent: false, router: router);
+                paths, permanent: false, router: router);
 
-            int activeIndex = GetCurrentColumnIndex();
+            int activeIndex = GetColumnIndexForPath(path);
             if (activeIndex >= 0)
             {
                 await ViewModel.ExecuteFileOperationAsync(operation, activeIndex);
@@ -4732,8 +4780,12 @@ namespace Span
 
             try
             {
+                // Multi-selection support: path 기반으로 올바른 컬럼의 선택 항목을 가져옴
+                var allPaths = GetSelectedPathsForContextMenu(paths[0]);
+                if (allPaths.Any(p => Helpers.ArchivePathHelper.IsArchivePath(p))) { ViewModel.ShowToast("Archive is read-only"); return; }
+
                 // ZIP name: first item name + .zip
-                string firstPath = paths[0];
+                string firstPath = allPaths[0];
                 string parentDir = System.IO.Path.GetDirectoryName(firstPath)!;
                 string zipName = System.IO.Path.GetFileNameWithoutExtension(firstPath) + ".zip";
                 string zipPath = System.IO.Path.Combine(parentDir, zipName);
@@ -4746,8 +4798,8 @@ namespace Span
                     count++;
                 }
 
-                var op = new Span.Services.FileOperations.CompressOperation(paths, zipPath);
-                var activeIndex = GetActiveColumnIndex();
+                var op = new Span.Services.FileOperations.CompressOperation(allPaths.ToArray(), zipPath);
+                var activeIndex = GetColumnIndexForPath(paths[0]);
                 await ViewModel.ExecuteFileOperationAsync(op, activeIndex >= 0 ? activeIndex : null);
             }
             catch (Exception ex)
@@ -4966,6 +5018,38 @@ namespace Span
         void Services.IContextMenuHost.PerformInvertSelection()
         {
             HandleInvertSelection();
+        }
+
+        void Services.IContextMenuHost.PerformOpenInNewTab(string folderPath)
+        {
+            var root = new Models.FolderItem { Name = "PC", Path = "PC" };
+            var explorer = new ViewModels.ExplorerViewModel(root, App.Current.Services.GetRequiredService<Services.FileSystemService>());
+            var viewMode = ViewModel.CurrentViewMode;
+            explorer.EnableAutoNavigation = viewMode == Models.ViewMode.MillerColumns;
+            var tab = new Models.TabItem
+            {
+                Header = System.IO.Path.GetFileName(folderPath),
+                Path = folderPath,
+                ViewMode = viewMode,
+                IconSize = Models.ViewMode.IconMedium,
+                Explorer = explorer
+            };
+            ViewModel.Tabs.Add(tab);
+            ViewModel.SwitchToTab(ViewModel.Tabs.Count - 1);
+            _ = explorer.NavigateToPath(folderPath);
+        }
+
+        void Services.IContextMenuHost.PerformOpenTerminal(string folderPath)
+        {
+            if (string.IsNullOrEmpty(folderPath) || !System.IO.Directory.Exists(folderPath)) return;
+            var shellService = App.Current.Services.GetRequiredService<Services.ShellService>();
+            var settings = App.Current.Services.GetRequiredService<Services.SettingsService>();
+            shellService.OpenTerminal(folderPath, settings.DefaultTerminal);
+        }
+
+        void Services.IContextMenuHost.PerformRefresh()
+        {
+            HandleRefresh();
         }
 
         // =================================================================

@@ -6,12 +6,16 @@ namespace Span.Services.FileOperations;
 /// <summary>
 /// ZIP 압축 작업. 파일 또는 폴더를 ZIP으로 압축.
 /// FileOperationManager를 통해 백그라운드 실행, 진행률/일시정지/취소 지원.
+/// 스트림 기반 압축으로 바이트 단위 실시간 progress 보고.
 /// </summary>
 public class CompressOperation : IFileOperation, IPausableOperation
 {
     private readonly string[] _sourcePaths;
     private readonly string _zipPath;
     private ManualResetEventSlim? _pauseEvent;
+
+    // 1MB buffer for high throughput (matches CopyFileOperation)
+    private const int BufferSize = 1048576;
 
     public CompressOperation(string[] sourcePaths, string zipPath)
     {
@@ -64,8 +68,13 @@ public class CompressOperation : IFileOperation, IPausableOperation
                 foreach (var f in allFiles) totalBytes += f.Size;
                 long processedBytes = 0;
                 var startTime = DateTime.Now;
+                long lastReportTick = Environment.TickCount64;
 
-                using var archive = ZipFile.Open(_zipPath, ZipArchiveMode.Create);
+                using var zipStream = new FileStream(_zipPath, FileMode.Create, FileAccess.Write,
+                    FileShare.None, BufferSize, FileOptions.SequentialScan);
+                using var archive = new ZipArchive(zipStream, ZipArchiveMode.Create, leaveOpen: false);
+
+                var buffer = new byte[BufferSize];
 
                 for (int i = 0; i < allFiles.Count; i++)
                 {
@@ -76,11 +85,39 @@ public class CompressOperation : IFileOperation, IPausableOperation
 
                     try
                     {
-                        archive.CreateEntryFromFile(fullPath, relativePath, CompressionLevel.Optimal);
+                        var entry = archive.CreateEntry(relativePath, CompressionLevel.Fastest);
+
+                        // Stream-based compression with per-byte progress reporting
+                        using var sourceStream = new FileStream(fullPath, FileMode.Open, FileAccess.Read,
+                            FileShare.Read, BufferSize, FileOptions.SequentialScan);
+                        using var entryStream = entry.Open();
+
+                        int bytesRead;
+                        while ((bytesRead = sourceStream.Read(buffer, 0, buffer.Length)) > 0)
+                        {
+                            FileOperationHelpers.WaitIfPaused(_pauseEvent, cancellationToken);
+                            cancellationToken.ThrowIfCancellationRequested();
+
+                            entryStream.Write(buffer, 0, bytesRead);
+                            processedBytes += bytesRead;
+
+                            // Throttled progress reporting (every 100ms) to avoid UI thread saturation
+                            long now = Environment.TickCount64;
+                            if (now - lastReportTick >= FileOperationHelpers.ProgressReportIntervalMs)
+                            {
+                                FileOperationHelpers.ReportProgress(
+                                    progress, Path.GetFileName(fullPath),
+                                    i, allFiles.Count,
+                                    processedBytes, totalBytes, startTime);
+                                lastReportTick = now;
+                            }
+                        }
                     }
                     catch (PathTooLongException) { }
+                    catch (UnauthorizedAccessException) { }
+                    catch (IOException) when (!cancellationToken.IsCancellationRequested) { }
 
-                    processedBytes += size;
+                    // Report after each file completion (ensures progress updates for small files)
                     FileOperationHelpers.ReportProgress(
                         progress, Path.GetFileName(fullPath),
                         i, allFiles.Count,

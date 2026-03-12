@@ -850,6 +850,19 @@ namespace Span
             if (sourcePaths.Any(p => Helpers.ArchivePathHelper.IsArchivePath(p)))
                 return;
 
+            // Early check: if the destination is one of the selected/dragged items, warn and block.
+            // e.g., selecting 24 folders and dropping into one of them is almost certainly a mistake.
+            if (mode == DragDropMode.Move &&
+                sourcePaths.Any(p => p.Equals(destFolder, StringComparison.OrdinalIgnoreCase) ||
+                                     destFolder.StartsWith(p + "\\", StringComparison.OrdinalIgnoreCase)))
+            {
+                var destName = System.IO.Path.GetFileName(destFolder);
+                var loc = App.Current.Services.GetRequiredService<Services.LocalizationService>();
+                ViewModel.ShowError(string.Format(loc.Get("Error_DropIntoSelected"), destName));
+                Helpers.DebugLogger.Log($"[DragDrop] BLOCKED: destination '{destFolder}' is one of the selected items");
+                return;
+            }
+
             // Validate: don't drop onto itself or into child
             sourcePaths = sourcePaths.Where(p =>
                 !p.Equals(destFolder, StringComparison.OrdinalIgnoreCase) &&

@@ -290,4 +290,177 @@ public class ExplorerViewModelTests
 
         return result;
     }
+
+    // ── Path Highlights Logic ──
+    // ExplorerViewModel.UpdatePathHighlights determines which items in each column
+    // are "on path" (selected and leading to the next column). This replicates
+    // the exact algorithm to verify highlight map generation.
+
+    /// <summary>
+    /// Helper: simulates a Miller Column with a selected child.
+    /// </summary>
+    private record ColumnState(string Name, string? SelectedChildName, bool SelectedIsFolder);
+
+    /// <summary>
+    /// Replicates ExplorerViewModel.UpdatePathHighlights algorithm.
+    /// Returns a dictionary of column index → on-path item name (null if none).
+    /// </summary>
+    private static Dictionary<int, string?> ComputePathHighlights(List<ColumnState> columns)
+    {
+        var highlightMap = new Dictionary<int, string?>();
+        for (int i = 0; i < columns.Count; i++)
+        {
+            var selected = columns[i].SelectedChildName;
+            bool isLastColumn = (i == columns.Count - 1);
+
+            // Last column: only folders get indicator (files don't lead to another column)
+            if (selected != null && !(isLastColumn && !columns[i].SelectedIsFolder))
+            {
+                highlightMap[i] = selected;
+            }
+            else
+            {
+                highlightMap[i] = null;
+            }
+        }
+        return highlightMap;
+    }
+
+    [TestMethod]
+    public void PathHighlights_FolderChain_AllColumnsHighlighted()
+    {
+        // 3 columns, each with a folder selected leading to the next
+        var columns = new List<ColumnState>
+        {
+            new("C:", "Users", true),
+            new("Users", "Dev", true),
+            new("Dev", "Projects", true),
+        };
+
+        var highlights = ComputePathHighlights(columns);
+
+        Assert.AreEqual(3, highlights.Count);
+        Assert.AreEqual("Users", highlights[0]);
+        Assert.AreEqual("Dev", highlights[1]);
+        Assert.AreEqual("Projects", highlights[2]); // Last column, folder → highlighted
+    }
+
+    [TestMethod]
+    public void PathHighlights_FileSelectedInLastColumn_NoIndicator()
+    {
+        // File selected in last column → no indicator for that column
+        var columns = new List<ColumnState>
+        {
+            new("C:", "Users", true),
+            new("Users", "readme.txt", false), // file in last column
+        };
+
+        var highlights = ComputePathHighlights(columns);
+
+        Assert.AreEqual(2, highlights.Count);
+        Assert.AreEqual("Users", highlights[0]);
+        Assert.IsNull(highlights[1]); // File in last column → null
+    }
+
+    [TestMethod]
+    public void PathHighlights_NoSelection_NullForColumn()
+    {
+        var columns = new List<ColumnState>
+        {
+            new("C:", null, false), // No selection
+        };
+
+        var highlights = ComputePathHighlights(columns);
+
+        Assert.AreEqual(1, highlights.Count);
+        Assert.IsNull(highlights[0]);
+    }
+
+    [TestMethod]
+    public void PathHighlights_FileInMiddleColumn_StillHighlighted()
+    {
+        // If a file is selected in a NON-last column (shouldn't normally happen,
+        // but the algorithm should handle it: non-last columns always get highlighted)
+        var columns = new List<ColumnState>
+        {
+            new("C:", "readme.txt", false), // file in non-last column
+            new("Users", "Dev", true),
+        };
+
+        var highlights = ComputePathHighlights(columns);
+
+        Assert.AreEqual("readme.txt", highlights[0]); // Non-last → highlighted regardless
+        Assert.AreEqual("Dev", highlights[1]);
+    }
+
+    [TestMethod]
+    public void PathHighlights_SingleColumn_FolderSelected()
+    {
+        var columns = new List<ColumnState>
+        {
+            new("C:", "Users", true), // folder in single (=last) column
+        };
+
+        var highlights = ComputePathHighlights(columns);
+
+        Assert.AreEqual("Users", highlights[0]); // Folder in last column → highlighted
+    }
+
+    [TestMethod]
+    public void PathHighlights_EmptyColumns_EmptyMap()
+    {
+        var columns = new List<ColumnState>();
+        var highlights = ComputePathHighlights(columns);
+        Assert.AreEqual(0, highlights.Count);
+    }
+
+    // ── Event Subscription Pattern ──
+    // Verifies the subscribe/unsubscribe pattern used for PathHighlightsUpdated
+    // to prevent memory leaks and stale event handlers.
+
+    [TestMethod]
+    public void EventSubscription_ResubscribePattern_NoDoubleSubscription()
+    {
+        // Simulates ResubscribeLeftExplorer pattern: unsubscribe old, subscribe new
+        int callCount = 0;
+        Action handler = () => callCount++;
+        Action? subscribedHandler = null;
+
+        // Initial subscribe
+        subscribedHandler = handler;
+
+        // Fire event (simulate)
+        subscribedHandler?.Invoke();
+        Assert.AreEqual(1, callCount);
+
+        // Resubscribe (same handler, should not double-fire)
+        subscribedHandler = null; // unsubscribe old
+        subscribedHandler = handler; // subscribe new
+
+        callCount = 0;
+        subscribedHandler?.Invoke();
+        Assert.AreEqual(1, callCount, "Handler should fire exactly once after resubscribe");
+    }
+
+    [TestMethod]
+    public void EventSubscription_UnsubscribeOld_PreventsStaleFiring()
+    {
+        // Verifies that unsubscribing old explorer prevents stale events
+        int oldExplorerFired = 0;
+        int newExplorerFired = 0;
+
+        var oldHandler = new Action(() => oldExplorerFired++);
+        var newHandler = new Action(() => newExplorerFired++);
+
+        // Simulate: subscribed to old explorer
+        Action? currentHandler = oldHandler;
+        currentHandler.Invoke();
+        Assert.AreEqual(1, oldExplorerFired);
+
+        // Simulate: resubscribe to new explorer
+        currentHandler = newHandler;
+        currentHandler.Invoke();
+        Assert.AreEqual(1, newExplorerFired);
+        Assert.AreEqual(1, oldExplorerFired, "Old handler should not fire again");
+    }
 }

@@ -37,6 +37,9 @@ public class MoveFileOperation : IFileOperation, IPausableOperation
     /// <summary>Gets the destination directory for this move operation.</summary>
     public string DestinationDirectory => _destinationDirectory;
 
+    /// <summary>Gets the source paths for this move operation (used for post-move source column refresh).</summary>
+    public IReadOnlyList<string> SourcePaths => _sourcePaths;
+
     /// <inheritdoc/>
     public string Description => _sourcePaths.Count == 1
         ? string.Format(L("Op_MoveSingle"), FileOperationHelpers.GetFileName(_sourcePaths[0]), FileOperationHelpers.GetFileName(_destinationDirectory))

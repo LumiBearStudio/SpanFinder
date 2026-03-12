@@ -17,15 +17,16 @@ public class PreviewTypeTests
         Assert.AreEqual(5, (int)PreviewType.Folder);
         Assert.AreEqual(6, (int)PreviewType.HexBinary);
         Assert.AreEqual(7, (int)PreviewType.Font);
-        Assert.AreEqual(8, (int)PreviewType.Generic);
+        Assert.AreEqual(8, (int)PreviewType.Archive);
+        Assert.AreEqual(9, (int)PreviewType.Generic);
     }
 
     [TestMethod]
     public void PreviewType_TotalCount_Is9()
     {
         var values = Enum.GetValues<PreviewType>();
-        Assert.AreEqual(9, values.Length,
-            "PreviewType should have 9 values: None, Image, Text, Pdf, Media, Folder, HexBinary, Font, Generic");
+        Assert.AreEqual(10, values.Length,
+            "PreviewType should have 10 values: None, Image, Text, Pdf, Media, Folder, HexBinary, Font, Archive, Generic");
     }
 
     [TestMethod]
@@ -37,6 +38,7 @@ public class PreviewTypeTests
     [DataRow(PreviewType.Folder, "Folder")]
     [DataRow(PreviewType.HexBinary, "HexBinary")]
     [DataRow(PreviewType.Font, "Font")]
+    [DataRow(PreviewType.Archive, "Archive")]
     [DataRow(PreviewType.Generic, "Generic")]
     public void PreviewType_ToString_ReturnsExpectedName(PreviewType type, string expectedName)
     {

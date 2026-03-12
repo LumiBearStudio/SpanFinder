@@ -14,6 +14,9 @@ namespace Span.Services
             ("Rename", "Rename", "이름 바꾸기", "名前の変更", "重命名", "重新命名", "Umbenennen", "Cambiar nombre", "Renommer", "Renomear"),
             ("CopyPath", "Copy path", "경로 복사", "パスをコピー", "复制路径", "複製路徑", "Pfad kopieren", "Copiar ruta", "Copier le chemin", "Copiar caminho"),
             ("OpenInExplorer", "Open in Explorer", "파일 탐색기에서 열기", "エクスプローラーで開く", "在资源管理器中打开", "在檔案總管中開啟", "Im Explorer öffnen", "Abrir en Explorador", "Ouvrir dans l'Explorateur", "Abrir no Explorador"),
+            ("OpenInNewTab", "Open in new tab", "새 탭에서 열기", "新しいタブで開く", "在新标签页中打开", "在新索引標籤中開啟", "In neuem Tab öffnen", "Abrir en nueva pestaña", "Ouvrir dans un nouvel onglet", "Abrir em nova guia"),
+            ("OpenTerminal", "Open terminal", "터미널 열기", "ターミナルを開く", "打开终端", "開啟終端機", "Terminal öffnen", "Abrir terminal", "Ouvrir le terminal", "Abrir terminal"),
+            ("Refresh", "Refresh", "새로고침", "更新", "刷新", "重新整理", "Aktualisieren", "Actualizar", "Actualiser", "Atualizar"),
             ("Properties", "Properties", "속성", "プロパティ", "属性", "內容", "Eigenschaften", "Propiedades", "Propriétés", "Propriedades"),
             ("AddToFavorites", "Add to favorites", "즐겨찾기에 추가", "お気に入りに追加", "添加到收藏夹", "新增到我的最愛", "Zu Favoriten hinzufügen", "Agregar a favoritos", "Ajouter aux favoris", "Adicionar aos favoritos"),
             ("RemoveFromFavorites", "Remove from favorites", "즐겨찾기에서 제거", "お気に入りから削除", "从收藏夹中删除", "從我的最愛中移除", "Aus Favoriten entfernen", "Quitar de favoritos", "Supprimer des favoris", "Remover dos favoritos"),
@@ -546,6 +549,7 @@ namespace Span.Services
             ("StatusSelected", "{0} selected", "{0}개 선택됨", "{0}個選択", "{0} 个已选", "{0} 個已選", "{0} ausgewählt", "{0} seleccionados", "{0} sélectionnés", "{0} selecionados"),
 
             // ── Navigation / folder errors ────────────────────────────────
+            ("Error_DropIntoSelected", "Cannot move into '{0}' — it is one of the selected items.", "'{0}'은(는) 선택된 항목에 포함되어 있어 이동할 수 없습니다.", "'{0}' は選択項目に含まれているため移動できません。", "无法移动到 '{0}'——它是所选项目之一。", "無法移至 '{0}'——它是所選項目之一。", "'{0}' ist eines der ausgewählten Elemente und kann nicht als Ziel verwendet werden.", "No se puede mover a '{0}': es uno de los elementos seleccionados.", "Impossible de déplacer vers '{0}' — c'est l'un des éléments sélectionnés.", "Não é possível mover para '{0}' — é um dos itens selecionados."),
             ("Error_FolderNotFound", "Cannot find folder: {0}", "폴더를 찾을 수 없습니다: {0}", "フォルダーが見つかりません: {0}", "找不到文件夹: {0}", "找不到資料夾: {0}", "Ordner nicht gefunden: {0}", "No se encuentra la carpeta: {0}", "Dossier introuvable : {0}", "Pasta não encontrada: {0}"),
             ("Error_NetworkPath", "Cannot access network path: {0}", "네트워크 경로에 접근할 수 없습니다: {0}", "ネットワークパスにアクセスできません: {0}", "无法访问网络路径: {0}", "無法存取網路路徑: {0}", "Netzwerkpfad nicht erreichbar: {0}", "No se puede acceder a la ruta de red: {0}", "Chemin réseau inaccessible : {0}", "Caminho de rede inacessível: {0}"),
             ("Error_PathTooLong", "Path is too long (over 260 chars)", "경로가 너무 깁니다 (260자 초과)", "パスが長すぎます（260文字超）", "路径过长（超过260个字符）", "路徑過長（超過260個字元）", "Pfad ist zu lang (über 260 Zeichen)", "La ruta es demasiado larga (más de 260 caracteres)", "Le chemin est trop long (plus de 260 caractères)", "Caminho muito longo (mais de 260 caracteres)"),

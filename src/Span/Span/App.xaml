@@ -55,8 +55,8 @@
                     <SolidColorBrush x:Key="SpanBgActiveBrush" Color="#1A60CDFF" />
                     <SolidColorBrush x:Key="SpanBgSelectedBrush" Color="#2560CDFF" />
                     <SolidColorBrush x:Key="SpanBgSelectedHoverBrush" Color="#3060CDFF" />
-                    <!-- Path highlight: subtle accent for navigation breadcrumb items -->
-                    <SolidColorBrush x:Key="SpanPathHighlightBrush" Color="#2060CDFF" />
+                    <!-- Path highlight: border line for navigation breadcrumb items (not background fill) -->
+                    <SolidColorBrush x:Key="SpanPathHighlightBrush" Color="#6060CDFF" />
 
                     <!-- Override WinUI system ListView/GridView selection colors -->
                     <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="#2560CDFF" />
@@ -125,8 +125,8 @@
                     <SolidColorBrush x:Key="SpanBgActiveBrush" Color="#1A0078D4" />
                     <SolidColorBrush x:Key="SpanBgSelectedBrush" Color="#250078D4" />
                     <SolidColorBrush x:Key="SpanBgSelectedHoverBrush" Color="#300078D4" />
-                    <!-- Path highlight -->
-                    <SolidColorBrush x:Key="SpanPathHighlightBrush" Color="#200078D4" />
+                    <!-- Path highlight: border line for navigation breadcrumb items (not background fill) -->
+                    <SolidColorBrush x:Key="SpanPathHighlightBrush" Color="#600078D4" />
 
                     <!-- Override WinUI system ListView/GridView selection colors -->
                     <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="#250078D4" />
@@ -310,7 +310,6 @@
                                             </Storyboard>
                                         </VisualState>
                                         <VisualState x:Name="PointerOverSelected">
-                                            <!-- Same as Selected: no visual change on hover over selected item -->
                                             <Storyboard>
                                                 <ObjectAnimationUsingKeyFrames Storyboard.TargetName="StateOverlay" Storyboard.TargetProperty="Background">
                                                     <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource SpanBgSelectedBrush}" />

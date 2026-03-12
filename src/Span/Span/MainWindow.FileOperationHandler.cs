@@ -207,6 +207,73 @@ namespace Span
         }
 
         /// <summary>
+        /// 컨텍스트 메뉴에서 호출 시, 우클릭된 아이템의 path를 기반으로
+        /// 해당 아이템이 속한 컬럼의 멀티 선택 목록을 반환한다.
+        /// GetCurrentSelectedItems()는 포커스 기반이라 Flyout 열린 상태에서
+        /// 잘못된 컬럼을 찾을 수 있으므로, path 매칭으로 정확한 컬럼을 찾는다.
+        /// </summary>
+        private List<string> GetSelectedPathsForContextMenu(string clickedPath)
+        {
+            var explorer = ViewModel.ActiveExplorer;
+            if (explorer == null) return new List<string> { clickedPath };
+
+            var viewMode = (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
+                ? ViewModel.RightViewMode : ViewModel.CurrentViewMode;
+
+            if (viewMode != ViewMode.MillerColumns)
+            {
+                // Details/List/Icon: CurrentFolder에서 직접 조회
+                var currentFolder = explorer.CurrentFolder;
+                if (currentFolder != null)
+                {
+                    var selected = currentFolder.GetSelectedItemsList();
+                    if (selected.Count > 1 && selected.Any(i => string.Equals(i.Path, clickedPath, StringComparison.OrdinalIgnoreCase)))
+                        return selected.Select(i => i.Path).ToList();
+                }
+                return new List<string> { clickedPath };
+            }
+
+            // Miller Columns: 모든 컬럼을 검색하여 clickedPath를 포함하는 컬럼을 찾음
+            var columns = explorer.Columns;
+            for (int i = 0; i < columns.Count; i++)
+            {
+                var col = columns[i];
+                // 이 컬럼의 Children에 클릭된 항목이 있는지 확인
+                bool containsClicked = col.Children.Any(c => string.Equals(c.Path, clickedPath, StringComparison.OrdinalIgnoreCase));
+                if (containsClicked)
+                {
+                    var selected = col.GetSelectedItemsList();
+                    if (selected.Count > 1 && selected.Any(s => string.Equals(s.Path, clickedPath, StringComparison.OrdinalIgnoreCase)))
+                        return selected.Select(s => s.Path).ToList();
+                    // 클릭된 항목이 멀티선택에 포함되지 않으면 단일 반환
+                    return new List<string> { clickedPath };
+                }
+            }
+
+            return new List<string> { clickedPath };
+        }
+
+        /// <summary>
+        /// 컨텍스트 메뉴에서 호출 시, clickedPath가 속한 컬럼의 인덱스를 반환한다.
+        /// 포커스 기반 GetCurrentColumnIndex() 대신 path 매칭으로 정확한 컬럼을 찾는다.
+        /// </summary>
+        private int GetColumnIndexForPath(string clickedPath)
+        {
+            var explorer = ViewModel.ActiveExplorer;
+            if (explorer == null) return -1;
+
+            var columns = explorer.Columns;
+            for (int i = 0; i < columns.Count; i++)
+            {
+                if (columns[i].Children.Any(c => string.Equals(c.Path, clickedPath, StringComparison.OrdinalIgnoreCase)))
+                    return i;
+            }
+
+            // Fallback
+            return GetCurrentColumnIndex();
+        }
+
+        /// <summary>
         /// 현재 뷰 모드에 맞는 활성 FolderViewModel을 반환한다.
         /// Miller: 활성 컬럼, non-Miller: CurrentFolder.
         /// </summary>
@@ -222,6 +289,70 @@ namespace Span
             int activeIndex = GetCurrentColumnIndex();
             if (activeIndex < 0 || activeIndex >= columns.Count) return null;
             return columns[activeIndex];
+        }
+
+        /// <summary>
+        /// 경로 목록에 해당하는 FileSystemViewModel을 찾아 반환한다.
+        /// 컨텍스트 메뉴에서 잘라내기 시 ViewModel 참조를 얻기 위해 사용.
+        /// </summary>
+        private List<FileSystemViewModel> GetViewModelsForPaths(List<string> paths)
+        {
+            var result = new List<FileSystemViewModel>();
+            var pathSet = new HashSet<string>(paths, StringComparer.OrdinalIgnoreCase);
+            var explorer = ViewModel.ActiveExplorer;
+            if (explorer == null) return result;
+
+            var viewMode = (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
+                ? ViewModel.RightViewMode : ViewModel.CurrentViewMode;
+
+            if (viewMode != ViewMode.MillerColumns)
+            {
+                var folder = explorer.CurrentFolder;
+                if (folder != null)
+                {
+                    foreach (var child in folder.Children)
+                    {
+                        if (pathSet.Contains(child.Path))
+                            result.Add(child);
+                    }
+                }
+            }
+            else
+            {
+                foreach (var col in explorer.Columns)
+                {
+                    foreach (var child in col.Children)
+                    {
+                        if (pathSet.Contains(child.Path))
+                            result.Add(child);
+                    }
+                }
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// 잘라내기 항목의 반투명 효과를 해제한다.
+        /// 붙여넣기 완료, 다른 복사/잘라내기, Esc 키 등에서 호출.
+        /// </summary>
+        private void ClearCutState()
+        {
+            foreach (var item in _cutItems)
+                item.IsCut = false;
+            _cutItems.Clear();
+        }
+
+        /// <summary>
+        /// 선택된 아이템들에 잘라내기 반투명 효과를 적용한다.
+        /// </summary>
+        private void ApplyCutState(List<FileSystemViewModel> items)
+        {
+            ClearCutState();
+            foreach (var item in items)
+            {
+                item.IsCut = true;
+                _cutItems.Add(item);
+            }
         }
 
         #endregion
@@ -247,6 +378,9 @@ namespace Span
                 }
             }
             if (selectedItems.Count == 0) return;
+
+            // 이전 잘라내기 항목의 반투명 효과 해제
+            ClearCutState();
 
             _clipboardPaths.Clear();
             foreach (var item in selectedItems)
@@ -306,6 +440,9 @@ namespace Span
                 ViewModel.ShowToast("Archive is read-only");
                 return;
             }
+
+            // 잘라내기 반투명 효과 적용
+            ApplyCutState(selectedItems);
 
             _clipboardPaths.Clear();
             foreach (var item in selectedItems)
@@ -567,7 +704,7 @@ namespace Span
 
             await ViewModel.ExecuteFileOperationAsync(op, activeIndex >= 0 ? activeIndex : null);
 
-            if (isCut && _clipboardPaths.Count > 0) _clipboardPaths.Clear();
+            if (isCut && _clipboardPaths.Count > 0) { ClearCutState(); _clipboardPaths.Clear(); }
             UpdateToolbarButtonStates();
             }
             catch (Exception ex)

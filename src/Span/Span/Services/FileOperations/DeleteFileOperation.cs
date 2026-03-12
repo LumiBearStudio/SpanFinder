@@ -142,7 +142,7 @@ public class DeleteFileOperation : IFileOperation
                         var recycleError = await Task.Run(() =>
                         {
                             if (!FileExistsWin32(sourcePath) && !Directory.Exists(sourcePath))
-                                return $"Path not found: {sourcePath}";
+                                return (string?)null; // Already gone — treat as successful delete
 
                             var err = TryRecycle(sourcePath);
                             if (err != null)

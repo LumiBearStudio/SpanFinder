@@ -6,12 +6,15 @@ namespace Span.Services.FileOperations;
 /// <summary>
 /// ZIP 압축 해제 작업.
 /// FileOperationManager를 통해 백그라운드 실행, 진행률/일시정지/취소 지원.
+/// 스트림 기반 해제로 바이트 단위 실시간 progress 보고.
 /// </summary>
 public class ExtractOperation : IFileOperation, IPausableOperation
 {
     private readonly string _zipPath;
     private readonly string _destinationPath;
     private ManualResetEventSlim? _pauseEvent;
+
+    private const int BufferSize = 1048576; // 1MB
 
     public ExtractOperation(string zipPath, string destinationPath)
     {
@@ -51,6 +54,8 @@ public class ExtractOperation : IFileOperation, IPausableOperation
                 long processedBytes = 0;
                 int current = 0;
                 var startTime = DateTime.Now;
+                long lastReportTick = Environment.TickCount64;
+                var buffer = new byte[BufferSize];
 
                 foreach (var entry in fileEntries)
                 {
@@ -78,10 +83,33 @@ public class ExtractOperation : IFileOperation, IPausableOperation
                     else
                     {
                         Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
-                        entry.ExtractToFile(fullPath, overwrite: true);
+
+                        // Stream-based extraction with per-byte progress reporting
+                        using var entryStream = entry.Open();
+                        using var destStream = new FileStream(fullPath, FileMode.Create, FileAccess.Write,
+                            FileShare.None, BufferSize, FileOptions.SequentialScan);
+
+                        int bytesRead;
+                        while ((bytesRead = entryStream.Read(buffer, 0, buffer.Length)) > 0)
+                        {
+                            FileOperationHelpers.WaitIfPaused(_pauseEvent, cancellationToken);
+                            cancellationToken.ThrowIfCancellationRequested();
+
+                            destStream.Write(buffer, 0, bytesRead);
+                            processedBytes += bytesRead;
+
+                            long now = Environment.TickCount64;
+                            if (now - lastReportTick >= FileOperationHelpers.ProgressReportIntervalMs)
+                            {
+                                FileOperationHelpers.ReportProgress(
+                                    progress, entry.FullName,
+                                    current, fileEntries.Count,
+                                    processedBytes, totalBytes, startTime);
+                                lastReportTick = now;
+                            }
+                        }
                     }
 
-                    processedBytes += entry.Length;
                     current++;
                     FileOperationHelpers.ReportProgress(
                         progress, entry.FullName,

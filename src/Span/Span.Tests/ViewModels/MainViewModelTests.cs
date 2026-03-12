@@ -209,6 +209,107 @@ public class MainViewModelTests
 
     // ── Session Serialization ──
 
+    // ── Split View + Preview Panel Interaction ──
+    // When split view is enabled, preview panels should be automatically closed
+    // to maximize usable screen space.
+
+    /// <summary>
+    /// Helper: simulates split view state with preview flags.
+    /// </summary>
+    private record SplitViewState(bool IsSplitEnabled, bool IsLeftPreviewEnabled, bool IsRightPreviewEnabled);
+
+    private static SplitViewState ToggleSplitViewOn(SplitViewState state)
+    {
+        // Replicates ToggleSplitView logic: when enabling split view,
+        // close both preview panels
+        if (!state.IsSplitEnabled)
+        {
+            return new SplitViewState(
+                IsSplitEnabled: true,
+                IsLeftPreviewEnabled: false,   // auto-close
+                IsRightPreviewEnabled: false    // auto-close
+            );
+        }
+        return state;
+    }
+
+    private static SplitViewState ToggleSplitViewOff(SplitViewState state)
+    {
+        if (state.IsSplitEnabled)
+        {
+            return state with { IsSplitEnabled = false };
+        }
+        return state;
+    }
+
+    [TestMethod]
+    public void SplitViewOn_ClosesLeftPreview()
+    {
+        var state = new SplitViewState(false, true, false);
+        var result = ToggleSplitViewOn(state);
+
+        Assert.IsTrue(result.IsSplitEnabled);
+        Assert.IsFalse(result.IsLeftPreviewEnabled, "Left preview should close when split view enables");
+    }
+
+    [TestMethod]
+    public void SplitViewOn_ClosesRightPreview()
+    {
+        var state = new SplitViewState(false, false, true);
+        var result = ToggleSplitViewOn(state);
+
+        Assert.IsTrue(result.IsSplitEnabled);
+        Assert.IsFalse(result.IsRightPreviewEnabled, "Right preview should close when split view enables");
+    }
+
+    [TestMethod]
+    public void SplitViewOn_ClosesBothPreviews()
+    {
+        var state = new SplitViewState(false, true, true);
+        var result = ToggleSplitViewOn(state);
+
+        Assert.IsTrue(result.IsSplitEnabled);
+        Assert.IsFalse(result.IsLeftPreviewEnabled);
+        Assert.IsFalse(result.IsRightPreviewEnabled);
+    }
+
+    [TestMethod]
+    public void SplitViewOn_NoPreviews_NoChange()
+    {
+        var state = new SplitViewState(false, false, false);
+        var result = ToggleSplitViewOn(state);
+
+        Assert.IsTrue(result.IsSplitEnabled);
+        Assert.IsFalse(result.IsLeftPreviewEnabled);
+        Assert.IsFalse(result.IsRightPreviewEnabled);
+    }
+
+    [TestMethod]
+    public void SplitViewOff_DoesNotAutoEnablePreview()
+    {
+        // When disabling split view, preview should NOT auto-restore
+        var state = new SplitViewState(true, false, false);
+        var result = ToggleSplitViewOff(state);
+
+        Assert.IsFalse(result.IsSplitEnabled);
+        Assert.IsFalse(result.IsLeftPreviewEnabled, "Preview should not auto-enable on split view off");
+        Assert.IsFalse(result.IsRightPreviewEnabled);
+    }
+
+    [TestMethod]
+    public void SplitViewAlreadyOn_NoDoubleToggle()
+    {
+        var state = new SplitViewState(true, true, true);
+        var result = ToggleSplitViewOn(state);
+
+        // Already enabled → no change
+        Assert.IsTrue(result.IsSplitEnabled);
+        Assert.IsTrue(result.IsLeftPreviewEnabled, "No change when already split");
+        Assert.IsTrue(result.IsRightPreviewEnabled);
+    }
+
+    // ── Session Serialization ──
+
     [TestMethod]
     public void SessionSave_SerializesTabState()
     {

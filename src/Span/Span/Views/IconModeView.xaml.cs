@@ -288,6 +288,11 @@ namespace Span.Views
             finally { _isSyncingSelection = false; }
         }
 
+        private void OnRootTapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
+        {
+            IconGridView?.Focus(FocusState.Programmatic);
+        }
+
         internal void InvertSelection()
         {
             if (IconGridView == null || ViewModel?.CurrentFolder == null) return;

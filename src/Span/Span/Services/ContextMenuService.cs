@@ -399,6 +399,11 @@ namespace Span.Services
             bool isArchive = Helpers.ArchivePathHelper.IsArchivePath(folder.Path);
 
             menu.Items.Add(CreateItem(_loc.Get("Open"), "\uE8E5", () => host.PerformOpen(folder), "O"));
+            if (!isRemote && !isArchive)
+            {
+                menu.Items.Add(CreateItem(_loc.Get("OpenInNewTab"), "\uE8A7", () => host.PerformOpenInNewTab(folder.Path), "T"));
+                menu.Items.Add(CreateItem(_loc.Get("OpenTerminal"), "\uE756", () => host.PerformOpenTerminal(folder.Path), "E"));
+            }
             menu.Items.Add(new MenuFlyoutSeparator());
 
             if (!isArchive)
@@ -619,6 +624,14 @@ namespace Span.Services
             selectSub.Items.Add(CreateItem(_loc.Get("SelectNone") + "  Ctrl+Shift+A", null, () => host.PerformSelectNone(), "N"));
             selectSub.Items.Add(CreateItem(_loc.Get("InvertSelection") + "  Ctrl+I", null, () => host.PerformInvertSelection(), "I"));
             menu.Items.Add(selectSub);
+
+            menu.Items.Add(new MenuFlyoutSeparator());
+            menu.Items.Add(CreateItem(_loc.Get("Refresh") + "  F5", "\uE72C", () => host.PerformRefresh(), "F"));
+
+            if (!isArchive && !FileSystemRouter.IsRemotePath(folderPath))
+            {
+                menu.Items.Add(CreateItem(_loc.Get("OpenTerminal"), "\uE756", () => host.PerformOpenTerminal(folderPath), "E"));
+            }
 
             TrackFlyout(menu);
             return menu;
