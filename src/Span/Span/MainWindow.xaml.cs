@@ -143,6 +143,10 @@ namespace Span
         private CancellationTokenSource? _inlinePreviewCts;
         private PreviewService? _inlinePreviewService;
 
+        // Git status bar ViewModels (left/right panes)
+        private GitStatusBarViewModel? _leftGitStatusBarVm;
+        private GitStatusBarViewModel? _rightGitStatusBarVm;
+
         // Sort state
         private string _currentSortField = "Name"; // Name, Date, Size, Type
         private bool _currentSortAscending = true;
@@ -179,6 +183,9 @@ namespace Span
         private FolderViewModel? _springLoadTarget;
         private Grid? _springLoadGrid;
         private const int SPRING_LOAD_DELAY_MS = 700;
+
+        // Quick Look floating window
+        private Views.QuickLookWindow? _quickLookWindow;
 
         /// <summary>
         /// MainWindow의 기본 생성자.
@@ -882,6 +889,9 @@ namespace Span
                 // STEP 0: Block all queued DispatcherQueue callbacks and async continuations
                 _isClosed = true;
 
+                // Quick Look 윈도우 닫기
+                CloseQuickLookWindow();
+
                 // Save window position/size (skip for tear-off windows)
                 if (!_isTearOffWindow && _settings.RememberWindowPosition)
                     SaveWindowPlacement();
@@ -958,6 +968,9 @@ namespace Span
 
                 // Cleanup inline preview column
                 try { CleanupInlinePreview(); } catch { }
+
+                // Cleanup Git status bars
+                try { CleanupGitStatusBars(); } catch { }
 
                 // Save preview panel widths
                 try
@@ -1601,6 +1614,9 @@ namespace Span
                     SubscribePreviewToLastColumn(isLeft: true);
             });
 
+            // Git 상태바: 새 Explorer 구독
+            ResubscribeGitStatusBar(isLeft: true);
+
             // FileSystemWatcher 감시 경로 갱신
             UpdateFileSystemWatcherPaths();
         }
@@ -1821,19 +1837,34 @@ namespace Span
                 }
                 // 프리뷰 패널 복원 (활성화 상태에 따라, Home에서는 숨김)
                 bool hidePreview = mode == ViewMode.Home;
-                if (!hidePreview && ViewModel.IsLeftPreviewEnabled)
+                bool isMillerMode = mode == ViewMode.MillerColumns;
+
+                if (isMillerMode)
                 {
+                    // Miller Columns 모드: 사이드 프리뷰 패널 숨기고 인라인 프리뷰 사용
+                    LeftPreviewSplitterCol.Width = new GridLength(0);
+                    LeftPreviewCol.Width = new GridLength(0);
+
+                    // 인라인 프리뷰 활성화 (설정 확인 후 현재 선택된 파일 표시)
+                    var activeExpl = ViewModel.ActiveExplorer;
+                    UpdateInlinePreviewColumn(activeExpl?.SelectedFile);
+                }
+                else if (!hidePreview && ViewModel.IsLeftPreviewEnabled)
+                {
+                    // Details/List/Icon 모드: 인라인 프리뷰 숨기고 사이드 패널 표시
+                    HideInlinePreview();
+
                     LeftPreviewSplitterCol.Width = new GridLength(2, GridUnitType.Pixel);
                     // Home에서 Width=0으로 숨긴 후 복원 시,
                     // LeftPreviewCol.Width도 함께 복원해야 프리뷰 패널이 표시됨
                     if (LeftPreviewCol.Width.Value < 1)
                     {
-                        double savedWidth = 280;
+                        double savedWidth = 320;
                         try
                         {
                             var settings = Windows.Storage.ApplicationData.Current.LocalSettings;
                             if (settings.Values.TryGetValue("LeftPreviewWidth", out var lw))
-                                savedWidth = Math.Max(200, (double)lw);
+                                savedWidth = Math.Max(320, (double)lw);
                         }
                         catch { }
                         LeftPreviewCol.Width = new GridLength(savedWidth, GridUnitType.Pixel);
@@ -1841,8 +1872,15 @@ namespace Span
                 }
                 else if (hidePreview)
                 {
+                    // Home 모드: 모든 프리뷰 숨김
+                    HideInlinePreview();
                     LeftPreviewSplitterCol.Width = new GridLength(0);
                     LeftPreviewCol.Width = new GridLength(0);
+                }
+                else
+                {
+                    // 프리뷰 비활성 상태 — 인라인도 숨김
+                    HideInlinePreview();
                 }
             }
 
@@ -1856,6 +1894,7 @@ namespace Span
             SortButton.IsEnabled = !isNonExplorerMode;
             ViewModeButton.IsEnabled = !isNonExplorerMode;
             PreviewToggleButton.IsEnabled = !isNonExplorerMode;
+            UpdatePreviewButtonState();
             SplitViewButton.IsEnabled = true; // 홈에서도 분할뷰 토글 가능
             CopyPathButton.IsEnabled = !isNonExplorerMode;
             SearchBox.IsEnabled = !isNonExplorerMode;

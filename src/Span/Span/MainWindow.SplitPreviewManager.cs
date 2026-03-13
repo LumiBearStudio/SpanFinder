@@ -360,6 +360,7 @@ namespace Span
                 ViewModel.ActivePane = tag == "Right" ? ActivePane.Right : ActivePane.Left;
             }
             TogglePreviewPanel();
+            UpdatePreviewButtonState();
         }
 
         #endregion
@@ -656,6 +657,9 @@ namespace Span
 
             // Initialize inline preview column
             InitializeInlinePreview();
+
+            // Initialize Git status bars
+            InitializeGitStatusBars();
         }
 
         /// <summary>
@@ -663,13 +667,20 @@ namespace Span
         /// </summary>
         private void OnLeftColumnsChangedForPreview(object? sender, NotifyCollectionChangedEventArgs e)
         {
-            if (_isClosed || !ViewModel.IsLeftPreviewEnabled) return;
+            if (_isClosed) return;
+            // 사이드 패널 또는 인라인 미리보기 중 하나라도 활성이면 구독 필요
+            bool needSubscribe = ViewModel.IsLeftPreviewEnabled
+                || ViewModel.CurrentViewMode == Models.ViewMode.MillerColumns;
+            if (!needSubscribe) return;
             SubscribePreviewToLastColumn(isLeft: true);
         }
 
         private void OnRightColumnsChangedForPreview(object? sender, NotifyCollectionChangedEventArgs e)
         {
-            if (_isClosed || !ViewModel.IsRightPreviewEnabled) return;
+            if (_isClosed) return;
+            bool needSubscribe = ViewModel.IsRightPreviewEnabled
+                || ViewModel.CurrentViewMode == Models.ViewMode.MillerColumns;
+            if (!needSubscribe) return;
             SubscribePreviewToLastColumn(isLeft: false);
         }
 
@@ -715,17 +726,35 @@ namespace Span
         private void OnLeftColumnSelectionForPreview(object? sender, PropertyChangedEventArgs e)
         {
             if (e.PropertyName != nameof(FolderViewModel.SelectedChild)) return;
-            if (_isClosed || !ViewModel.IsLeftPreviewEnabled) return;
+            if (_isClosed) return;
+
             if (sender is FolderViewModel folder)
-                LeftPreviewPanel.UpdatePreview(folder.SelectedChild ?? folder);
+            {
+                // 사이드 패널 미리보기 (Details/List/Icon 모드)
+                if (ViewModel.IsLeftPreviewEnabled)
+                    LeftPreviewPanel.UpdatePreview(folder.SelectedChild ?? folder);
+
+                // Quick Look 윈도우가 열려 있으면 내용 업데이트
+                if (ViewModel.ActivePane == ActivePane.Left)
+                    UpdateQuickLookContent(folder.SelectedChild);
+            }
         }
 
         private void OnRightColumnSelectionForPreview(object? sender, PropertyChangedEventArgs e)
         {
             if (e.PropertyName != nameof(FolderViewModel.SelectedChild)) return;
-            if (_isClosed || !ViewModel.IsRightPreviewEnabled) return;
+            if (_isClosed) return;
+
             if (sender is FolderViewModel folder)
-                RightPreviewPanel.UpdatePreview(folder.SelectedChild ?? folder);
+            {
+                // 사이드 패널 미리보기 (Details/List/Icon 모드)
+                if (ViewModel.IsRightPreviewEnabled)
+                    RightPreviewPanel.UpdatePreview(folder.SelectedChild ?? folder);
+
+                // Quick Look 윈도우가 열려 있으면 내용 업데이트
+                if (ViewModel.ActivePane == ActivePane.Right)
+                    UpdateQuickLookContent(folder.SelectedChild);
+            }
         }
 
         /// <summary>
@@ -739,6 +768,9 @@ namespace Span
                 LeftPreviewPanel.UpdatePreview(selectedItem);
             else if (ViewModel.ActivePane == ActivePane.Right && ViewModel.IsRightPreviewEnabled)
                 RightPreviewPanel.UpdatePreview(selectedItem);
+
+            // Quick Look 윈도우가 열려 있으면 내용 업데이트
+            UpdateQuickLookContent(selectedItem);
         }
 
         /// <summary>
@@ -771,10 +803,19 @@ namespace Span
         private void OnPreviewToggleClick(object sender, RoutedEventArgs e)
         {
             TogglePreviewPanel();
+            UpdatePreviewButtonState();
         }
 
         private void TogglePreviewPanel()
         {
+            // Miller Columns 모드: 인라인 미리보기 토글
+            if (ViewModel.CurrentViewMode == Models.ViewMode.MillerColumns)
+            {
+                ToggleInlinePreview();
+                return;
+            }
+
+            // Details/List/Icon 모드: 사이드 패널 토글
             ViewModel.TogglePreview();
 
             // Update column widths for the active pane
@@ -783,7 +824,7 @@ namespace Span
                 if (ViewModel.IsLeftPreviewEnabled)
                 {
                     LeftPreviewSplitterCol.Width = new GridLength(2, GridUnitType.Pixel);
-                    LeftPreviewCol.Width = new GridLength(280, GridUnitType.Pixel);
+                    LeftPreviewCol.Width = new GridLength(320, GridUnitType.Pixel);
                 }
                 else
                 {
@@ -797,7 +838,7 @@ namespace Span
                 if (ViewModel.IsRightPreviewEnabled)
                 {
                     RightPreviewSplitterCol.Width = new GridLength(2, GridUnitType.Pixel);
-                    RightPreviewCol.Width = new GridLength(280, GridUnitType.Pixel);
+                    RightPreviewCol.Width = new GridLength(320, GridUnitType.Pixel);
                 }
                 else
                 {
@@ -820,6 +861,81 @@ namespace Span
         }
 
         /// <summary>
+        /// Miller Columns 모드 전용: 인라인 미리보기 토글.
+        /// 설정에 저장하고 현재 선택된 파일에 따라 표시/숨김.
+        /// </summary>
+        private void ToggleInlinePreview()
+        {
+            try
+            {
+                var settings = App.Current.Services.GetRequiredService<SettingsService>();
+                settings.MillerInlinePreviewEnabled = !settings.MillerInlinePreviewEnabled;
+
+                if (settings.MillerInlinePreviewEnabled)
+                {
+                    // 현재 선택된 파일이 있으면 인라인 미리보기 표시
+                    var explorer = ViewModel.ActiveExplorer;
+                    UpdateInlinePreviewColumn(explorer?.SelectedFile);
+                }
+                else
+                {
+                    HideInlinePreview();
+                }
+
+                Helpers.DebugLogger.Log($"[MainWindow] Inline preview toggled: {settings.MillerInlinePreviewEnabled}");
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[MainWindow] ToggleInlinePreview error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 미리보기 토글 버튼의 활성 상태를 시각적으로 업데이트.
+        /// Miller Columns 모드: 인라인 미리보기 설정 기반
+        /// Details/List/Icon 모드: 사이드 패널 활성화 상태 기반
+        /// </summary>
+        internal void UpdatePreviewButtonState()
+        {
+            try
+            {
+                bool isActive;
+                if (ViewModel.CurrentViewMode == Models.ViewMode.MillerColumns)
+                {
+                    var settings = App.Current.Services.GetRequiredService<SettingsService>();
+                    isActive = settings.MillerInlinePreviewEnabled;
+                }
+                else
+                {
+                    isActive = ViewModel.ActivePane == ActivePane.Right
+                        ? ViewModel.IsRightPreviewEnabled
+                        : ViewModel.IsLeftPreviewEnabled;
+                }
+
+                var accentBrush = isActive
+                    ? (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SpanAccentBrush"]
+                    : new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
+
+                PreviewToggleButton.Background = accentBrush;
+
+                // Split view pane-specific buttons
+                if (ViewModel.IsSplitViewEnabled)
+                {
+                    LeftPreviewButton.Background = ViewModel.IsLeftPreviewEnabled
+                        ? (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SpanAccentBrush"]
+                        : new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
+                    RightPreviewButton.Background = ViewModel.IsRightPreviewEnabled
+                        ? (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SpanAccentBrush"]
+                        : new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[MainWindow] UpdatePreviewButtonState error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
         /// Restore preview panel widths from saved settings on Loaded.
         /// </summary>
         private void RestorePreviewState()
@@ -831,9 +947,9 @@ namespace Span
                 if (ViewModel.IsLeftPreviewEnabled)
                 {
                     LeftPreviewSplitterCol.Width = new GridLength(2, GridUnitType.Pixel);
-                    double leftW = 280;
+                    double leftW = 320;
                     if (settings.Values.TryGetValue("LeftPreviewWidth", out var lw))
-                        leftW = Math.Max(200, (double)lw);
+                        leftW = Math.Max(320, (double)lw);
                     LeftPreviewCol.Width = new GridLength(leftW, GridUnitType.Pixel);
                     SubscribePreviewToLastColumn(isLeft: true);
                 }
@@ -841,9 +957,9 @@ namespace Span
                 if (ViewModel.IsRightPreviewEnabled)
                 {
                     RightPreviewSplitterCol.Width = new GridLength(2, GridUnitType.Pixel);
-                    double rightW = 280;
+                    double rightW = 320;
                     if (settings.Values.TryGetValue("RightPreviewWidth", out var rw))
-                        rightW = Math.Max(200, (double)rw);
+                        rightW = Math.Max(320, (double)rw);
                     RightPreviewCol.Width = new GridLength(rightW, GridUnitType.Pixel);
                     SubscribePreviewToLastColumn(isLeft: false);
                 }
@@ -875,6 +991,21 @@ namespace Span
 
             // Subscribe to SelectedFile changes on the left explorer
             ViewModel.LeftExplorer.PropertyChanged += OnExplorerSelectedFileChanged;
+
+            // 밀러 컬럼 영역 리사이즈 시 인라인 미리보기 폭 재계산
+            MillerTabsHost.SizeChanged -= OnMillerTabsHostSizeChanged;
+            MillerTabsHost.SizeChanged += OnMillerTabsHostSizeChanged;
+        }
+
+        private void OnMillerTabsHostSizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            // Auto + MaxWidth 방식: ScrollViewer가 컨텐츠만큼만 차지하도록 MaxWidth 재계산
+            if (InlinePreviewColumn.Visibility == Visibility.Visible)
+            {
+                double totalWidth = MillerTabsHost.ActualWidth;
+                if (totalWidth > 322)
+                    MillerScrollViewer.MaxWidth = totalWidth - 322; // 320(미리보기 최소) + 2(스플리터)
+            }
         }
 
         /// <summary>
@@ -907,25 +1038,43 @@ namespace Span
         /// <summary>
         /// Update the inline preview column content and visibility.
         /// Shows/hides the column and populates file info.
+        /// Miller Columns 모드에서만 활성화, 다른 뷰 모드에서는 숨김.
         /// </summary>
         private async void UpdateInlinePreviewColumn(FileViewModel? fileVm)
         {
             if (_isClosed) return;
 
-            // Finder 방식: 오른쪽 프리뷰 패널만 사용, 인라인 프리뷰 비활성화
-            _inlinePreviewCts?.Cancel();
-            InlinePreviewColumn.Visibility = Visibility.Collapsed;
-            return;
-
-            // --- 아래 코드는 인라인 프리뷰 비활성화로 도달하지 않음 ---
-            #pragma warning disable CS0162
-            if (fileVm == null)
+            // Miller Columns 모드가 아니면 인라인 프리뷰 숨김
+            if (ViewModel.CurrentViewMode != Models.ViewMode.MillerColumns)
             {
+                HideInlinePreview();
                 return;
             }
 
-            // Show the column and populate basic info
-            InlinePreviewColumn.Visibility = Visibility.Visible;
+            // 설정에서 인라인 프리뷰가 비활성화되어 있으면 숨김
+            try
+            {
+                var settings = App.Current.Services.GetRequiredService<SettingsService>();
+                if (!settings.MillerInlinePreviewEnabled)
+                {
+                    HideInlinePreview();
+                    return;
+                }
+            }
+            catch { }
+
+            _inlinePreviewCts?.Cancel();
+
+            if (fileVm == null)
+            {
+                HideInlinePreview();
+                return;
+            }
+
+            try
+            {
+            // Show the inline preview column via Grid columns
+            ShowInlinePreview();
 
             // Basic info (synchronous)
             InlinePreviewFileName.Text = fileVm.Name;
@@ -959,6 +1108,10 @@ namespace Span
             InlinePreviewDimensionsRow.Visibility = Visibility.Collapsed;
             InlinePreviewDimensions.Text = "";
 
+            // Reset Git section
+            InlinePreviewGitSection.Visibility = Visibility.Collapsed;
+            InlinePreviewGitCommit.Text = "";
+
             // Determine preview type and load async content
             var previewType = _inlinePreviewService.GetPreviewType(fileVm.Path, false);
 
@@ -974,12 +1127,9 @@ namespace Span
                         if (ct.IsCancellationRequested) return;
                         if (imageBitmap != null)
                         {
+                            // PreviewPanelView와 동일: 헤더는 아이콘, 아래에 이미지 1개만 표시
                             InlinePreviewImage.Source = imageBitmap;
                             InlinePreviewImage.Visibility = Visibility.Visible;
-                            // Hide icon, show thumbnail in the header area
-                            InlinePreviewIcon.Visibility = Visibility.Collapsed;
-                            InlinePreviewThumbnail.Source = imageBitmap;
-                            InlinePreviewThumbnail.Visibility = Visibility.Visible;
                         }
                         // Load dimensions
                         var imgMeta = await _inlinePreviewService.GetImageMetadataAsync(fileVm.Path, ct);
@@ -1027,7 +1177,34 @@ namespace Span
                 Helpers.DebugLogger.Log($"[InlinePreview] Error loading preview: {ex.Message}");
             }
 
-            // Scroll the inline preview column into view
+            // Git Tier 1: 파일 마지막 커밋 정보
+            if (!ct.IsCancellationRequested)
+            {
+                try
+                {
+                    var gitService = App.Current.Services.GetService<GitStatusService>();
+                    if (gitService?.IsAvailable == true)
+                    {
+                        var settings = App.Current.Services.GetService<ISettingsService>();
+                        if (settings?.ShowGitIntegration == true)
+                        {
+                            var commit = await gitService.GetLastCommitAsync(fileVm.Path, ct);
+                            if (!ct.IsCancellationRequested && commit != null)
+                            {
+                                InlinePreviewGitCommit.Text = $"{commit.Subject}\n{commit.Author} · {commit.RelativeTime}";
+                                InlinePreviewGitSection.Visibility = Visibility.Visible;
+                            }
+                        }
+                    }
+                }
+                catch (OperationCanceledException) { }
+                catch (Exception ex)
+                {
+                    Helpers.DebugLogger.Log($"[InlinePreview] Git info error: {ex.Message}");
+                }
+            }
+
+            // Scroll the miller columns to keep last column visible
             if (!ct.IsCancellationRequested && InlinePreviewColumn.Visibility == Visibility.Visible)
             {
                 DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
@@ -1040,7 +1217,50 @@ namespace Span
                     catch { }
                 });
             }
-            #pragma warning restore CS0162
+            } // end outer try
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[InlinePreview] Outer error: {ex.Message}");
+                HideInlinePreview();
+            }
+        }
+
+        /// <summary>
+        /// 인라인 미리보기 컬럼 표시 — Grid 컬럼 너비 설정 및 Border Visible.
+        /// </summary>
+        private void ShowInlinePreview()
+        {
+            InlinePreviewSplitterCol.Width = new GridLength(2, GridUnitType.Pixel);
+
+            // Column 0 = Auto (ScrollViewer가 컨텐츠 크기만큼만 차지)
+            // Column 2 = * (미리보기가 나머지 공간 전부 차지)
+            MillerTabsHost.ColumnDefinitions[0].Width = GridLength.Auto;
+            InlinePreviewCol.Width = new GridLength(1, GridUnitType.Star);
+
+            // ScrollViewer MaxWidth 제약: 전체 폭 - 미리보기 최소(320) - 스플리터(2)
+            double totalWidth = MillerTabsHost.ActualWidth;
+            if (totalWidth > 322)
+                MillerScrollViewer.MaxWidth = totalWidth - 322;
+
+            InlinePreviewColumn.MinWidth = 320;
+            InlinePreviewColumn.Visibility = Visibility.Visible;
+        }
+
+        /// <summary>
+        /// 인라인 미리보기 컬럼 숨김 — Grid 컬럼 너비 0으로 설정 및 Border Collapsed.
+        /// </summary>
+        private void HideInlinePreview()
+        {
+            _inlinePreviewCts?.Cancel();
+            InlinePreviewSplitterCol.Width = new GridLength(0);
+            InlinePreviewCol.Width = new GridLength(0);
+            // 밀러 컬럼을 전체 공간으로 복원
+            MillerTabsHost.ColumnDefinitions[0].Width = new GridLength(1, GridUnitType.Star);
+            // ScrollViewer MaxWidth 제약 해제
+            MillerScrollViewer.MaxWidth = double.PositiveInfinity;
+            InlinePreviewColumn.MinWidth = 0;
+            InlinePreviewColumn.MaxWidth = double.PositiveInfinity;
+            InlinePreviewColumn.Visibility = Visibility.Collapsed;
         }
 
         /// <summary>
@@ -1054,6 +1274,165 @@ namespace Span
 
             if (ViewModel?.LeftExplorer != null)
                 ViewModel.LeftExplorer.PropertyChanged -= OnExplorerSelectedFileChanged;
+        }
+
+        #endregion
+
+        // =================================================================
+        //  Git Status Bar (bottom of explorer)
+        // =================================================================
+
+        #region Git Status Bar
+
+        private PropertyChangedEventHandler? _leftExplorerGitHandler;
+        private PropertyChangedEventHandler? _rightExplorerGitHandler;
+
+        /// <summary>
+        /// Git 상태바 초기화: ViewModel 생성, 이벤트 구독, SizeChanged 연결.
+        /// </summary>
+        private void InitializeGitStatusBars()
+        {
+            _leftGitStatusBarVm = new GitStatusBarViewModel();
+            _rightGitStatusBarVm = new GitStatusBarViewModel();
+
+            // PropertyChanged로 UI 바인딩
+            _leftGitStatusBarVm.PropertyChanged += OnLeftGitStatusBarChanged;
+            _rightGitStatusBarVm.PropertyChanged += OnRightGitStatusBarChanged;
+
+            // Explorer CurrentPath 변경 구독
+            SubscribeGitStatusToExplorer(isLeft: true);
+            SubscribeGitStatusToExplorer(isLeft: false);
+
+            // SizeChanged로 반응형 텍스트 갱신
+            LeftGitStatusBar.SizeChanged += (s, e) =>
+                _leftGitStatusBarVm?.UpdateStatusText(e.NewSize.Width);
+            RightGitStatusBar.SizeChanged += (s, e) =>
+                _rightGitStatusBarVm?.UpdateStatusText(e.NewSize.Width);
+
+            // 초기 경로로 갱신
+            _ = _leftGitStatusBarVm.UpdateForPathAsync(ViewModel.LeftExplorer?.CurrentPath);
+            _ = _rightGitStatusBarVm.UpdateForPathAsync(ViewModel.RightExplorer?.CurrentPath);
+        }
+
+        /// <summary>
+        /// Explorer.CurrentPath 변경을 감시하여 Git 상태바 갱신.
+        /// </summary>
+        private void SubscribeGitStatusToExplorer(bool isLeft)
+        {
+            UnsubscribeGitStatusFromExplorer(isLeft);
+
+            var explorer = isLeft ? ViewModel.LeftExplorer : ViewModel.RightExplorer;
+            if (explorer == null) return;
+
+            PropertyChangedEventHandler handler = (s, e) =>
+            {
+                if (e.PropertyName == nameof(ExplorerViewModel.CurrentPath))
+                {
+                    var vm = isLeft ? _leftGitStatusBarVm : _rightGitStatusBarVm;
+                    var path = (s as ExplorerViewModel)?.CurrentPath;
+                    if (vm != null)
+                        _ = vm.UpdateForPathAsync(path);
+                }
+            };
+
+            explorer.PropertyChanged += handler;
+            if (isLeft) _leftExplorerGitHandler = handler;
+            else _rightExplorerGitHandler = handler;
+        }
+
+        private void UnsubscribeGitStatusFromExplorer(bool isLeft)
+        {
+            var explorer = isLeft ? ViewModel.LeftExplorer : ViewModel.RightExplorer;
+            if (isLeft && _leftExplorerGitHandler != null)
+            {
+                if (explorer != null) explorer.PropertyChanged -= _leftExplorerGitHandler;
+                _leftExplorerGitHandler = null;
+            }
+            else if (!isLeft && _rightExplorerGitHandler != null)
+            {
+                if (explorer != null) explorer.PropertyChanged -= _rightExplorerGitHandler;
+                _rightExplorerGitHandler = null;
+            }
+        }
+
+        /// <summary>
+        /// 탭 전환 시 Git 상태바 Explorer 구독을 재연결.
+        /// </summary>
+        internal void ResubscribeGitStatusBar(bool isLeft)
+        {
+            SubscribeGitStatusToExplorer(isLeft);
+            var explorer = isLeft ? ViewModel.LeftExplorer : ViewModel.RightExplorer;
+            var vm = isLeft ? _leftGitStatusBarVm : _rightGitStatusBarVm;
+            if (vm != null && explorer != null)
+                _ = vm.UpdateForPathAsync(explorer.CurrentPath);
+        }
+
+        /// <summary>
+        /// Left Git 상태바 ViewModel → UI 동기화.
+        /// </summary>
+        private void OnLeftGitStatusBarChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (_isClosed) return;
+            DispatcherQueue.TryEnqueue(() => SyncGitStatusBarUI(isLeft: true));
+        }
+
+        private void OnRightGitStatusBarChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (_isClosed) return;
+            DispatcherQueue.TryEnqueue(() => SyncGitStatusBarUI(isLeft: false));
+        }
+
+        /// <summary>
+        /// GitStatusBarViewModel 데이터를 XAML 요소에 반영.
+        /// </summary>
+        private void SyncGitStatusBarUI(bool isLeft)
+        {
+            var vm = isLeft ? _leftGitStatusBarVm : _rightGitStatusBarVm;
+            if (vm == null) return;
+
+            var bar = isLeft ? LeftGitStatusBar : RightGitStatusBar;
+            var branchTb = isLeft ? LeftGitBranch : RightGitBranch;
+            var statusTb = isLeft ? LeftGitStatus : RightGitStatus;
+            var flyoutBranch = isLeft ? LeftFlyoutBranch : RightFlyoutBranch;
+            var flyoutStatus = isLeft ? LeftFlyoutStatus : RightFlyoutStatus;
+            var flyoutCommitsLabel = isLeft ? LeftFlyoutCommitsLabel : RightFlyoutCommitsLabel;
+            var flyoutCommits = isLeft ? LeftFlyoutCommits : RightFlyoutCommits;
+            var flyoutFilesLabel = isLeft ? LeftFlyoutFilesLabel : RightFlyoutFilesLabel;
+            var flyoutFiles = isLeft ? LeftFlyoutFiles : RightFlyoutFiles;
+
+            bar.Visibility = vm.IsVisible ? Visibility.Visible : Visibility.Collapsed;
+            branchTb.Text = vm.Branch;
+            statusTb.Text = vm.StatusText;
+
+            // Flyout content
+            flyoutBranch.Text = vm.Branch;
+            flyoutStatus.Text = vm.FullStatusText;
+            flyoutCommitsLabel.Text = _loc?.Get("GitStatus_RecentCommits") ?? "Recent Commits";
+            flyoutCommits.Text = vm.RecentCommits;
+            flyoutFilesLabel.Text = _loc?.Get("GitStatus_ChangedFiles") ?? "Changed Files";
+            flyoutFiles.Text = vm.ChangedFiles;
+        }
+
+        /// <summary>
+        /// Git 상태바 리소스 해제.
+        /// </summary>
+        private void CleanupGitStatusBars()
+        {
+            UnsubscribeGitStatusFromExplorer(isLeft: true);
+            UnsubscribeGitStatusFromExplorer(isLeft: false);
+
+            if (_leftGitStatusBarVm != null)
+            {
+                _leftGitStatusBarVm.PropertyChanged -= OnLeftGitStatusBarChanged;
+                _leftGitStatusBarVm.Dispose();
+                _leftGitStatusBarVm = null;
+            }
+            if (_rightGitStatusBarVm != null)
+            {
+                _rightGitStatusBarVm.PropertyChanged -= OnRightGitStatusBarChanged;
+                _rightGitStatusBarVm.Dispose();
+                _rightGitStatusBarVm = null;
+            }
         }
 
         #endregion

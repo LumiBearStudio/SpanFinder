@@ -110,6 +110,14 @@ namespace Span
                 return;
             }
 
+            // ESC: Quick Look 창이 열려있으면 닫기 (어디서든 동작)
+            if (e.Key == Windows.System.VirtualKey.Escape && _quickLookWindow != null)
+            {
+                CloseQuickLookWindow();
+                e.Handled = true;
+                return;
+            }
+
             // Settings/Home/ActionLog 모드: 파일 조작 단축키 차단, 뷰 전환/탭/Escape만 허용
             if (ViewModel.CurrentViewMode == ViewMode.Settings || ViewModel.CurrentViewMode == ViewMode.Home || ViewModel.CurrentViewMode == ViewMode.ActionLog)
             {
@@ -938,14 +946,99 @@ namespace Span
 
         #endregion
 
-        #region Quick Look (Space key → toggle preview panel)
+        #region Quick Look (Space key → floating Quick Look window)
 
         /// <summary>
-        /// 스페이스바로 미리보기 패널을 토글한다 (macOS Finder Quick Look 방식).
+        /// 스페이스바로 Quick Look 플로팅 윈도우를 토글한다 (macOS Finder Quick Look 방식).
+        /// 파일 선택 시 윈도우를 열고, 다시 누르면 닫는다.
+        /// 폴더 선택 시에는 열려 있는 Quick Look을 닫는다.
         /// </summary>
         private void HandleQuickLook(int activeIndex)
         {
-            TogglePreviewPanel();
+            var explorer = ViewModel.ActiveExplorer;
+            if (explorer == null) return;
+
+            var columns = explorer.Columns;
+            if (columns == null || activeIndex < 0 || activeIndex >= columns.Count) return;
+
+            var selectedItem = columns[activeIndex].SelectedChild;
+            if (selectedItem == null)
+            {
+                CloseQuickLookWindow();
+                return;
+            }
+
+            // Quick Look이 이미 열려 있으면 닫기 (토글)
+            if (_quickLookWindow != null)
+            {
+                CloseQuickLookWindow();
+                return;
+            }
+
+            // Quick Look 윈도우 열기 (파일 + 폴더 모두 지원)
+            OpenQuickLookWindow(selectedItem);
+        }
+
+        /// <summary>
+        /// Quick Look 플로팅 윈도우를 열고 선택된 파일의 미리보기를 표시한다.
+        /// </summary>
+        private void OpenQuickLookWindow(FileSystemViewModel selectedItem)
+        {
+            _quickLookWindow = new Views.QuickLookWindow();
+            _quickLookWindow.SetMainWindow(this.AppWindow);
+            _quickLookWindow.WindowClosed += OnQuickLookWindowClosed;
+            _quickLookWindow.UpdateContent(selectedItem);
+            _quickLookWindow.Activate();
+
+            Helpers.DebugLogger.Log($"[QuickLook] Opened for: {selectedItem.Name}");
+        }
+
+        /// <summary>
+        /// Quick Look 윈도우를 닫는다.
+        /// </summary>
+        internal void CloseQuickLookWindow()
+        {
+            if (_quickLookWindow != null)
+            {
+                try
+                {
+                    _quickLookWindow.WindowClosed -= OnQuickLookWindowClosed;
+                    _quickLookWindow.Close();
+                }
+                catch (Exception ex)
+                {
+                    Helpers.DebugLogger.Log($"[QuickLook] Close error: {ex.Message}");
+                }
+                _quickLookWindow = null;
+                Helpers.DebugLogger.Log("[QuickLook] Closed");
+            }
+        }
+
+        /// <summary>
+        /// Quick Look 윈도우가 사용자에 의해 닫힐 때 (X 버튼 등) 호출.
+        /// </summary>
+        private void OnQuickLookWindowClosed()
+        {
+            _quickLookWindow = null;
+            Helpers.DebugLogger.Log("[QuickLook] Window closed by user");
+        }
+
+        /// <summary>
+        /// Quick Look이 열려 있으면 선택된 항목의 미리보기를 업데이트한다.
+        /// 화살표 키로 파일 선택이 변경될 때 호출된다.
+        /// </summary>
+        internal void UpdateQuickLookContent(FileSystemViewModel? selectedItem)
+        {
+            if (_quickLookWindow == null) return;
+
+            if (selectedItem == null)
+            {
+                CloseQuickLookWindow();
+                return;
+            }
+
+            // 파일/폴더 모두 미리보기 업데이트
+            _quickLookWindow.UpdateContent(selectedItem);
         }
 
         #endregion

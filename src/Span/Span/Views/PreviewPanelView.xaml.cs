@@ -120,8 +120,6 @@ namespace Span.Views
             LabelArtist.Text = _loc.Get("Preview_Artist");
             LabelAlbum.Text = _loc.Get("Preview_Album");
             LabelGit.Text = _loc.Get("Preview_Git");
-            LabelRecentCommits.Text = _loc.Get("Preview_RecentCommits");
-            LabelChangedFiles.Text = _loc.Get("Preview_ChangedFiles");
             LabelCompressed.Text = _loc.Get("Preview_Compressed");
             LabelOriginal.Text = _loc.Get("Preview_Original");
         }

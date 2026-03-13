@@ -116,6 +116,9 @@ public sealed partial class SettingsModeView : UserControl
             // Default preview
             DefaultPreviewToggle.IsOn = _settings.DefaultPreviewEnabled;
 
+            // Miller inline preview
+            MillerInlinePreviewToggle.IsOn = _settings.MillerInlinePreviewEnabled;
+
             FavoritesTreeToggle.IsOn = _settings.ShowFavoritesTree;
             SystemTrayToggle.IsOn = _settings.MinimizeToTray;
             WindowPositionToggle.IsOn = _settings.RememberWindowPosition;
@@ -253,6 +256,9 @@ public sealed partial class SettingsModeView : UserControl
         // Default preview
         DefaultPreviewToggle.Toggled += (s, e) => { if (!_isLoading) _settings.DefaultPreviewEnabled = DefaultPreviewToggle.IsOn; };
 
+        // Miller inline preview
+        MillerInlinePreviewToggle.Toggled += (s, e) => { if (!_isLoading) _settings.MillerInlinePreviewEnabled = MillerInlinePreviewToggle.IsOn; };
+
         FavoritesTreeToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowFavoritesTree = FavoritesTreeToggle.IsOn; };
         SystemTrayToggle.Toggled += (s, e) => { if (!_isLoading) _settings.MinimizeToTray = SystemTrayToggle.IsOn; };
         WindowPositionToggle.Toggled += (s, e) => { if (!_isLoading) _settings.RememberWindowPosition = WindowPositionToggle.IsOn; };
@@ -362,7 +368,7 @@ public sealed partial class SettingsModeView : UserControl
             FavoritesTreeToggle, SystemTrayToggle, WindowPositionToggle,
             ShellExtrasToggle, ShellExtensionsToggle, DeveloperMenuToggle, GitIntegrationToggle,
             HexPreviewToggle, CopilotMenuToggle, ContextMenuToggle, CrashReportToggle,
-            DefaultPreviewToggle })
+            DefaultPreviewToggle, MillerInlinePreviewToggle })
             Helpers.CursorHelper.SetHandCursor(toggle);
 
         Helpers.CursorHelper.SetHandCursor(IconPackCombo);

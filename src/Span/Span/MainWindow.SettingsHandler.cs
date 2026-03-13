@@ -425,6 +425,25 @@ namespace Span
                     // Git 통합 ON/OFF 시 모든 로드된 컬럼 새로고침 (git 감지 재실행)
                     Helpers.DispatcherHelper.SafeEnqueue(DispatcherQueue, () => RefreshAllColumnsForGit());
                     break;
+
+                case "MillerInlinePreviewEnabled":
+                    Helpers.DispatcherHelper.SafeEnqueue(DispatcherQueue, () =>
+                    {
+                        if (ViewModel.CurrentViewMode == Models.ViewMode.MillerColumns)
+                        {
+                            bool enabled = value is bool b && b;
+                            if (enabled)
+                            {
+                                var expl = ViewModel.ActiveExplorer;
+                                UpdateInlinePreviewColumn(expl?.SelectedFile);
+                            }
+                            else
+                            {
+                                HideInlinePreview();
+                            }
+                        }
+                    });
+                    break;
             }
         }
 

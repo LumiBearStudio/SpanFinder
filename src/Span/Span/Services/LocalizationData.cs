@@ -399,6 +399,15 @@ namespace Span.Services
             ("Preview_ArchiveItems", "items", "항목", "アイテム", "项", "項", "Elemente", "elementos", "éléments", "itens"),
             ("Preview_ArchiveMore", "... and {0} more", "... 외 {0}개", "... 他{0}件", "... 另外{0}个", "... 另外{0}個", "... und {0} weitere", "... y {0} más", "... et {0} de plus", "... e mais {0}"),
 
+            // ── Git status bar ──────────────────────────────────────────────
+            ("GitStatus_Changes", "{0} changes", "{0}개 변경", "{0}件の変更", "{0}项更改", "{0}項變更", "{0} Änderungen", "{0} cambios", "{0} modifications", "{0} alterações"),
+            ("GitStatus_Modified", "modified", "수정", "変更", "修改", "修改", "geändert", "modificado", "modifié", "modificado"),
+            ("GitStatus_Staged", "staged", "스테이지", "ステージ", "暂存", "暫存", "bereitgestellt", "preparado", "indexé", "preparado"),
+            ("GitStatus_Untracked", "untracked", "미추적", "未追跡", "未跟踪", "未追蹤", "unverfolgt", "sin seguimiento", "non suivi", "não rastreado"),
+            ("GitStatus_Deleted", "deleted", "삭제", "削除", "删除", "刪除", "gelöscht", "eliminado", "supprimé", "excluído"),
+            ("GitStatus_RecentCommits", "Recent Commits", "최근 커밋", "最近のコミット", "最近提交", "最近提交", "Letzte Commits", "Commits recientes", "Commits récents", "Commits recentes"),
+            ("GitStatus_ChangedFiles", "Changed Files", "변경 파일", "変更ファイル", "更改的文件", "變更的檔案", "Geänderte Dateien", "Archivos cambiados", "Fichiers modifiés", "Arquivos alterados"),
+
             // ── Column headers/filters ──────────────────────────────────────
             ("FileName", "File name", "파일 이름", "ファイル名", "文件名", "檔案名稱", "Dateiname", "Nombre de archivo", "Nom du fichier", "Nome do arquivo"),
             ("DateModified", "Date modified", "수정한 날짜", "更新日時", "修改日期", "修改日期", "Änderungsdatum", "Fecha de modificación", "Date de modification", "Data de modificação"),

@@ -476,6 +476,9 @@ namespace Span
                     UpdateViewModeVisibility();
                     UpdateToolbarButtonStates();
                     FocusActiveView();
+
+                    // 탭 전환 시 Quick Look 윈도우 닫기
+                    CloseQuickLookWindow();
                 }
             }
         }

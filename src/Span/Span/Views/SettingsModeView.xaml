@@ -1153,6 +1153,25 @@
                                 </Grid>
                             </Border>
 
+                            <!-- Miller Inline Preview -->
+                            <Border Style="{StaticResource SettingsCardBorder}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Style="{StaticResource CardIconContainer}">
+                                        <FontIcon Glyph="&#xE8A1;" Style="{StaticResource CardIconStyle}" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock x:Name="MillerInlinePreviewLabel" Text="밀러 컬럼 인라인 미리보기" Style="{StaticResource SettingsCardLabel}" />
+                                        <TextBlock x:Name="MillerInlinePreviewDesc" Text="밀러 컬럼 뷰에서 파일 선택 시 오른쪽에 미리보기를 표시합니다" Style="{StaticResource SettingsCardDesc}" />
+                                    </StackPanel>
+                                    <ToggleSwitch x:Name="MillerInlinePreviewToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="True" OnContent="" OffContent="" />
+                                </Grid>
+                            </Border>
+
                             <!-- Delete Confirmation -->
                             <Border Style="{StaticResource SettingsCardBorder}">
                                 <Grid>

@@ -148,6 +148,12 @@ public class SettingsService : ISettingsService
         set => Set("ConfirmDelete", value);
     }
 
+    public bool MillerInlinePreviewEnabled
+    {
+        get => Get("MillerInlinePreviewEnabled", true);
+        set => Set("MillerInlinePreviewEnabled", value);
+    }
+
     public int UndoHistorySize
     {
         get => Get("UndoHistorySize", 50);
