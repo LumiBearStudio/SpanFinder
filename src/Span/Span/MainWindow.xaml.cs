@@ -142,6 +142,8 @@ namespace Span
         // Inline preview column (Miller Columns mode)
         private CancellationTokenSource? _inlinePreviewCts;
         private PreviewService? _inlinePreviewService;
+        private DispatcherTimer? _sizeChangedDebounceTimer;
+        private double _lastMillerMaxWidth;
 
         // Git status bar ViewModels (left/right panes)
         private GitStatusBarViewModel? _leftGitStatusBarVm;

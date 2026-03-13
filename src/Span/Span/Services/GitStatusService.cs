@@ -25,6 +25,11 @@ namespace Span.Services
         // 레포 루트 캐시: 경로 → 레포 루트 (null = 레포 아님)
         private readonly ConcurrentDictionary<string, string?> _repoRootCache = new(StringComparer.OrdinalIgnoreCase);
 
+        // Tier 2 캐시: 레포 루트 → (GitRepoInfo, 타임스탬프) — 30초 캐시
+        private readonly ConcurrentDictionary<string, (GitRepoInfo Info, DateTime Updated)> _repoInfoCache
+            = new(StringComparer.OrdinalIgnoreCase);
+        private const int RepoInfoCacheSeconds = 30;
+
         // Tier 3 캐시: 레포 루트 → (상태 딕셔너리, 타임스탬프)
         private readonly ConcurrentDictionary<string, (Dictionary<string, GitFileState> States, DateTime Updated)> _statusCache
             = new(StringComparer.OrdinalIgnoreCase);
@@ -256,6 +261,13 @@ namespace Span.Services
             var repoRoot = FindRepoRoot(folderPath);
             if (repoRoot == null) return null;
 
+            // 30초 캐시: 동일 레포 내 빠른 탐색 시 git 명령 재실행 방지
+            if (_repoInfoCache.TryGetValue(repoRoot, out var cached)
+                && (DateTime.UtcNow - cached.Updated).TotalSeconds < RepoInfoCacheSeconds)
+            {
+                return cached.Info;
+            }
+
             // 병렬 실행: status + log
             var statusTask = RunGitAsync(repoRoot, "status -sb", ct);
             var logTask = RunGitAsync(repoRoot, $"log -{MaxRecentCommits} --format=\"%h|%cr|%s\"", ct);
@@ -267,7 +279,9 @@ namespace Span.Services
 
             if (statusResult == null) return null;
 
-            return ParseRepoInfo(statusResult, logResult, repoRoot);
+            var info = ParseRepoInfo(statusResult, logResult, repoRoot);
+            _repoInfoCache[repoRoot] = (info, DateTime.UtcNow);
+            return info;
         }
 
         private static GitRepoInfo ParseRepoInfo(ProcessResult statusResult, ProcessResult? logResult, string repoRoot)

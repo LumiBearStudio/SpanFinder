@@ -999,13 +999,42 @@ namespace Span
 
         private void OnMillerTabsHostSizeChanged(object sender, SizeChangedEventArgs e)
         {
-            // Auto + MaxWidth 방식: ScrollViewer가 컨텐츠만큼만 차지하도록 MaxWidth 재계산
-            if (InlinePreviewColumn.Visibility == Visibility.Visible)
+            if (InlinePreviewColumn.Visibility != Visibility.Visible) return;
+
+            // 디바운싱: 연속 SizeChanged 이벤트를 100ms로 병합
+            if (_sizeChangedDebounceTimer == null)
             {
-                double totalWidth = MillerTabsHost.ActualWidth;
-                if (totalWidth > 322)
-                    MillerScrollViewer.MaxWidth = totalWidth - 322; // 320(미리보기 최소) + 2(스플리터)
+                _sizeChangedDebounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
+                _sizeChangedDebounceTimer.Tick += (s, args) =>
+                {
+                    _sizeChangedDebounceTimer.Stop();
+                    ApplyMillerColumnWidth();
+                };
             }
+            _sizeChangedDebounceTimer.Stop();
+            _sizeChangedDebounceTimer.Start();
+        }
+
+        /// <summary>
+        /// 밀러 컬럼 Pixel 너비를 실제 컨텐츠 크기 기반으로 재계산.
+        /// 값이 변경된 경우에만 적용하여 불필요한 레이아웃 패스 방지.
+        /// </summary>
+        private void ApplyMillerColumnWidth()
+        {
+            if (InlinePreviewColumn.Visibility != Visibility.Visible) return;
+
+            double totalWidth = MillerTabsHost.ActualWidth;
+            if (totalWidth <= 322) return;
+
+            double millerWidth = totalWidth - 322; // 320(미리보기 최소) + 2(스플리터)
+
+            // 값이 동일하면 레이아웃 invalidation 방지
+            if (Math.Abs(millerWidth - _lastMillerMaxWidth) < 1) return;
+            _lastMillerMaxWidth = millerWidth;
+
+            // Pixel 방식: Column 0 = 밀러 컨텐츠 폭, Column 2 = 나머지 전부
+            MillerTabsHost.ColumnDefinitions[0].Width = new GridLength(millerWidth, GridUnitType.Pixel);
+            InlinePreviewCol.Width = new GridLength(1, GridUnitType.Star);
         }
 
         /// <summary>
@@ -1063,7 +1092,9 @@ namespace Span
             }
             catch { }
 
-            _inlinePreviewCts?.Cancel();
+            try { _inlinePreviewCts?.Cancel(); } catch (ObjectDisposedException) { }
+            _inlinePreviewCts?.Dispose();
+            _inlinePreviewCts = null;
 
             if (fileVm == null)
             {
@@ -1076,14 +1107,14 @@ namespace Span
             // Show the inline preview column via Grid columns
             ShowInlinePreview();
 
-            // Basic info (synchronous)
+            // Basic info (즉시 표시 가능한 데이터만 — 동기 I/O 없음)
             InlinePreviewFileName.Text = fileVm.Name;
             InlinePreviewIcon.Glyph = fileVm.IconGlyph;
             InlinePreviewIcon.Foreground = fileVm.IconBrush;
             InlinePreviewFileType.Text = fileVm.FileType;
             InlinePreviewDateModified.Text = fileVm.DateModified;
 
-            // Get metadata from PreviewService (원격 파일은 모델 데이터 사용)
+            // 원격 파일: 모델 데이터 사용 (I/O 없음)
             if (Services.FileSystemRouter.IsRemotePath(fileVm.Path))
             {
                 InlinePreviewFileSize.Text = fileVm.Size;
@@ -1091,10 +1122,9 @@ namespace Span
             }
             else
             {
-                var metadata = _inlinePreviewService!.GetBasicMetadata(fileVm.Path);
-                InlinePreviewFileSize.Text = metadata.SizeFormatted;
-                InlinePreviewDateCreated.Text = metadata.Created.ToString("yyyy-MM-dd HH:mm");
-                InlinePreviewDateCreatedRow.Visibility = Visibility.Visible;
+                // 로컬 파일: 크기/생성일은 뷰모델 데이터로 즉시 표시, 상세 메타는 비동기 구간에서 보강
+                InlinePreviewFileSize.Text = fileVm.Size;
+                InlinePreviewDateCreatedRow.Visibility = Visibility.Collapsed;
             }
 
             // Reset type-specific previews
@@ -1120,6 +1150,17 @@ namespace Span
 
             try
             {
+                // 로컬 파일 메타데이터를 비동기로 로딩 (UI 스레드 차단 방지)
+                if (!Services.FileSystemRouter.IsRemotePath(fileVm.Path))
+                {
+                    var path = fileVm.Path;
+                    var metadata = await Task.Run(() => _inlinePreviewService!.GetBasicMetadata(path), ct);
+                    if (ct.IsCancellationRequested) return;
+                    InlinePreviewFileSize.Text = metadata.SizeFormatted;
+                    InlinePreviewDateCreated.Text = metadata.Created.ToString("yyyy-MM-dd HH:mm");
+                    InlinePreviewDateCreatedRow.Visibility = Visibility.Visible;
+                }
+
                 switch (previewType)
                 {
                     case Models.PreviewType.Image:
@@ -1232,15 +1273,15 @@ namespace Span
         {
             InlinePreviewSplitterCol.Width = new GridLength(2, GridUnitType.Pixel);
 
-            // Column 0 = Auto (ScrollViewer가 컨텐츠 크기만큼만 차지)
-            // Column 2 = * (미리보기가 나머지 공간 전부 차지)
-            MillerTabsHost.ColumnDefinitions[0].Width = GridLength.Auto;
-            InlinePreviewCol.Width = new GridLength(1, GridUnitType.Star);
-
-            // ScrollViewer MaxWidth 제약: 전체 폭 - 미리보기 최소(320) - 스플리터(2)
+            // Pixel 방식: Column 0 = 밀러 컨텐츠에 필요한 폭, Column 2 = 나머지 전부 (Star)
             double totalWidth = MillerTabsHost.ActualWidth;
             if (totalWidth > 322)
-                MillerScrollViewer.MaxWidth = totalWidth - 322;
+            {
+                double millerWidth = totalWidth - 322;
+                _lastMillerMaxWidth = millerWidth;
+                MillerTabsHost.ColumnDefinitions[0].Width = new GridLength(millerWidth, GridUnitType.Pixel);
+            }
+            InlinePreviewCol.Width = new GridLength(1, GridUnitType.Star);
 
             InlinePreviewColumn.MinWidth = 320;
             InlinePreviewColumn.Visibility = Visibility.Visible;
@@ -1251,15 +1292,14 @@ namespace Span
         /// </summary>
         private void HideInlinePreview()
         {
-            _inlinePreviewCts?.Cancel();
+            try { _inlinePreviewCts?.Cancel(); } catch (ObjectDisposedException) { }
+            _sizeChangedDebounceTimer?.Stop();
             InlinePreviewSplitterCol.Width = new GridLength(0);
             InlinePreviewCol.Width = new GridLength(0);
             // 밀러 컬럼을 전체 공간으로 복원
             MillerTabsHost.ColumnDefinitions[0].Width = new GridLength(1, GridUnitType.Star);
-            // ScrollViewer MaxWidth 제약 해제
-            MillerScrollViewer.MaxWidth = double.PositiveInfinity;
+            _lastMillerMaxWidth = 0;
             InlinePreviewColumn.MinWidth = 0;
-            InlinePreviewColumn.MaxWidth = double.PositiveInfinity;
             InlinePreviewColumn.Visibility = Visibility.Collapsed;
         }
 
@@ -1268,7 +1308,7 @@ namespace Span
         /// </summary>
         private void CleanupInlinePreview()
         {
-            _inlinePreviewCts?.Cancel();
+            try { _inlinePreviewCts?.Cancel(); } catch (ObjectDisposedException) { }
             _inlinePreviewCts?.Dispose();
             _inlinePreviewCts = null;
 

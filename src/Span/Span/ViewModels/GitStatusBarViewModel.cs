@@ -24,6 +24,9 @@ namespace Span.ViewModels
         private CancellationTokenSource? _currentCts;
         private bool _disposed;
         private double _lastAvailableWidth;
+        private string? _pendingPath;
+        private System.Threading.Timer? _debounceTimer;
+        private const int DebounceMs = 300;
 
         // --- Visibility ---
 
@@ -80,25 +83,49 @@ namespace Span.ViewModels
         /// <summary>
         /// 경로가 변경될 때 호출. Git 레포 여부를 판단하고 상태 정보를 업데이트.
         /// </summary>
-        public async Task UpdateForPathAsync(string? currentPath, CancellationToken ct = default)
+        public Task UpdateForPathAsync(string? currentPath, CancellationToken ct = default)
+        {
+            if (_disposed) return Task.CompletedTask;
+
+            if (string.IsNullOrEmpty(currentPath) || _gitService == null)
+            {
+                Clear();
+                return Task.CompletedTask;
+            }
+
+            // 디바운싱: 300ms 내 연속 호출을 병합하여 git 명령 실행 최소화
+            _pendingPath = currentPath;
+            _currentCts?.Cancel();
+
+            _debounceTimer?.Dispose();
+            _debounceTimer = new System.Threading.Timer(_ =>
+            {
+                if (_disposed) return;
+                _dispatcherQueue.TryEnqueue(() => _ = ExecuteUpdateAsync(ct));
+            }, null, DebounceMs, Timeout.Infinite);
+
+            return Task.CompletedTask;
+        }
+
+        private async Task ExecuteUpdateAsync(CancellationToken ct)
         {
             if (_disposed) return;
 
-            if (string.IsNullOrEmpty(currentPath) || _gitService == null)
+            var path = _pendingPath;
+            if (string.IsNullOrEmpty(path) || _gitService == null)
             {
                 Clear();
                 return;
             }
 
-            // Cancel any previous in-flight request
-            _currentCts?.Cancel();
             var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            _currentCts?.Dispose();
             _currentCts = cts;
             var linkedToken = cts.Token;
 
             try
             {
-                var repoInfo = await _gitService.GetRepoInfoAsync(currentPath, linkedToken);
+                var repoInfo = await _gitService.GetRepoInfoAsync(path, linkedToken);
                 if (linkedToken.IsCancellationRequested) return;
 
                 if (repoInfo == null)
@@ -285,6 +312,8 @@ namespace Span.ViewModels
         {
             if (_disposed) return;
             _disposed = true;
+            _debounceTimer?.Dispose();
+            _debounceTimer = null;
             _currentCts?.Cancel();
             _currentCts?.Dispose();
             _currentCts = null;
