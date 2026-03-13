@@ -636,6 +636,14 @@ namespace Span.ViewModels
                 SaveSplitViewState();
                 SavePreviewState();
 
+                // 서버 연결 데이터 즉시 저장 (미완료 비동기 저장이 있을 수 있음)
+                try
+                {
+                    var connectionService = App.Current.Services.GetRequiredService<Services.ConnectionManagerService>();
+                    connectionService.FlushSync();
+                }
+                catch (Exception ex) { Helpers.DebugLogger.Log($"[MainViewModel] Cleanup: FlushSync failed: {ex.Message}"); }
+
                 // Unsubscribe stored event handlers to prevent memory leaks
                 if (_settingChangedHandler != null)
                 {

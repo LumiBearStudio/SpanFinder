@@ -1017,6 +1017,7 @@ namespace Span
 
         /// <summary>
         /// 밀러 컬럼 Pixel 너비를 실제 컨텐츠 크기 기반으로 재계산.
+        /// 밀러 컨텐츠가 필요한 폭만큼만 사용하고 나머지를 미리보기에 할당.
         /// 값이 변경된 경우에만 적용하여 불필요한 레이아웃 패스 방지.
         /// </summary>
         private void ApplyMillerColumnWidth()
@@ -1026,7 +1027,21 @@ namespace Span
             double totalWidth = MillerTabsHost.ActualWidth;
             if (totalWidth <= 322) return;
 
-            double millerWidth = totalWidth - 322; // 320(미리보기 최소) + 2(스플리터)
+            // 밀러 컬럼 실제 컨텐츠 폭 측정 (ScrollViewer 내부의 StackPanel 폭)
+            double contentWidth = MillerScrollViewer.ExtentWidth;
+            if (contentWidth < 1) contentWidth = MillerScrollViewer.DesiredSize.Width;
+
+            // 밀러 컨텐츠 폭 기준으로 Column 0 크기 결정
+            // 미리보기 최소 320px + 스플리터 2px 보장
+            double maxMillerWidth = totalWidth - 322;
+            double millerWidth = Math.Min(contentWidth, maxMillerWidth);
+
+            // 밀러 컬럼에 최소 폭 보장 (전체의 30%)
+            double minMillerWidth = totalWidth * 0.3;
+            millerWidth = Math.Max(millerWidth, minMillerWidth);
+
+            // 미리보기 최소 폭 보장
+            millerWidth = Math.Min(millerWidth, maxMillerWidth);
 
             // 값이 동일하면 레이아웃 invalidation 방지
             if (Math.Abs(millerWidth - _lastMillerMaxWidth) < 1) return;
@@ -1273,11 +1288,19 @@ namespace Span
         {
             InlinePreviewSplitterCol.Width = new GridLength(2, GridUnitType.Pixel);
 
-            // Pixel 방식: Column 0 = 밀러 컨텐츠에 필요한 폭, Column 2 = 나머지 전부 (Star)
+            // Pixel 방식: Column 0 = 밀러 컨텐츠 실제 폭, Column 2 = 나머지 전부 (Star)
             double totalWidth = MillerTabsHost.ActualWidth;
             if (totalWidth > 322)
             {
-                double millerWidth = totalWidth - 322;
+                double contentWidth = MillerScrollViewer.ExtentWidth;
+                if (contentWidth < 1) contentWidth = MillerScrollViewer.DesiredSize.Width;
+
+                double maxMillerWidth = totalWidth - 322;
+                double millerWidth = Math.Min(contentWidth, maxMillerWidth);
+                double minMillerWidth = totalWidth * 0.3;
+                millerWidth = Math.Max(millerWidth, minMillerWidth);
+                millerWidth = Math.Min(millerWidth, maxMillerWidth);
+
                 _lastMillerMaxWidth = millerWidth;
                 MillerTabsHost.ColumnDefinitions[0].Width = new GridLength(millerWidth, GridUnitType.Pixel);
             }
