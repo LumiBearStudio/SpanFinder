@@ -986,6 +986,7 @@ namespace Span
         {
             _quickLookWindow = new Views.QuickLookWindow();
             _quickLookWindow.SetMainWindow(this.AppWindow);
+            _quickLookWindow.SyncTheme();
             _quickLookWindow.WindowClosed += OnQuickLookWindowClosed;
             _quickLookWindow.UpdateContent(selectedItem);
             _quickLookWindow.Activate();

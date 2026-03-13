@@ -1126,7 +1126,7 @@ namespace Span
         // =================================================================
 
         // 커스텀 테마 목록 (Dark 기반 + 리소스 오버라이드)
-        private static readonly HashSet<string> _customThemes = new() { "dracula", "tokyonight", "catppuccin", "gruvbox", "nord", "onedark", "monokai", "solarized-light" };
+        internal static readonly HashSet<string> _customThemes = new() { "dracula", "tokyonight", "catppuccin", "gruvbox", "nord", "onedark", "monokai", "solarized-light" };
 
 
 

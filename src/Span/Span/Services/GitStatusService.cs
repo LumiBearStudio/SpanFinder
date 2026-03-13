@@ -252,7 +252,7 @@ namespace Span.Services
 
         /// <summary>
         /// Git 레포 요약 정보를 반환 (브랜치, 상태, 최근 커밋, 변경 파일).
-        /// 두 git 명령을 병렬 실행.
+        /// 레포 전체 정보 + 현재 폴더 기준 필터링된 정보를 함께 제공.
         /// </summary>
         public async Task<GitRepoInfo?> GetRepoInfoAsync(string folderPath, CancellationToken ct)
         {
@@ -261,41 +261,63 @@ namespace Span.Services
             var repoRoot = FindRepoRoot(folderPath);
             if (repoRoot == null) return null;
 
-            // 30초 캐시: 동일 레포 내 빠른 탐색 시 git 명령 재실행 방지
-            if (_repoInfoCache.TryGetValue(repoRoot, out var cached)
+            // 폴더 상대경로 계산 (레포 루트 기준)
+            var dir = Directory.Exists(folderPath) ? folderPath : Path.GetDirectoryName(folderPath);
+            var relativeFolder = string.IsNullOrEmpty(dir) ? ""
+                : Path.GetRelativePath(repoRoot, dir).Replace('\\', '/');
+            if (relativeFolder == ".") relativeFolder = "";
+
+            // 캐시 키: repoRoot + relativeFolder (폴더별로 다른 커밋 표시)
+            var cacheKey = $"{repoRoot}|{relativeFolder}";
+            if (_repoInfoCache.TryGetValue(cacheKey, out var cached)
                 && (DateTime.UtcNow - cached.Updated).TotalSeconds < RepoInfoCacheSeconds)
             {
                 return cached.Info;
             }
 
-            // 병렬 실행: status + log
+            // 병렬 실행: status + 레포 전체 log + 현재 폴더 log
             var statusTask = RunGitAsync(repoRoot, "status -sb", ct);
             var logTask = RunGitAsync(repoRoot, $"log -{MaxRecentCommits} --format=\"%h|%cr|%s\"", ct);
 
-            await Task.WhenAll(statusTask, logTask);
+            // 현재 폴더의 최근 커밋 (레포 루트가 아닌 경우만)
+            Task<ProcessResult?> folderLogTask;
+            if (!string.IsNullOrEmpty(relativeFolder))
+                folderLogTask = RunGitAsync(repoRoot, $"log -{MaxRecentCommits} --format=\"%h|%cr|%s\" -- \"{relativeFolder}\"", ct);
+            else
+                folderLogTask = Task.FromResult<ProcessResult?>(null);
+
+            await Task.WhenAll(statusTask, logTask, folderLogTask);
 
             var statusResult = statusTask.Result;
             var logResult = logTask.Result;
+            var folderLogResult = folderLogTask.Result;
 
             if (statusResult == null) return null;
 
-            var info = ParseRepoInfo(statusResult, logResult, repoRoot);
-            _repoInfoCache[repoRoot] = (info, DateTime.UtcNow);
+            var info = ParseRepoInfo(statusResult, logResult, folderLogResult, repoRoot, relativeFolder);
+            _repoInfoCache[cacheKey] = (info, DateTime.UtcNow);
             return info;
         }
 
-        private static GitRepoInfo ParseRepoInfo(ProcessResult statusResult, ProcessResult? logResult, string repoRoot)
+        private static GitRepoInfo ParseRepoInfo(ProcessResult statusResult, ProcessResult? logResult,
+            ProcessResult? folderLogResult, string repoRoot, string relativeFolder)
         {
             var lines = statusResult.StdOut.Split('\n', StringSplitOptions.RemoveEmptyEntries);
             var branch = "";
             int modified = 0, untracked = 0, staged = 0, deleted = 0;
             var changedFiles = new List<GitChangedFile>();
 
+            // 폴더별 카운터
+            int folderModified = 0, folderUntracked = 0, folderStaged = 0, folderDeleted = 0;
+            var folderChangedFiles = new List<GitChangedFile>();
+
+            // 폴더 필터 접두사 (빈 문자열이면 레포 루트 = 전체)
+            var folderPrefix = string.IsNullOrEmpty(relativeFolder) ? "" : relativeFolder + "/";
+
             foreach (var line in lines)
             {
                 if (line.StartsWith("## "))
                 {
-                    // "## main...origin/main" or "## main"
                     var branchPart = line[3..];
                     var dotIdx = branchPart.IndexOf("...", StringComparison.Ordinal);
                     branch = dotIdx >= 0 ? branchPart[..dotIdx] : branchPart.Trim();
@@ -316,19 +338,28 @@ namespace Span.Services
                     case GitFileState.Added: staged++; break;
                     case GitFileState.Deleted: deleted++; break;
                 }
-            }
 
-            // 커밋 파싱
-            var commits = new List<GitCommitSummary>();
-            if (logResult?.ExitCode == 0 && !string.IsNullOrWhiteSpace(logResult.StdOut))
-            {
-                foreach (var line in logResult.StdOut.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+                // 현재 폴더에 속하는 파일 필터링
+                bool inFolder = string.IsNullOrEmpty(folderPrefix)
+                    || path.StartsWith(folderPrefix, StringComparison.OrdinalIgnoreCase);
+                if (inFolder)
                 {
-                    var parts = line.Split('|', 3);
-                    if (parts.Length >= 3)
-                        commits.Add(new GitCommitSummary(parts[0], parts[1], parts[2]));
+                    folderChangedFiles.Add(new GitChangedFile(path, state));
+                    switch (state)
+                    {
+                        case GitFileState.Modified: folderModified++; break;
+                        case GitFileState.Untracked: folderUntracked++; break;
+                        case GitFileState.Added: folderStaged++; break;
+                        case GitFileState.Deleted: folderDeleted++; break;
+                    }
                 }
             }
+
+            // 레포 전체 커밋 파싱
+            var commits = ParseCommits(logResult);
+
+            // 현재 폴더 커밋 파싱 (없으면 레포 전체 커밋 사용)
+            var folderCommits = folderLogResult != null ? ParseCommits(folderLogResult) : commits;
 
             return new GitRepoInfo
             {
@@ -339,7 +370,29 @@ namespace Span.Services
                 DeletedCount = deleted,
                 RecentCommits = commits,
                 ChangedFiles = changedFiles,
+                CurrentFolder = relativeFolder,
+                FolderModifiedCount = folderModified,
+                FolderUntrackedCount = folderUntracked,
+                FolderStagedCount = folderStaged,
+                FolderDeletedCount = folderDeleted,
+                FolderRecentCommits = folderCommits,
+                FolderChangedFiles = folderChangedFiles,
             };
+        }
+
+        private static List<GitCommitSummary> ParseCommits(ProcessResult? result)
+        {
+            var commits = new List<GitCommitSummary>();
+            if (result?.ExitCode == 0 && !string.IsNullOrWhiteSpace(result.StdOut))
+            {
+                foreach (var line in result.StdOut.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var parts = line.Split('|', 3);
+                    if (parts.Length >= 3)
+                        commits.Add(new GitCommitSummary(parts[0], parts[1], parts[2]));
+                }
+            }
+            return commits;
         }
 
         // ── Tier 3: 폴더 파일 상태 (Details 뷰) ──

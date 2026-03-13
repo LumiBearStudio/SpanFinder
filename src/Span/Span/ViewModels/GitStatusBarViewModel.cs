@@ -149,27 +149,29 @@ namespace Span.ViewModels
 
         /// <summary>
         /// GitRepoInfo를 각 프로퍼티에 반영 (UI 스레드에서 호출).
+        /// 상태바: 현재 폴더 기준 정보 표시. Flyout: 폴더 + 레포 전체 정보.
         /// </summary>
         private void ApplyRepoInfo(GitRepoInfo info)
         {
             IsVisible = true;
             Branch = info.Branch;
 
-            ModifiedCount = info.ModifiedCount;
-            StagedCount = info.StagedCount;
-            UntrackedCount = info.UntrackedCount;
-            DeletedCount = info.DeletedCount;
-            TotalChanges = info.ModifiedCount + info.StagedCount
-                         + info.UntrackedCount + info.DeletedCount;
+            // 상태바에는 현재 폴더 기준 수치 표시
+            ModifiedCount = info.FolderModifiedCount;
+            StagedCount = info.FolderStagedCount;
+            UntrackedCount = info.FolderUntrackedCount;
+            DeletedCount = info.FolderDeletedCount;
+            TotalChanges = info.FolderModifiedCount + info.FolderStagedCount
+                         + info.FolderUntrackedCount + info.FolderDeletedCount;
 
-            // Full status for flyout
+            // Full status for flyout (현재 폴더 + 레포 전체)
             FullStatusText = BuildFullStatusText(info);
 
-            // Recent commits for flyout
-            RecentCommits = FormatRecentCommits(info.RecentCommits);
+            // Recent commits for flyout (현재 폴더 기준)
+            RecentCommits = FormatRecentCommits(info.FolderRecentCommits);
 
-            // Changed files for flyout
-            ChangedFiles = FormatChangedFiles(info.ChangedFiles);
+            // Changed files for flyout (현재 폴더 기준)
+            ChangedFiles = FormatChangedFiles(info.FolderChangedFiles);
 
             // Responsive status text
             UpdateStatusText(_lastAvailableWidth);
@@ -217,19 +219,37 @@ namespace Span.ViewModels
         }
 
         /// <summary>
-        /// Flyout용 전체 상태 텍스트 생성.
+        /// Flyout용 전체 상태 텍스트 생성. 현재 폴더 + 레포 전체 요약.
         /// </summary>
         private string BuildFullStatusText(GitRepoInfo info)
         {
-            var parts = new List<string>(4);
-            if (info.ModifiedCount > 0) parts.Add($"{info.ModifiedCount} modified");
-            if (info.StagedCount > 0) parts.Add($"{info.StagedCount} staged");
-            if (info.UntrackedCount > 0) parts.Add($"{info.UntrackedCount} untracked");
-            if (info.DeletedCount > 0) parts.Add($"{info.DeletedCount} deleted");
+            var sb = new StringBuilder();
 
-            return parts.Count > 0
-                ? string.Join(", ", parts)
-                : "No changes (clean)";
+            // 현재 폴더 상태
+            var folderParts = new List<string>(4);
+            if (info.FolderModifiedCount > 0) folderParts.Add($"{info.FolderModifiedCount} modified");
+            if (info.FolderStagedCount > 0) folderParts.Add($"{info.FolderStagedCount} staged");
+            if (info.FolderUntrackedCount > 0) folderParts.Add($"{info.FolderUntrackedCount} untracked");
+            if (info.FolderDeletedCount > 0) folderParts.Add($"{info.FolderDeletedCount} deleted");
+
+            var folderName = string.IsNullOrEmpty(info.CurrentFolder) ? "/" : info.CurrentFolder;
+
+            if (folderParts.Count > 0)
+                sb.AppendLine($"{folderName}: {string.Join(", ", folderParts)}");
+            else
+                sb.AppendLine($"{folderName}: clean");
+
+            // 레포 전체 수치 (폴더와 다른 경우에만)
+            int repoTotal = info.ModifiedCount + info.StagedCount + info.UntrackedCount + info.DeletedCount;
+            int folderTotal = info.FolderModifiedCount + info.FolderStagedCount
+                            + info.FolderUntrackedCount + info.FolderDeletedCount;
+
+            if (repoTotal != folderTotal)
+            {
+                sb.Append($"repo total: {repoTotal} changes");
+            }
+
+            return sb.ToString().TrimEnd();
         }
 
         /// <summary>

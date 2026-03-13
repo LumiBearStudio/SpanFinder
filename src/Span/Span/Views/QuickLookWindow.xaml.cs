@@ -111,6 +111,58 @@ namespace Span.Views
         }
 
         /// <summary>
+        /// 메인 윈도우의 테마를 QuickLook 윈도우에 동기화.
+        /// WinUI 3에서 별도 Window는 독립적 테마를 가지므로 수동 동기화 필요.
+        /// </summary>
+        public void SyncTheme()
+        {
+            try
+            {
+                var settings = App.Current.Services.GetService<ISettingsService>();
+                if (settings == null) return;
+
+                var theme = settings.Theme;
+                if (this.Content is not FrameworkElement root) return;
+
+                bool isCustom = MainWindow._customThemes.Contains(theme);
+
+                var targetTheme = theme switch
+                {
+                    "light" => ElementTheme.Light,
+                    "dark" => ElementTheme.Dark,
+                    _ when isCustom && theme == "solarized-light" => ElementTheme.Light,
+                    _ when isCustom => ElementTheme.Dark,
+                    _ => ElementTheme.Default
+                };
+
+                if (isCustom)
+                {
+                    bool isLightCustom = theme == "solarized-light";
+                    root.RequestedTheme = isLightCustom ? ElementTheme.Dark : ElementTheme.Light;
+                    MainWindow.ApplyCustomThemeOverrides(root, theme);
+                    root.RequestedTheme = isLightCustom ? ElementTheme.Light : ElementTheme.Dark;
+                }
+                else
+                {
+                    MainWindow.ApplyCustomThemeOverrides(root, theme);
+                    root.RequestedTheme = targetTheme == ElementTheme.Light
+                        ? ElementTheme.Dark : ElementTheme.Light;
+                    root.RequestedTheme = targetTheme;
+                }
+
+                // 캡션 버튼 색상도 테마에 맞게 조정
+                var titleBar = this.AppWindow.TitleBar;
+                bool isLight = theme == "light" || theme == "solarized-light"
+                    || (theme == "system" && App.Current.RequestedTheme == ApplicationTheme.Light);
+                titleBar.ButtonForegroundColor = isLight ? Colors.Black : Colors.White;
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[QuickLook] SyncTheme error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
         /// 미리보기 내용 업데이트 + 모드/사이즈 자동 전환.
         /// </summary>
         public void UpdateContent(FileSystemViewModel? item)

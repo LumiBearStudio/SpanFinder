@@ -151,7 +151,7 @@ namespace Span
                 _hwnd, Helpers.NativeMethods.DWMWA_CAPTION_COLOR, ref colorRef, sizeof(int));
         }
 
-        private void ApplyCustomThemeOverrides(FrameworkElement root, string theme)
+        internal static void ApplyCustomThemeOverrides(FrameworkElement root, string theme)
         {
             if (!_customThemes.Contains(theme))
             {
@@ -221,7 +221,7 @@ namespace Span
             root.Resources.ThemeDictionaries[dictKey] = darkDict;
         }
 
-        private static (
+        internal static (
             Windows.UI.Color bgMica, Windows.UI.Color bgLayer1, Windows.UI.Color bgLayer2, Windows.UI.Color bgLayer3,
             Windows.UI.Color accent, Windows.UI.Color accentHover,
             Windows.UI.Color textPri, Windows.UI.Color textSec, Windows.UI.Color textTer,
@@ -331,7 +331,7 @@ namespace Span
             )
         };
 
-        private static Windows.UI.Color Clr(string hex)
+        internal static Windows.UI.Color Clr(string hex)
         {
             hex = hex.TrimStart('#');
             byte a = 255, r, g, b;
