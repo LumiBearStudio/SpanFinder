@@ -1,0 +1,51 @@
+SPAN Finder — Um explorador de arquivos Miller Columns ultrarrápido para Windows.
+Requer Windows App SDK 1.8 e .NET 8 Desktop Runtime (instalados automaticamente pela Microsoft Store).
+
+Inspirado pela visualização em colunas do macOS Finder e turbinado com recursos que o Windows Explorer nunca teve — múltiplas abas, visualização dividida, operações assíncronas e fluxos de trabalho orientados pelo teclado.
+
+Recursos principais
+
+Miller Columns
+Navegue por hierarquias profundas de pastas sem perder o contexto. Cada coluna representa um nível — clique em uma pasta e seu conteúdo aparece na próxima coluna.
+
+Quatro modos de visualização
+- Miller Columns (Ctrl+1) — Navegação hierárquica
+- Detalhes (Ctrl+2) — Tabela ordenável
+- Lista (Ctrl+3) — Layout multi-colunas de alta densidade
+- Ícones (Ctrl+4) — Visualização em grade com 4 opções de tamanho
+
+Painel de visualização (Quick Look)
+Pressione Espaço para visualização instantânea — imagens, vídeo, áudio, código, PDF, fontes, Hex binário, informações de pasta.
+
+Multi-abas e visualização dividida
+- Abas ilimitadas com separação, duplicação e restauração de sessão
+- Visualização dividida de painel duplo com navegação independente
+
+Temas e personalização
+- 10 Temas: Light, Dark, Dracula, Tokyo Night, Catppuccin, Gruvbox, Solarized, Nord, One Dark, Monokai
+- 6 níveis de altura de linha e 6 níveis de tamanho de fonte/ícone
+- 3 pacotes de ícones: Remix Icon, Phosphor Icons, Tabler Icons
+- 9 idiomas suportados
+
+Gerenciamento de arquivos
+- Desfazer/Refazer (histórico completo de operações)
+- Renomeação em lote: Regex, prefixo/sufixo, numeração sequencial
+- Cálculo de tamanho de pasta
+- Compressão/descompressão ZIP
+- Suporte a AccessKey no menu de contexto
+
+Ferramentas para desenvolvedores
+- Badges de status Git (Modified, Added, Deleted)
+- Visualizador Hex dump
+- Integração com terminal (Ctrl+`)
+- Conexões FTP/FTPS/SFTP
+
+Integração com nuvem
+- Badges de sincronização para OneDrive, iCloud, Dropbox
+- Monitoramento de arquivos em tempo real
+
+Requisitos do sistema
+- Windows 10 versão 1903+ / Windows 11
+- Arquitetura x64
+
+Código aberto — Veja o código-fonte, reporte bugs e contribua no GitHub: https://github.com/LumiBearStudio/SpanFinder

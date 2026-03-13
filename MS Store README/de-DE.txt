@@ -1,0 +1,51 @@
+SPAN Finder — Ein blitzschneller Miller-Columns-Dateiexplorer für Windows.
+Erfordert Windows App SDK 1.8 und .NET 8 Desktop Runtime (automatisch über den Microsoft Store installiert).
+
+Inspiriert von der Spaltenansicht des macOS Finder und ausgestattet mit Funktionen, die der Windows Explorer nie hatte — Multi-Tab, geteilte Ansicht, asynchrone Operationen und tastaturgesteuerte Workflows.
+
+Hauptfunktionen
+
+Miller Columns
+Navigieren Sie tiefe Ordnerhierarchien, ohne den Kontext zu verlieren. Jede Spalte repräsentiert eine Ebene — klicken Sie auf einen Ordner und sein Inhalt erscheint in der nächsten Spalte.
+
+Vier Ansichtsmodi
+- Miller Columns (Strg+1) — Hierarchische Navigation
+- Details (Strg+2) — Sortierbare Tabelle
+- Liste (Strg+3) — Kompaktes Mehrspaltenlayout
+- Symbole (Strg+4) — Rasteransicht mit 4 Größenoptionen
+
+Vorschau-Panel (Quick Look)
+Leertaste für sofortige Vorschau — Bilder, Video, Audio, Code, PDF, Schriften, Hex-Binär, Ordnerinfos.
+
+Multi-Tab & Geteilte Ansicht
+- Unbegrenzte Tabs mit Abreißen, Duplizieren und Sitzungswiederherstellung
+- Zwei-Fenster-Ansicht mit unabhängiger Navigation
+
+Themes & Anpassung
+- 10 Themes: Light, Dark, Dracula, Tokyo Night, Catppuccin, Gruvbox, Solarized, Nord, One Dark, Monokai
+- 6-stufige Zeilenhöhe & 6-stufige Schrift-/Symbolgröße
+- 3 Icon-Pakete: Remix Icon, Phosphor Icons, Tabler Icons
+- 9 Sprachen unterstützt
+
+Dateiverwaltung
+- Rückgängig/Wiederholen (vollständige Operationshistorie)
+- Batch-Umbenennung: Regex, Präfix/Suffix, sequentielle Nummerierung
+- Ordnergrößenberechnung
+- ZIP-Komprimierung/-Dekomprimierung
+- Kontextmenü AccessKey-Unterstützung
+
+Entwickler-Tools
+- Git-Status-Badges (Modified, Added, Deleted)
+- Hex-Dump-Viewer
+- Terminal-Integration (Strg+`)
+- FTP/FTPS/SFTP-Verbindungen
+
+Cloud-Integration
+- Sync-Status-Badges für OneDrive, iCloud, Dropbox
+- Echtzeit-Dateiüberwachung
+
+Systemanforderungen
+- Windows 10 Version 1903+ / Windows 11
+- x64-Architektur
+
+Open Source — Quellcode ansehen, Fehler melden und beitragen auf GitHub: https://github.com/LumiBearStudio/SpanFinder

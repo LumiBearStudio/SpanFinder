@@ -1,0 +1,51 @@
+SPAN Finder — Un explorateur de fichiers Miller Columns ultra-rapide pour Windows.
+Nécessite Windows App SDK 1.8 et .NET 8 Desktop Runtime (installés automatiquement via le Microsoft Store).
+
+Inspiré par la vue en colonnes du macOS Finder et enrichi de fonctionnalités que l'Explorateur Windows n'a jamais eues — multi-onglets, vue scindée, opérations asynchrones et flux de travail au clavier.
+
+Fonctionnalités principales
+
+Miller Columns
+Naviguez dans les hiérarchies profondes de dossiers sans perdre le contexte. Chaque colonne représente un niveau — cliquez sur un dossier et son contenu apparaît dans la colonne suivante.
+
+Quatre modes de vue
+- Miller Columns (Ctrl+1) — Navigation hiérarchique
+- Détails (Ctrl+2) — Tableau triable
+- Liste (Ctrl+3) — Mise en page multi-colonnes haute densité
+- Icônes (Ctrl+4) — Vue grille avec 4 options de taille
+
+Panneau d'aperçu (Quick Look)
+Appuyez sur Espace pour un aperçu instantané — images, vidéo, audio, code, PDF, polices, Hex binaire, infos dossier.
+
+Multi-onglets et vue scindée
+- Onglets illimités avec détachement, duplication et restauration de session
+- Vue scindée double panneau avec navigation indépendante
+
+Thèmes et personnalisation
+- 10 Thèmes : Light, Dark, Dracula, Tokyo Night, Catppuccin, Gruvbox, Solarized, Nord, One Dark, Monokai
+- 6 niveaux de hauteur de ligne et 6 niveaux de taille police/icône
+- 3 packs d'icônes : Remix Icon, Phosphor Icons, Tabler Icons
+- 9 langues supportées
+
+Gestion de fichiers
+- Annuler/Rétablir (historique complet des opérations)
+- Renommage par lot : Regex, préfixe/suffixe, numérotation séquentielle
+- Calcul de taille de dossier
+- Compression/décompression ZIP
+- Support AccessKey du menu contextuel
+
+Outils développeur
+- Badges de statut Git (Modified, Added, Deleted)
+- Visionneuse Hex dump
+- Intégration terminal (Ctrl+`)
+- Connexions FTP/FTPS/SFTP
+
+Intégration cloud
+- Badges de synchronisation pour OneDrive, iCloud, Dropbox
+- Surveillance de fichiers en temps réel
+
+Configuration requise
+- Windows 10 version 1903+ / Windows 11
+- Architecture x64
+
+Open Source — Consultez le code source, signalez des bugs et contribuez sur GitHub: https://github.com/LumiBearStudio/SpanFinder

@@ -1,0 +1,51 @@
+SPAN Finder — A blazing-fast Miller Columns file explorer for Windows.
+Requires Windows App SDK 1.8 and .NET 8 Desktop Runtime (auto-installed via Microsoft Store).
+
+Inspired by macOS Finder's column view and supercharged with features Windows Explorer never had — multi-tab, split view, async operations, and keyboard-driven workflows.
+
+FEATURES
+
+Miller Columns
+Navigate deep folder hierarchies without losing context. Each column represents one level — click a folder and its contents appear in the next column.
+
+Four View Modes
+- Miller Columns (Ctrl+1) — Hierarchical navigation
+- Details (Ctrl+2) — Sortable table
+- List (Ctrl+3) — Dense multi-column layout
+- Icons (Ctrl+4) — Grid view with 4 size options
+
+Preview Panel (Quick Look)
+Press Space to preview files instantly — images, video, audio, code, PDF, fonts, hex binary, and folder info.
+
+Multi-Tab & Split View
+- Unlimited tabs with tear-off, duplication, and session restore
+- Dual-pane split view with independent navigation
+
+Themes & Customization
+- 10 Themes: Light, Dark, Dracula, Tokyo Night, Catppuccin, Gruvbox, Solarized, Nord, One Dark, Monokai
+- 6-level row height & 6-level font/icon size
+- 3 Icon Packs: Remix Icon, Phosphor Icons, Tabler Icons
+- 9 Languages supported
+
+File Management
+- Undo/Redo with full operation history
+- Batch Rename: regex, prefix/suffix, sequential numbering
+- Folder size calculation
+- ZIP compress/decompress
+- Context menu AccessKey support
+
+Developer Tools
+- Git status badges (Modified, Added, Deleted)
+- Hex dump viewer
+- Terminal integration (Ctrl+`)
+- FTP/FTPS/SFTP remote connections
+
+Cloud Integration
+- Sync status badges for OneDrive, iCloud, Dropbox
+- Real-time file watching
+
+SYSTEM REQUIREMENTS
+- Windows 10 version 1903+ / Windows 11
+- x64 architecture
+
+Open Source — View source code, report bugs, and contribute on GitHub: https://github.com/LumiBearStudio/SpanFinder

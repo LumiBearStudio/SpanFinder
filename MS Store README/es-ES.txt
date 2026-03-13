@@ -1,0 +1,51 @@
+SPAN Finder — Un explorador de archivos Miller Columns ultrarrápido para Windows.
+Requiere Windows App SDK 1.8 y .NET 8 Desktop Runtime (instalados automáticamente a través de Microsoft Store).
+
+Inspirado en la vista por columnas de macOS Finder y potenciado con funciones que Windows Explorer nunca tuvo — múltiples pestañas, vista dividida, operaciones asíncronas y flujos de trabajo con teclado.
+
+Características principales
+
+Miller Columns
+Navegue jerarquías profundas de carpetas sin perder el contexto. Cada columna representa un nivel — haga clic en una carpeta y su contenido aparece en la siguiente columna.
+
+Cuatro modos de vista
+- Miller Columns (Ctrl+1) — Navegación jerárquica
+- Detalles (Ctrl+2) — Tabla ordenable
+- Lista (Ctrl+3) — Diseño multicolumna de alta densidad
+- Iconos (Ctrl+4) — Vista de cuadrícula con 4 opciones de tamaño
+
+Panel de vista previa (Quick Look)
+Presione Espacio para vista previa instantánea — imágenes, video, audio, código, PDF, fuentes, Hex binario, información de carpetas.
+
+Multi-pestaña y vista dividida
+- Pestañas ilimitadas con separación, duplicación y restauración de sesión
+- Vista dividida de panel doble con navegación independiente
+
+Temas y personalización
+- 10 Temas: Light, Dark, Dracula, Tokyo Night, Catppuccin, Gruvbox, Solarized, Nord, One Dark, Monokai
+- 6 niveles de altura de fila y 6 niveles de tamaño de fuente/icono
+- 3 paquetes de iconos: Remix Icon, Phosphor Icons, Tabler Icons
+- 9 idiomas soportados
+
+Gestión de archivos
+- Deshacer/Rehacer (historial completo de operaciones)
+- Renombrado masivo: Regex, prefijo/sufijo, numeración secuencial
+- Cálculo de tamaño de carpeta
+- Compresión/descompresión ZIP
+- Soporte de AccessKey en menú contextual
+
+Herramientas para desarrolladores
+- Insignias de estado Git (Modified, Added, Deleted)
+- Visor Hex dump
+- Integración de terminal (Ctrl+`)
+- Conexiones FTP/FTPS/SFTP
+
+Integración en la nube
+- Insignias de sincronización para OneDrive, iCloud, Dropbox
+- Monitoreo de archivos en tiempo real
+
+Requisitos del sistema
+- Windows 10 versión 1903+ / Windows 11
+- Arquitectura x64
+
+Código abierto — Consulta el código fuente, reporta errores y contribuye en GitHub: https://github.com/LumiBearStudio/SpanFinder

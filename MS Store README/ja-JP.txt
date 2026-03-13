@@ -1,0 +1,51 @@
+SPAN Finder — Windows向けの超高速ミラーカラム型ファイルエクスプローラー。
+Windows App SDK 1.8および.NET 8 Desktopランタイムが必要です（Microsoft Store経由で自動インストール）。
+
+macOS Finderのカラムビューにインスパイアされ、Windows Explorerにはない機能を搭載 — マルチタブ、分割ビュー、非同期操作、キーボード駆動のワークフロー。
+
+主な機能
+
+ミラーカラム
+深いフォルダ階層をコンテキストを失わずにナビゲート。各カラムは1つの階層を表し、フォルダをクリックすると次のカラムに内容が表示されます。
+
+4つのビューモード
+- ミラーカラム (Ctrl+1) — 階層ナビゲーション
+- 詳細 (Ctrl+2) — ソート可能なテーブル
+- リスト (Ctrl+3) — 高密度マルチカラムレイアウト
+- アイコン (Ctrl+4) — 4サイズオプションのグリッドビュー
+
+プレビューパネル (Quick Look)
+Spaceキーで即座にプレビュー — 画像、動画、音声、コード、PDF、フォント、Hexバイナリ、フォルダ情報。
+
+マルチタブ & 分割ビュー
+- 無制限タブ、タブの切り離し、複製、セッション復元
+- 独立したナビゲーションのデュアルペイン分割ビュー
+
+テーマ & カスタマイズ
+- 10テーマ: Light, Dark, Dracula, Tokyo Night, Catppuccin, Gruvbox, Solarized, Nord, One Dark, Monokai
+- 6段階の行高さ & 6段階のフォント/アイコンサイズ
+- 3種のアイコンパック: Remix Icon, Phosphor Icons, Tabler Icons
+- 9言語対応
+
+ファイル管理
+- 元に戻す/やり直し（完全な操作履歴）
+- 一括リネーム：正規表現、プレフィックス/サフィックス、連番
+- フォルダサイズ計算
+- ZIP圧縮/解凍
+- コンテキストメニューAccessKeyサポート
+
+開発者ツール
+- Gitステータスバッジ (Modified, Added, Deleted)
+- Hexダンプビューア
+- ターミナル連携 (Ctrl+`)
+- FTP/FTPS/SFTP接続
+
+クラウド連携
+- OneDrive、iCloud、Dropbox同期ステータスバッジ
+- リアルタイムファイル監視
+
+システム要件
+- Windows 10 バージョン 1903+ / Windows 11
+- x64アーキテクチャ
+
+オープンソース — ソースコードの確認、バグ報告、コントリビューションはGitHubで: https://github.com/LumiBearStudio/SpanFinder

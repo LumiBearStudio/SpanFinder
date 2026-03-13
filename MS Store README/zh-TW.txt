@@ -1,0 +1,51 @@
+SPAN Finder — 為Windows打造的極速Miller Columns檔案瀏覽器。
+需要 Windows App SDK 1.8 和 .NET 8 Desktop 執行階段（透過 Microsoft Store 自動安裝）。
+
+靈感來自macOS Finder的欄位檢視，搭載Windows Explorer從未有過的功能——多分頁、分割檢視、非同步操作和鍵盤驅動的工作流程。
+
+主要功能
+
+Miller Columns
+在不遺失上下文的情況下導航深層資料夾階層。每欄代表一個層級——點擊資料夾，其內容顯示在下一欄。
+
+四種檢視模式
+- Miller Columns (Ctrl+1) — 階層導航
+- 詳細資料 (Ctrl+2) — 可排序表格
+- 清單 (Ctrl+3) — 高密度多欄版面配置
+- 圖示 (Ctrl+4) — 4種大小的格狀檢視
+
+預覽面板 (Quick Look)
+按Space鍵即時預覽——圖片、影片、音訊、程式碼、PDF、字型、Hex二進位、資料夾資訊。
+
+多分頁 & 分割檢視
+- 無限分頁，支援拖出、複製、工作階段還原
+- 獨立導航的雙窗格分割檢視
+
+主題與自訂
+- 10種主題: Light、Dark、Dracula、Tokyo Night、Catppuccin、Gruvbox、Solarized、Nord、One Dark、Monokai
+- 6級列高 & 6級字型/圖示大小
+- 3種圖示套件: Remix Icon、Phosphor Icons、Tabler Icons
+- 9種語言支援
+
+檔案管理
+- 復原/重做（完整操作歷史）
+- 批次重新命名：正規表示式、前綴/後綴、序號編號
+- 資料夾大小計算
+- ZIP壓縮/解壓縮
+- 右鍵選單AccessKey支援
+
+開發者工具
+- Git狀態徽章 (Modified、Added、Deleted)
+- Hex傾印檢視器
+- 終端整合 (Ctrl+`)
+- FTP/FTPS/SFTP連線
+
+雲端整合
+- OneDrive、iCloud、Dropbox同步狀態徽章
+- 即時檔案監控
+
+系統需求
+- Windows 10 版本 1903+ / Windows 11
+- x64架構
+
+開源專案 — 查看原始碼、回報問題、參與貢獻請至GitHub: https://github.com/LumiBearStudio/SpanFinder

@@ -1,0 +1,51 @@
+SPAN Finder — 윈도우를 위한 초고속 밀러 컬럼(Miller Columns) 파일 탐색기.
+Windows App SDK 1.8 및 .NET 8 Desktop 런타임이 필요합니다 (Microsoft Store를 통해 자동 설치).
+
+맥(Mac) Finder의 밀러 컬럼에서 영감을 받아, 윈도우 탐색기에 없던 기능들을 탑재했습니다 — 멀티 탭, 분할 뷰, 비동기 처리, 키보드 중심 워크플로우.
+
+기능 소개
+
+밀러 컬럼
+폴더 계층 구조를 한눈에 파악하며 탐색합니다. 좌우 방향키만으로 폴더를 자유롭게 넘나드세요.
+
+4가지 뷰 모드
+- 밀러 컬럼 (Ctrl+1) — 계층형 탐색
+- 상세 보기 (Ctrl+2) — 정렬 가능한 테이블
+- 리스트 (Ctrl+3) — 고밀도 멀티 컬럼 레이아웃
+- 아이콘 (Ctrl+4) — 4단계 크기의 그리드 뷰
+
+미리보기 패널 (Quick Look)
+스페이스바 한 번으로 이미지, 영상, 오디오, 코드, PDF, 폰트, Hex 바이너리 등 즉시 미리보기.
+
+멀티 탭 & 분할 뷰
+- 무제한 탭, 탭 분리/복제, 세션 자동 복원
+- 좌우 독립 탐색이 가능한 듀얼 분할 뷰
+
+테마 & 커스터마이징
+- 10가지 테마: Light, Dark, Dracula, Tokyo Night, Catppuccin, Gruvbox, Solarized, Nord, One Dark, Monokai
+- 6단계 행 높이 & 6단계 폰트/아이콘 크기 조절
+- 3종 아이콘 팩: Remix Icon, Phosphor Icons, Tabler Icons
+- 9개 언어 지원
+
+파일 관리
+- 실행 취소/다시 실행 (최대 50회 이력)
+- 배치 이름 변경: 정규식, 접두사/접미사, 넘버링
+- 폴더 크기 계산
+- ZIP 압축/해제
+- 컨텍스트 메뉴 AccessKey 지원
+
+개발자 도구
+- Git 상태 뱃지 (Modified, Added, Deleted)
+- 내장 Hex 덤프 뷰어
+- 터미널 연동 (Ctrl+`)
+- FTP/FTPS/SFTP 원격 서버 접속
+
+클라우드 연동
+- OneDrive, iCloud, Dropbox 동기화 상태 뱃지
+- FileWatcher 실시간 파일 감지
+
+시스템 요구사항
+- Windows 10 버전 1903 이상 / Windows 11
+- x64 아키텍처
+
+오픈소스 — 소스코드 확인, 버그 제보, 기여 참여는 GitHub에서: https://github.com/LumiBearStudio/SpanFinder
