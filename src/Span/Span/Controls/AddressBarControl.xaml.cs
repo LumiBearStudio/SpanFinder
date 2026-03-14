@@ -187,6 +187,7 @@ namespace Span.Controls
             BreadcrumbScroller.Visibility = Visibility.Collapsed;
             OverflowIndicator.Visibility = Visibility.Collapsed;
             AutoSuggest.Visibility = Visibility.Visible;
+            SetParentContainerFocusBorder(true);
             // archive:// 프리픽스 제거하여 Windows 탐색기 스타일 표시
             var displayPath = CurrentPath ?? string.Empty;
             if (Helpers.ArchivePathHelper.IsArchivePath(displayPath))
@@ -228,6 +229,7 @@ namespace Span.Controls
             AutoSuggest.Visibility = Visibility.Collapsed;
             AutoSuggest.ItemsSource = null;
             BreadcrumbScroller.Visibility = Visibility.Visible;
+            SetParentContainerFocusBorder(false);
 
             // Restore overflow indicator after edit mode exit
             DispatcherQueue.TryEnqueue(() => UpdateOverflow(BreadcrumbScroller));
@@ -446,6 +448,69 @@ namespace Span.Controls
                 current = VisualTreeHelper.GetParent(current);
             }
             return false;
+        }
+
+        /// <summary>
+        /// 편집 모드 진입/종료 시 부모 컨테이너(AddressBarContainer)에 accent border를 표시/숨김.
+        /// AutoSuggestBox 내부 TextBox의 focus border는 UserControl.Resources에서 비활성화했으므로,
+        /// 부모 컨테이너에 직접 border를 적용하여 CornerRadius 클리핑 문제를 회피.
+        /// TextControlBorderBrushFocused를 사용하여 커스텀 테마와 동일한 색상을 보장.
+        /// </summary>
+        private void SetParentContainerFocusBorder(bool show)
+        {
+            // 부모 컨테이너(Grid)를 찾아 BorderBrush/BorderThickness 적용
+            var parent = VisualTreeHelper.GetParent(this);
+            while (parent != null)
+            {
+                if (parent is Grid grid && grid.Name?.Contains("AddressBar") == true
+                    || parent is Grid g2 && g2.Name?.Contains("PathHeader") == true)
+                {
+                    if (parent is Grid container)
+                    {
+                        if (show)
+                        {
+                            container.BorderBrush = GetFocusBorderBrush();
+                            container.BorderThickness = new Thickness(1);
+                        }
+                        else
+                        {
+                            container.BorderBrush = null;
+                            container.BorderThickness = new Thickness(0);
+                        }
+                    }
+                    return;
+                }
+                parent = VisualTreeHelper.GetParent(parent);
+            }
+        }
+
+        /// <summary>
+        /// WinUI 3 TextBox 포커스 보더와 동일한 브러시를 반환.
+        /// 커스텀 테마 적용 시 윈도우 레벨 ThemeDictionaries를 우선 조회.
+        /// </summary>
+        private Brush GetFocusBorderBrush()
+        {
+            const string key = "TextControlBorderBrushFocused";
+            try
+            {
+                // 윈도우 레벨 ThemeDictionaries 우선 (커스텀 테마 반영)
+                if (this.XamlRoot?.Content is FrameworkElement root)
+                {
+                    var themeKey = root.ActualTheme == ElementTheme.Light ? "Light" : "Dark";
+                    if (root.Resources.ThemeDictionaries.TryGetValue(themeKey, out var dict)
+                        && dict is ResourceDictionary rd
+                        && rd.TryGetValue(key, out var val)
+                        && val is Brush brush)
+                    {
+                        return brush;
+                    }
+                }
+            }
+            catch { }
+
+            // 앱 레벨 fallback (기본 Dark/Light 테마)
+            try { return (Brush)Application.Current.Resources[key]; } catch { }
+            return new SolidColorBrush(Microsoft.UI.Colors.DodgerBlue);
         }
 
         #endregion

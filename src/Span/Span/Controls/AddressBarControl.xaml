@@ -6,6 +6,13 @@
     xmlns:models="using:Span.Models"
     Tapped="OnContainerTapped">
 
+    <UserControl.Resources>
+        <!-- AutoSuggestBox 내부 TextBox의 포커스 보더를 완전 비활성화.
+             대신 부모 컨테이너에 커스텀 accent border를 표시함. -->
+        <Thickness x:Key="TextControlBorderThemeThickness">0</Thickness>
+        <Thickness x:Key="TextControlBorderThemeThicknessFocused">0</Thickness>
+    </UserControl.Resources>
+
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
@@ -70,8 +77,8 @@
 
         <!-- Edit mode AutoSuggestBox -->
         <AutoSuggestBox x:Name="AutoSuggest" AutomationProperties.AutomationId="TextBox_AddressBar" Visibility="Collapsed"
-                 VerticalAlignment="Center" Height="24" FontSize="11"
-                 BorderThickness="0"
+                 VerticalAlignment="Stretch" FontSize="11"
+                 BorderThickness="0" CornerRadius="0"
                  TextChanged="OnAutoSuggestTextChanged"
                  SuggestionChosen="OnAutoSuggestSuggestionChosen"
                  QuerySubmitted="OnAutoSuggestQuerySubmitted"

@@ -10,216 +10,277 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- Header with back button (Settings와 동일 패턴) -->
-        <Grid Grid.Row="0" Padding="20,12,20,8"
-              BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="0,0,0,1">
+        <!-- Header (주소창 영역과 동일 사이즈) -->
+        <Grid Grid.Row="0" Height="{StaticResource CommandBarHeight}"
+              Background="{ThemeResource SpanBgLayer1Brush}"
+              BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="0,0,0,1"
+              Padding="12,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <FontIcon Grid.Column="0" Glyph="&#xE81C;" FontSize="18"
+            <FontIcon Grid.Column="0" Glyph="&#xE81C;" FontSize="14"
                       Foreground="{ThemeResource SpanAccentBrush}"
-                      VerticalAlignment="Center" Margin="4,0,0,0"/>
-            <TextBlock x:Name="TitleText" Grid.Column="1" Text="작업 로그" FontSize="20" FontWeight="SemiBold"
-                       VerticalAlignment="Center" Margin="12,0,0,0"/>
+                      VerticalAlignment="Center"/>
+            <TextBlock x:Name="TitleText" Grid.Column="1" Text="작업 로그" FontSize="13" FontWeight="SemiBold"
+                       VerticalAlignment="Center" Margin="8,0,0,0"/>
             <Button x:Name="ClearButton" Grid.Column="2" Content="지우기"
-                    FontSize="12" Padding="12,6"
+                    FontSize="11" Padding="8,4"
                     Click="OnClearClick"
                     Background="Transparent"
                     Foreground="{ThemeResource SpanTextSecondaryBrush}"
                     VerticalAlignment="Center"/>
         </Grid>
 
-        <!-- NavigationView with filter items (Settings와 동일 구조) -->
-        <NavigationView x:Name="LogNav"
-                        Grid.Row="1"
-                        IsBackButtonVisible="Collapsed"
-                        IsSettingsVisible="False"
-                        IsPaneToggleButtonVisible="False"
-                        PaneDisplayMode="Left"
-                        OpenPaneLength="180"
-                        IsPaneOpen="True"
-                        SelectionChanged="LogNav_SelectionChanged"
-                        SizeChanged="LogNav_SizeChanged"
-                        Background="Transparent">
+        <!-- 사이드바 + 콘텐츠 (탐색기 사이드바와 동일 구조) -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="200"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
 
-            <NavigationView.MenuItems>
-                <NavigationViewItem x:Name="NavFilterAll" Content="전체" Tag="All" IsSelected="True" helpers:CursorHelper.IsHandCursor="True">
-                    <NavigationViewItem.Icon>
-                        <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_FilterAll}"/>
-                    </NavigationViewItem.Icon>
-                </NavigationViewItem>
-                <NavigationViewItem x:Name="NavFilterCopy" Content="복사" Tag="Copy" helpers:CursorHelper.IsHandCursor="True">
-                    <NavigationViewItem.Icon>
-                        <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Copy}"/>
-                    </NavigationViewItem.Icon>
-                </NavigationViewItem>
-                <NavigationViewItem x:Name="NavFilterMove" Content="이동" Tag="Move" helpers:CursorHelper.IsHandCursor="True">
-                    <NavigationViewItem.Icon>
-                        <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Move}"/>
-                    </NavigationViewItem.Icon>
-                </NavigationViewItem>
-                <NavigationViewItem x:Name="NavFilterDelete" Content="삭제" Tag="Delete" helpers:CursorHelper.IsHandCursor="True">
-                    <NavigationViewItem.Icon>
-                        <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Delete}"/>
-                    </NavigationViewItem.Icon>
-                </NavigationViewItem>
-                <NavigationViewItem x:Name="NavFilterRename" Content="이름변경" Tag="Rename" helpers:CursorHelper.IsHandCursor="True">
-                    <NavigationViewItem.Icon>
-                        <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Rename}"/>
-                    </NavigationViewItem.Icon>
-                </NavigationViewItem>
-                <NavigationViewItemSeparator/>
-                <NavigationViewItem x:Name="NavFilterError" Content="오류" Tag="Error" helpers:CursorHelper.IsHandCursor="True">
-                    <NavigationViewItem.Icon>
-                        <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Error}" Foreground="#E74856"/>
-                    </NavigationViewItem.Icon>
-                </NavigationViewItem>
-            </NavigationView.MenuItems>
-
-            <NavigationView.Content>
-                <Grid>
-                    <!-- Empty State -->
-                    <StackPanel x:Name="EmptyState"
-                                VerticalAlignment="Center" HorizontalAlignment="Center"
-                                Spacing="12" Padding="24"
-                                Visibility="Collapsed">
-                        <FontIcon Glyph="&#xE81C;" FontSize="48"
-                                  Foreground="{ThemeResource SpanTextTertiaryBrush}"
-                                  HorizontalAlignment="Center"/>
-                        <TextBlock x:Name="EmptyStateText" Text="작업 기록이 없습니다"
-                                   FontSize="14" TextAlignment="Center"
-                                   Foreground="{ThemeResource SpanTextTertiaryBrush}"/>
+            <!-- 사이드바: 탐색기와 완전 동일 -->
+            <Border Grid.Column="0" Background="{ThemeResource SpanBgLayer1Brush}"
+                    BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="0,0,1,0">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Padding="0,4">
+                        <Grid x:Name="NavFilterAll" Height="28" Padding="12,0" Tag="All"
+                              Background="{ThemeResource SpanBgSelectedBrush}"
+                              Tapped="OnNavItemTapped"
+                              PointerEntered="OnNavItemPointerEntered" PointerExited="OnNavItemPointerExited"
+                              helpers:CursorHelper.IsHandCursor="True">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <FontIcon Grid.Column="0" FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_FilterAll}"
+                                      FontSize="16" Foreground="{ThemeResource SpanTextSecondaryBrush}"
+                                      VerticalAlignment="Center" Margin="0,0,12,0"/>
+                            <TextBlock Grid.Column="1" Text="전체" FontSize="13"
+                                       VerticalAlignment="Center"/>
+                        </Grid>
+                        <Grid x:Name="NavFilterCopy" Height="28" Padding="12,0" Tag="Copy"
+                              Background="Transparent"
+                              Tapped="OnNavItemTapped"
+                              PointerEntered="OnNavItemPointerEntered" PointerExited="OnNavItemPointerExited"
+                              helpers:CursorHelper.IsHandCursor="True">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <FontIcon Grid.Column="0" FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Copy}"
+                                      FontSize="16" Foreground="{ThemeResource SpanTextSecondaryBrush}"
+                                      VerticalAlignment="Center" Margin="0,0,12,0"/>
+                            <TextBlock Grid.Column="1" Text="복사" FontSize="13"
+                                       VerticalAlignment="Center"/>
+                        </Grid>
+                        <Grid x:Name="NavFilterMove" Height="28" Padding="12,0" Tag="Move"
+                              Background="Transparent"
+                              Tapped="OnNavItemTapped"
+                              PointerEntered="OnNavItemPointerEntered" PointerExited="OnNavItemPointerExited"
+                              helpers:CursorHelper.IsHandCursor="True">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <FontIcon Grid.Column="0" FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Move}"
+                                      FontSize="16" Foreground="{ThemeResource SpanTextSecondaryBrush}"
+                                      VerticalAlignment="Center" Margin="0,0,12,0"/>
+                            <TextBlock Grid.Column="1" Text="이동" FontSize="13"
+                                       VerticalAlignment="Center"/>
+                        </Grid>
+                        <Grid x:Name="NavFilterDelete" Height="28" Padding="12,0" Tag="Delete"
+                              Background="Transparent"
+                              Tapped="OnNavItemTapped"
+                              PointerEntered="OnNavItemPointerEntered" PointerExited="OnNavItemPointerExited"
+                              helpers:CursorHelper.IsHandCursor="True">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <FontIcon Grid.Column="0" FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Delete}"
+                                      FontSize="16" Foreground="{ThemeResource SpanTextSecondaryBrush}"
+                                      VerticalAlignment="Center" Margin="0,0,12,0"/>
+                            <TextBlock Grid.Column="1" Text="삭제" FontSize="13"
+                                       VerticalAlignment="Center"/>
+                        </Grid>
+                        <Grid x:Name="NavFilterRename" Height="28" Padding="12,0" Tag="Rename"
+                              Background="Transparent"
+                              Tapped="OnNavItemTapped"
+                              PointerEntered="OnNavItemPointerEntered" PointerExited="OnNavItemPointerExited"
+                              helpers:CursorHelper.IsHandCursor="True">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <FontIcon Grid.Column="0" FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Rename}"
+                                      FontSize="16" Foreground="{ThemeResource SpanTextSecondaryBrush}"
+                                      VerticalAlignment="Center" Margin="0,0,12,0"/>
+                            <TextBlock Grid.Column="1" Text="이름변경" FontSize="13"
+                                       VerticalAlignment="Center"/>
+                        </Grid>
+                        <Rectangle Height="1" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="12,12"/>
+                        <Grid x:Name="NavFilterError" Height="28" Padding="12,0" Tag="Error"
+                              Background="Transparent"
+                              Tapped="OnNavItemTapped"
+                              PointerEntered="OnNavItemPointerEntered" PointerExited="OnNavItemPointerExited"
+                              helpers:CursorHelper.IsHandCursor="True">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <FontIcon Grid.Column="0" FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Error}"
+                                      FontSize="16" Foreground="#E74856"
+                                      VerticalAlignment="Center" Margin="0,0,12,0"/>
+                            <TextBlock Grid.Column="1" Text="오류" FontSize="13"
+                                       VerticalAlignment="Center"/>
+                        </Grid>
                     </StackPanel>
+                </ScrollViewer>
+            </Border>
 
-                    <!-- Log List -->
-                    <ListView x:Name="LogListView"
-                              SelectionMode="None" IsItemClickEnabled="False"
-                              Padding="16,8,16,8">
-                        <ListView.ItemContainerStyle>
-                            <Style TargetType="ListViewItem">
-                                <Setter Property="Padding" Value="0"/>
-                                <Setter Property="MinHeight" Value="0"/>
-                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                            </Style>
-                        </ListView.ItemContainerStyle>
-                        <ListView.ItemTemplate>
-                            <DataTemplate>
-                                <StackPanel>
-                                    <!-- Header Row -->
-                                    <Grid Padding="16,10" ColumnSpacing="12">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="30"/>
-                                        </Grid.ColumnDefinitions>
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                        </Grid.RowDefinitions>
+            <!-- 콘텐츠 영역 -->
+            <Grid Grid.Column="1">
+                <!-- Empty State -->
+                <StackPanel x:Name="EmptyState"
+                            VerticalAlignment="Center" HorizontalAlignment="Center"
+                            Spacing="12" Padding="24"
+                            Visibility="Collapsed">
+                    <FontIcon Glyph="&#xE81C;" FontSize="48"
+                              Foreground="{ThemeResource SpanTextTertiaryBrush}"
+                              HorizontalAlignment="Center"/>
+                    <TextBlock x:Name="EmptyStateText" Text="작업 기록이 없습니다"
+                               FontSize="14" TextAlignment="Center"
+                               Foreground="{ThemeResource SpanTextTertiaryBrush}"/>
+                </StackPanel>
 
-                                        <!-- Operation Icon -->
-                                        <FontIcon Grid.Column="0" Grid.RowSpan="2"
-                                                  Glyph="{Binding OperationGlyph}"
-                                                  FontSize="18"
-                                                  Foreground="{ThemeResource SpanTextSecondaryBrush}"
-                                                  VerticalAlignment="Center"/>
+                <!-- Log List -->
+                <ListView x:Name="LogListView"
+                          SelectionMode="None" IsItemClickEnabled="False"
+                          Padding="16,8,16,8">
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem">
+                            <Setter Property="Padding" Value="0"/>
+                            <Setter Property="MinHeight" Value="0"/>
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                        </Style>
+                    </ListView.ItemContainerStyle>
+                    <ListView.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel>
+                                <!-- Header Row -->
+                                <Grid Padding="16,10" ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="30"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
 
-                                        <!-- Description -->
-                                        <TextBlock Grid.Column="1" Grid.Row="0"
-                                                   Text="{Binding Description}"
-                                                   FontSize="13" FontWeight="SemiBold"
-                                                   Foreground="{ThemeResource SpanTextPrimaryBrush}"
-                                                   TextTrimming="CharacterEllipsis" MaxLines="1"/>
+                                    <!-- Operation Icon -->
+                                    <FontIcon Grid.Column="0" Grid.RowSpan="2"
+                                              Glyph="{Binding OperationGlyph}"
+                                              FontSize="18"
+                                              Foreground="{ThemeResource SpanTextSecondaryBrush}"
+                                              VerticalAlignment="Center"/>
 
-                                        <!-- Timestamp -->
-                                        <TextBlock Grid.Column="2" Grid.Row="0"
-                                                   Text="{Binding FormattedTime}"
-                                                   FontSize="12"
-                                                   Foreground="{ThemeResource SpanTextTertiaryBrush}"
-                                                   VerticalAlignment="Center"/>
+                                    <!-- Description -->
+                                    <TextBlock Grid.Column="1" Grid.Row="0"
+                                               Text="{Binding Description}"
+                                               FontSize="13" FontWeight="SemiBold"
+                                               Foreground="{ThemeResource SpanTextPrimaryBrush}"
+                                               TextTrimming="CharacterEllipsis" MaxLines="1"/>
 
-                                        <!-- Success/Failure Icon -->
-                                        <FontIcon Grid.Column="3" Grid.Row="0"
-                                                  Glyph="{Binding StatusGlyph}"
-                                                  FontSize="13"
-                                                  Foreground="{Binding StatusBrush}"
-                                                  VerticalAlignment="Center"/>
+                                    <!-- Timestamp -->
+                                    <TextBlock Grid.Column="2" Grid.Row="0"
+                                               Text="{Binding FormattedTime}"
+                                               FontSize="12"
+                                               Foreground="{ThemeResource SpanTextTertiaryBrush}"
+                                               VerticalAlignment="Center"/>
 
-                                        <!-- Expand/Collapse Button -->
-                                        <Button Grid.Column="4" Grid.Row="0"
-                                                Visibility="{Binding ExpandButtonVisibility}"
-                                                Click="OnExpandClick"
-                                                Background="Transparent"
-                                                Padding="6,4" MinWidth="0" MinHeight="0"
-                                                VerticalAlignment="Center">
-                                            <FontIcon Glyph="{Binding ExpandGlyph}" FontSize="11"
-                                                      Foreground="{ThemeResource SpanTextTertiaryBrush}"/>
-                                        </Button>
+                                    <!-- Success/Failure Icon -->
+                                    <FontIcon Grid.Column="3" Grid.Row="0"
+                                              Glyph="{Binding StatusGlyph}"
+                                              FontSize="13"
+                                              Foreground="{Binding StatusBrush}"
+                                              VerticalAlignment="Center"/>
 
-                                        <!-- Error Message (only if failed) -->
-                                        <TextBlock Grid.Column="1" Grid.ColumnSpan="4" Grid.Row="1"
-                                                   Text="{Binding ErrorMessage}"
-                                                   Visibility="{Binding ErrorVisibility}"
-                                                   FontSize="12"
-                                                   Foreground="#E74856"
-                                                   TextTrimming="CharacterEllipsis" MaxLines="2"
-                                                   Margin="0,4,0,0"/>
-                                    </Grid>
+                                    <!-- Expand/Collapse Button -->
+                                    <Button Grid.Column="4" Grid.Row="0"
+                                            Visibility="{Binding ExpandButtonVisibility}"
+                                            Click="OnExpandClick"
+                                            Background="Transparent"
+                                            Padding="6,4" MinWidth="0" MinHeight="0"
+                                            VerticalAlignment="Center">
+                                        <FontIcon Glyph="{Binding ExpandGlyph}" FontSize="11"
+                                                  Foreground="{ThemeResource SpanTextTertiaryBrush}"/>
+                                    </Button>
 
-                                    <!-- Expandable Detail Panel -->
-                                    <StackPanel Visibility="{Binding DetailVisibility}"
-                                                Padding="52,0,16,10" Spacing="3">
-                                        <!-- Destination Path (Copy/Move) -->
-                                        <TextBlock Text="{Binding DestinationText}"
-                                                   Visibility="{Binding DestinationVisibility}"
-                                                   FontSize="12" FontWeight="SemiBold"
-                                                   Foreground="{ThemeResource SpanAccentBrush}"
-                                                   TextTrimming="CharacterEllipsis"
-                                                   Margin="0,0,0,4"/>
+                                    <!-- Error Message (only if failed) -->
+                                    <TextBlock Grid.Column="1" Grid.ColumnSpan="4" Grid.Row="1"
+                                               Text="{Binding ErrorMessage}"
+                                               Visibility="{Binding ErrorVisibility}"
+                                               FontSize="12"
+                                               Foreground="#E74856"
+                                               TextTrimming="CharacterEllipsis" MaxLines="2"
+                                               Margin="0,4,0,0"/>
+                                </Grid>
 
-                                        <!-- Individual file list -->
-                                        <ItemsRepeater ItemsSource="{Binding FileDetails}">
-                                            <ItemsRepeater.Layout>
-                                                <StackLayout Spacing="2"/>
-                                            </ItemsRepeater.Layout>
-                                            <ItemsRepeater.ItemTemplate>
-                                                <DataTemplate x:DataType="x:String">
-                                                    <TextBlock Text="{Binding}"
-                                                               FontSize="12"
-                                                               Foreground="{ThemeResource SpanTextSecondaryBrush}"
-                                                               TextTrimming="CharacterEllipsis"/>
-                                                </DataTemplate>
-                                            </ItemsRepeater.ItemTemplate>
-                                        </ItemsRepeater>
+                                <!-- Expandable Detail Panel -->
+                                <StackPanel Visibility="{Binding DetailVisibility}"
+                                            Padding="52,0,16,10" Spacing="3">
+                                    <!-- Destination Path (Copy/Move) -->
+                                    <TextBlock Text="{Binding DestinationText}"
+                                               Visibility="{Binding DestinationVisibility}"
+                                               FontSize="12" FontWeight="SemiBold"
+                                               Foreground="{ThemeResource SpanAccentBrush}"
+                                               TextTrimming="CharacterEllipsis"
+                                               Margin="0,0,0,4"/>
 
-                                        <!-- Open Folder Button -->
-                                        <Button Visibility="{Binding OpenFolderVisibility}"
-                                                Click="OnOpenFolderClick"
-                                                Background="Transparent"
-                                                Padding="4,4" MinWidth="0" MinHeight="0"
-                                                HorizontalAlignment="Left"
-                                                Margin="0,4,0,0">
-                                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                                <FontIcon Glyph="&#xE838;" FontSize="12"
-                                                          Foreground="{ThemeResource SpanAccentBrush}"/>
-                                                <TextBlock Text="{Binding OpenFolderPath}"
+                                    <!-- Individual file list -->
+                                    <ItemsRepeater ItemsSource="{Binding FileDetails}">
+                                        <ItemsRepeater.Layout>
+                                            <StackLayout Spacing="2"/>
+                                        </ItemsRepeater.Layout>
+                                        <ItemsRepeater.ItemTemplate>
+                                            <DataTemplate x:DataType="x:String">
+                                                <TextBlock Text="{Binding}"
                                                            FontSize="12"
-                                                           Foreground="{ThemeResource SpanAccentBrush}"
-                                                           TextTrimming="CharacterEllipsis"
-                                                           MaxWidth="350"/>
-                                            </StackPanel>
-                                        </Button>
-                                    </StackPanel>
+                                                           Foreground="{ThemeResource SpanTextSecondaryBrush}"
+                                                           TextTrimming="CharacterEllipsis"/>
+                                            </DataTemplate>
+                                        </ItemsRepeater.ItemTemplate>
+                                    </ItemsRepeater>
+
+                                    <!-- Open Folder Button -->
+                                    <Button Visibility="{Binding OpenFolderVisibility}"
+                                            Click="OnOpenFolderClick"
+                                            Background="Transparent"
+                                            Padding="4,4" MinWidth="0" MinHeight="0"
+                                            HorizontalAlignment="Left"
+                                            Margin="0,4,0,0">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <FontIcon Glyph="&#xE838;" FontSize="12"
+                                                      Foreground="{ThemeResource SpanAccentBrush}"/>
+                                            <TextBlock Text="{Binding OpenFolderPath}"
+                                                       FontSize="12"
+                                                       Foreground="{ThemeResource SpanAccentBrush}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       MaxWidth="350"/>
+                                        </StackPanel>
+                                    </Button>
                                 </StackPanel>
-                            </DataTemplate>
-                        </ListView.ItemTemplate>
-                    </ListView>
-                </Grid>
-            </NavigationView.Content>
-        </NavigationView>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </Grid>
+        </Grid>
     </Grid>
 </UserControl>

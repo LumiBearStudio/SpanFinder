@@ -129,8 +129,14 @@
             </ScrollViewer>
         </Grid>
 
+        <!-- Settings/ActionLog 모드: 타이틀바 하단 액센트 라인을 덮어 탭↔콘텐츠 연결감 유지
+        <Border Grid.Row="1" Height="4" Background="{ThemeResource SpanBgLayer1Brush}"
+                BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="0,0,0,1"
+                Visibility="{x:Bind IsSettingsOrActionLogMode(ViewModel.CurrentViewMode), Mode=OneWay}"/> -->
+
         <!-- 2. Unified Bar (hidden in Settings mode) -->
-        <Grid Grid.Row="1" Height="{StaticResource CommandBarHeight}" Background="{ThemeResource SpanBgLayer1Brush}" BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="0,0,0,1" Padding="8,0"
+        <Grid Grid.Row="1" Height="{StaticResource CommandBarHeight}" Background="{ThemeResource SpanBgLayer1Brush}" BorderBrush="{ThemeResource SpanBorderSubtleBrush}"
+              BorderThickness="{x:Bind UnifiedBarBorderThickness(ViewModel.IsSplitViewEnabled), Mode=OneWay}" Padding="8,0"
               Visibility="{x:Bind IsNotSettingsMode(ViewModel.CurrentViewMode), Mode=OneWay}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/> <!-- Nav Buttons -->
@@ -692,7 +698,7 @@
 
                     <!-- Left Pane Path Header (split mode, hidden in Home) -->
                     <Grid Grid.Row="0" x:Name="LeftPathHeader" Height="32"
-                          Visibility="{x:Bind IsLeftPaneHeaderVisible(ViewModel.IsSplitViewEnabled), Mode=OneWay}"
+                          Visibility="{x:Bind IsLeftPaneHeaderVisible(ViewModel.IsSplitViewEnabled, ViewModel.CurrentViewMode), Mode=OneWay}"
                           Background="{ThemeResource SpanBgLayer2Brush}"
                           BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="0,0,0,1"
                           Tapped="OnLeftPaneHeaderTapped">

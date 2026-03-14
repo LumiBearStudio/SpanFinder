@@ -195,6 +195,10 @@ namespace Span.ViewModels
                 IsLeftPreviewEnabled = previewDefault;
                 IsRightPreviewEnabled = previewDefault;
 
+                // 분할뷰 진입 시 MillerInlinePreviewEnabled=false로 저장되므로,
+                // 단일 패널로 시작할 때 기본값으로 복원해야 인라인 미리보기가 정상 작동함.
+                settingsSvc.MillerInlinePreviewEnabled = previewDefault;
+
                 // Set auto-navigation based on loaded view mode
                 LeftExplorer.EnableAutoNavigation = ShouldAutoNavigate(LeftViewMode);
                 RightExplorer.EnableAutoNavigation = ShouldAutoNavigate(RightViewMode);

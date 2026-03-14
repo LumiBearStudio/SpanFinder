@@ -208,74 +208,146 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- Header with back button -->
-        <Grid Grid.Row="0" Padding="20,12,20,8"
-              BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="0,0,0,1">
+        <!-- Header (주소창 영역과 동일 사이즈) -->
+        <Grid Grid.Row="0" Height="{StaticResource CommandBarHeight}"
+              Background="{ThemeResource SpanBgLayer1Brush}"
+              BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="0,0,0,1"
+              Padding="12,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
-            <FontIcon Grid.Column="0" Glyph="&#xE713;" FontSize="18"
+            <FontIcon Grid.Column="0" Glyph="&#xE713;" FontSize="14"
                       Foreground="{ThemeResource SpanAccentBrush}"
-                      VerticalAlignment="Center" Margin="4,0,0,0"/>
-            <TextBlock x:Name="SettingsTitle" Grid.Column="1" Text="설정" FontSize="20" FontWeight="SemiBold"
-                       VerticalAlignment="Center" Margin="12,0,0,0"/>
+                      VerticalAlignment="Center"/>
+            <TextBlock x:Name="SettingsTitle" Grid.Column="1" Text="설정" FontSize="13" FontWeight="SemiBold"
+                       VerticalAlignment="Center" Margin="8,0,0,0"/>
         </Grid>
 
-        <!-- NavigationView (fills remaining space) -->
-        <NavigationView x:Name="SettingsNav"
-                        Grid.Row="1"
-                        IsBackButtonVisible="Collapsed"
-                        IsSettingsVisible="False"
-                        IsPaneToggleButtonVisible="False"
-                        PaneDisplayMode="Left"
-                        OpenPaneLength="180"
-                        IsPaneOpen="True"
-                        SelectionChanged="SettingsNav_SelectionChanged"
-                        SizeChanged="SettingsNav_SizeChanged"
-                        Background="Transparent">
+        <!-- 사이드바 + 콘텐츠 (탐색기 사이드바와 동일 구조) -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="200"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
 
-            <NavigationView.MenuItems>
-                <NavigationViewItem x:Name="NavGeneral" Content="일반" Tag="General" IsSelected="True" helpers:CursorHelper.IsHandCursor="True">
-                    <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE713;" />
-                    </NavigationViewItem.Icon>
-                </NavigationViewItem>
-                <NavigationViewItem x:Name="NavAppearance" Content="모양" Tag="Appearance" helpers:CursorHelper.IsHandCursor="True">
-                    <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE790;" />
-                    </NavigationViewItem.Icon>
-                </NavigationViewItem>
-                <NavigationViewItem x:Name="NavBrowsing" Content="탐색" Tag="Browsing" helpers:CursorHelper.IsHandCursor="True">
-                    <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE8B0;" />
-                    </NavigationViewItem.Icon>
-                </NavigationViewItem>
-                <NavigationViewItem x:Name="NavTools" Content="도구" Tag="Tools" helpers:CursorHelper.IsHandCursor="True">
-                    <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE756;" />
-                    </NavigationViewItem.Icon>
-                </NavigationViewItem>
-                <NavigationViewItem x:Name="NavAdvanced" Content="고급" Tag="Advanced" helpers:CursorHelper.IsHandCursor="True">
-                    <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE90F;" />
-                    </NavigationViewItem.Icon>
-                </NavigationViewItem>
-                <NavigationViewItemSeparator />
-                <NavigationViewItem x:Name="NavAbout" Content="정보" Tag="About" helpers:CursorHelper.IsHandCursor="True">
-                    <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE946;" />
-                    </NavigationViewItem.Icon>
-                </NavigationViewItem>
-                <NavigationViewItem x:Name="NavOpenSource" Content="오픈소스" Tag="OpenSource" helpers:CursorHelper.IsHandCursor="True">
-                    <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE943;" />
-                    </NavigationViewItem.Icon>
-                </NavigationViewItem>
-            </NavigationView.MenuItems>
+            <!-- 사이드바: 탐색기와 완전 동일 -->
+            <Border Grid.Column="0" Background="{ThemeResource SpanBgLayer1Brush}"
+                    BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="0,0,1,0">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Padding="0,4">
+                        <Grid x:Name="NavGeneral" Height="28" Padding="12,0" Tag="General"
+                              Background="{ThemeResource SpanBgSelectedBrush}"
+                              Tapped="OnNavItemTapped"
+                              PointerEntered="OnNavItemPointerEntered" PointerExited="OnNavItemPointerExited"
+                              helpers:CursorHelper.IsHandCursor="True">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <FontIcon Grid.Column="0" Glyph="&#xE713;" FontSize="16"
+                                      Foreground="{ThemeResource SpanTextSecondaryBrush}"
+                                      VerticalAlignment="Center" Margin="0,0,12,0"/>
+                            <TextBlock Grid.Column="1" Text="일반" FontSize="13"
+                                       VerticalAlignment="Center"/>
+                        </Grid>
+                        <Grid x:Name="NavAppearance" Height="28" Padding="12,0" Tag="Appearance"
+                              Background="Transparent"
+                              Tapped="OnNavItemTapped"
+                              PointerEntered="OnNavItemPointerEntered" PointerExited="OnNavItemPointerExited"
+                              helpers:CursorHelper.IsHandCursor="True">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <FontIcon Grid.Column="0" Glyph="&#xE790;" FontSize="16"
+                                      Foreground="{ThemeResource SpanTextSecondaryBrush}"
+                                      VerticalAlignment="Center" Margin="0,0,12,0"/>
+                            <TextBlock Grid.Column="1" Text="모양" FontSize="13"
+                                       VerticalAlignment="Center"/>
+                        </Grid>
+                        <Grid x:Name="NavBrowsing" Height="28" Padding="12,0" Tag="Browsing"
+                              Background="Transparent"
+                              Tapped="OnNavItemTapped"
+                              PointerEntered="OnNavItemPointerEntered" PointerExited="OnNavItemPointerExited"
+                              helpers:CursorHelper.IsHandCursor="True">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <FontIcon Grid.Column="0" Glyph="&#xE8B0;" FontSize="16"
+                                      Foreground="{ThemeResource SpanTextSecondaryBrush}"
+                                      VerticalAlignment="Center" Margin="0,0,12,0"/>
+                            <TextBlock Grid.Column="1" Text="탐색" FontSize="13"
+                                       VerticalAlignment="Center"/>
+                        </Grid>
+                        <Grid x:Name="NavTools" Height="28" Padding="12,0" Tag="Tools"
+                              Background="Transparent"
+                              Tapped="OnNavItemTapped"
+                              PointerEntered="OnNavItemPointerEntered" PointerExited="OnNavItemPointerExited"
+                              helpers:CursorHelper.IsHandCursor="True">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <FontIcon Grid.Column="0" Glyph="&#xE756;" FontSize="16"
+                                      Foreground="{ThemeResource SpanTextSecondaryBrush}"
+                                      VerticalAlignment="Center" Margin="0,0,12,0"/>
+                            <TextBlock Grid.Column="1" Text="도구" FontSize="13"
+                                       VerticalAlignment="Center"/>
+                        </Grid>
+                        <Grid x:Name="NavAdvanced" Height="28" Padding="12,0" Tag="Advanced"
+                              Background="Transparent"
+                              Tapped="OnNavItemTapped"
+                              PointerEntered="OnNavItemPointerEntered" PointerExited="OnNavItemPointerExited"
+                              helpers:CursorHelper.IsHandCursor="True">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <FontIcon Grid.Column="0" Glyph="&#xE90F;" FontSize="16"
+                                      Foreground="{ThemeResource SpanTextSecondaryBrush}"
+                                      VerticalAlignment="Center" Margin="0,0,12,0"/>
+                            <TextBlock Grid.Column="1" Text="고급" FontSize="13"
+                                       VerticalAlignment="Center"/>
+                        </Grid>
+                        <Rectangle Height="1" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="12,12"/>
+                        <Grid x:Name="NavAbout" Height="28" Padding="12,0" Tag="About"
+                              Background="Transparent"
+                              Tapped="OnNavItemTapped"
+                              PointerEntered="OnNavItemPointerEntered" PointerExited="OnNavItemPointerExited"
+                              helpers:CursorHelper.IsHandCursor="True">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <FontIcon Grid.Column="0" Glyph="&#xE946;" FontSize="16"
+                                      Foreground="{ThemeResource SpanTextSecondaryBrush}"
+                                      VerticalAlignment="Center" Margin="0,0,12,0"/>
+                            <TextBlock Grid.Column="1" Text="정보" FontSize="13"
+                                       VerticalAlignment="Center"/>
+                        </Grid>
+                        <Grid x:Name="NavOpenSource" Height="28" Padding="12,0" Tag="OpenSource"
+                              Background="Transparent"
+                              Tapped="OnNavItemTapped"
+                              PointerEntered="OnNavItemPointerEntered" PointerExited="OnNavItemPointerExited"
+                              helpers:CursorHelper.IsHandCursor="True">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <FontIcon Grid.Column="0" Glyph="&#xE943;" FontSize="16"
+                                      Foreground="{ThemeResource SpanTextSecondaryBrush}"
+                                      VerticalAlignment="Center" Margin="0,0,12,0"/>
+                            <TextBlock Grid.Column="1" Text="오픈소스" FontSize="13"
+                                       VerticalAlignment="Center"/>
+                        </Grid>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
 
-            <NavigationView.Content>
-                <Grid>
+            <!-- 콘텐츠 영역 -->
+            <Grid Grid.Column="1">
                     <!-- ===== General Section ===== -->
                     <ScrollViewer x:Name="GeneralSection" AutomationProperties.AutomationId="SettingsScrollViewer" Visibility="Visible">
                         <StackPanel Padding="20" Spacing="0">
@@ -1172,6 +1244,25 @@
                                 </Grid>
                             </Border>
 
+                            <!-- Preview: Show Folder Info (숨김 — 향후 시나리오 안정화 후 공개) -->
+                            <Border Style="{StaticResource SettingsCardBorder}" Visibility="Collapsed">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Style="{StaticResource CardIconContainer}">
+                                        <FontIcon Glyph="&#xE8B7;" Style="{StaticResource CardIconStyle}" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock x:Name="PreviewFolderInfoLabel" Text="미리보기에 폴더 정보 표시" Style="{StaticResource SettingsCardLabel}" />
+                                        <TextBlock x:Name="PreviewFolderInfoDesc" Text="폴더 선택 시 미리보기 패널에 폴더 아이콘과 항목 수를 표시합니다" Style="{StaticResource SettingsCardDesc}" />
+                                    </StackPanel>
+                                    <ToggleSwitch x:Name="PreviewFolderInfoToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="False" OnContent="" OffContent="" />
+                                </Grid>
+                            </Border>
+
                             <!-- Delete Confirmation -->
                             <Border Style="{StaticResource SettingsCardBorder}">
                                 <Grid>
@@ -1639,7 +1730,6 @@
                         </StackPanel>
                     </ScrollViewer>
                 </Grid>
-            </NavigationView.Content>
-        </NavigationView>
-    </Grid>
+            </Grid>
+        </Grid>
 </UserControl>

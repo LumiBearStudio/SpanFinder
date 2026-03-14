@@ -1,6 +1,9 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using Span.Helpers;
 using Span.Services;
 using System;
@@ -24,6 +27,8 @@ public sealed partial class SettingsModeView : UserControl
     ];
 
     private readonly ScrollViewer[] _sections;
+    private readonly Grid[] _navItems;
+    private Grid? _selectedNavItem;
     private readonly Services.SettingsService _settings;
     private LocalizationService? _loc;
     private DispatcherTimer? _updateTimer;
@@ -55,6 +60,12 @@ public sealed partial class SettingsModeView : UserControl
             AboutSection,
             OpenSourceSection
         };
+        _navItems = new Grid[]
+        {
+            NavGeneral, NavAppearance, NavBrowsing, NavTools,
+            NavAdvanced, NavAbout, NavOpenSource
+        };
+        _selectedNavItem = NavGeneral;
 
         LoadSettingsToUI();
         WireEvents();
@@ -118,6 +129,9 @@ public sealed partial class SettingsModeView : UserControl
 
             // Miller inline preview
             MillerInlinePreviewToggle.IsOn = _settings.MillerInlinePreviewEnabled;
+
+            // Preview: show folder info
+            PreviewFolderInfoToggle.IsOn = _settings.PreviewShowFolderInfo;
 
             FavoritesTreeToggle.IsOn = _settings.ShowFavoritesTree;
             SystemTrayToggle.IsOn = _settings.MinimizeToTray;
@@ -259,6 +273,9 @@ public sealed partial class SettingsModeView : UserControl
         // Miller inline preview
         MillerInlinePreviewToggle.Toggled += (s, e) => { if (!_isLoading) _settings.MillerInlinePreviewEnabled = MillerInlinePreviewToggle.IsOn; };
 
+        // Preview: show folder info
+        PreviewFolderInfoToggle.Toggled += (s, e) => { if (!_isLoading) _settings.PreviewShowFolderInfo = PreviewFolderInfoToggle.IsOn; };
+
         FavoritesTreeToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowFavoritesTree = FavoritesTreeToggle.IsOn; };
         SystemTrayToggle.Toggled += (s, e) => { if (!_isLoading) _settings.MinimizeToTray = SystemTrayToggle.IsOn; };
         WindowPositionToggle.Toggled += (s, e) => { if (!_isLoading) _settings.RememberWindowPosition = WindowPositionToggle.IsOn; };
@@ -368,7 +385,7 @@ public sealed partial class SettingsModeView : UserControl
             FavoritesTreeToggle, SystemTrayToggle, WindowPositionToggle,
             ShellExtrasToggle, ShellExtensionsToggle, DeveloperMenuToggle, GitIntegrationToggle,
             HexPreviewToggle, CopilotMenuToggle, ContextMenuToggle, CrashReportToggle,
-            DefaultPreviewToggle, MillerInlinePreviewToggle })
+            DefaultPreviewToggle, MillerInlinePreviewToggle, PreviewFolderInfoToggle })
             Helpers.CursorHelper.SetHandCursor(toggle);
 
         Helpers.CursorHelper.SetHandCursor(IconPackCombo);
@@ -378,29 +395,49 @@ public sealed partial class SettingsModeView : UserControl
         Helpers.CursorHelper.SetHandCursor(Tab2ViewModeCombo);
     }
 
-    // ── Responsive layout ──
+    // ── 커스텀 사이드바 (탐색기 사이드바와 동일 패턴) ──
 
-    private void SettingsNav_SizeChanged(object sender, SizeChangedEventArgs e)
+    private void OnNavItemTapped(object sender, TappedRoutedEventArgs e)
     {
-        var width = e.NewSize.Width;
-        var mode = width < 500
-            ? NavigationViewPaneDisplayMode.Top
-            : NavigationViewPaneDisplayMode.Left;
-
-        if (SettingsNav.PaneDisplayMode != mode)
+        if (sender is Grid grid && grid.Tag is string tag)
         {
-            SettingsNav.PaneDisplayMode = mode;
-            SettingsNav.IsPaneOpen = true;
+            SelectNavItem(grid);
+            ShowSection(tag);
         }
     }
 
-    // ── Navigation ──
-
-    private void SettingsNav_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
+    private void SelectNavItem(Grid item)
     {
-        if (args.SelectedItem is NavigationViewItem item && item.Tag is string tag)
+        // 이전 선택 해제
+        if (_selectedNavItem != null)
+            _selectedNavItem.Background = new SolidColorBrush(Colors.Transparent);
+
+        // 새 선택 적용
+        _selectedNavItem = item;
+        item.Background = (Brush)Application.Current.Resources["SpanBgSelectedBrush"];
+    }
+
+    private void OnNavItemPointerEntered(object sender, PointerRoutedEventArgs e)
+    {
+        if (sender is Grid grid && grid != _selectedNavItem)
+            grid.Background = (Brush)Application.Current.Resources["SpanBgHoverBrush"];
+    }
+
+    private void OnNavItemPointerExited(object sender, PointerRoutedEventArgs e)
+    {
+        if (sender is Grid grid && grid != _selectedNavItem)
+            grid.Background = new SolidColorBrush(Colors.Transparent);
+    }
+
+    private static void SetNavText(Grid grid, string text)
+    {
+        foreach (var child in grid.Children)
         {
-            ShowSection(tag);
+            if (child is TextBlock tb && Grid.GetColumn(tb) == 1)
+            {
+                tb.Text = text;
+                return;
+            }
         }
     }
 
@@ -463,14 +500,14 @@ public sealed partial class SettingsModeView : UserControl
         {
             // Header
             SettingsTitle.Text = _loc.Get("Settings");
-            // Navigation
-            NavGeneral.Content = _loc.Get("Settings_General");
-            NavAppearance.Content = _loc.Get("Settings_Appearance");
-            NavBrowsing.Content = _loc.Get("Settings_Browsing");
-            NavTools.Content = _loc.Get("Settings_Tools");
-            NavAdvanced.Content = _loc.Get("Settings_Advanced");
-            NavAbout.Content = _loc.Get("Settings_AboutNav");
-            NavOpenSource.Content = _loc.Get("Settings_OpenSourceNav");
+            // Navigation (커스텀 Grid 사이드바)
+            SetNavText(NavGeneral, _loc.Get("Settings_General"));
+            SetNavText(NavAppearance, _loc.Get("Settings_Appearance"));
+            SetNavText(NavBrowsing, _loc.Get("Settings_Browsing"));
+            SetNavText(NavTools, _loc.Get("Settings_Tools"));
+            SetNavText(NavAdvanced, _loc.Get("Settings_Advanced"));
+            SetNavText(NavAbout, _loc.Get("Settings_AboutNav"));
+            SetNavText(NavOpenSource, _loc.Get("Settings_OpenSourceNav"));
 
             // General
             GeneralTitle.Text = _loc.Get("Settings_General");
