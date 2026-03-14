@@ -1510,8 +1510,12 @@ namespace Span.ViewModels
             // CTS 취소
             if (_searchCts != null)
             {
-                _searchCts.Cancel();
-                _searchCts.Dispose();
+                try
+                {
+                    _searchCts.Cancel();
+                    _searchCts.Dispose();
+                }
+                catch (ObjectDisposedException) { }
                 _searchCts = null;
             }
 
