@@ -403,7 +403,7 @@ namespace Span.ViewModels
             _isLoaded = true;
             IsLoading = true;
 
-            _cts?.Cancel();
+            try { _cts?.Cancel(); } catch (ObjectDisposedException) { }
             _cts = new System.Threading.CancellationTokenSource();
             var token = _cts.Token;
 
@@ -1055,7 +1055,7 @@ namespace Span.ViewModels
 
         public void CancelLoading()
         {
-            _cts?.Cancel();
+            try { _cts?.Cancel(); } catch (ObjectDisposedException) { }
             _cts?.Dispose();
             _cts = null;
             IsLoading = false;
