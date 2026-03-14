@@ -434,26 +434,60 @@ namespace Span
 
                     case Windows.System.VirtualKey.Number1:
                         // Ctrl+1: Miller Columns
-                        ViewModel.SwitchViewMode(Models.ViewMode.MillerColumns);
+                        // _suppressFocusOnViewModeChange를 SwitchViewMode 전에 설정해야
+                        // PropertyChanged → FocusActiveView() 호출을 막을 수 있음
+                        _suppressFocusOnViewModeChange = true;
+                        try
+                        {
+                            ViewModel.SwitchViewMode(Models.ViewMode.MillerColumns);
+                            UpdateViewModeVisibility();
+                            UpdateViewModeIcon();
+                            UpdatePreviewButtonState();
+                        }
+                        finally { _suppressFocusOnViewModeChange = false; }
                         e.Handled = true;
                         break;
 
                     case Windows.System.VirtualKey.Number2:
                         // Ctrl+2: Details
-                        ViewModel.SwitchViewMode(Models.ViewMode.Details);
+                        _suppressFocusOnViewModeChange = true;
+                        try
+                        {
+                            ViewModel.SwitchViewMode(Models.ViewMode.Details);
+                            UpdateViewModeVisibility();
+                            UpdateViewModeIcon();
+                            UpdatePreviewButtonState();
+                        }
+                        finally { _suppressFocusOnViewModeChange = false; }
                         e.Handled = true;
                         break;
 
                     case Windows.System.VirtualKey.Number3:
                         // Ctrl+3: List
-                        ViewModel.SwitchViewMode(Models.ViewMode.List);
+                        _suppressFocusOnViewModeChange = true;
+                        try
+                        {
+                            ViewModel.SwitchViewMode(Models.ViewMode.List);
+                            UpdateViewModeVisibility();
+                            UpdateViewModeIcon();
+                            UpdatePreviewButtonState();
+                        }
+                        finally { _suppressFocusOnViewModeChange = false; }
                         e.Handled = true;
                         break;
 
                     case Windows.System.VirtualKey.Number4:
                         // Ctrl+4: Icon (마지막 Icon 크기)
-                        ViewModel.SwitchViewMode(ViewModel.CurrentIconSize);
-                        GetActiveIconView()?.UpdateIconSize(ViewModel.CurrentIconSize);
+                        _suppressFocusOnViewModeChange = true;
+                        try
+                        {
+                            ViewModel.SwitchViewMode(ViewModel.CurrentIconSize);
+                            GetActiveIconView()?.UpdateIconSize(ViewModel.CurrentIconSize);
+                            UpdateViewModeVisibility();
+                            UpdateViewModeIcon();
+                            UpdatePreviewButtonState();
+                        }
+                        finally { _suppressFocusOnViewModeChange = false; }
                         e.Handled = true;
                         break;
 
@@ -545,8 +579,65 @@ namespace Span
                         HandleDelete(); // Send to Recycle Bin
                         e.Handled = true;
                         break;
+
+                    // ── 단독 화살표 키: 포커스가 탐색기 밖에 있으면 자동 이동 ──
+                    case Windows.System.VirtualKey.Left:
+                    case Windows.System.VirtualKey.Right:
+                    case Windows.System.VirtualKey.Up:
+                    case Windows.System.VirtualKey.Down:
+                        if (!alt && TryRedirectArrowToExplorer())
+                            e.Handled = true;
+                        break;
                 }
             }
+        }
+
+        #endregion
+
+        #region Arrow Key → Explorer Redirect
+
+        /// <summary>
+        /// 포커스가 탐색기 파일 목록 영역 밖에 있을 때 화살표 키를 탐색기로 리다이렉트한다.
+        /// TextBox 등 텍스트 입력 컨트롤에 포커스가 있으면 커서 이동을 우선한다.
+        /// </summary>
+        private bool TryRedirectArrowToExplorer()
+        {
+            if (Content?.XamlRoot == null) return false;
+
+            var focused = FocusManager.GetFocusedElement(this.Content.XamlRoot);
+
+            // 텍스트 입력 컨트롤: 커서 이동 우선 (주소창, 검색창, 리네임 TextBox 등)
+            if (focused is TextBox || focused is PasswordBox || focused is RichEditBox)
+                return false;
+
+            // 이미 탐색기 영역(Miller/Details/List/Icon) 안에 포커스 → 해당 뷰의 핸들러가 처리
+            if (IsFocusInExplorerArea(focused as DependencyObject))
+                return false;
+
+            // 탐색기 영역으로 포커스 이동
+            Helpers.DebugLogger.Log($"[KeyboardHandler] Arrow key redirected to explorer (focused was {focused?.GetType().Name})");
+            FocusActivePane();
+            return true;
+        }
+
+        /// <summary>
+        /// 포커스가 탐색기 파일 목록 영역(MillerTabsHost/DetailsTabsHost/ListTabsHost/IconTabsHost/RightPaneContainer)
+        /// 안에 있는지 확인한다. 비주얼 트리를 상위로 올라가며 호스트 패널과 일치하는지 검사한다.
+        /// </summary>
+        private bool IsFocusInExplorerArea(DependencyObject? focused)
+        {
+            if (focused == null) return false;
+
+            var current = focused;
+            while (current != null)
+            {
+                if (current == MillerTabsHost || current == DetailsTabsHost
+                    || current == ListTabsHost || current == IconTabsHost
+                    || current == RightPaneContainer)
+                    return true;
+                current = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(current);
+            }
+            return false;
         }
 
         #endregion
@@ -988,10 +1079,58 @@ namespace Span
             _quickLookWindow.SetMainWindow(this.AppWindow);
             _quickLookWindow.SyncTheme();
             _quickLookWindow.WindowClosed += OnQuickLookWindowClosed;
+            _quickLookWindow.ActionForwarded += OnQuickLookActionForwarded;
             _quickLookWindow.UpdateContent(selectedItem);
             _quickLookWindow.Activate();
 
             Helpers.DebugLogger.Log($"[QuickLook] Opened for: {selectedItem.Name}");
+        }
+
+        /// <summary>
+        /// Quick Look에서 MainWindow로 포워딩된 액션 처리.
+        /// </summary>
+        private void OnQuickLookActionForwarded(string action, string path)
+        {
+            try
+            {
+                switch (action)
+                {
+                    case "extractHere":
+                        ((Services.IContextMenuHost)this).PerformExtractHere(path);
+                        break;
+
+                    case "extractTo":
+                        ((Services.IContextMenuHost)this).PerformExtractTo(path);
+                        break;
+
+                    case "openInNewTab":
+                        ((Services.IContextMenuHost)this).PerformOpenInNewTab(path);
+                        break;
+
+                    case "refreshAfterRotate":
+                        // 회전 후 Quick Look 미리보기 새로고침
+                        if (_quickLookWindow != null)
+                        {
+                            var explorer = ViewModel.ActiveExplorer;
+                            if (explorer != null)
+                            {
+                                var cols = explorer.Columns;
+                                int ai = GetActiveColumnIndex();
+                                if (ai >= 0 && ai < cols.Count)
+                                {
+                                    var sel = cols[ai].SelectedChild;
+                                    if (sel != null)
+                                        _quickLookWindow.UpdateContent(sel);
+                                }
+                            }
+                        }
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[QuickLook] ActionForwarded '{action}' error: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -1003,6 +1142,7 @@ namespace Span
             {
                 try
                 {
+                    _quickLookWindow.ActionForwarded -= OnQuickLookActionForwarded;
                     _quickLookWindow.WindowClosed -= OnQuickLookWindowClosed;
                     _quickLookWindow.Close();
                 }

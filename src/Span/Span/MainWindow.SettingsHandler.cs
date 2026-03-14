@@ -275,6 +275,13 @@ namespace Span
             darkDict["AccentFillColorSecondaryBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.accentHover);
             darkDict["AccentFillColorTertiaryBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentDim);
 
+            // Global FocusVisual: 테마 액센트 톤 포커스 링
+            darkDict["SystemControlFocusVisualPrimaryBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentDim);
+            darkDict["SystemControlFocusVisualSecondaryBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
+
+            // TextBox/AutoSuggestBox 포커스 하단 라인 색상
+            darkDict["TextControlBorderBrushFocused"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.accent);
+
             var dictKey = theme == "solarized-light" ? "Light" : "Dark";
             root.Resources.ThemeDictionaries[dictKey] = darkDict;
         }

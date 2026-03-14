@@ -25,7 +25,7 @@ public static class ArchivePathHelper
         ".zip", ".7z", ".rar", ".tar", ".gz", ".bz2", ".xz",
         ".tgz", ".tbz2", ".txz",
         ".tar.gz", ".tar.bz2", ".tar.xz",
-        ".iso", ".cab"
+        ".cab"
     };
 
     /// <summary>

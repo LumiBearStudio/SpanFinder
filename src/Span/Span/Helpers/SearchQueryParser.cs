@@ -45,7 +45,7 @@ namespace Span.Helpers
             [FileKind.Archive] = new(StringComparer.OrdinalIgnoreCase)
             {
                 ".zip", ".rar", ".7z", ".tar", ".gz", ".bz2", ".xz", ".zst",
-                ".cab", ".iso", ".dmg", ".tgz"
+                ".cab", ".dmg", ".tgz"
             },
             [FileKind.Code] = new(StringComparer.OrdinalIgnoreCase)
             {

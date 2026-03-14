@@ -92,6 +92,13 @@ namespace Span
                     rd["AccentFillColorDefaultBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(c);
                     rd["AccentFillColorSecondaryBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(hoverColor);
                     rd["AccentFillColorTertiaryBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(dimColor);
+
+                    // Global FocusVisual: 시스템 액센트 톤 포커스 링
+                    rd["SystemControlFocusVisualPrimaryBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(dimColor);
+                    rd["SystemControlFocusVisualSecondaryBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
+
+                    // TextBox/AutoSuggestBox 포커스 하단 라인
+                    rd["TextControlBorderBrushFocused"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(c);
                 }
 
                 // --- 최상위 Resources (코드-비하인드 Resources["key"] 조회용) ---

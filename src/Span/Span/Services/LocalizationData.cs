@@ -384,6 +384,10 @@ namespace Span.Services
             ("Preview_Type", "Type", "종류", "種類", "类型", "類型", "Typ", "Tipo", "Type", "Tipo"),
             ("Preview_Created", "Created", "만든 날짜", "作成日", "创建日期", "建立日期", "Erstellt", "Creado", "Créé", "Criado"),
             ("Preview_Modified", "Modified", "수정한 날짜", "更新日", "修改日期", "修改日期", "Geändert", "Modificado", "Modifié", "Modificado"),
+            ("QuickLook_Rotate", "Rotate", "회전", "回転", "旋转", "旋轉", "Drehen", "Rotar", "Pivoter", "Girar"),
+            ("QuickLook_SaveRotation", "Save rotation", "회전 저장", "回転を保存", "保存旋转", "儲存旋轉", "Drehung speichern", "Guardar rotación", "Enregistrer la rotation", "Salvar rotação"),
+            ("QuickLook_RotationSaved", "Saved", "저장됨", "保存しました", "已保存", "已儲存", "Gespeichert", "Guardado", "Enregistré", "Salvo"),
+            ("QuickLook_CopyText", "Copy text", "텍스트 복사", "テキストをコピー", "复制文本", "複製文字", "Text kopieren", "Copiar texto", "Copier le texte", "Copiar texto"),
             ("Preview_Resolution", "Resolution", "해상도", "解像度", "分辨率", "解析度", "Auflösung", "Resolución", "Résolution", "Resolução"),
             ("Preview_Duration", "Duration", "재생 시간", "再生時間", "时长", "持續時間", "Dauer", "Duración", "Durée", "Duração"),
             ("Preview_Artist", "Artist", "아티스트", "アーティスト", "艺术家", "演出者", "Interpret", "Artista", "Artiste", "Artista"),
@@ -455,6 +459,7 @@ namespace Span.Services
 
             // ── Toast messages ──────────────────────────────────────────────
             ("Toast_PathCopied", "Path copied to clipboard", "경로가 클립보드에 복사됨", "パスをクリップボードにコピーしました", "路径已复制到剪贴板", "路徑已複製到剪貼簿", "Pfad in Zwischenablage kopiert", "Ruta copiada al portapapeles", "Chemin copié dans le presse-papiers", "Caminho copiado para a área de transferência"),
+            ("Toast_TextCopied", "Text copied to clipboard", "텍스트가 클립보드에 복사됨", "テキストをクリップボードにコピーしました", "文本已复制到剪贴板", "文字已複製到剪貼簿", "Text in Zwischenablage kopiert", "Texto copiado al portapapeles", "Texte copié dans le presse-papiers", "Texto copiado para a área de transferência"),
             ("Toast_Copied", "'{0}' copied", "'{0}' 복사됨", "'{0}'をコピーしました", "已复制\u201C{0}\u201D", "已複製「{0}」", "'{0}' kopiert", "'{0}' copiado", "« {0} » copié", "'{0}' copiado"),
             ("Toast_CopiedMultiple", "{0} items copied", "{0}개 항목 복사됨", "{0}個の項目をコピーしました", "已复制 {0} 个项目", "已複製 {0} 個項目", "{0} Elemente kopiert", "{0} elementos copiados", "{0} éléments copiés", "{0} itens copiados"),
             ("Toast_Cut", "'{0}' cut", "'{0}' 잘라내기", "'{0}'を切り取りました", "已剪切\u201C{0}\u201D", "已剪下「{0}」", "'{0}' ausgeschnitten", "'{0}' cortado", "« {0} » coupé", "'{0}' recortado"),

@@ -154,6 +154,17 @@ public class SettingsService : ISettingsService
         set => Set("MillerInlinePreviewEnabled", value);
     }
 
+    /// <summary>
+    /// 미리보기 패널에서 폴더 정보(아이콘, 항목 수 등)를 표시할지 여부.
+    /// false(기본값): 파일만 미리보기 표시, 폴더 선택 시 미리보기 비움.
+    /// true: 폴더 선택 시에도 폴더 정보를 미리보기에 표시.
+    /// </summary>
+    public bool PreviewShowFolderInfo
+    {
+        get => Get("PreviewShowFolderInfo", false);
+        set => Set("PreviewShowFolderInfo", value);
+    }
+
     public int UndoHistorySize
     {
         get => Get("UndoHistorySize", 50);

@@ -604,7 +604,7 @@ namespace Span
                 {
                     FontFamily = iconFont,
                     FontSize = largeIconSize,
-                    Foreground = (SolidColorBrush)Application.Current.Resources["SpanTextPrimaryBrush"],
+                    Foreground = GetThemeBrush("SpanTextPrimaryBrush"),
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Center,
                     Opacity = opacities[i],
@@ -617,7 +617,7 @@ namespace Span
             var iconPanel = new Border
             {
                 Child = iconStackGrid,
-                Background = (SolidColorBrush)Application.Current.Resources["SpanBgHoverBrush"],
+                Background = GetThemeBrush("SpanBgHoverBrush"),
                 CornerRadius = new CornerRadius(6),
                 Width = 44 + _iconFontScaleLevel * 2,
                 Height = 40 + _iconFontScaleLevel * 2,
@@ -635,7 +635,7 @@ namespace Span
             };
             _dragOverlayBadge = new Border
             {
-                Background = (SolidColorBrush)Application.Current.Resources["SpanAccentBrush"],
+                Background = GetThemeBrush("SpanAccentBrush"),
                 CornerRadius = new CornerRadius(8),
                 MinWidth = 18,
                 Height = 18,
@@ -657,7 +657,7 @@ namespace Span
             _dragOverlayItemText = new TextBlock
             {
                 FontSize = fontSize,
-                Foreground = (SolidColorBrush)Application.Current.Resources["SpanTextPrimaryBrush"],
+                Foreground = GetThemeBrush("SpanTextPrimaryBrush"),
                 VerticalAlignment = VerticalAlignment.Center,
                 TextTrimming = TextTrimming.CharacterEllipsis,
                 MaxWidth = 180,
@@ -665,7 +665,7 @@ namespace Span
             _dragOverlayOpText = new TextBlock
             {
                 FontSize = Math.Max(10, fontSize - 1),
-                Foreground = (SolidColorBrush)Application.Current.Resources["SpanTextSecondaryBrush"],
+                Foreground = GetThemeBrush("SpanTextSecondaryBrush"),
                 TextWrapping = TextWrapping.NoWrap,
                 VerticalAlignment = VerticalAlignment.Center,
             };
@@ -686,8 +686,8 @@ namespace Span
             _dragOverlay = new Border
             {
                 Child = content,
-                Background = (SolidColorBrush)Application.Current.Resources["SpanBgLayer2Brush"],
-                BorderBrush = (SolidColorBrush)Application.Current.Resources["SpanBorderControlBrush"],
+                Background = GetThemeBrush("SpanBgLayer2Brush"),
+                BorderBrush = GetThemeBrush("SpanBorderControlBrush"),
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(8),
                 Padding = new Thickness(10, 8, 14, 8),

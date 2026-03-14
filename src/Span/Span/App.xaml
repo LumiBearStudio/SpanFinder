@@ -66,6 +66,9 @@
                     <SolidColorBrush x:Key="GridViewItemBackgroundSelectedPointerOver" Color="#3060CDFF" />
                     <SolidColorBrush x:Key="GridViewItemBackgroundSelectedPressed" Color="#1A60CDFF" />
 
+                    <!-- Override WinUI TextBox/AutoSuggestBox focus bottom line -->
+                    <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="{StaticResource SpanAccentColor}" />
+
                     <!-- Rubber-band selection -->
                     <SolidColorBrush x:Key="SpanSelectionRectFillBrush" Color="{StaticResource SpanAccentColor}" Opacity="0.15" />
                     <SolidColorBrush x:Key="SpanSelectionRectStrokeBrush" Color="{StaticResource SpanAccentColor}" Opacity="0.6" />
@@ -74,6 +77,10 @@
                     <SolidColorBrush x:Key="SpanBorderSubtleBrush" Color="#0FFFFFFF" />
                     <SolidColorBrush x:Key="SpanBorderCardBrush" Color="#14FFFFFF" />
                     <SolidColorBrush x:Key="SpanBorderControlBrush" Color="#1AFFFFFF" />
+
+                    <!-- Global FocusVisual: 액센트 톤 얇은 포커스 링 (기본 흰+검 2px → 액센트 1px) -->
+                    <SolidColorBrush x:Key="SystemControlFocusVisualPrimaryBrush" Color="{StaticResource SpanAccentDimColor}" />
+                    <SolidColorBrush x:Key="SystemControlFocusVisualSecondaryBrush" Color="Transparent" />
 
                     <!-- Depth shadows (Miller column + sidebar edge) -->
                     <LinearGradientBrush x:Key="SpanColumnShadowBrush" StartPoint="0,0" EndPoint="1,0">
@@ -136,6 +143,9 @@
                     <SolidColorBrush x:Key="GridViewItemBackgroundSelectedPointerOver" Color="#300078D4" />
                     <SolidColorBrush x:Key="GridViewItemBackgroundSelectedPressed" Color="#1A0078D4" />
 
+                    <!-- Override WinUI TextBox/AutoSuggestBox focus bottom line -->
+                    <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="{StaticResource SpanAccentColor}" />
+
                     <!-- Rubber-band selection -->
                     <SolidColorBrush x:Key="SpanSelectionRectFillBrush" Color="{StaticResource SpanAccentColor}" Opacity="0.15" />
                     <SolidColorBrush x:Key="SpanSelectionRectStrokeBrush" Color="{StaticResource SpanAccentColor}" Opacity="0.6" />
@@ -144,6 +154,10 @@
                     <SolidColorBrush x:Key="SpanBorderSubtleBrush" Color="#0F000000" />
                     <SolidColorBrush x:Key="SpanBorderCardBrush" Color="#14000000" />
                     <SolidColorBrush x:Key="SpanBorderControlBrush" Color="#1A000000" />
+
+                    <!-- Global FocusVisual: 액센트 톤 얇은 포커스 링 -->
+                    <SolidColorBrush x:Key="SystemControlFocusVisualPrimaryBrush" Color="{StaticResource SpanAccentDimColor}" />
+                    <SolidColorBrush x:Key="SystemControlFocusVisualSecondaryBrush" Color="Transparent" />
 
                     <!-- Depth shadows (Miller column + sidebar edge) -->
                     <LinearGradientBrush x:Key="SpanColumnShadowBrush" StartPoint="0,0" EndPoint="1,0">
@@ -267,6 +281,12 @@
                 <Setter Property="Background" Value="Transparent" />
                 <Setter Property="Padding" Value="0" />
                 <Setter Property="Margin" Value="0,0" />
+                <!-- 키보드 포커스 시 액센트 1px 테두리 표시 -->
+                <Setter Property="FocusVisualPrimaryBrush" Value="{ThemeResource SpanAccentDimBrush}" />
+                <Setter Property="FocusVisualSecondaryBrush" Value="Transparent" />
+                <Setter Property="FocusVisualPrimaryThickness" Value="1" />
+                <Setter Property="FocusVisualSecondaryThickness" Value="0" />
+                <Setter Property="UseSystemFocusVisuals" Value="True" />
                 <Setter Property="CornerRadius" Value="0" />
                 <Setter Property="HorizontalContentAlignment" Value="Stretch" />
                 <Setter Property="VerticalContentAlignment" Value="Center" />

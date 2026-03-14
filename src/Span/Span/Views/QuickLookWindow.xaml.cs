@@ -2,11 +2,15 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Span.Models;
 using Span.Services;
 using Span.ViewModels;
 using System;
+using System.Runtime.InteropServices.WindowsRuntime;
+using System.Threading.Tasks;
+using Windows.ApplicationModel.DataTransfer;
 using Windows.Graphics;
 
 namespace Span.Views
@@ -27,6 +31,12 @@ namespace Span.Views
         private LocalizationService? _loc;
         private bool _isInfoOnlyMode;
         private AppWindow? _mainAppWindow;
+        private ShellService? _shellService;
+
+        /// <summary>
+        /// MainWindow에서 처리할 액션 (extractHere, extractTo, openInNewTab 등).
+        /// </summary>
+        public event Action<string, string>? ActionForwarded;
 
         // Compact info-only size
         private const int InfoWidth = 840;
@@ -45,10 +55,16 @@ namespace Span.Views
                 try { this.Close(); } catch { }
             };
 
+            ViewModel.ActionRequested += OnActionRequested;
+            ViewModel.PropertyChanged += OnViewModelPropertyChanged;
+
+            _shellService = App.Current.Services.GetService<ShellService>();
+
             ConfigureWindow();
 
             this.Content.KeyDown += OnContentKeyDown;
             this.Closed += OnWindowClosed;
+            ContentPreviewArea.SizeChanged += OnContentPreviewAreaSizeChanged;
 
             _loc = App.Current.Services.GetService<LocalizationService>();
             if (_loc != null)
@@ -368,19 +384,305 @@ namespace Span.Views
             catch { }
         }
 
+        /// <summary>
+        /// ViewModel에서 발생한 액션 요청을 처리.
+        /// 직접 처리 가능한 것은 바로 실행, MainWindow 필요한 것은 포워딩.
+        /// </summary>
+        private void OnActionRequested(string action, string path)
+        {
+            if (string.IsNullOrEmpty(path)) return;
+
+            try
+            {
+                bool shouldClose = false;
+
+                switch (action)
+                {
+                    // --- 팝업 종료: 다른 앱/창으로 전환되는 액션 ---
+                    case "open":
+                        _shellService?.OpenFile(path);
+                        shouldClose = true;
+                        break;
+
+                    case "openWith":
+                        _ = _shellService?.OpenWithAsync(path);
+                        shouldClose = true;
+                        break;
+
+                    case "openTerminal":
+                        _shellService?.OpenTerminal(path);
+                        shouldClose = true;
+                        break;
+
+                    case "showProperties":
+                        _shellService?.ShowProperties(path);
+                        shouldClose = true; // TopMost 때문에 Properties가 뒤에 가려짐 → 닫기
+                        break;
+
+                    // --- 팝업 종료: MainWindow 포워딩 액션 ---
+                    case "extractHere":
+                    case "extractTo":
+                    case "openInNewTab":
+                        ActionForwarded?.Invoke(action, path);
+                        shouldClose = true;
+                        break;
+
+                    // --- 팝업 유지 + 토스트 ---
+                    case "copyPath":
+                        _shellService?.CopyPathToClipboard(path);
+                        ShowToast(_loc?.Get("Toast_PathCopied") ?? "Path copied to clipboard");
+                        break;
+
+                    case "copyContent":
+                        CopyTextContent();
+                        ShowToast(_loc?.Get("Toast_TextCopied") ?? "Text copied to clipboard");
+                        break;
+
+                    // --- 팝업 유지: 회전 저장 ---
+                    case "saveRotation":
+                        _ = SaveRotationAsync(path);
+                        break;
+                }
+
+                if (shouldClose)
+                {
+                    try { this.Close(); } catch { }
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[QuickLook] Action '{action}' error: {ex.Message}");
+            }
+        }
+
+        private void ShowToast(string message)
+        {
+            ToastText.Text = message;
+            ToastOverlay.Opacity = 1;
+
+            var timer = new Microsoft.UI.Xaml.DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(1200)
+            };
+            timer.Tick += (s, e) =>
+            {
+                timer.Stop();
+                ToastOverlay.Opacity = 0;
+            };
+            timer.Start();
+        }
+
+        private void CopyTextContent()
+        {
+            try
+            {
+                var text = ViewModel.TextPreview;
+                if (string.IsNullOrEmpty(text)) return;
+
+                var dataPackage = new DataPackage();
+                dataPackage.SetText(text);
+                Clipboard.SetContent(dataPackage);
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[QuickLook] CopyContent error: {ex.Message}");
+            }
+        }
+
+        private async Task SaveRotationAsync(string path)
+        {
+            int angle = (int)ViewModel.RotationAngle;
+            if (angle == 0) return;
+
+            string? tmpPath = null;
+            try
+            {
+                var rotation = angle switch
+                {
+                    90 => Windows.Graphics.Imaging.BitmapRotation.Clockwise90Degrees,
+                    270 => Windows.Graphics.Imaging.BitmapRotation.Clockwise270Degrees,
+                    180 => Windows.Graphics.Imaging.BitmapRotation.Clockwise180Degrees,
+                    _ => Windows.Graphics.Imaging.BitmapRotation.None
+                };
+
+                // 확장자 기반 인코더 결정
+                var ext = System.IO.Path.GetExtension(path).ToLowerInvariant();
+                var encoderId = ext switch
+                {
+                    ".png" => Windows.Graphics.Imaging.BitmapEncoder.PngEncoderId,
+                    ".bmp" => Windows.Graphics.Imaging.BitmapEncoder.BmpEncoderId,
+                    ".gif" => Windows.Graphics.Imaging.BitmapEncoder.GifEncoderId,
+                    ".tif" or ".tiff" => Windows.Graphics.Imaging.BitmapEncoder.TiffEncoderId,
+                    _ => Windows.Graphics.Imaging.BitmapEncoder.JpegEncoderId
+                };
+
+                // 1) 원본 파일을 메모리로 읽기
+                byte[] sourceBytes = await System.IO.File.ReadAllBytesAsync(path);
+
+                // 2) 임시 파일에 회전 결과 쓰기 (원본 보호)
+                tmpPath = path + ".rotate.tmp";
+
+                using (var memStream = new Windows.Storage.Streams.InMemoryRandomAccessStream())
+                {
+                    // 소스 바이트를 스트림에 쓰기
+                    await memStream.WriteAsync(sourceBytes.AsBuffer());
+                    memStream.Seek(0);
+
+                    var decoder = await Windows.Graphics.Imaging.BitmapDecoder.CreateAsync(memStream);
+                    var bitmap = await decoder.GetSoftwareBitmapAsync();
+
+                    // 임시 파일에 회전 적용하여 저장
+                    var tmpFile = await Windows.Storage.StorageFile.GetFileFromPathAsync(
+                        await Task.Run(() =>
+                        {
+                            System.IO.File.WriteAllBytes(tmpPath, new byte[0]);
+                            return tmpPath;
+                        }));
+
+                    using (var outStream = await tmpFile.OpenAsync(Windows.Storage.FileAccessMode.ReadWrite))
+                    {
+                        var encoder = await Windows.Graphics.Imaging.BitmapEncoder.CreateAsync(encoderId, outStream);
+                        encoder.SetSoftwareBitmap(bitmap);
+                        encoder.BitmapTransform.Rotation = rotation;
+                        await encoder.FlushAsync();
+                    }
+
+                    bitmap.Dispose();
+                }
+
+                // 3) 임시 파일 크기 검증 후 원본 교체
+                var tmpInfo = new System.IO.FileInfo(tmpPath);
+                if (tmpInfo.Exists && tmpInfo.Length > 0)
+                {
+                    System.IO.File.Move(tmpPath, path, overwrite: true);
+                    tmpPath = null; // 성공 → cleanup 불필요
+
+                    // 회전 상태 리셋 + 미리보기 새로고침
+                    ViewModel.RotationAngle = 0;
+                    ViewModel.HasPendingRotation = false;
+                    ShowToast(_loc?.Get("QuickLook_RotationSaved") ?? "Saved");
+                    await Task.Delay(150);
+                    ActionForwarded?.Invoke("refreshAfterRotate", path);
+                }
+                else
+                {
+                    Helpers.DebugLogger.Log("[QuickLook] Rotate: tmp file empty, aborting");
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[QuickLook] Rotate error: {ex.Message}");
+            }
+            finally
+            {
+                // 실패 시 임시 파일 정리
+                if (tmpPath != null)
+                {
+                    try { System.IO.File.Delete(tmpPath); } catch { }
+                }
+            }
+        }
+
         private void OnWindowClosed(object sender, WindowEventArgs args)
         {
             StopMedia();
             if (_loc != null) _loc.LanguageChanged -= LocalizeUI;
+            ViewModel.ActionRequested -= OnActionRequested;
+            ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
             ViewModel.PropertyChanged -= OnInfoOnlyPropertyChanged;
+            ContentPreviewArea.SizeChanged -= OnContentPreviewAreaSizeChanged;
             this.Content.KeyDown -= OnContentKeyDown;
             ViewModel?.Dispose();
             WindowClosed?.Invoke();
         }
 
+        private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(QuickLookViewModel.RotationAngle))
+            {
+                UpdateImageTransform();
+            }
+        }
+
+        private void OnContentPreviewAreaSizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            // 컨테이너 크기 변경 시 스케일 재계산
+            if (ViewModel.RotationAngle % 180 != 0)
+            {
+                UpdateImageTransform();
+            }
+        }
+
+        /// <summary>
+        /// 이미지 회전 시 스케일 보정.
+        /// 90/270° 회전 시 RenderTransform은 레이아웃에 영향을 주지 않으므로,
+        /// 컨테이너 크기와 이미지 비율을 고려한 스케일 팩터를 적용해야 함.
+        /// </summary>
+        private void UpdateImageTransform()
+        {
+            double angle = ViewModel.RotationAngle;
+            ImageTransform.Rotation = angle;
+
+            bool isSwapped = (int)angle % 180 != 0; // 90° or 270°
+
+            if (!isSwapped)
+            {
+                ImageTransform.ScaleX = 1;
+                ImageTransform.ScaleY = 1;
+                return;
+            }
+
+            try
+            {
+                // 컨테이너 영역 (Margin 16 제외)
+                double containerW = ContentPreviewArea.ActualWidth - 32;
+                double containerH = ContentPreviewArea.ActualHeight - 32;
+
+                if (containerW <= 0 || containerH <= 0) return;
+
+                // 원본 이미지 픽셀 크기
+                var bmp = ViewModel.ImagePreview as Microsoft.UI.Xaml.Media.Imaging.BitmapImage;
+                double imgW = bmp?.PixelWidth ?? 0;
+                double imgH = bmp?.PixelHeight ?? 0;
+
+                if (imgW <= 0 || imgH <= 0) return;
+
+                // 0° 상태에서의 Uniform 스케일 = min(containerW/imgW, containerH/imgH)
+                double normalScale = Math.Min(containerW / imgW, containerH / imgH);
+                // 90° 회전 후 원하는 스케일 = min(containerW/imgH, containerH/imgW)
+                double rotatedScale = Math.Min(containerW / imgH, containerH / imgW);
+
+                double factor = rotatedScale / normalScale;
+
+                ImageTransform.ScaleX = factor;
+                ImageTransform.ScaleY = factor;
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[QuickLook] UpdateImageTransform error: {ex.Message}");
+                ImageTransform.ScaleX = 1;
+                ImageTransform.ScaleY = 1;
+            }
+        }
+
         private void LocalizeUI()
         {
-            // Info-only mode texts are set in UpdateInfoOnlyTexts
+            if (_loc == null) return;
+
+            // Content mode action tooltips
+            ToolTipService.SetToolTip(BtnRotate, _loc.Get("QuickLook_Rotate"));
+            ToolTipService.SetToolTip(BtnSaveRotation, _loc.Get("QuickLook_SaveRotation"));
+            ToolTipService.SetToolTip(BtnCopyContent, _loc.Get("QuickLook_CopyText"));
+            ToolTipService.SetToolTip(BtnExtractHere, _loc.Get("ExtractHere"));
+            ToolTipService.SetToolTip(BtnExtractTo, _loc.Get("ExtractTo"));
+            ToolTipService.SetToolTip(BtnCopyPath, _loc.Get("CopyPath"));
+            ToolTipService.SetToolTip(BtnOpenDefault, _loc.Get("Open"));
+            ToolTipService.SetToolTip(BtnOpenWith, _loc.Get("OpenWith"));
+            ToolTipService.SetToolTip(BtnProperties, _loc.Get("Properties"));
+
+            // Info-only mode action tooltips
+            ToolTipService.SetToolTip(BtnInfoNewTab, _loc.Get("OpenInNewTab"));
+            ToolTipService.SetToolTip(BtnInfoTerminal, _loc.Get("OpenTerminal"));
         }
     }
 }
