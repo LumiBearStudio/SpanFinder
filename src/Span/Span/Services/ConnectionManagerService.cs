@@ -180,7 +180,7 @@ namespace Span.Services
         public void FlushSync()
         {
             if (!_isDirty) return;
-            _saveLock.Wait();
+            if (!_saveLock.Wait(TimeSpan.FromSeconds(5))) return;
             try
             {
                 var filePath = Path.Combine(_storagePath, ConnectionsFileName);

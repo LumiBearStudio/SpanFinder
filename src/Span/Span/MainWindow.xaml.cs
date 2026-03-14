@@ -225,6 +225,12 @@ namespace Span
         {
             this.InitializeComponent();
 
+            // 전역 FocusVisual 스타일: WinUI 3의 FocusVisualPrimaryBrush 기본값이 하드코딩(White)이라
+            // ThemeResource 오버라이드 불가.
+            // GettingFocus(포커스 설정 전)에서 브러시 교체 → 첫 포커스부터 올바른 스타일 적용
+            this.Content.AddHandler(UIElement.GettingFocusEvent,
+                new Windows.Foundation.TypedEventHandler<UIElement, GettingFocusEventArgs>(OnGlobalGettingFocus), true);
+
             // 좌/우 탐색기 패널 포커스: handledEventsToo=true로 등록해야
             // ListView/ScrollViewer가 이벤트를 처리한 후에도 Pane 포커스 전환 가능
             LeftPaneContainer.AddHandler(UIElement.PointerPressedEvent,
@@ -2562,15 +2568,31 @@ namespace Span
                 if (connInfo.Protocol == Models.RemoteProtocol.SFTP)
                 {
                     var sftp = new SftpProvider();
-                    await sftp.ConnectAsync(connInfo, password ?? "");
-                    if (!sftp.IsConnected) throw new Exception("SFTP 연결 실패");
+                    try
+                    {
+                        await sftp.ConnectAsync(connInfo, password ?? "");
+                        if (!sftp.IsConnected) throw new Exception("SFTP 연결 실패");
+                    }
+                    catch
+                    {
+                        try { sftp.Dispose(); } catch { }
+                        throw;
+                    }
                     provider = sftp;
                 }
                 else
                 {
                     var ftp = new FtpProvider();
-                    await ftp.ConnectAsync(connInfo, password ?? "");
-                    if (!ftp.IsConnected) throw new Exception("FTP 연결 실패");
+                    try
+                    {
+                        await ftp.ConnectAsync(connInfo, password ?? "");
+                        if (!ftp.IsConnected) throw new Exception("FTP 연결 실패");
+                    }
+                    catch
+                    {
+                        try { ftp.Dispose(); } catch { }
+                        throw;
+                    }
                     provider = ftp;
                 }
             }
@@ -4193,6 +4215,50 @@ namespace Span
             Models.ViewMode.IconLarge,
             Models.ViewMode.IconExtraLarge
         };
+
+        /// <summary>
+        /// 전역 GotFocus 버블링 핸들러: 포커스를 받은 요소의 FocusVisual을 테마 액센트로 교체.
+        /// WinUI 3의 기본 FocusVisualPrimaryBrush(White)를 1px 액센트 톤으로 변경.
+        /// </summary>
+        /// <summary>
+        /// GettingFocus 핸들러: 포커스 설정 전에 FocusVisual 브러시를 테마 액센트로 교체.
+        /// GotFocus(설정 후)와 달리 첫 포커스부터 올바른 스타일로 그려짐.
+        /// </summary>
+        private void OnGlobalGettingFocus(UIElement sender, GettingFocusEventArgs args)
+        {
+            if (args.NewFocusedElement is FrameworkElement fe)
+                ApplyFocusVisualToElement(fe);
+        }
+
+        /// <summary>
+        /// 단일 FrameworkElement에 테마 FocusVisual 적용.
+        /// TextBox 등 자체 포커스 인디케이터가 있는 컨트롤은 FocusVisual 제거.
+        /// </summary>
+        private void ApplyFocusVisualToElement(FrameworkElement fe)
+        {
+            // 이미 커스텀 설정된 요소는 스킵 (Transparent = 의도적 제거)
+            if (fe.FocusVisualPrimaryBrush is SolidColorBrush existing && existing.Color.A == 0)
+                return;
+
+            // TextBox, PasswordBox, RichEditBox, AutoSuggestBox 내부 TextBox는
+            // 자체 포커스 하단 라인이 있으므로 시스템 FocusVisual 제거
+            if (fe is TextBox || fe is PasswordBox || fe is RichEditBox)
+            {
+                fe.UseSystemFocusVisuals = false;
+                return;
+            }
+
+            // 기본 White/Black이면 테마 액센트로 교체
+            if (fe.FocusVisualPrimaryBrush is SolidColorBrush scb
+                && (scb.Color == Microsoft.UI.Colors.White || scb.Color == Microsoft.UI.Colors.Black))
+            {
+                var accentDimBrush = GetThemeBrush("SpanAccentDimBrush");
+                fe.FocusVisualPrimaryBrush = accentDimBrush;
+                fe.FocusVisualSecondaryBrush = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+                fe.FocusVisualPrimaryThickness = new Thickness(1);
+                fe.FocusVisualSecondaryThickness = new Thickness(0);
+            }
+        }
 
         private void OnGlobalPointerWheelChanged(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
         {

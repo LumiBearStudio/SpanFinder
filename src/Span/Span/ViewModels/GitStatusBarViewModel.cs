@@ -334,8 +334,7 @@ namespace Span.ViewModels
             _disposed = true;
             _debounceTimer?.Dispose();
             _debounceTimer = null;
-            _currentCts?.Cancel();
-            _currentCts?.Dispose();
+            try { _currentCts?.Cancel(); _currentCts?.Dispose(); } catch (ObjectDisposedException) { }
             _currentCts = null;
         }
     }

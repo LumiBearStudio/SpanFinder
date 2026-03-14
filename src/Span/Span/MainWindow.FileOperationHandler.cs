@@ -1797,6 +1797,8 @@ namespace Span
 
         private async void HandleDuplicateFile()
         {
+            try
+            {
             var selectedItems = GetCurrentSelectedItems();
             if (selectedItems.Count == 0)
             {
@@ -1866,6 +1868,11 @@ namespace Span
             ViewModel.ShowToast(paths.Count == 1
                 ? string.Format(_loc.Get("Toast_Duplicated"), System.IO.Path.GetFileName(paths[0]))
                 : string.Format(_loc.Get("Toast_DuplicatedMultiple"), paths.Count));
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[HandleDuplicateFile] Unhandled error: {ex.Message}");
+            }
         }
 
         private static void CopyDirectoryRecursive(string sourceDir, string destDir)

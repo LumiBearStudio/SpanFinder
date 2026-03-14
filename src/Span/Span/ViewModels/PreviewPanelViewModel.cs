@@ -511,8 +511,7 @@ namespace Span.ViewModels
         public void Dispose()
         {
             _disposed = true;
-            _currentCts?.Cancel();
-            _currentCts?.Dispose();
+            try { _currentCts?.Cancel(); _currentCts?.Dispose(); } catch (ObjectDisposedException) { }
             _debounceTimer?.Dispose();
             ClearPreviewContent();
         }

@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
@@ -30,6 +31,10 @@ namespace Span.ViewModels
         [ObservableProperty] private bool _isLoading;
         [ObservableProperty] private bool _hasContent;
 
+        // --- Current item path (for actions) ---
+        private string _currentFilePath = "";
+        private bool _isFolder;
+
         // --- Metadata ---
         [ObservableProperty] private string _fileName = "";
         [ObservableProperty] private string _fileIconGlyph = "";
@@ -59,6 +64,10 @@ namespace Span.ViewModels
         [NotifyPropertyChangedFor(nameof(IsGenericVisible))]
         [NotifyPropertyChangedFor(nameof(IsArchiveVisible))]
         private PreviewType _currentPreviewType = PreviewType.None;
+
+        // --- Image rotation (UI only, not saved until explicit save) ---
+        [ObservableProperty] private double _rotationAngle;
+        [ObservableProperty] private bool _hasPendingRotation;
 
         [ObservableProperty] private BitmapImage? _imagePreview;
         [ObservableProperty] private string? _textPreview;
@@ -236,6 +245,9 @@ namespace Span.ViewModels
 
         private void SetBasicInfo(FileSystemViewModel item)
         {
+            _currentFilePath = item.Path;
+            _isFolder = item is FolderViewModel;
+
             FileName = item.Name;
             FileIconGlyph = item.IconGlyph;
             FileIconBrush = item.IconBrush;
@@ -388,6 +400,8 @@ namespace Span.ViewModels
 
         private void ClearPreviewContent()
         {
+            RotationAngle = 0;
+            HasPendingRotation = false;
             ImagePreview = null;
             TextPreview = null;
             PdfPreview = null;
@@ -422,6 +436,55 @@ namespace Span.ViewModels
             DateModified = "";
         }
 
+        // =============================================
+        //  Action Commands
+        // =============================================
+
+        /// <summary>
+        /// 액션 실행 요청 이벤트. Window에서 서비스 호출을 처리.
+        /// </summary>
+        public event Action<string, string>? ActionRequested;
+
+        public string CurrentFilePath => _currentFilePath;
+        public bool CurrentIsFolder => _isFolder;
+
+        [RelayCommand]
+        private void OpenDefault() => ActionRequested?.Invoke("open", _currentFilePath);
+
+        [RelayCommand]
+        private void OpenWith() => ActionRequested?.Invoke("openWith", _currentFilePath);
+
+        [RelayCommand]
+        private void CopyPath() => ActionRequested?.Invoke("copyPath", _currentFilePath);
+
+        [RelayCommand]
+        private void CopyContent() => ActionRequested?.Invoke("copyContent", _currentFilePath);
+
+        [RelayCommand]
+        private void RotateRight()
+        {
+            RotationAngle = (RotationAngle + 90) % 360;
+            HasPendingRotation = RotationAngle != 0;
+        }
+
+        [RelayCommand]
+        private void SaveRotation() => ActionRequested?.Invoke("saveRotation", _currentFilePath);
+
+        [RelayCommand]
+        private void ExtractHere() => ActionRequested?.Invoke("extractHere", _currentFilePath);
+
+        [RelayCommand]
+        private void ExtractTo() => ActionRequested?.Invoke("extractTo", _currentFilePath);
+
+        [RelayCommand]
+        private void OpenInNewTab() => ActionRequested?.Invoke("openInNewTab", _currentFilePath);
+
+        [RelayCommand]
+        private void OpenTerminal() => ActionRequested?.Invoke("openTerminal", _currentFilePath);
+
+        [RelayCommand]
+        private void ShowProperties() => ActionRequested?.Invoke("showProperties", _currentFilePath);
+
         /// <summary>
         /// Quick Look 윈도우를 닫도록 요청한다.
         /// </summary>
@@ -435,8 +498,7 @@ namespace Span.ViewModels
             if (_disposed) return;
             _disposed = true;
 
-            _currentCts?.Cancel();
-            _currentCts?.Dispose();
+            try { _currentCts?.Cancel(); _currentCts?.Dispose(); } catch (ObjectDisposedException) { }
 
             // Dispose media source
             try { MediaSource?.Dispose(); } catch { }

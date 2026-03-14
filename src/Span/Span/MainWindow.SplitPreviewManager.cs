@@ -70,6 +70,18 @@ namespace Span
             => (mode != Models.ViewMode.Settings && mode != Models.ViewMode.ActionLog) ? Visibility.Visible : Visibility.Collapsed;
 
         /// <summary>
+        /// Settings/ActionLog 모드일 때만 표시 (탭↔콘텐츠 연결 strip)
+        /// </summary>
+        public Visibility IsSettingsOrActionLogMode(Models.ViewMode mode)
+            => (mode == Models.ViewMode.Settings || mode == Models.ViewMode.ActionLog) ? Visibility.Visible : Visibility.Collapsed;
+
+        /// <summary>
+        /// Unified Bar 하단 border: 분할뷰에서는 LeftPathHeader border와 중복되므로 제거
+        /// </summary>
+        public Thickness UnifiedBarBorderThickness(bool isSplitViewEnabled)
+            => isSplitViewEnabled ? new Thickness(0) : new Thickness(0, 0, 0, 1);
+
+        /// <summary>
         /// Single mode toolbar/address bar: visible when NOT split AND NOT Home mode
         /// </summary>
         public Visibility IsSingleNonHomeVisible(bool isSplitViewEnabled, Models.ViewMode mode)
@@ -84,8 +96,9 @@ namespace Span
         /// <summary>
         /// Left pane header (split mode): visible when split enabled (including Home mode for accent bar)
         /// </summary>
-        public Visibility IsLeftPaneHeaderVisible(bool isSplitViewEnabled)
-            => isSplitViewEnabled ? Visibility.Visible : Visibility.Collapsed;
+        public Visibility IsLeftPaneHeaderVisible(bool isSplitViewEnabled, Models.ViewMode mode)
+            => (isSplitViewEnabled && mode != Models.ViewMode.Settings && mode != Models.ViewMode.ActionLog)
+                ? Visibility.Visible : Visibility.Collapsed;
 
         public double LeftPaneAccentOpacity(ActivePane activePane)
             => activePane == ActivePane.Left ? 1.0 : 0.0;
@@ -477,6 +490,32 @@ namespace Span
 
                 // RightExplorer 구독 해제
                 UnsubscribeRightExplorerForAddressBar();
+
+                // 미리보기 상태 복원: 분할뷰 진입 시 비활성화했으므로 기본 설정값으로 복원
+                try
+                {
+                    var settingsSvc = App.Current.Services.GetRequiredService<SettingsService>();
+                    var previewDefault = settingsSvc.DefaultPreviewEnabled;
+                    ViewModel.IsLeftPreviewEnabled = previewDefault;
+                    if (previewDefault)
+                    {
+                        LeftPreviewSplitterCol.Width = new GridLength(2, GridUnitType.Pixel);
+                        LeftPreviewCol.Width = new GridLength(GetSavedPreviewWidth("LeftPreviewWidth"), GridUnitType.Pixel);
+                        SubscribePreviewToLastColumn(isLeft: true);
+                    }
+                    // 인라인 미리보기(Miller)도 기본값으로 복원
+                    settingsSvc.MillerInlinePreviewEnabled = previewDefault;
+                    if (previewDefault && ViewModel.CurrentViewMode == Models.ViewMode.MillerColumns)
+                    {
+                        ShowInlinePreview();
+                    }
+                    UpdatePreviewButtonState();
+                    Helpers.DebugLogger.Log($"[MainWindow] Preview restored to default={previewDefault} after split view disabled");
+                }
+                catch (Exception ex)
+                {
+                    Helpers.DebugLogger.Log($"[MainWindow] Preview restore error: {ex.Message}");
+                }
 
                 // Reset active pane to left and focus it
                 ViewModel.ActivePane = ActivePane.Left;
@@ -1245,8 +1284,7 @@ namespace Span
             }
             catch { }
 
-            try { _inlinePreviewCts?.Cancel(); } catch (ObjectDisposedException) { }
-            _inlinePreviewCts?.Dispose();
+            try { _inlinePreviewCts?.Cancel(); _inlinePreviewCts?.Dispose(); } catch (ObjectDisposedException) { }
             _inlinePreviewCts = null;
 
             if (fileVm == null)
@@ -1469,8 +1507,7 @@ namespace Span
         /// </summary>
         private void CleanupInlinePreview()
         {
-            try { _inlinePreviewCts?.Cancel(); } catch (ObjectDisposedException) { }
-            _inlinePreviewCts?.Dispose();
+            try { _inlinePreviewCts?.Cancel(); _inlinePreviewCts?.Dispose(); } catch (ObjectDisposedException) { }
             _inlinePreviewCts = null;
 
             if (ViewModel?.LeftExplorer != null)

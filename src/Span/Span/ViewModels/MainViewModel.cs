@@ -11,7 +11,6 @@ using System.Threading.Tasks;
 using System;
 using System.Collections.Specialized;
 using System.Text.Json;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Span.ViewModels
 {
@@ -678,7 +677,7 @@ namespace Span.ViewModels
                 _isCleaningUp = true;
 
                 // Cancel any ongoing background operations
-                _shutdownCts?.Cancel();
+                try { _shutdownCts?.Cancel(); } catch (ObjectDisposedException) { }
                 _toastTimer?.Dispose();
 
                 // 모든 탭의 Explorer 정리

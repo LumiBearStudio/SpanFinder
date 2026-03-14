@@ -1625,7 +1625,7 @@ namespace Span.Views
                 return;
             }
 
-            _gitCts?.Cancel();
+            try { _gitCts?.Cancel(); } catch (ObjectDisposedException) { }
             _gitCts = new System.Threading.CancellationTokenSource();
             var ct = _gitCts.Token;
 
@@ -1702,8 +1702,7 @@ namespace Span.Views
             {
                 Helpers.DebugLogger.Log("[DetailsModeView] Starting cleanup...");
 
-                _gitCts?.Cancel();
-                _gitCts?.Dispose();
+                try { _gitCts?.Cancel(); _gitCts?.Dispose(); } catch (ObjectDisposedException) { }
                 _gitCts = null;
 
                 _rubberBandHelper?.Detach();
