@@ -464,6 +464,10 @@ namespace Span
                     // Settings 탭은 Miller/Details/Icon 패널 없음
                     if (tab.ViewMode != ViewMode.Settings)
                     {
+                        // ★ 탭 전환 시 phantom SelectionChanged 억제 (500ms)
+                        if (tab.Explorer is ViewModels.ExplorerViewModel newExpl)
+                            newExpl.TabSwitchSuppressionTicks = Environment.TickCount64 + 500;
+
                         // Show/Hide 패널 전환 (ViewModel.SwitchToTab 전에 실행하여 바인딩 재평가 방지)
                         SwitchMillerPanel(tab.Id);
                         SwitchDetailsPanel(tab.Id, tab.ViewMode == ViewMode.Details);
@@ -973,6 +977,9 @@ namespace Span
                         ViewModel.CloseTab(index);
                         if (ViewModel.ActiveTab != null && ViewModel.ActiveTab.ViewMode != ViewMode.Settings)
                         {
+                            // ★ 탭 전환 시 phantom SelectionChanged 억제 (500ms)
+                            if (ViewModel.ActiveTab.Explorer is ViewModels.ExplorerViewModel settingsCloseExpl)
+                                settingsCloseExpl.TabSwitchSuppressionTicks = Environment.TickCount64 + 500;
                             SwitchMillerPanel(ViewModel.ActiveTab.Id);
                         }
                     }
@@ -987,6 +994,9 @@ namespace Span
                         // CloseTab이 SwitchToTab을 호출하면 활성 탭이 변경됨 — 패널 전환
                         if (ViewModel.ActiveTab != null)
                         {
+                            // ★ 탭 전환 시 phantom SelectionChanged 억제 (500ms)
+                            if (ViewModel.ActiveTab.Explorer is ViewModels.ExplorerViewModel closeSwitchExpl)
+                                closeSwitchExpl.TabSwitchSuppressionTicks = Environment.TickCount64 + 500;
                             SwitchMillerPanel(ViewModel.ActiveTab.Id);
                             SwitchDetailsPanel(ViewModel.ActiveTab.Id, ViewModel.ActiveTab.ViewMode == ViewMode.Details);
                             SwitchListPanel(ViewModel.ActiveTab.Id, ViewModel.ActiveTab.ViewMode == ViewMode.List);

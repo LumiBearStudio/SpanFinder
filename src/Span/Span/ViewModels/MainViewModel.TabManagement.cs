@@ -118,7 +118,16 @@ namespace Span.ViewModels
 
                 // Deactivate old tab
                 if (ActiveTabIndex >= 0 && ActiveTabIndex < Tabs.Count)
+                {
                     Tabs[ActiveTabIndex].IsActive = false;
+
+                    // 이전 탭의 밀러 컬럼 활성 테두리 리셋
+                    if (Tabs[ActiveTabIndex].Explorer is ExplorerViewModel oldExplorer)
+                    {
+                        foreach (var col in oldExplorer.Columns)
+                            col.IsActive = false;
+                    }
+                }
 
                 // Activate new tab — backing field 직접 설정으로 PropertyChanged 방지
                 _activeTabIndex = index;
@@ -171,6 +180,10 @@ namespace Span.ViewModels
                     if (Helpers.ViewModeExtensions.IsIconMode(Tabs[index].ViewMode))
                         _currentIconSize = Tabs[index].IconSize;
                 }
+
+                // 새 탭의 마지막 컬럼에 활성 테두리 설정
+                if (Tabs[index].Explorer is ExplorerViewModel newExplorer && newExplorer.Columns.Count > 0)
+                    newExplorer.SetActiveColumn(newExplorer.Columns[newExplorer.Columns.Count - 1]);
 
                 Helpers.DebugLogger.Log($"[MainViewModel] Switched to tab {index}: {Tabs[index].Header}");
                 UpdateStatusBar();

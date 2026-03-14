@@ -267,6 +267,14 @@ namespace Span
             darkDict["GridViewItemBackgroundSelectedPointerOver"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentSelHover);
             darkDict["GridViewItemBackgroundSelectedPressed"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentActive);
 
+            // WinUI 3 시스템 컨트롤 accent 오버라이드 (NavigationView 인디케이터, ToggleSwitch 등)
+            var accentBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.accent);
+            darkDict["NavigationViewSelectionIndicatorForeground"] = accentBrush;
+            darkDict["ListViewItemSelectionIndicatorBrush"] = accentBrush;
+            darkDict["AccentFillColorDefaultBrush"] = accentBrush;
+            darkDict["AccentFillColorSecondaryBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(p.accentHover);
+            darkDict["AccentFillColorTertiaryBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentDim);
+
             var dictKey = theme == "solarized-light" ? "Light" : "Dark";
             root.Resources.ThemeDictionaries[dictKey] = darkDict;
         }

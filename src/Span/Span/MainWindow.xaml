@@ -322,7 +322,7 @@
                         </MenuFlyout>
                     </Button.Flyout>
                     <StackPanel Orientation="Horizontal" Spacing="4">
-                        <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_ViewMode}" FontSize="14"/>
+                        <FontIcon x:Name="ViewModeIcon" Glyph="&#xF0E2;" FontSize="14"/>
                         <FontIcon Glyph="&#xE70D;" FontSize="10"/>
                     </StackPanel>
                 </Button>
@@ -334,7 +334,7 @@
                         ToolTipService.ToolTip="미리보기 패널 (Ctrl+Shift+P)"
                         Click="OnPreviewToggleClick"
                         Visibility="{x:Bind IsNotSplitVisible(ViewModel.IsSplitViewEnabled), Mode=OneWay}">
-                    <FontIcon Glyph="&#xE8A0;" FontSize="14"/>
+                    <FontIcon x:Name="PreviewToggleIcon" Glyph="&#xE8A0;" FontSize="14"/>
                 </Button>
                 <Rectangle Width="1" Height="20" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="4,0"/>
                 <!-- Split View Toggle -->
@@ -342,7 +342,7 @@
           ToolTipService.ToolTip="Split View (Ctrl+Shift+E)"
           Click="OnSplitViewToggleClick"
           Visibility="{x:Bind IsNotSettingsMode(ViewModel.CurrentViewMode), Mode=OneWay}">
-                    <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_SplitView}" FontSize="16"/>
+                    <FontIcon x:Name="SplitViewIcon" FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_SplitView}" FontSize="16"/>
                 </Button>
 
 
@@ -404,14 +404,20 @@
                         <!-- Flat Favorites List (default, no tree expansion) -->
                         <ListView x:Name="FavoritesFlatList"
                                   ItemsSource="{x:Bind ViewModel.Favorites, Mode=OneWay}"
-                                  SelectionMode="Single"
+                                  SelectionMode="None"
                                   IsItemClickEnabled="True"
                                   ItemClick="OnFavoritesFlatItemClick"
+                                  CanDragItems="True"
                                   CanReorderItems="True"
                                   AllowDrop="True"
                                   DragItemsCompleted="OnFavoritesDragCompleted"
                                   RightTapped="OnFavoritesFlatListRightTapped"
                                   ContainerContentChanging="OnSidebarContainerContentChanging">
+                            <ListView.Resources>
+                                <!-- 커스텀 Grid 호버 사용: ListViewItem 자체 hover 배경 투명화 -->
+                                <SolidColorBrush x:Key="ListViewItemBackgroundPointerOver" Color="Transparent"/>
+                                <SolidColorBrush x:Key="ListViewItemBackgroundPressed" Color="Transparent"/>
+                            </ListView.Resources>
                             <ListView.ItemContainerStyle>
                                 <Style TargetType="ListViewItem">
                                     <Setter Property="Padding" Value="0"/>
@@ -697,7 +703,8 @@
                         </Grid.ColumnDefinitions>
                         <!-- Active pane accent bar -->
                         <Rectangle Height="1" VerticalAlignment="Top" Grid.ColumnSpan="3"
-                                   Fill="{x:Bind LeftPaneAccentBrush(ViewModel.ActivePane), Mode=OneWay}"/>
+                                   Fill="{ThemeResource SpanAccentBrush}"
+                                   Opacity="{x:Bind LeftPaneAccentOpacity(ViewModel.ActivePane), Mode=OneWay}"/>
                         <!-- Nav buttons -->
                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="0" VerticalAlignment="Center" Margin="2,0,0,0">
                             <Button x:Name="LeftBackButton" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="뒤로 (Alt+Left)"
@@ -786,13 +793,13 @@
                                         </MenuFlyoutSubItem>
                                     </MenuFlyout>
                                 </Button.Flyout>
-                                <FontIcon Glyph="&#xE8FD;" FontSize="11"/>
+                                <FontIcon x:Name="LeftViewModeIcon" Glyph="&#xF0E2;" FontSize="11"/>
                             </Button>
                             <!-- Preview -->
                             <Button x:Name="LeftPreviewButton" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="미리보기 패널"
                                     Tag="Left" Click="OnPanePreviewToggle"
                                     Padding="4" MinWidth="0" MinHeight="0" Width="26" Height="26">
-                                <FontIcon Glyph="&#xE8A0;" FontSize="11"/>
+                                <FontIcon x:Name="LeftPreviewIcon" Glyph="&#xE8A0;" FontSize="11"/>
                             </Button>
                         </StackPanel>
                     </Grid>
@@ -1256,7 +1263,8 @@
                         </Grid.ColumnDefinitions>
                         <!-- Active pane accent bar -->
                         <Rectangle Height="1" VerticalAlignment="Top" Grid.ColumnSpan="3"
-                                   Fill="{x:Bind RightPaneAccentBrush(ViewModel.ActivePane), Mode=OneWay}"/>
+                                   Fill="{ThemeResource SpanAccentBrush}"
+                                   Opacity="{x:Bind RightPaneAccentOpacity(ViewModel.ActivePane), Mode=OneWay}"/>
                         <!-- Nav buttons -->
                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="0" VerticalAlignment="Center" Margin="2,0,0,0">
                             <Button x:Name="RightBackButton" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="뒤로 (Alt+Left)"
@@ -1343,13 +1351,13 @@
                                         </MenuFlyoutSubItem>
                                     </MenuFlyout>
                                 </Button.Flyout>
-                                <FontIcon Glyph="&#xE8FD;" FontSize="11"/>
+                                <FontIcon x:Name="RightViewModeIcon" Glyph="&#xF0E2;" FontSize="11"/>
                             </Button>
                             <!-- Preview -->
                             <Button x:Name="RightPreviewButton" Style="{StaticResource UnifiedButtonStyle}" ToolTipService.ToolTip="미리보기 패널"
                                     Tag="Right" Click="OnPanePreviewToggle"
                                     Padding="4" MinWidth="0" MinHeight="0" Width="26" Height="26">
-                                <FontIcon Glyph="&#xE8A0;" FontSize="11"/>
+                                <FontIcon x:Name="RightPreviewIcon" Glyph="&#xE8A0;" FontSize="11"/>
                             </Button>
                         </StackPanel>
                     </Grid>

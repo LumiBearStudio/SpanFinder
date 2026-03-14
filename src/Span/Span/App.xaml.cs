@@ -25,6 +25,7 @@ namespace Span
         public App()
         {
             this.InitializeComponent();
+            ApplySystemAccentColor();
             Services = ConfigureServices();
 
             // Initialize Sentry crash reporting (must be early, before any exception can occur)
@@ -37,6 +38,89 @@ namespace Span
             // Background thread / Task exceptions
             AppDomain.CurrentDomain.UnhandledException += OnDomainUnhandledException;
             TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
+        }
+
+        /// <summary>
+        /// Windows 시스템 액센트 색상을 읽어 SpanAccent* 리소스를 런타임에 덮어쓴다.
+        /// InitializeComponent 후, 윈도우 생성 전에 호출해야 한다.
+        /// </summary>
+        /// <summary>
+        /// Windows 시스템 액센트 색상을 앱 전체에 적용.
+        /// ThemeDictionaries (XAML {ThemeResource}용) + 최상위 Resources (코드-비하인드 조회용) 둘 다 덮어씀.
+        /// </summary>
+        private void ApplySystemAccentColor()
+        {
+            try
+            {
+                var uiSettings = new Windows.UI.ViewManagement.UISettings();
+                var accent = uiSettings.GetColorValue(Windows.UI.ViewManagement.UIColorType.Accent);
+                var c = new Windows.UI.Color { A = accent.A, R = accent.R, G = accent.G, B = accent.B };
+                var hex = $"{c.R:X2}{c.G:X2}{c.B:X2}";
+
+                var hoverColor = new Windows.UI.Color { A = 255, R = (byte)Math.Min(c.R + 30, 255), G = (byte)Math.Min(c.G + 30, 255), B = (byte)Math.Min(c.B + 30, 255) };
+                var dimColor = new Windows.UI.Color { A = 179, R = c.R, G = c.G, B = c.B };
+
+                var accentBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(c);
+                var hoverBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(hoverColor);
+                var dimBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(dimColor);
+
+                // --- ThemeDictionaries (XAML {ThemeResource} 바인딩용) ---
+                foreach (var entry in Resources.ThemeDictionaries)
+                {
+                    if (entry.Value is not ResourceDictionary rd) continue;
+
+                    rd["SpanAccentColor"] = c;
+                    rd["SpanAccentHoverColor"] = hoverColor;
+                    rd["SpanAccentDimColor"] = dimColor;
+
+                    rd["SpanAccentBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(c);
+                    rd["SpanAccentHoverBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(hoverColor);
+                    rd["SpanAccentDimBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(dimColor);
+
+                    rd["SpanBgHoverBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(ColorFromHex($"#0F{hex}"));
+                    rd["SpanBgActiveBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(ColorFromHex($"#1A{hex}"));
+                    rd["SpanBgSelectedBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(ColorFromHex($"#25{hex}"));
+                    rd["SpanBgSelectedHoverBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(ColorFromHex($"#30{hex}"));
+                    rd["SpanPathHighlightBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(ColorFromHex($"#60{hex}"));
+
+                    rd["SpanSelectionRectFillBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(c) { Opacity = 0.15 };
+                    rd["SpanSelectionRectStrokeBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(c) { Opacity = 0.6 };
+
+                    // WinUI 3 시스템 컨트롤 accent 오버라이드 (NavigationView 인디케이터, ToggleSwitch 등)
+                    rd["NavigationViewSelectionIndicatorForeground"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(c);
+                    rd["ListViewItemSelectionIndicatorBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(c);
+                    rd["AccentFillColorDefaultBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(c);
+                    rd["AccentFillColorSecondaryBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(hoverColor);
+                    rd["AccentFillColorTertiaryBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(dimColor);
+                }
+
+                // --- 최상위 Resources (코드-비하인드 Resources["key"] 조회용) ---
+                Resources["SpanAccentColor"] = c;
+                Resources["SpanAccentBrush"] = accentBrush;
+                Resources["SpanAccentHoverBrush"] = hoverBrush;
+                Resources["SpanAccentDimBrush"] = dimBrush;
+
+                // ListView/GridView selection
+                Resources["ListViewItemBackgroundSelected"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(ColorFromHex($"#25{hex}"));
+                Resources["ListViewItemBackgroundSelectedPointerOver"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(ColorFromHex($"#30{hex}"));
+                Resources["ListViewItemBackgroundSelectedPressed"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(ColorFromHex($"#1A{hex}"));
+                Resources["GridViewItemBackgroundSelected"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(ColorFromHex($"#25{hex}"));
+                Resources["GridViewItemBackgroundSelectedPointerOver"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(ColorFromHex($"#30{hex}"));
+                Resources["GridViewItemBackgroundSelectedPressed"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(ColorFromHex($"#1A{hex}"));
+            }
+            catch { /* fallback: XAML에 정의된 기본값 사용 */ }
+        }
+
+        private static Windows.UI.Color ColorFromHex(string hex)
+        {
+            hex = hex.TrimStart('#');
+            return new Windows.UI.Color
+            {
+                A = byte.Parse(hex[..2], System.Globalization.NumberStyles.HexNumber),
+                R = byte.Parse(hex[2..4], System.Globalization.NumberStyles.HexNumber),
+                G = byte.Parse(hex[4..6], System.Globalization.NumberStyles.HexNumber),
+                B = byte.Parse(hex[6..8], System.Globalization.NumberStyles.HexNumber)
+            };
         }
 
         public void RegisterWindow(Window w)

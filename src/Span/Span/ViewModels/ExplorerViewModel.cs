@@ -113,6 +113,12 @@ namespace Span.ViewModels
         public bool EnableAutoNavigation { get; set; } = true;
 
         /// <summary>
+        /// 탭 전환 시 SelectionChanged로 인한 컬럼 자동 추가 억제용 타임스탬프.
+        /// Environment.TickCount64 기준으로 이 시점 이전의 이벤트는 무시.
+        /// </summary>
+        internal long TabSwitchSuppressionTicks { get; set; }
+
+        /// <summary>
         /// 폴더 로딩 또는 경로 탐색 실패 시 에러 메시지를 전파하는 이벤트.
         /// MainWindow에서 구독하여 토스트 알림으로 표시.
         /// </summary>
@@ -569,6 +575,10 @@ namespace Span.ViewModels
                 await HandleFolderSelectionAsync(rootVm, selectedAfterLoad, 0, 1);
             }
 
+            // 탐색 완료 후 첫 컬럼을 활성 표시 (테두리)
+            if (Columns.Count > 0)
+                SetActiveColumn(Columns[0]);
+
             Helpers.DebugLogger.Log($"[NavigateTo] Navigation complete. Current path: {CurrentPath}, AutoNav restored={EnableAutoNavigation}");
         }
 
@@ -743,6 +753,10 @@ namespace Span.ViewModels
                 UpdatePathHighlights();
 
                 Helpers.DebugLogger.Log($"[NavigateToPath] Hierarchy built (parallel): {string.Join(" > ", Columns.Select(c => c.Name))}");
+
+                // 탐색 완료 후 마지막 컬럼을 활성 표시 (테두리)
+                if (Columns.Count > 0)
+                    SetActiveColumn(Columns[Columns.Count - 1]);
             }
             finally
             {
@@ -1162,6 +1176,13 @@ namespace Span.ViewModels
                 // execution (including layout) completes.
                 await Task.Yield();
                 if (!EnableAutoNavigation) return; // Re-check after yield
+
+                // CRITICAL: 탭 전환 후 패널 Visible 전환으로 인한 phantom SelectionChanged 억제
+                if (Environment.TickCount64 < TabSwitchSuppressionTicks)
+                {
+                    Helpers.DebugLogger.Log($"[FolderVm_PropertyChanged] SUPPRESSED by TabSwitchSuppression (remaining={TabSwitchSuppressionTicks - Environment.TickCount64}ms)");
+                    return;
+                }
 
                 // CRITICAL: Suppress navigation when multiple items are selected
                 if (parentFolder.HasMultiSelection) return;

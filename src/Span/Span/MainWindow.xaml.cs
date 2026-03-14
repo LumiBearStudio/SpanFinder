@@ -102,6 +102,33 @@ namespace Span
         // FileSystemWatcher 서비스 참조
         private FileSystemWatcherService? _watcherService;
 
+        /// <summary>
+        /// 현재 테마에 맞는 브러시를 조회한다.
+        /// 윈도우 레벨 ThemeDictionaries (커스텀 테마) → 앱 레벨 (시스템 accent) 순으로 fallback.
+        /// XAML {ThemeResource}와 동일한 리소스 해석 순서를 코드-비하인드에서도 보장한다.
+        /// </summary>
+        internal SolidColorBrush GetThemeBrush(string key)
+        {
+            try
+            {
+                if (Content is FrameworkElement root)
+                {
+                    // 윈도우 레벨 ThemeDictionaries 확인 (커스텀 테마 우선)
+                    var currentThemeKey = root.ActualTheme == ElementTheme.Light ? "Light" : "Dark";
+                    if (root.Resources.ThemeDictionaries.TryGetValue(currentThemeKey, out var dict)
+                        && dict is ResourceDictionary rd
+                        && rd.TryGetValue(key, out var val)
+                        && val is SolidColorBrush brush)
+                    {
+                        return brush;
+                    }
+                }
+            }
+            catch { /* fallback to app level */ }
+
+            return (SolidColorBrush)Application.Current.Resources[key];
+        }
+
         // H1: FocusActiveView 중복 호출 제거 — UpdateViewModeVisibility 내에서 true로 설정
         private bool _suppressFocusOnViewModeChange = false;
 
@@ -1316,7 +1343,7 @@ namespace Span
 
         /// <summary>
         /// Smooth slide-in animation for new Miller columns.
-        /// Translation + Opacity with deceleration easing (macOS Finder style).
+        /// Spring-based Translation + Opacity (Apple Finder style).
         /// </summary>
         private static void AnimateColumnEntrance(UIElement element)
         {
@@ -1328,22 +1355,22 @@ namespace Span
 
             // Enable Translation property (layout-independent visual offset)
             ElementCompositionPreview.SetIsTranslationEnabled(element, true);
-            visual.Properties.InsertVector3("Translation", new Vector3(50f, 0f, 0f));
+            visual.Properties.InsertVector3("Translation", new Vector3(30f, 0f, 0f));
             visual.Opacity = 0f;
 
-            // Deceleration curve: fast departure, smooth arrival
+            // Spring slide: 30px from right → final position (Apple-style natural motion)
+            var slide = compositor.CreateSpringVector3Animation();
+            slide.FinalValue = Vector3.Zero;
+            slide.InitialValue = new Vector3(30f, 0f, 0f);
+            slide.DampingRatio = 0.82f;
+            slide.Period = TimeSpan.FromMilliseconds(50);
+
+            // Fade: fast resolve at ~40% so content is readable quickly
             var easing = compositor.CreateCubicBezierEasingFunction(
                 new Vector2(0.0f, 0.0f), new Vector2(0.2f, 1.0f));
-
-            // Slide: 50px from right → final position
-            var slide = compositor.CreateVector3KeyFrameAnimation();
-            slide.InsertKeyFrame(1f, Vector3.Zero, easing);
-            slide.Duration = TimeSpan.FromMilliseconds(260);
-
-            // Fade: resolves at ~55% of duration so content is readable quickly
             var fade = compositor.CreateScalarKeyFrameAnimation();
-            fade.InsertKeyFrame(0.55f, 1f, easing);
-            fade.Duration = TimeSpan.FromMilliseconds(260);
+            fade.InsertKeyFrame(0.4f, 1f, easing);
+            fade.Duration = TimeSpan.FromMilliseconds(200);
 
             // Scoped batch to ensure clean final state
             var batch = compositor.CreateScopedBatch(
@@ -1504,13 +1531,12 @@ namespace Span
         private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
             if (_isClosed) return;
-            if (e.PropertyName == nameof(MainViewModel.CurrentViewMode) ||
-                e.PropertyName == nameof(MainViewModel.RightViewMode))
+            if (e.PropertyName == nameof(MainViewModel.CurrentViewMode))
             {
                 // 탭 전환 중이거나 UpdateViewModeVisibility 내부에서는 FocusActiveView 억제
                 if (!ViewModel.IsSwitchingTab && !_suppressFocusOnViewModeChange)
                 {
-                    // ViewMode 변경 시 패널 Visibility도 업데이트 (Home→Miller 등)
+                    // 좌측(CurrentViewMode) 변경 시 패널 Visibility 업데이트
                     var newMode = ViewModel.CurrentViewMode;
                     if (_previousViewMode != newMode)
                     {
@@ -1518,6 +1544,18 @@ namespace Span
                         SetViewModeVisibility(newMode);
                     }
                     FocusActiveView();
+                }
+            }
+            else if (e.PropertyName == nameof(MainViewModel.RightViewMode))
+            {
+                // 우측 패인 뷰모드 변경 — 우측은 x:Bind로 Visibility 관리되므로
+                // 프리뷰 패널 너비와 버튼 상태만 동기화
+                // ※ FocusActiveView() 호출 금지: GotFocus 핸들러가 ActivePane을 Left로 뒤집음
+                if (!ViewModel.IsSwitchingTab && !_suppressFocusOnViewModeChange)
+                {
+                    SyncRightPreviewPanelWidth();
+                    UpdatePreviewButtonState();
+                    UpdateViewModeIcon();
                 }
             }
             else if (e.PropertyName == nameof(MainViewModel.Explorer))
@@ -1562,7 +1600,7 @@ namespace Span
                     else
                     {
                         ToastIcon.Glyph = "\uE73E"; // Checkmark
-                        ToastIcon.Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SpanAccentBrush"];
+                        ToastIcon.Foreground = GetThemeBrush("SpanAccentBrush");
                     }
                 });
             }
@@ -1897,6 +1935,8 @@ namespace Span
             ViewModeButton.IsEnabled = !isNonExplorerMode;
             PreviewToggleButton.IsEnabled = !isNonExplorerMode;
             UpdatePreviewButtonState();
+            UpdateSplitViewButtonState();
+            UpdateViewModeIcon();
             SplitViewButton.IsEnabled = true; // 홈에서도 분할뷰 토글 가능
             CopyPathButton.IsEnabled = !isNonExplorerMode;
             SearchBox.IsEnabled = !isNonExplorerMode;
@@ -2146,7 +2186,7 @@ namespace Span
             dialogPanel.Children.Add(new TextBlock
             {
                 Text = _loc.Get("SearchNetwork"),
-                Foreground = (SolidColorBrush)Application.Current.Resources["SpanTextSecondaryBrush"],
+                Foreground = GetThemeBrush("SpanTextSecondaryBrush"),
                 FontSize = 12,
                 Margin = new Thickness(0, 4, 0, 0)
             });
@@ -2176,7 +2216,7 @@ namespace Span
             {
                 Text = _loc.Get("SearchingComputers"),
                 FontSize = 12,
-                Foreground = (SolidColorBrush)Application.Current.Resources["SpanTextTertiaryBrush"]
+                Foreground = GetThemeBrush("SpanTextTertiaryBrush")
             };
             dialogPanel.Children.Add(statusText);
 
@@ -3792,7 +3832,7 @@ namespace Span
                 Height = 16,
                 CornerRadius = new CornerRadius(1.5),
                 Margin = new Thickness(3, 0, 0, 0),
-                Background = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SpanAccentBrush"],
+                Background = GetThemeBrush("SpanAccentBrush"),
                 Opacity = 0,
                 IsHitTestVisible = false,
             };
@@ -3987,6 +4027,8 @@ namespace Span
             return false;
         }
 
+
+
         // ============================================================
         //  Breadcrumb Address Bar 핸들러
         // ============================================================
@@ -4077,40 +4119,61 @@ namespace Span
         private void OnViewModeMillerColumns(object sender, RoutedEventArgs e)
         {
             ViewModel.SwitchViewMode(Models.ViewMode.MillerColumns);
+            UpdateViewModeVisibility();
+            UpdateViewModeIcon();
+            UpdatePreviewButtonState();
         }
 
         private void OnViewModeDetails(object sender, RoutedEventArgs e)
         {
             ViewModel.SwitchViewMode(Models.ViewMode.Details);
+            UpdateViewModeVisibility();
+            UpdateViewModeIcon();
+            UpdatePreviewButtonState();
         }
 
         private void OnViewModeList(object sender, RoutedEventArgs e)
         {
             ViewModel.SwitchViewMode(Models.ViewMode.List);
+            UpdateViewModeVisibility();
+            UpdateViewModeIcon();
+            UpdatePreviewButtonState();
         }
 
         private void OnViewModeIconExtraLarge(object sender, RoutedEventArgs e)
         {
             ViewModel.SwitchViewMode(Models.ViewMode.IconExtraLarge);
             GetActiveIconView()?.UpdateIconSize(Models.ViewMode.IconExtraLarge);
+            UpdateViewModeVisibility();
+            UpdateViewModeIcon();
+            UpdatePreviewButtonState();
         }
 
         private void OnViewModeIconLarge(object sender, RoutedEventArgs e)
         {
             ViewModel.SwitchViewMode(Models.ViewMode.IconLarge);
             GetActiveIconView()?.UpdateIconSize(Models.ViewMode.IconLarge);
+            UpdateViewModeVisibility();
+            UpdateViewModeIcon();
+            UpdatePreviewButtonState();
         }
 
         private void OnViewModeIconMedium(object sender, RoutedEventArgs e)
         {
             ViewModel.SwitchViewMode(Models.ViewMode.IconMedium);
             GetActiveIconView()?.UpdateIconSize(Models.ViewMode.IconMedium);
+            UpdateViewModeVisibility();
+            UpdateViewModeIcon();
+            UpdatePreviewButtonState();
         }
 
         private void OnViewModeIconSmall(object sender, RoutedEventArgs e)
         {
             ViewModel.SwitchViewMode(Models.ViewMode.IconSmall);
             GetActiveIconView()?.UpdateIconSize(Models.ViewMode.IconSmall);
+            UpdateViewModeVisibility();
+            UpdateViewModeIcon();
+            UpdatePreviewButtonState();
         }
 
         // =================================================================
@@ -4160,6 +4223,9 @@ namespace Span
                 GetActiveIconView()?.UpdateIconSize(newMode);
             }
 
+            UpdateViewModeVisibility();
+            UpdateViewModeIcon();
+            UpdatePreviewButtonState();
             e.Handled = true;
         }
 
@@ -5000,6 +5066,7 @@ namespace Span
             ViewModel.SwitchViewMode(mode);
             if (Helpers.ViewModeExtensions.IsIconMode(mode))
                 GetActiveIconView()?.UpdateIconSize(mode);
+            UpdateViewModeIcon();
         }
 
         void Services.IContextMenuHost.ApplySort(string field)

@@ -87,19 +87,11 @@ namespace Span
         public Visibility IsLeftPaneHeaderVisible(bool isSplitViewEnabled)
             => isSplitViewEnabled ? Visibility.Visible : Visibility.Collapsed;
 
-        public SolidColorBrush LeftPaneAccentBrush(ActivePane activePane)
-        {
-            return activePane == ActivePane.Left
-                ? (SolidColorBrush)(Application.Current.Resources["SpanAccentBrush"])
-                : new SolidColorBrush(Microsoft.UI.Colors.Transparent);
-        }
+        public double LeftPaneAccentOpacity(ActivePane activePane)
+            => activePane == ActivePane.Left ? 1.0 : 0.0;
 
-        public SolidColorBrush RightPaneAccentBrush(ActivePane activePane)
-        {
-            return activePane == ActivePane.Right
-                ? (SolidColorBrush)(Application.Current.Resources["SpanAccentBrush"])
-                : new SolidColorBrush(Microsoft.UI.Colors.Transparent);
-        }
+        public double RightPaneAccentOpacity(ActivePane activePane)
+            => activePane == ActivePane.Right ? 1.0 : 0.0;
 
         #endregion
 
@@ -133,15 +125,19 @@ namespace Span
         /// 빈 공간 클릭 시에도 ActivePane을 전환하고 포커스를 이동.
         /// GotFocus는 포커스 가능 요소가 hit될 때만 발생하므로, 빈 공간에서는
         /// PointerPressed로 보완해야 함.
+        /// 패인 헤더 버튼 클릭 시에는 FocusActivePane()을 생략하여
+        /// Button의 pressed 상태를 보존 (Click 이벤트 정상 발생 보장).
         /// </summary>
         private void OnLeftPanePointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
         {
-            // 드래그 중에는 ActivePane 전환을 방지 — 크로스패널 드롭 시 상태 불일치 방지
             if (IsDragInProgress) return;
             if (ViewModel.ActivePane != ActivePane.Left)
             {
                 ViewModel.ActivePane = ActivePane.Left;
-                FocusActivePane();
+                // 패인 헤더 내 버튼 클릭 시 FocusActivePane() 호출하면
+                // Low priority 디스패처가 Button 포커스를 빼앗아 Click 이벤트가 씹힘
+                if (!IsDescendant(LeftPathHeader, e.OriginalSource as DependencyObject))
+                    FocusActivePane();
             }
         }
 
@@ -151,7 +147,8 @@ namespace Span
             if (ViewModel.ActivePane != ActivePane.Right)
             {
                 ViewModel.ActivePane = ActivePane.Right;
-                FocusActivePane();
+                if (!IsDescendant(RightPathHeader, e.OriginalSource as DependencyObject))
+                    FocusActivePane();
             }
         }
 
@@ -355,11 +352,12 @@ namespace Span
 
         private void OnPanePreviewToggle(object sender, RoutedEventArgs e)
         {
+            // Tag에서 대상 패인을 결정 — ActivePane은 변경하지 않음 (포커스 사이드이펙트 방지)
+            var targetPane = ActivePane.Left;
             if (sender is FrameworkElement fe && fe.Tag is string tag)
-            {
-                ViewModel.ActivePane = tag == "Right" ? ActivePane.Right : ActivePane.Left;
-            }
-            TogglePreviewPanel();
+                targetPane = tag == "Right" ? ActivePane.Right : ActivePane.Left;
+
+            TogglePreviewForPane(targetPane);
             UpdatePreviewButtonState();
         }
 
@@ -386,6 +384,7 @@ namespace Span
         private void OnSplitViewToggleClick(object sender, RoutedEventArgs e)
         {
             ToggleSplitView();
+            UpdateSplitViewButtonState();
         }
 
         /// <summary>
@@ -439,21 +438,24 @@ namespace Span
                 SyncRightAddressBar();
                 SubscribeRightExplorerForAddressBar();
 
-                // Close preview panels when entering split view (saves screen space)
-                if (ViewModel.IsLeftPreviewEnabled)
-                {
-                    ViewModel.IsLeftPreviewEnabled = false;
-                    LeftPreviewSplitterCol.Width = new GridLength(0);
-                    LeftPreviewCol.Width = new GridLength(0);
-                    LeftPreviewPanel.StopMedia();
-                }
-                if (ViewModel.IsRightPreviewEnabled)
-                {
-                    ViewModel.IsRightPreviewEnabled = false;
-                    RightPreviewSplitterCol.Width = new GridLength(0);
-                    RightPreviewCol.Width = new GridLength(0);
-                    RightPreviewPanel.StopMedia();
-                }
+                // Close ALL previews when entering split view (saves screen space)
+                // 1) 사이드 패널 미리보기 비활성화
+                ViewModel.IsLeftPreviewEnabled = false;
+                LeftPreviewSplitterCol.Width = new GridLength(0);
+                LeftPreviewCol.Width = new GridLength(0);
+                LeftPreviewPanel.StopMedia();
+
+                ViewModel.IsRightPreviewEnabled = false;
+                RightPreviewSplitterCol.Width = new GridLength(0);
+                RightPreviewCol.Width = new GridLength(0);
+                RightPreviewPanel.StopMedia();
+
+                // 2) 인라인 미리보기(Miller Columns) 설정 + UI 모두 비활성화
+                try { var s = App.Current.Services.GetRequiredService<SettingsService>(); s.MillerInlinePreviewEnabled = false; } catch { }
+                HideInlinePreview();
+
+                // 3) 버튼 상태 동기화
+                UpdatePreviewButtonState();
 
                 // Set active pane to right and focus it after UI has updated
                 ViewModel.ActivePane = ActivePane.Right;
@@ -703,10 +705,26 @@ namespace Span
             else _rightPreviewSubscribedColumn = lastColumn;
 
             // Immediately update preview with current selection.
-            // SelectedChild가 있으면 그 항목을, 없으면 마지막 컬럼(폴더) 자체를 프리뷰에 표시.
             var selectedChild = lastColumn.SelectedChild;
             var previewPanel = isLeft ? LeftPreviewPanel : RightPreviewPanel;
-            previewPanel.UpdatePreview(selectedChild ?? lastColumn);
+            previewPanel.UpdatePreview(FilterPreviewItem(selectedChild ?? lastColumn));
+        }
+
+        /// <summary>
+        /// 미리보기 대상 항목 필터: PreviewShowFolderInfo 설정에 따라 폴더 항목을 null로 변환.
+        /// </summary>
+        private FileSystemViewModel? FilterPreviewItem(FileSystemViewModel? item)
+        {
+            if (item is FolderViewModel)
+            {
+                try
+                {
+                    var settings = App.Current.Services.GetRequiredService<SettingsService>();
+                    if (!settings.PreviewShowFolderInfo) return null;
+                }
+                catch { return null; }
+            }
+            return item;
         }
 
         private void UnsubscribePreviewSelection(bool isLeft)
@@ -730,9 +748,9 @@ namespace Span
 
             if (sender is FolderViewModel folder)
             {
-                // 사이드 패널 미리보기 (Details/List/Icon 모드)
+                // 사이드 패널 미리보기 — FilterPreviewItem으로 폴더 표시 여부 결정
                 if (ViewModel.IsLeftPreviewEnabled)
-                    LeftPreviewPanel.UpdatePreview(folder.SelectedChild ?? folder);
+                    LeftPreviewPanel.UpdatePreview(FilterPreviewItem(folder.SelectedChild ?? folder));
 
                 // Quick Look 윈도우가 열려 있으면 내용 업데이트
                 if (ViewModel.ActivePane == ActivePane.Left)
@@ -747,9 +765,9 @@ namespace Span
 
             if (sender is FolderViewModel folder)
             {
-                // 사이드 패널 미리보기 (Details/List/Icon 모드)
+                // 사이드 패널 미리보기 — FilterPreviewItem으로 폴더 표시 여부 결정
                 if (ViewModel.IsRightPreviewEnabled)
-                    RightPreviewPanel.UpdatePreview(folder.SelectedChild ?? folder);
+                    RightPreviewPanel.UpdatePreview(FilterPreviewItem(folder.SelectedChild ?? folder));
 
                 // Quick Look 윈도우가 열려 있으면 내용 업데이트
                 if (ViewModel.ActivePane == ActivePane.Right)
@@ -764,10 +782,11 @@ namespace Span
         {
             if (_isClosed) return;
 
+            var filtered = FilterPreviewItem(selectedItem);
             if (ViewModel.ActivePane == ActivePane.Left && ViewModel.IsLeftPreviewEnabled)
-                LeftPreviewPanel.UpdatePreview(selectedItem);
+                LeftPreviewPanel.UpdatePreview(filtered);
             else if (ViewModel.ActivePane == ActivePane.Right && ViewModel.IsRightPreviewEnabled)
-                RightPreviewPanel.UpdatePreview(selectedItem);
+                RightPreviewPanel.UpdatePreview(filtered);
 
             // Quick Look 윈도우가 열려 있으면 내용 업데이트
             UpdateQuickLookContent(selectedItem);
@@ -808,23 +827,36 @@ namespace Span
 
         private void TogglePreviewPanel()
         {
-            // Miller Columns 모드: 인라인 미리보기 토글
-            if (ViewModel.CurrentViewMode == Models.ViewMode.MillerColumns)
+            TogglePreviewForPane(ViewModel.ActivePane);
+        }
+
+        /// <summary>
+        /// 지정된 패인의 미리보기를 토글.
+        /// ActivePane을 건드리지 않고 대상 프로퍼티를 직접 토글하여 경합 제거.
+        /// </summary>
+        private void TogglePreviewForPane(ActivePane targetPane)
+        {
+            // 대상 패인의 뷰모드 확인
+            var targetViewMode = ViewModel.IsSplitViewEnabled && targetPane == ActivePane.Right
+                ? ViewModel.RightViewMode
+                : ViewModel.CurrentViewMode;
+
+            // Miller Columns + 좌측 패인: 인라인 미리보기 토글 (좌측 전용 기능)
+            // 우측 패인은 Miller에서도 사이드 패널 사용 (인라인 미리보기 인프라 없음)
+            if (targetViewMode == Models.ViewMode.MillerColumns && targetPane == ActivePane.Left)
             {
                 ToggleInlinePreview();
                 return;
             }
 
-            // Details/List/Icon 모드: 사이드 패널 토글
-            ViewModel.TogglePreview();
-
-            // Update column widths for the active pane
-            if (ViewModel.ActivePane == ActivePane.Left)
+            // Details/List/Icon 모드 또는 우측 Miller: 사이드 패널 토글 (ActivePane 변경 없음)
+            if (targetPane == ActivePane.Left)
             {
+                ViewModel.IsLeftPreviewEnabled = !ViewModel.IsLeftPreviewEnabled;
                 if (ViewModel.IsLeftPreviewEnabled)
                 {
                     LeftPreviewSplitterCol.Width = new GridLength(2, GridUnitType.Pixel);
-                    LeftPreviewCol.Width = new GridLength(320, GridUnitType.Pixel);
+                    LeftPreviewCol.Width = new GridLength(GetSavedPreviewWidth("LeftPreviewWidth"), GridUnitType.Pixel);
                 }
                 else
                 {
@@ -835,10 +867,11 @@ namespace Span
             }
             else
             {
+                ViewModel.IsRightPreviewEnabled = !ViewModel.IsRightPreviewEnabled;
                 if (ViewModel.IsRightPreviewEnabled)
                 {
                     RightPreviewSplitterCol.Width = new GridLength(2, GridUnitType.Pixel);
-                    RightPreviewCol.Width = new GridLength(320, GridUnitType.Pixel);
+                    RightPreviewCol.Width = new GridLength(GetSavedPreviewWidth("RightPreviewWidth"), GridUnitType.Pixel);
                 }
                 else
                 {
@@ -847,8 +880,9 @@ namespace Span
                     RightPreviewPanel.StopMedia();
                 }
             }
+            ViewModel.SavePreviewState();
 
-            Helpers.DebugLogger.Log($"[MainWindow] Preview toggled: Left={ViewModel.IsLeftPreviewEnabled}, Right={ViewModel.IsRightPreviewEnabled}");
+            Helpers.DebugLogger.Log($"[MainWindow] Preview toggled (pane={targetPane}): Left={ViewModel.IsLeftPreviewEnabled}, Right={ViewModel.IsRightPreviewEnabled}");
 
             // After preview toggle, the Miller columns viewport width changes.
             // Scroll to keep the last column visible.
@@ -899,39 +933,128 @@ namespace Span
         {
             try
             {
-                bool isActive;
-                if (ViewModel.CurrentViewMode == Models.ViewMode.MillerColumns)
-                {
-                    var settings = App.Current.Services.GetRequiredService<SettingsService>();
-                    isActive = settings.MillerInlinePreviewEnabled;
-                }
-                else
-                {
-                    isActive = ViewModel.ActivePane == ActivePane.Right
-                        ? ViewModel.IsRightPreviewEnabled
-                        : ViewModel.IsLeftPreviewEnabled;
-                }
+                var accentBrush = GetThemeBrush("SpanAccentBrush");
+                var defaultBrush = GetThemeBrush("SpanTextSecondaryBrush");
 
-                var accentBrush = isActive
-                    ? (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SpanAccentBrush"]
-                    : new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
-
-                PreviewToggleButton.Background = accentBrush;
+                // 상단 미리보기 버튼 (비분할 모드용)
+                if (!ViewModel.IsSplitViewEnabled)
+                {
+                    bool isActive;
+                    if (ViewModel.CurrentViewMode == Models.ViewMode.MillerColumns)
+                    {
+                        var settings = App.Current.Services.GetRequiredService<SettingsService>();
+                        isActive = settings.MillerInlinePreviewEnabled;
+                    }
+                    else
+                    {
+                        isActive = ViewModel.IsLeftPreviewEnabled;
+                    }
+                    PreviewToggleIcon.Foreground = isActive ? accentBrush : defaultBrush;
+                }
 
                 // Split view pane-specific buttons
                 if (ViewModel.IsSplitViewEnabled)
                 {
-                    LeftPreviewButton.Background = ViewModel.IsLeftPreviewEnabled
-                        ? (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SpanAccentBrush"]
-                        : new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
-                    RightPreviewButton.Background = ViewModel.IsRightPreviewEnabled
-                        ? (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SpanAccentBrush"]
-                        : new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
+                    var settings = App.Current.Services.GetRequiredService<SettingsService>();
+                    bool millerInline = settings.MillerInlinePreviewEnabled;
+
+                    bool leftActive = ViewModel.LeftViewMode == Models.ViewMode.MillerColumns
+                        ? millerInline
+                        : ViewModel.IsLeftPreviewEnabled;
+                    // 우측 패인은 Miller에서도 사이드 패널 사용 (인라인 미리보기는 좌측 전용)
+                    bool rightActive = ViewModel.IsRightPreviewEnabled;
+
+                    LeftPreviewIcon.Foreground = leftActive ? accentBrush : defaultBrush;
+                    RightPreviewIcon.Foreground = rightActive ? accentBrush : defaultBrush;
                 }
             }
             catch (Exception ex)
             {
                 Helpers.DebugLogger.Log($"[MainWindow] UpdatePreviewButtonState error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 뷰모드 버튼 아이콘을 현재 활성 뷰모드에 맞게 업데이트.
+        /// </summary>
+        internal void UpdateViewModeIcon()
+        {
+            try
+            {
+                var mode = ViewModel.CurrentViewMode;
+                string glyph = GetViewModeGlyph(mode);
+
+                ViewModeIcon.Glyph = glyph;
+
+                // Split view pane-specific buttons
+                if (ViewModel.IsSplitViewEnabled)
+                {
+                    LeftViewModeIcon.Glyph = GetViewModeGlyph(ViewModel.LeftViewMode);
+                    RightViewModeIcon.Glyph = GetViewModeGlyph(ViewModel.RightViewMode);
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[MainWindow] UpdateViewModeIcon error: {ex.Message}");
+            }
+        }
+
+        private static string GetViewModeGlyph(Models.ViewMode mode) => mode switch
+        {
+            Models.ViewMode.MillerColumns => "\uF0E2",
+            Models.ViewMode.Details => "\uE8EF",
+            Models.ViewMode.List => "\uE80A",
+            _ when mode >= Models.ViewMode.IconSmall && mode <= Models.ViewMode.IconExtraLarge => "\uE91B",
+            _ => "\uF0E2"
+        };
+
+        internal void UpdateSplitViewButtonState()
+        {
+            try
+            {
+                var accentBrush = GetThemeBrush("SpanAccentBrush");
+                var defaultBrush = GetThemeBrush("SpanTextSecondaryBrush");
+
+                SplitViewIcon.Foreground = ViewModel.IsSplitViewEnabled ? accentBrush : defaultBrush;
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[MainWindow] UpdateSplitViewButtonState error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 우측 패인의 뷰모드 변경 시 프리뷰 패널 너비를 동기화.
+        /// Miller → Details/List/Icon 전환 시 프리뷰 활성화 상태에 맞게 너비 조정.
+        /// </summary>
+        internal void SyncRightPreviewPanelWidth()
+        {
+            try
+            {
+                if (!ViewModel.IsSplitViewEnabled) return;
+
+                var rightMode = ViewModel.RightViewMode;
+
+                // Miller 모드는 인라인 미리보기 사용 → 사이드 패널 불필요
+                if (rightMode == Models.ViewMode.MillerColumns)
+                {
+                    RightPreviewSplitterCol.Width = new GridLength(0);
+                    RightPreviewCol.Width = new GridLength(0);
+                }
+                else if (ViewModel.IsRightPreviewEnabled)
+                {
+                    RightPreviewSplitterCol.Width = new GridLength(2, GridUnitType.Pixel);
+                    RightPreviewCol.Width = new GridLength(GetSavedPreviewWidth("RightPreviewWidth"), GridUnitType.Pixel);
+                }
+                else
+                {
+                    RightPreviewSplitterCol.Width = new GridLength(0);
+                    RightPreviewCol.Width = new GridLength(0);
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[MainWindow] SyncRightPreviewPanelWidth error: {ex.Message}");
             }
         }
 
@@ -968,6 +1091,21 @@ namespace Span
             {
                 Helpers.DebugLogger.Log($"[MainWindow] RestorePreviewState error: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// LocalSettings에 저장된 미리보기 패널 너비를 읽는다. 미저장 시 기본 320px.
+        /// </summary>
+        private static double GetSavedPreviewWidth(string key)
+        {
+            try
+            {
+                var settings = Windows.Storage.ApplicationData.Current.LocalSettings;
+                if (settings.Values.TryGetValue(key, out var val))
+                    return Math.Max(320, (double)val);
+            }
+            catch { }
+            return 320;
         }
 
         #endregion
