@@ -117,6 +117,56 @@ namespace Span
 
             // DWM 윈도우 보더 색상 → 테마 배경색에 맞춰 최대화 시 흰색 라인 방지
             UpdateDwmBorderColor(theme, isCustom);
+
+            // 코드-비하인드에서 생성된 캐시 요소들 (인디케이터, 버튼 등) 테마 색상 갱신
+            RefreshCachedAccentColors();
+        }
+
+        /// <summary>
+        /// 테마 전환 후 코드-비하인드에서 캐시된 모든 accent 색상 요소를 갱신한다.
+        /// 인디케이터, 버튼 아이콘 등 {ThemeResource} 바인딩이 아닌 직접 생성 요소 대상.
+        /// </summary>
+        private void RefreshCachedAccentColors()
+        {
+            try
+            {
+                var accentBrush = GetThemeBrush("SpanAccentBrush");
+                var accentDimBrush = GetThemeBrush("SpanAccentDimBrush");
+
+                // 캐시된 밀러컬럼 폴더 선택 인디케이터 색상 갱신
+                foreach (var indicator in _pathIndicators.Values)
+                {
+                    indicator.Background = accentBrush;
+                }
+
+                // 밀러 컬럼 Border 색상 갱신
+                // {Binding IsActive, Converter=...}는 IsActive 변경 시에만 재평가되므로
+                // 테마 전환 후 수동 갱신 필요
+                RefreshMillerColumnBorders(MillerColumnsControl, accentDimBrush);
+                if (MillerColumnsControlRight != null)
+                    RefreshMillerColumnBorders(MillerColumnsControlRight, accentDimBrush);
+
+                // 버튼 아이콘 색상 갱신
+                UpdatePreviewButtonState();
+                UpdateSplitViewButtonState();
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[MainWindow] RefreshCachedAccentColors error: {ex.Message}");
+            }
+        }
+
+        private static void RefreshMillerColumnBorders(ItemsControl itemsControl, Microsoft.UI.Xaml.Media.SolidColorBrush accentDimBrush)
+        {
+            for (int i = 0; i < itemsControl.Items.Count; i++)
+            {
+                var container = itemsControl.ContainerFromIndex(i) as ContentPresenter;
+                if (container == null) continue;
+                var border = Helpers.VisualTreeHelpers.FindChild<Border>(container);
+                if (border == null) continue;
+                var vm = itemsControl.Items[i] as ViewModels.FolderViewModel;
+                border.BorderBrush = (vm?.IsActive == true) ? accentDimBrush : new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
+            }
         }
 
         /// <summary>
