@@ -604,101 +604,22 @@ namespace Span
             var router = App.Current.Services.GetRequiredService<FileSystemRouter>();
 
             // Pre-check for conflicts (local destinations only)
-            bool destIsRemote = FileSystemRouter.IsRemotePath(destDir);
-            ConflictResolution resolution = ConflictResolution.KeepBoth;
+            var (proceed, resolution) = await CheckFileConflictsAsync(sourcePaths, destDir, "Clipboard");
+            if (!proceed) return;
             bool applyToAll = true;
-            bool hasConflicts = false;
-
-            if (!destIsRemote)
-            {
-                string? firstConflictSrc = null;
-                string? firstConflictDest = null;
-
-                foreach (var srcPath in sourcePaths)
-                {
-                    var fileName = System.IO.Path.GetFileName(srcPath);
-                    var destPath = System.IO.Path.Combine(destDir, fileName);
-                    if (File.Exists(destPath) || Directory.Exists(destPath))
-                    {
-                        // Skip self-copy (same path)
-                        if (string.Equals(srcPath, destPath, StringComparison.OrdinalIgnoreCase))
-                            continue;
-
-                        hasConflicts = true;
-                        firstConflictSrc ??= srcPath;
-                        firstConflictDest ??= destPath;
-                    }
-                }
-
-                if (hasConflicts && firstConflictSrc != null && firstConflictDest != null)
-                {
-                    var vm = new FileConflictDialogViewModel
-                    {
-                        SourcePath = firstConflictSrc,
-                        DestinationPath = firstConflictDest,
-                    };
-
-                    // Populate file info
-                    try
-                    {
-                        if (File.Exists(firstConflictSrc))
-                        {
-                            var srcInfo = new FileInfo(firstConflictSrc);
-                            vm.SourceSize = srcInfo.Length;
-                            vm.SourceModified = srcInfo.LastWriteTime;
-                        }
-                        else if (Directory.Exists(firstConflictSrc))
-                        {
-                            vm.SourceModified = new DirectoryInfo(firstConflictSrc).LastWriteTime;
-                        }
-
-                        if (File.Exists(firstConflictDest))
-                        {
-                            var dstInfo = new FileInfo(firstConflictDest);
-                            vm.DestinationSize = dstInfo.Length;
-                            vm.DestinationModified = dstInfo.LastWriteTime;
-                        }
-                        else if (Directory.Exists(firstConflictDest))
-                        {
-                            vm.DestinationModified = new DirectoryInfo(firstConflictDest).LastWriteTime;
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Helpers.DebugLogger.Log($"[Clipboard] Conflict info error: {ex.Message}");
-                    }
-
-                    var dialog = new FileConflictDialog(vm);
-                    dialog.XamlRoot = this.Content.XamlRoot;
-
-                    var dialogResult = await ShowContentDialogSafeAsync(dialog);
-                    if (_isClosed) return; // 다이얼로그 표시 중 창 닫힘 방어 (HandleDelete 패턴과 동일)
-                    if (dialogResult != ContentDialogResult.Primary)
-                    {
-                        Helpers.DebugLogger.Log("[Clipboard] Paste cancelled by user (conflict dialog)");
-                        return;
-                    }
-
-                    resolution = vm.SelectedResolution;
-                    applyToAll = true; // Apply chosen resolution to all conflicts
-                    Helpers.DebugLogger.Log($"[Clipboard] Conflict resolution: {resolution}, ApplyToAll: {applyToAll}");
-                }
-            }
 
             Helpers.DebugLogger.Log($"[HandlePaste] isCut={isCut} → {(isCut ? "MoveFileOperation" : "CopyFileOperation")}");
             Span.Services.FileOperations.IFileOperation op;
             if (isCut)
             {
                 var moveOp = new Span.Services.FileOperations.MoveFileOperation(sourcePaths, destDir, router);
-                if (hasConflicts)
-                    moveOp.SetConflictResolution(resolution, applyToAll);
+                moveOp.SetConflictResolution(resolution, applyToAll);
                 op = moveOp;
             }
             else
             {
                 var copyOp = new Span.Services.FileOperations.CopyFileOperation(sourcePaths, destDir, router);
-                if (hasConflicts)
-                    copyOp.SetConflictResolution(resolution, applyToAll);
+                copyOp.SetConflictResolution(resolution, applyToAll);
                 op = copyOp;
             }
 
@@ -1956,6 +1877,94 @@ namespace Span
                 if (!string.IsNullOrEmpty(folderPath))
                     shellService.ShowProperties(folderPath);
             }
+        }
+
+        #endregion
+
+        #region Shared Conflict Check
+
+        /// <summary>
+        /// 소스 경로 목록과 대상 폴더 간 파일 충돌을 검사하고, 충돌 시 사용자에게 해결 방법을 묻는다.
+        /// Paste/DragDrop 양쪽에서 공유.
+        /// </summary>
+        /// <returns>
+        /// (proceed: true, resolution) — 사용자가 진행을 선택함.
+        /// (proceed: false, _) — 사용자가 취소하거나 원격 경로.
+        /// hasConflicts=false이면 proceed=true, resolution=KeepBoth.
+        /// </returns>
+        internal async Task<(bool proceed, ConflictResolution resolution)> CheckFileConflictsAsync(
+            IReadOnlyList<string> sourcePaths, string destDir, string logContext)
+        {
+            if (FileSystemRouter.IsRemotePath(destDir))
+                return (true, ConflictResolution.KeepBoth);
+
+            string? firstConflictSrc = null;
+            string? firstConflictDest = null;
+
+            foreach (var srcPath in sourcePaths)
+            {
+                var fileName = System.IO.Path.GetFileName(srcPath);
+                var destPath = System.IO.Path.Combine(destDir, fileName);
+                if (File.Exists(destPath) || Directory.Exists(destPath))
+                {
+                    if (string.Equals(srcPath, destPath, StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    firstConflictSrc ??= srcPath;
+                    firstConflictDest ??= destPath;
+                }
+            }
+
+            if (firstConflictSrc == null || firstConflictDest == null)
+                return (true, ConflictResolution.KeepBoth);
+
+            var vm = new FileConflictDialogViewModel
+            {
+                SourcePath = firstConflictSrc,
+                DestinationPath = firstConflictDest,
+            };
+
+            try
+            {
+                if (File.Exists(firstConflictSrc))
+                {
+                    var srcInfo = new FileInfo(firstConflictSrc);
+                    vm.SourceSize = srcInfo.Length;
+                    vm.SourceModified = srcInfo.LastWriteTime;
+                }
+                else if (Directory.Exists(firstConflictSrc))
+                {
+                    vm.SourceModified = new DirectoryInfo(firstConflictSrc).LastWriteTime;
+                }
+
+                if (File.Exists(firstConflictDest))
+                {
+                    var dstInfo = new FileInfo(firstConflictDest);
+                    vm.DestinationSize = dstInfo.Length;
+                    vm.DestinationModified = dstInfo.LastWriteTime;
+                }
+                else if (Directory.Exists(firstConflictDest))
+                {
+                    vm.DestinationModified = new DirectoryInfo(firstConflictDest).LastWriteTime;
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[{logContext}] Conflict info error: {ex.Message}");
+            }
+
+            var dialog = new FileConflictDialog(vm);
+            dialog.XamlRoot = this.Content.XamlRoot;
+
+            var dialogResult = await ShowContentDialogSafeAsync(dialog);
+            if (_isClosed) return (false, ConflictResolution.KeepBoth);
+            if (dialogResult != ContentDialogResult.Primary)
+            {
+                Helpers.DebugLogger.Log($"[{logContext}] Cancelled by user (conflict dialog)");
+                return (false, ConflictResolution.KeepBoth);
+            }
+
+            Helpers.DebugLogger.Log($"[{logContext}] Conflict resolution: {vm.SelectedResolution}");
+            return (true, vm.SelectedResolution);
         }
 
         #endregion

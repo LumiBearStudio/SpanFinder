@@ -6,7 +6,6 @@ using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.Extensions.DependencyInjection;
 using Span.Helpers;
 using Span.ViewModels;
-using Span.Views.Dialogs;
 using Span.Services;
 using Span.Services.FileOperations;
 using System;
@@ -889,95 +888,21 @@ namespace Span
             var router = App.Current.Services.GetRequiredService<FileSystemRouter>();
 
             // Pre-check for conflicts (local destinations only)
-            bool destIsRemote = FileSystemRouter.IsRemotePath(destFolder);
-            ConflictResolution resolution = ConflictResolution.KeepBoth;
-            bool hasConflicts = false;
-
-            if (!destIsRemote)
-            {
-                string? firstConflictSrc = null;
-                string? firstConflictDest = null;
-
-                foreach (var srcPath in sourcePaths)
-                {
-                    var fileName = System.IO.Path.GetFileName(srcPath);
-                    var destPath = System.IO.Path.Combine(destFolder, fileName);
-                    if (File.Exists(destPath) || Directory.Exists(destPath))
-                    {
-                        if (string.Equals(srcPath, destPath, StringComparison.OrdinalIgnoreCase))
-                            continue;
-                        hasConflicts = true;
-                        firstConflictSrc ??= srcPath;
-                        firstConflictDest ??= destPath;
-                    }
-                }
-
-                if (hasConflicts && firstConflictSrc != null && firstConflictDest != null)
-                {
-                    var vm = new FileConflictDialogViewModel
-                    {
-                        SourcePath = firstConflictSrc,
-                        DestinationPath = firstConflictDest,
-                    };
-
-                    try
-                    {
-                        if (File.Exists(firstConflictSrc))
-                        {
-                            var srcInfo = new FileInfo(firstConflictSrc);
-                            vm.SourceSize = srcInfo.Length;
-                            vm.SourceModified = srcInfo.LastWriteTime;
-                        }
-                        else if (Directory.Exists(firstConflictSrc))
-                        {
-                            vm.SourceModified = new DirectoryInfo(firstConflictSrc).LastWriteTime;
-                        }
-
-                        if (File.Exists(firstConflictDest))
-                        {
-                            var dstInfo = new FileInfo(firstConflictDest);
-                            vm.DestinationSize = dstInfo.Length;
-                            vm.DestinationModified = dstInfo.LastWriteTime;
-                        }
-                        else if (Directory.Exists(firstConflictDest))
-                        {
-                            vm.DestinationModified = new DirectoryInfo(firstConflictDest).LastWriteTime;
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Helpers.DebugLogger.Log($"[DragDrop] Conflict info error: {ex.Message}");
-                    }
-
-                    var dialog = new FileConflictDialog(vm);
-                    dialog.XamlRoot = this.Content.XamlRoot;
-
-                    var dialogResult = await ShowContentDialogSafeAsync(dialog);
-                    if (dialogResult != ContentDialogResult.Primary)
-                    {
-                        Helpers.DebugLogger.Log("[DragDrop] Drop cancelled by user (conflict dialog)");
-                        return;
-                    }
-
-                    resolution = vm.SelectedResolution;
-                    Helpers.DebugLogger.Log($"[DragDrop] Conflict resolution: {resolution}");
-                }
-            }
+            var (proceed, resolution) = await CheckFileConflictsAsync(sourcePaths, destFolder, "DragDrop");
+            if (!proceed) return;
 
             bool isMove = mode == DragDropMode.Move;
             IFileOperation op;
             if (isMove)
             {
                 var moveOp = new MoveFileOperation(sourcePaths, destFolder, router);
-                if (hasConflicts)
-                    moveOp.SetConflictResolution(resolution, true);
+                moveOp.SetConflictResolution(resolution, true);
                 op = moveOp;
             }
             else
             {
                 var copyOp = new CopyFileOperation(sourcePaths, destFolder, router);
-                if (hasConflicts)
-                    copyOp.SetConflictResolution(resolution, true);
+                copyOp.SetConflictResolution(resolution, true);
                 op = copyOp;
             }
 
