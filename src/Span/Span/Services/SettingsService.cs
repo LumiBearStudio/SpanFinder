@@ -348,4 +348,18 @@ public class SettingsService : ISettingsService
         get => Get("ListColumnWidth", 250);
         set => Set("ListColumnWidth", value);
     }
+
+    // ── Store Rating ──
+
+    public int AppLaunchCount
+    {
+        get => Get("AppLaunchCount", 0);
+        set => Set("AppLaunchCount", value);
+    }
+
+    public bool RatingCompleted
+    {
+        get => Get("RatingCompleted", false);
+        set => Set("RatingCompleted", value);
+    }
 }

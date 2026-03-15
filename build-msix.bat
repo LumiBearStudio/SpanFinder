@@ -32,7 +32,8 @@ echo [1/3] Building x64...
 %MSBUILD% "%CSPROJ%" /restore /v:minimal ^
     /p:Configuration=Release /p:Platform=x64 ^
     /p:GenerateAppxPackageOnBuild=true /p:AppxBundle=Never ^
-    /p:PublishTrimmed=false /p:UapAppxPackageBuildMode=StoreUpload ^
+    /p:PublishTrimmed=false /p:SelfContained=true ^
+    /p:UapAppxPackageBuildMode=StoreUpload ^
     /p:AppxPackageDir="%OUTDIR%\\"
 if %ERRORLEVEL% NEQ 0 (
     echo [FAILED] x64 build failed
@@ -47,7 +48,8 @@ echo [2/3] Building x86...
 %MSBUILD% "%CSPROJ%" /restore /v:minimal ^
     /p:Configuration=Release /p:Platform=x86 ^
     /p:GenerateAppxPackageOnBuild=true /p:AppxBundle=Never ^
-    /p:PublishTrimmed=false /p:UapAppxPackageBuildMode=StoreUpload ^
+    /p:PublishTrimmed=false /p:SelfContained=true ^
+    /p:UapAppxPackageBuildMode=StoreUpload ^
     /p:AppxPackageDir="%OUTDIR%\\"
 if %ERRORLEVEL% NEQ 0 (
     echo [FAILED] x86 build failed
@@ -62,7 +64,8 @@ echo [3/3] Building ARM64...
 %MSBUILD% "%CSPROJ%" /restore /v:minimal ^
     /p:Configuration=Release /p:Platform=ARM64 ^
     /p:GenerateAppxPackageOnBuild=true /p:AppxBundle=Never ^
-    /p:PublishTrimmed=false /p:UapAppxPackageBuildMode=StoreUpload ^
+    /p:PublishTrimmed=false /p:SelfContained=true ^
+    /p:UapAppxPackageBuildMode=StoreUpload ^
     /p:AppxPackageDir="%OUTDIR%\\"
 if %ERRORLEVEL% NEQ 0 (
     echo [FAILED] ARM64 build failed

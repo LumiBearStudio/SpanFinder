@@ -19,6 +19,7 @@ using System.Threading;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml.Hosting;
 using Windows.ApplicationModel.DataTransfer;
+using Windows.Services.Store;
 
 namespace Span
 {
@@ -322,6 +323,9 @@ namespace Span
 
             // Get HWND early (needed by child views and context menu service)
             _hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+
+            // Increment app launch count for Store rating prompt
+            _settings.AppLaunchCount++;
 
             // Window title (shown in taskbar thumbnail & Alt+Tab)
             this.Title = "SPAN Finder";
@@ -723,6 +727,9 @@ namespace Span
 
                     // FileSystemWatcher 초기화
                     InitializeFileSystemWatcher();
+
+                    // Store 별점 요청 (5회 이상 실행 후 1회만)
+                    TryRequestStoreRating();
                 };
             }
         }
@@ -1396,6 +1403,77 @@ namespace Span
         // =================================================================
         //  FileSystemWatcher: 자동 새로고침
         // =================================================================
+
+        /// <summary>
+        /// 앱 실행 횟수가 기준 이상이면 Store 별점 요청 다이얼로그를 1회 표시한다.
+        /// 실패해도 앱 동작에 영향 없음 (전체 try-catch 방어).
+        /// </summary>
+        private void TryRequestStoreRating()
+        {
+            if (_settings.RatingCompleted || _settings.AppLaunchCount < 10)
+                return;
+
+            // 최초 실행 날짜 기록 (이 기능이 추가된 버전부터 카운트)
+            var firstLaunch = _settings.Get("FirstLaunchDate", "");
+            if (string.IsNullOrEmpty(firstLaunch))
+            {
+                _settings.Set("FirstLaunchDate", DateTime.UtcNow.ToString("o"));
+                return;
+            }
+
+            // 설치 후 7일 미경과 시 skip
+            if (DateTime.TryParse(firstLaunch, null, System.Globalization.DateTimeStyles.RoundtripKind, out var firstDate)
+                && (DateTime.UtcNow - firstDate).TotalDays < 7)
+                return;
+
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+            {
+                _ = RequestStoreRatingAsync();
+            });
+        }
+
+        private async Task RequestStoreRatingAsync()
+        {
+            try
+            {
+                // Store 서명 체크 — 비-Store 환경에서 StoreContext API 호출 시
+                // Access Violation(0xC0000005) 네이티브 크래시 발생하며 try-catch로 잡을 수 없음
+                if (!IsStoreInstalled())
+                {
+                    DebugLogger.Log($"[Rating] Not Store-installed, skipping (LaunchCount={_settings.AppLaunchCount})");
+                    return;
+                }
+
+                var storeContext = StoreContext.GetDefault();
+                WinRT.Interop.InitializeWithWindow.Initialize(storeContext, _hwnd);
+
+                var result = await storeContext.RequestRateAndReviewAppAsync();
+                DebugLogger.Log($"[Rating] Result: {result.Status}");
+                if (result.Status == StoreRateAndReviewStatus.Succeeded
+                    || result.Status == StoreRateAndReviewStatus.CanceledByUser)
+                {
+                    _settings.RatingCompleted = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[Rating] Store rating request failed: {ex.Message}");
+                _settings.RatingCompleted = true;
+            }
+        }
+
+        private static bool IsStoreInstalled()
+        {
+            try
+            {
+                return Windows.ApplicationModel.Package.Current.SignatureKind
+                    == Windows.ApplicationModel.PackageSignatureKind.Store;
+            }
+            catch
+            {
+                return false;
+            }
+        }
 
         /// <summary>
         /// <see cref="FileSystemWatcherService"/>를 초기화하고 경로 변경 이벤트를 구독한다.

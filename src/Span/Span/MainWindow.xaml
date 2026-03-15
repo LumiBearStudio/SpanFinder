@@ -342,7 +342,8 @@
                         Visibility="{x:Bind IsNotSplitVisible(ViewModel.IsSplitViewEnabled), Mode=OneWay}">
                     <FontIcon x:Name="PreviewToggleIcon" Glyph="&#xE8A0;" FontSize="14"/>
                 </Button>
-                <Rectangle Width="1" Height="20" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="4,0"/>
+                <Rectangle Width="1" Height="20" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="4,0"
+                           Visibility="{x:Bind IsNotSplitVisible(ViewModel.IsSplitViewEnabled), Mode=OneWay}"/>
                 <!-- Split View Toggle -->
                 <Button x:Name="SplitViewButton" AutomationProperties.AutomationId="Button_SplitView" Style="{StaticResource UnifiedButtonStyle}"
           ToolTipService.ToolTip="Split View (Ctrl+Shift+E)"
