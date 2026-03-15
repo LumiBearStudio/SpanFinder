@@ -222,10 +222,10 @@ namespace Span.ViewModels
                         if (item is FolderViewModel folderVm)
                         {
                             FolderItemCount = folderVm.Children.Count > 0
-                                ? $"{folderVm.Children.Count} items"
+                                ? string.Format(LocalizationService.L("QuickLook_Items"), folderVm.Children.Count)
                                 : "";
                             // 비동기 폴더 사이즈 계산
-                            FolderSizeText = "Calculating size...";
+                            FolderSizeText = LocalizationService.L("QuickLook_CalculatingSize");
                             _ = CalculateFolderSizeAsync(item.Path, ct);
                         }
                         break;
@@ -315,7 +315,7 @@ namespace Span.ViewModels
 
                 if (info.TotalFiles < 0)
                 {
-                    ArchiveStats = "Cannot read archive";
+                    ArchiveStats = LocalizationService.L("Preview_CannotReadArchive");
                     ArchiveCompressedSize = FormatFileSize(info.CompressedSize);
                     ArchiveUncompressedSize = "-";
                     ArchiveCompressionRatio = "-";
@@ -323,7 +323,7 @@ namespace Span.ViewModels
                     return;
                 }
 
-                ArchiveStats = $"{info.TotalFiles:N0} files, {info.TotalFolders:N0} folders";
+                ArchiveStats = string.Format(LocalizationService.L("QuickLook_ArchiveStats"), info.TotalFiles.ToString("N0"), info.TotalFolders.ToString("N0"));
                 ArchiveCompressedSize = FormatFileSize(info.CompressedSize);
                 ArchiveUncompressedSize = FormatFileSize(info.UncompressedSize);
                 ArchiveCompressionRatio = info.CompressionRatio > 0

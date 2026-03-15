@@ -294,7 +294,7 @@ namespace Span.ViewModels
 
             if (commit != null)
             {
-                GitLastCommitInfo = $"{commit.RelativeTime}\n{commit.Subject}\nby {commit.Author}";
+                GitLastCommitInfo = $"{commit.RelativeTime}\n{commit.Subject}\n{commit.Author}";
                 HasGitInfo = true;
             }
             else
@@ -442,7 +442,7 @@ namespace Span.ViewModels
                 if (info.TotalFiles + info.TotalFolders > entries.Count)
                 {
                     var remaining = info.TotalFiles + info.TotalFolders - entries.Count;
-                    sb.AppendLine($"… +{remaining:N0} more");
+                    sb.AppendLine(string.Format(LocalizationService.L("QuickLook_MoreItems"), remaining.ToString("N0")));
                 }
 
                 ArchiveContentTree = sb.ToString().TrimEnd();
@@ -450,7 +450,7 @@ namespace Span.ViewModels
             catch (Exception ex)
             {
                 Helpers.DebugLogger.Log($"[Preview] Archive info error: {ex.Message}");
-                ArchiveContentTree = "Error reading archive";
+                ArchiveContentTree = LocalizationService.L("Preview_ErrorReadingArchive");
             }
         }
 

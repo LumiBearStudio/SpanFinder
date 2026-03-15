@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using static Span.Services.LocalizationService;
 
 namespace Span.Services.FileOperations;
 
@@ -21,7 +22,7 @@ public class BatchRenameOperation : IFileOperation
         _renames = renames ?? throw new ArgumentNullException(nameof(renames));
     }
 
-    public string Description => $"Batch rename {_renames.Count} items";
+    public string Description => string.Format(L("FileOp_BatchRename"), _renames.Count);
     public bool CanUndo => _executedRenames.Count > 0;
 
     public async Task<OperationResult> ExecuteAsync(
@@ -67,11 +68,11 @@ public class BatchRenameOperation : IFileOperation
             {
                 // 부분 실패: 이미 변경된 것들의 Undo는 가능
                 return OperationResult.CreateFailure(
-                    $"'{Path.GetFileName(oldPath)}' 이름 변경 실패: {ex.Message} ({_executedRenames.Count}/{total} 완료)");
+                    string.Format(L("FileOp_RenameFailed"), Path.GetFileName(oldPath), ex.Message));
             }
         }
 
-        return OperationResult.CreateSuccess($"{_executedRenames.Count} items renamed");
+        return OperationResult.CreateSuccess(string.Format(L("FileOp_ItemsRenamed"), _executedRenames.Count));
     }
 
     public async Task<OperationResult> UndoAsync(CancellationToken cancellationToken = default)
@@ -91,12 +92,12 @@ public class BatchRenameOperation : IFileOperation
             }
             catch (Exception ex)
             {
-                return OperationResult.CreateFailure($"Undo failed at '{Path.GetFileName(newPath)}': {ex.Message}");
+                return OperationResult.CreateFailure(string.Format(L("FileOp_UndoFailed"), Path.GetFileName(newPath), ex.Message));
             }
         }
 
         var count = _executedRenames.Count;
         _executedRenames.Clear();
-        return OperationResult.CreateSuccess($"{count} items reverted");
+        return OperationResult.CreateSuccess(string.Format(L("FileOp_ItemsReverted"), count));
     }
 }

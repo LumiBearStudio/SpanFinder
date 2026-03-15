@@ -113,7 +113,7 @@ public class FileOperationManager
                     entry.Status = OperationStatus.Cancelled;
                     RemoveCompletedOperation(entry);
                     OperationCompleted?.Invoke(this, new OperationCompletedEventArgs(
-                        entry, OperationResult.CreateFailure("Operation cancelled")));
+                        entry, OperationResult.CreateFailure(LocalizationService.L("Toast_OperationCancelled"))));
                 }))
                 {
                     lock (_lock) { ActiveOperations.Clear(); }
@@ -349,14 +349,14 @@ public partial class FileOperationEntry : ObservableObject
     public bool IsRunning => Status == OperationStatus.Running;
     public bool IsCancelling => Status == OperationStatus.Cancelling;
     public string PauseResumeIcon => IsPaused ? "\uE768" : "\uE769"; // Play : Pause (Segoe MDL2)
-    public string PauseResumeTooltip => IsPaused ? "Resume" : "Pause";
+    public string PauseResumeTooltip => IsPaused ? LocalizationService.L("Progress_Resume") : LocalizationService.L("Progress_Pause");
     public bool CanPauseOrResume => Status == OperationStatus.Running || Status == OperationStatus.Paused;
     public bool CanCancel => Status == OperationStatus.Running || Status == OperationStatus.Paused;
     /// <summary>Cancelling 상태일 때 표시할 상태 텍스트 (로컬라이즈 가능)</summary>
     public string StatusText => IsCancelling ? _cancellingText : "";
 
     /// <summary>로컬라이즈된 "취소 중..." 텍스트 설정용</summary>
-    internal string _cancellingText = "Cancelling...";
+    internal string _cancellingText = LocalizationService.L("Progress_Cancelling");
 
     public string SpeedText => FormatSpeed(SpeedBytesPerSecond);
     public string RemainingTimeText => FormatTime(EstimatedTimeRemaining);
@@ -393,10 +393,10 @@ public partial class FileOperationEntry : ObservableObject
     {
         if (time <= TimeSpan.Zero) return "";
         if (time.TotalSeconds < 60)
-            return $"{time.TotalSeconds:F0} sec remaining";
+            return string.Format(LocalizationService.L("Progress_SecRemaining"), time.TotalSeconds.ToString("F0"));
         if (time.TotalMinutes < 60)
-            return $"{time.TotalMinutes:F0} min remaining";
-        return $"{time.TotalHours:F1} hours remaining";
+            return string.Format(LocalizationService.L("Progress_MinRemaining"), time.TotalMinutes.ToString("F0"));
+        return string.Format(LocalizationService.L("Progress_HoursRemaining"), time.TotalHours.ToString("F1"));
     }
 }
 

@@ -24,7 +24,7 @@ public class NewFolderOperation : IFileOperation
         _isRemote = FileSystemRouter.IsRemotePath(folderPath);
     }
 
-    public string Description => $"Create folder '{FileOperationHelpers.GetFileName(_folderPath)}'";
+    public string Description => string.Format(L("FileOp_CreateFolder"), FileOperationHelpers.GetFileName(_folderPath));
     public bool CanUndo => !_isRemote;
 
     public async Task<OperationResult> ExecuteAsync(
@@ -57,7 +57,7 @@ public class NewFolderOperation : IFileOperation
     public async Task<OperationResult> UndoAsync(CancellationToken cancellationToken = default)
     {
         if (_isRemote)
-            return OperationResult.CreateFailure("원격 폴더 생성은 되돌릴 수 없습니다.");
+            return OperationResult.CreateFailure(L("FileOp_RemoteFolderCannotUndo"));
 
         try
         {
@@ -66,7 +66,7 @@ public class NewFolderOperation : IFileOperation
                 Directory.Delete(_folderPath);
                 return OperationResult.CreateSuccess(_folderPath);
             }
-            return OperationResult.CreateFailure("Folder is not empty, cannot undo");
+            return OperationResult.CreateFailure(L("FileOp_FolderNotEmptyCannotUndo"));
         }
         catch (Exception ex)
         {

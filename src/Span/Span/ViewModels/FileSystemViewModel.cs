@@ -398,8 +398,8 @@ namespace Span.ViewModels
             get
             {
                 if (_model is FileItem fileItem)
-                    return string.IsNullOrEmpty(fileItem.FileType) ? "File" : fileItem.FileType.TrimStart('.');
-                return "Folder";
+                    return string.IsNullOrEmpty(fileItem.FileType) ? LocalizationService.L("FileType_File") : fileItem.FileType.TrimStart('.');
+                return LocalizationService.L("FileType_Folder");
             }
         }
 

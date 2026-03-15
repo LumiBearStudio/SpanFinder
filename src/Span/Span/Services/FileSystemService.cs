@@ -124,11 +124,11 @@ namespace Span.Services
                 var driveLetter = driveItem.Path.TrimEnd('\\');
                 var defaultLabel = drive.DriveType switch
                 {
-                    DriveType.Fixed => "Local Disk",
-                    DriveType.Removable => "USB Drive",
-                    DriveType.Network => "Network Drive",
-                    DriveType.CDRom => "CD/DVD Drive",
-                    _ => "Drive"
+                    DriveType.Fixed => LocalizationService.L("Drive_LocalDisk"),
+                    DriveType.Removable => LocalizationService.L("Drive_USB"),
+                    DriveType.Network => LocalizationService.L("Drive_Network"),
+                    DriveType.CDRom => LocalizationService.L("Drive_CDDVD"),
+                    _ => LocalizationService.L("Drive_Default")
                 };
                 driveItem.Name = string.IsNullOrEmpty(driveItem.Label)
                     ? $"{defaultLabel} ({driveLetter})"

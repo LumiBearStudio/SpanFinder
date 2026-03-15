@@ -22,9 +22,7 @@ public class ExtractOperation : IFileOperation, IPausableOperation
         _destinationPath = destinationPath;
     }
 
-    public string Description => LocalizationService.L("Op_ExtractFrom") is string s && s != "Op_ExtractFrom"
-        ? string.Format(s, Path.GetFileName(_zipPath))
-        : $"Extract '{Path.GetFileName(_zipPath)}'";
+    public string Description => string.Format(LocalizationService.L("FileOp_Extract"), Path.GetFileName(_zipPath));
 
     public bool CanUndo => true;
 
@@ -121,7 +119,7 @@ public class ExtractOperation : IFileOperation, IPausableOperation
             }
             catch (OperationCanceledException)
             {
-                return OperationResult.CreateFailure("Operation cancelled");
+                return OperationResult.CreateFailure(LocalizationService.L("Toast_OperationCancelled"));
             }
             catch (Exception ex)
             {
@@ -139,7 +137,7 @@ public class ExtractOperation : IFileOperation, IPausableOperation
                 Directory.Delete(_destinationPath, recursive: true);
                 return Task.FromResult(OperationResult.CreateSuccess(_destinationPath));
             }
-            return Task.FromResult(OperationResult.CreateFailure("Extracted folder does not exist"));
+            return Task.FromResult(OperationResult.CreateFailure(LocalizationService.L("FileOp_ExtractedFolderNotExist")));
         }
         catch (Exception ex)
         {

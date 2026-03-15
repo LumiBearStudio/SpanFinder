@@ -351,7 +351,7 @@ namespace Span.ViewModels
                 var driveInfo = new System.IO.DriveInfo(root);
                 if (!driveInfo.IsReady) return "";
 
-                return $"{FormatDiskSize(driveInfo.AvailableFreeSpace)} free / {FormatDiskSize(driveInfo.TotalSize)}";
+                return string.Format(LocalizationService.L("StatusBar_DiskSpace"), FormatDiskSize(driveInfo.AvailableFreeSpace), FormatDiskSize(driveInfo.TotalSize));
             }
             catch
             {
@@ -452,7 +452,7 @@ namespace Span.ViewModels
         {
             if (Tabs.Count == 0)
             {
-                var tab = new TabItem { Header = "Home", ViewMode = ViewMode.Home, IsActive = true };
+                var tab = new TabItem { Header = LocalizationService.L("Home_TabName"), ViewMode = ViewMode.Home, IsActive = true };
                 Tabs.Add(tab);
                 ActiveTabIndex = 0;
             }

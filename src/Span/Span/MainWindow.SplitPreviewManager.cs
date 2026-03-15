@@ -481,6 +481,12 @@ namespace Span
                 SplitterCol.Width = new GridLength(0);
                 RightPaneCol.Width = new GridLength(0);
 
+                // Right preview panel 정리 — 분할뷰 해제 시 우측 미리보기가 남는 버그 방지
+                ViewModel.IsRightPreviewEnabled = false;
+                RightPreviewSplitterCol.Width = new GridLength(0);
+                RightPreviewCol.Width = new GridLength(0);
+                RightPreviewPanel.StopMedia();
+
                 // Sync main address bar — Split 모드에서 갱신 안 된 경우 보정
                 if (ViewModel.Explorer?.PathSegments != null)
                 {
@@ -492,25 +498,40 @@ namespace Span
                 UnsubscribeRightExplorerForAddressBar();
 
                 // 미리보기 상태 복원: 분할뷰 진입 시 비활성화했으므로 기본 설정값으로 복원
+                // Miller 모드: 인라인 미리보기만 사용 (사이드 패널 X)
+                // 그 외 모드: 사이드 패널 미리보기만 사용 (인라인 X)
                 try
                 {
                     var settingsSvc = App.Current.Services.GetRequiredService<SettingsService>();
                     var previewDefault = settingsSvc.DefaultPreviewEnabled;
-                    ViewModel.IsLeftPreviewEnabled = previewDefault;
-                    if (previewDefault)
+                    var isMillerMode = ViewModel.CurrentViewMode == Models.ViewMode.MillerColumns;
+
+                    if (isMillerMode)
                     {
-                        LeftPreviewSplitterCol.Width = new GridLength(2, GridUnitType.Pixel);
-                        LeftPreviewCol.Width = new GridLength(GetSavedPreviewWidth("LeftPreviewWidth"), GridUnitType.Pixel);
-                        SubscribePreviewToLastColumn(isLeft: true);
+                        // Miller 모드: 인라인 미리보기만 복원, 사이드 패널은 숨김
+                        ViewModel.IsLeftPreviewEnabled = false;
+                        LeftPreviewSplitterCol.Width = new GridLength(0);
+                        LeftPreviewCol.Width = new GridLength(0);
+                        settingsSvc.MillerInlinePreviewEnabled = previewDefault;
+                        if (previewDefault)
+                        {
+                            ShowInlinePreview();
+                        }
                     }
-                    // 인라인 미리보기(Miller)도 기본값으로 복원
-                    settingsSvc.MillerInlinePreviewEnabled = previewDefault;
-                    if (previewDefault && ViewModel.CurrentViewMode == Models.ViewMode.MillerColumns)
+                    else
                     {
-                        ShowInlinePreview();
+                        // Details/List/Icon 모드: 사이드 패널만 복원, 인라인은 숨김
+                        ViewModel.IsLeftPreviewEnabled = previewDefault;
+                        settingsSvc.MillerInlinePreviewEnabled = false;
+                        if (previewDefault)
+                        {
+                            LeftPreviewSplitterCol.Width = new GridLength(2, GridUnitType.Pixel);
+                            LeftPreviewCol.Width = new GridLength(GetSavedPreviewWidth("LeftPreviewWidth"), GridUnitType.Pixel);
+                            SubscribePreviewToLastColumn(isLeft: true);
+                        }
                     }
                     UpdatePreviewButtonState();
-                    Helpers.DebugLogger.Log($"[MainWindow] Preview restored to default={previewDefault} after split view disabled");
+                    Helpers.DebugLogger.Log($"[MainWindow] Preview restored to default={previewDefault}, millerMode={isMillerMode} after split view disabled");
                 }
                 catch (Exception ex)
                 {
@@ -1201,32 +1222,14 @@ namespace Span
         {
             if (InlinePreviewColumn.Visibility != Visibility.Visible) return;
 
-            double totalWidth = MillerTabsHost.ActualWidth;
-            if (totalWidth <= 322) return;
+            // 밀러=Star, 미리보기=고정 픽셀 — ShowInlinePreview()와 동일 방식
+            // SizeChanged 시 미리보기 너비를 재확인만 수행
+            double previewWidth = GetSavedPreviewWidth("LeftPreviewWidth");
+            if (Math.Abs(previewWidth - _lastMillerMaxWidth) < 1) return;
+            _lastMillerMaxWidth = previewWidth;
 
-            // 밀러 컬럼 실제 컨텐츠 폭 측정 (ScrollViewer 내부의 StackPanel 폭)
-            double contentWidth = MillerScrollViewer.ExtentWidth;
-            if (contentWidth < 1) contentWidth = MillerScrollViewer.DesiredSize.Width;
-
-            // 밀러 컨텐츠 폭 기준으로 Column 0 크기 결정
-            // 미리보기 최소 320px + 스플리터 2px 보장
-            double maxMillerWidth = totalWidth - 322;
-            double millerWidth = Math.Min(contentWidth, maxMillerWidth);
-
-            // 밀러 컬럼에 최소 폭 보장 (전체의 30%)
-            double minMillerWidth = totalWidth * 0.3;
-            millerWidth = Math.Max(millerWidth, minMillerWidth);
-
-            // 미리보기 최소 폭 보장
-            millerWidth = Math.Min(millerWidth, maxMillerWidth);
-
-            // 값이 동일하면 레이아웃 invalidation 방지
-            if (Math.Abs(millerWidth - _lastMillerMaxWidth) < 1) return;
-            _lastMillerMaxWidth = millerWidth;
-
-            // Pixel 방식: Column 0 = 밀러 컨텐츠 폭, Column 2 = 나머지 전부
-            MillerTabsHost.ColumnDefinitions[0].Width = new GridLength(millerWidth, GridUnitType.Pixel);
-            InlinePreviewCol.Width = new GridLength(1, GridUnitType.Star);
+            MillerTabsHost.ColumnDefinitions[0].Width = new GridLength(1, GridUnitType.Star);
+            InlinePreviewCol.Width = new GridLength(previewWidth, GridUnitType.Pixel);
         }
 
         /// <summary>
@@ -1464,23 +1467,11 @@ namespace Span
         {
             InlinePreviewSplitterCol.Width = new GridLength(2, GridUnitType.Pixel);
 
-            // Pixel 방식: Column 0 = 밀러 컨텐츠 실제 폭, Column 2 = 나머지 전부 (Star)
-            double totalWidth = MillerTabsHost.ActualWidth;
-            if (totalWidth > 322)
-            {
-                double contentWidth = MillerScrollViewer.ExtentWidth;
-                if (contentWidth < 1) contentWidth = MillerScrollViewer.DesiredSize.Width;
-
-                double maxMillerWidth = totalWidth - 322;
-                double millerWidth = Math.Min(contentWidth, maxMillerWidth);
-                double minMillerWidth = totalWidth * 0.3;
-                millerWidth = Math.Max(millerWidth, minMillerWidth);
-                millerWidth = Math.Min(millerWidth, maxMillerWidth);
-
-                _lastMillerMaxWidth = millerWidth;
-                MillerTabsHost.ColumnDefinitions[0].Width = new GridLength(millerWidth, GridUnitType.Pixel);
-            }
-            InlinePreviewCol.Width = new GridLength(1, GridUnitType.Star);
+            // 밀러=Star(남은 공간 전부), 미리보기=고정 픽셀
+            // 사이드 패널 미리보기와 동일한 너비 사용 (기본 320px)
+            double previewWidth = GetSavedPreviewWidth("LeftPreviewWidth");
+            MillerTabsHost.ColumnDefinitions[0].Width = new GridLength(1, GridUnitType.Star);
+            InlinePreviewCol.Width = new GridLength(previewWidth, GridUnitType.Pixel);
 
             InlinePreviewColumn.MinWidth = 320;
             InlinePreviewColumn.Visibility = Visibility.Visible;

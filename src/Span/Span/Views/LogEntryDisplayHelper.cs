@@ -1,4 +1,5 @@
 using Span.Models;
+using Span.Services;
 
 namespace Span.Views;
 
@@ -41,7 +42,7 @@ public static class LogEntryDisplayHelper
         if (timestamp.Date == now.Date)
             return timestamp.ToString("HH:mm:ss");
         if (timestamp.Date == now.Date.AddDays(-1))
-            return $"어제 {timestamp:HH:mm}";
+            return string.Format(LocalizationService.L("Log_Yesterday"), timestamp.ToString("HH:mm"));
         return timestamp.ToString("MM/dd HH:mm");
     }
 

@@ -83,7 +83,8 @@ namespace Span.Views
             ExtendsContentIntoTitleBar = true;
             SetTitleBar(QuickLookTitleBar);
 
-            this.Title = "Quick Look";
+            this.Title = LocalizationService.L("QuickLook_Title");
+            TitleText.Text = LocalizationService.L("QuickLook_Title");
 
             var appWindow = this.AppWindow;
 
@@ -185,8 +186,8 @@ namespace Span.Views
         {
             if (item != null)
             {
-                TitleText.Text = $"Quick Look — {item.Name}";
-                this.Title = $"Quick Look - {item.Name}";
+                TitleText.Text = string.Format(LocalizationService.L("QuickLook_TitleWithName"), item.Name);
+                this.Title = string.Format(LocalizationService.L("QuickLook_TitleWithName"), item.Name);
             }
 
             ViewModel.UpdateContent(item);
@@ -264,7 +265,7 @@ namespace Span.Views
             if (isFolder && item is FolderViewModel folderVm)
             {
                 int count = folderVm.Children.Count;
-                InfoItemCountText.Text = count > 0 ? $"{count} items" : "";
+                InfoItemCountText.Text = count > 0 ? string.Format(LocalizationService.L("QuickLook_Items"), count) : "";
                 InfoSizeDot.Visibility = Visibility.Collapsed; // will show when size arrives
             }
             else
@@ -293,13 +294,13 @@ namespace Span.Views
             if (e.PropertyName == nameof(QuickLookViewModel.FolderSizeText))
             {
                 var sizeText = ViewModel.FolderSizeText;
-                if (!string.IsNullOrEmpty(sizeText) && sizeText != "Calculating size...")
+                if (!string.IsNullOrEmpty(sizeText) && sizeText != LocalizationService.L("QuickLook_CalculatingSize"))
                 {
                     InfoSizeText.Text = sizeText;
                     if (!string.IsNullOrEmpty(InfoItemCountText.Text))
                         InfoSizeDot.Visibility = Visibility.Visible;
                 }
-                else if (sizeText == "Calculating size...")
+                else if (sizeText == LocalizationService.L("QuickLook_CalculatingSize"))
                 {
                     var calcLabel = _loc?.Get("Preview_Calculating") ?? "Calculating...";
                     InfoSizeText.Text = calcLabel;

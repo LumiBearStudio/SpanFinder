@@ -88,7 +88,7 @@ public class FileOperationHistory
     {
         if (!CanUndo)
         {
-            return OperationResult.CreateFailure("Nothing to undo");
+            return OperationResult.CreateFailure(Span.Services.LocalizationService.L("Toast_NothingToUndo"));
         }
 
         var operation = _undoStack.Pop();
@@ -117,7 +117,7 @@ public class FileOperationHistory
     {
         if (!CanRedo)
         {
-            return OperationResult.CreateFailure("Nothing to redo");
+            return OperationResult.CreateFailure(Span.Services.LocalizationService.L("Toast_NothingToRedo"));
         }
 
         var operation = _redoStack.Pop();

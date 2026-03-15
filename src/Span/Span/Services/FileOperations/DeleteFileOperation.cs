@@ -216,7 +216,7 @@ public class DeleteFileOperation : IFileOperation
                 // Shell.Application COM — Recycle Bin 접근
                 Type? shellType = Type.GetTypeFromProgID("Shell.Application");
                 if (shellType == null)
-                    return OperationResult.CreateFailure("Shell.Application COM not available");
+                    return OperationResult.CreateFailure(L("Error_ShellNotAvailable"));
 
                 dynamic shell = Activator.CreateInstance(shellType)!;
                 try
@@ -224,7 +224,7 @@ public class DeleteFileOperation : IFileOperation
                     // NameSpace(10) = CSIDL_BITBUCKET (Recycle Bin)
                     dynamic? recycleBin = shell.NameSpace(10);
                     if (recycleBin == null)
-                        return OperationResult.CreateFailure("Cannot access Recycle Bin");
+                        return OperationResult.CreateFailure(L("Error_CannotAccessRecycleBin"));
 
                     try
                     {
@@ -278,7 +278,7 @@ public class DeleteFileOperation : IFileOperation
                                 }
                                 else
                                 {
-                                    errors.Add($"Recycle Bin에서 찾을 수 없음: {Path.GetFileName(originalPath)}");
+                                    errors.Add(string.Format(L("Error_NotFoundInRecycleBin"), Path.GetFileName(originalPath)));
                                 }
                             }
                         }
@@ -425,21 +425,21 @@ exit $r
             };
 
             using var proc = Process.Start(psi);
-            if (proc == null) return "관리자 권한 프로세스를 시작할 수 없습니다";
+            if (proc == null) return L("Error_CannotStartAdmin");
             proc.WaitForExit(15_000);
 
             if (!FileExistsWin32(sourcePath) && !Directory.Exists(sourcePath))
                 return null;
 
-            return $"관리자 권한으로도 삭제 실패 (exit=0x{proc.ExitCode:X})";
+            return string.Format(L("Error_AdminDeleteFailed"), $"exit=0x{proc.ExitCode:X}");
         }
         catch (System.ComponentModel.Win32Exception)
         {
-            return "관리자 권한이 필요합니다 (UAC 취소됨)";
+            return L("Error_AdminRequired");
         }
         catch (Exception ex)
         {
-            return $"관리자 권한 삭제 오류: {ex.Message}";
+            return string.Format(L("Error_AdminDeleteError"), ex.Message);
         }
     }
 
@@ -462,7 +462,7 @@ exit $r
             isFile = FileExistsWin32(sourcePath);
         }
 
-        if (!isFile && !isDir) return "Path not found";
+        if (!isFile && !isDir) return L("Error_PathNotExist");
 
         string extPath = EnsureExtendedLengthPrefix(sourcePath);
 
@@ -481,7 +481,7 @@ exit $r
         if (deleted) return null;
 
         int err = Marshal.GetLastWin32Error();
-        if (err != ERROR_ACCESS_DENIED) return $"삭제 실패 (Win32 error {err})";
+        if (err != ERROR_ACCESS_DENIED) return string.Format(L("Error_DeleteFailed"), err);
 
         return TryDeleteElevated(sourcePath, isDir);
     }
@@ -519,21 +519,21 @@ exit $r
             };
 
             using var proc = Process.Start(psi);
-            if (proc == null) return "관리자 권한 프로세스를 시작할 수 없습니다";
+            if (proc == null) return L("Error_CannotStartAdmin");
             proc.WaitForExit(15_000);
 
             if (!FileExistsWin32(sourcePath) && !Directory.Exists(sourcePath))
                 return null;
 
-            return $"관리자 권한으로도 삭제 실패 (exit={proc.ExitCode})";
+            return string.Format(L("Error_AdminDeleteFailed"), $"exit={proc.ExitCode}");
         }
         catch (System.ComponentModel.Win32Exception)
         {
-            return "관리자 권한이 필요합니다 (UAC 취소됨)";
+            return L("Error_AdminRequired");
         }
         catch (Exception ex)
         {
-            return $"관리자 권한 삭제 오류: {ex.Message}";
+            return string.Format(L("Error_AdminDeleteError"), ex.Message);
         }
     }
 

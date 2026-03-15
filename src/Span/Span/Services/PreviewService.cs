@@ -188,7 +188,7 @@ namespace Span.Services
                 var text = new string(buffer, 0, charsRead);
                 if (charsRead == MaxTextChars && !reader.EndOfStream)
                 {
-                    text += "\n\n[미리보기 잘림...]";
+                    text += "\n\n" + LocalizationService.L("Preview_Truncated");
                 }
 
                 return text;
@@ -284,7 +284,7 @@ namespace Span.Services
             try
             {
                 var fi = new FileInfo(filePath);
-                if (fi.Length == 0) return "[빈 파일]";
+                if (fi.Length == 0) return LocalizationService.L("Preview_EmptyFile");
 
                 int bytesToRead = (int)Math.Min(fi.Length, HexPreviewBytes);
                 var buffer = new byte[bytesToRead];
@@ -330,7 +330,7 @@ namespace Span.Services
                 }
 
                 if (fi.Length > HexPreviewBytes)
-                    sb.AppendLine($"\n[{fi.Length:N0} bytes 중 처음 {HexPreviewBytes} bytes 표시]");
+                    sb.AppendLine($"\n{string.Format(LocalizationService.L("Preview_BytesShowing"), HexPreviewBytes, fi.Length)}");
 
                 return sb.ToString();
             }

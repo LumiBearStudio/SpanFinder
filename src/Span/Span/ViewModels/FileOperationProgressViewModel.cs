@@ -47,11 +47,11 @@ public partial class FileOperationProgressViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(PauseResumeTooltip))]
     private bool _isPaused = false;
 
-    public string FileCountText => $"{CurrentFileIndex} / {TotalFileCount} files";
+    public string FileCountText => string.Format(LocalizationService.L("Progress_FileCount"), CurrentFileIndex, TotalFileCount);
 
     /// <summary>Segoe MDL2 glyph: Play or Pause.</summary>
     public string PauseResumeIcon => IsPaused ? "\uE768" : "\uE769";
-    public string PauseResumeTooltip => IsPaused ? "Resume" : "Pause";
+    public string PauseResumeTooltip => IsPaused ? LocalizationService.L("Progress_Resume") : LocalizationService.L("Progress_Pause");
 
     public bool HasActiveOperations => IsVisible;
 
@@ -138,9 +138,9 @@ public partial class FileOperationProgressViewModel : ObservableObject
     private static string FormatTime(TimeSpan time)
     {
         if (time.TotalSeconds < 60)
-            return $"{time.TotalSeconds:F0} sec";
+            return string.Format(LocalizationService.L("Progress_SecRemaining"), time.TotalSeconds.ToString("F0"));
         if (time.TotalMinutes < 60)
-            return $"{time.TotalMinutes:F0} min";
-        return $"{time.TotalHours:F1} hours";
+            return string.Format(LocalizationService.L("Progress_MinRemaining"), time.TotalMinutes.ToString("F0"));
+        return string.Format(LocalizationService.L("Progress_HoursRemaining"), time.TotalHours.ToString("F1"));
     }
 }

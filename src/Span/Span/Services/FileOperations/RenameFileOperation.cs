@@ -86,7 +86,7 @@ public class RenameFileOperation : IFileOperation
                 // ── 로컬 이름 변경 ──
                 var directory = Path.GetDirectoryName(_sourcePath);
                 if (string.IsNullOrEmpty(directory))
-                    return OperationResult.CreateFailure("Invalid source path - no directory component");
+                    return OperationResult.CreateFailure(L("Error_InvalidSourcePath"));
 
                 var newPath = Path.Combine(directory, _newName);
 
@@ -137,7 +137,7 @@ public class RenameFileOperation : IFileOperation
 
             var directory = Path.GetDirectoryName(_sourcePath);
             if (string.IsNullOrEmpty(directory))
-                return OperationResult.CreateFailure("Invalid source path - no directory component");
+                return OperationResult.CreateFailure(L("Error_InvalidSourcePath"));
 
             var newPath = Path.Combine(directory, _newName);
 

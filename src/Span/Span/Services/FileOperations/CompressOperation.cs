@@ -23,9 +23,7 @@ public class CompressOperation : IFileOperation, IPausableOperation
         _zipPath = zipPath;
     }
 
-    public string Description => LocalizationService.L("Op_CompressTo") is string s && s != "Op_CompressTo"
-        ? string.Format(s, Path.GetFileName(_zipPath))
-        : $"Compress to '{Path.GetFileName(_zipPath)}'";
+    public string Description => string.Format(LocalizationService.L("FileOp_Compress"), Path.GetFileName(_zipPath));
 
     public bool CanUndo => true;
 
@@ -129,7 +127,7 @@ public class CompressOperation : IFileOperation, IPausableOperation
             catch (OperationCanceledException)
             {
                 try { if (File.Exists(_zipPath)) File.Delete(_zipPath); } catch { }
-                return OperationResult.CreateFailure("Operation cancelled");
+                return OperationResult.CreateFailure(LocalizationService.L("Toast_OperationCancelled"));
             }
             catch (Exception ex)
             {
@@ -147,7 +145,7 @@ public class CompressOperation : IFileOperation, IPausableOperation
                 File.Delete(_zipPath);
                 return Task.FromResult(OperationResult.CreateSuccess(_zipPath));
             }
-            return Task.FromResult(OperationResult.CreateFailure("ZIP file does not exist"));
+            return Task.FromResult(OperationResult.CreateFailure(LocalizationService.L("FileOp_ZipNotExist")));
         }
         catch (Exception ex)
         {

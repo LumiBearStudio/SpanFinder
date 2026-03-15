@@ -597,9 +597,9 @@ namespace Span.ViewModels
                 {
                     // UNC 경로는 네트워크 문제와 경로 미존재를 구분
                     if (folderPath.StartsWith(@"\\"))
-                        return (result, folders, files, "\uB124\uD2B8\uC6CC\uD06C \uACBD\uB85C\uC5D0 \uC811\uADFC\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4", "\uE871");
+                        return (result, folders, files, LocalizationService.L("Error_NetworkPathNotFound"), "\uE871");
                     else
-                        return (result, folders, files, "\uD3F4\uB354\uB97C \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4", "\uE711");
+                        return (result, folders, files, LocalizationService.L("Error_FolderNotFoundGeneric"), "\uE711");
                 }
 
                 try
@@ -632,24 +632,24 @@ namespace Span.ViewModels
                 }
                 catch (System.UnauthorizedAccessException)
                 {
-                    return (result, folders, files, "\uC811\uADFC\uC774 \uAC70\uBD80\uB418\uC5C8\uC2B5\uB2C8\uB2E4", "\uE72E");
+                    return (result, folders, files, LocalizationService.L("Error_AccessDenied"), "\uE72E");
                 }
                 catch (System.IO.PathTooLongException)
                 {
-                    return (result, folders, files, "\uACBD\uB85C\uAC00 \uB108\uBB34 \uAE41\uB2C8\uB2E4 (260\uC790 \uCD08\uACFC)", "\uE7BA");
+                    return (result, folders, files, LocalizationService.L("Error_PathTooLong"), "\uE7BA");
                 }
                 catch (System.IO.DirectoryNotFoundException)
                 {
-                    return (result, folders, files, "\uD3F4\uB354\uB97C \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4", "\uE711");
+                    return (result, folders, files, LocalizationService.L("Error_FolderNotFoundGeneric"), "\uE711");
                 }
                 catch (System.IO.IOException ex) when (ex.HResult is unchecked((int)0x80070035) or unchecked((int)0x8007052E))
                 {
-                    return (result, folders, files, "\uB124\uD2B8\uC6CC\uD06C \uC5F0\uACB0\uC774 \uB04A\uACBC\uC2B5\uB2C8\uB2E4", "\uE871");
+                    return (result, folders, files, LocalizationService.L("Error_NetworkDisconnected"), "\uE871");
                 }
                 catch (System.Exception ex)
                 {
                     System.Diagnostics.Debug.WriteLine($"Error: {ex.Message}");
-                    return (result, folders, files, $"\uB85C\uB4DC \uC2E4\uD328: {ex.Message}", "\uE783");
+                    return (result, folders, files, string.Format(LocalizationService.L("Error_LoadFailed"), ex.Message), "\uE783");
                 }
 
                 // Pre-sort in background thread to avoid UI thread blocking for large folders (10K+)

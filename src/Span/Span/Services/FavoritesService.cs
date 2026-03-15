@@ -45,7 +45,7 @@ namespace Span.Services
             {
                 favorites.Add(new FavoriteItem
                 {
-                    Name = "Desktop",
+                    Name = LocalizationService.L("Favorites_Desktop"),
                     Path = desktopPath,
                     IconGlyph = (IconService.Current?.FolderGlyph ?? "\uED53"),
                     IconColor = "#6FA8DC",
@@ -59,7 +59,7 @@ namespace Span.Services
             {
                 favorites.Add(new FavoriteItem
                 {
-                    Name = "Downloads",
+                    Name = LocalizationService.L("Favorites_Downloads"),
                     Path = downloadsPath,
                     IconGlyph = (IconService.Current?.FolderGlyph ?? "\uED53"),
                     IconColor = "#FFA066",
@@ -72,7 +72,7 @@ namespace Span.Services
             {
                 favorites.Add(new FavoriteItem
                 {
-                    Name = "Documents",
+                    Name = LocalizationService.L("Favorites_Documents"),
                     Path = documentsPath,
                     IconGlyph = (IconService.Current?.FolderGlyph ?? "\uED53"),
                     IconColor = "#6FA8DC",
@@ -85,7 +85,7 @@ namespace Span.Services
             {
                 favorites.Add(new FavoriteItem
                 {
-                    Name = "Pictures",
+                    Name = LocalizationService.L("Favorites_Pictures"),
                     Path = picturesPath,
                     IconGlyph = (IconService.Current?.FolderGlyph ?? "\uED53"),
                     IconColor = "#93C47D",

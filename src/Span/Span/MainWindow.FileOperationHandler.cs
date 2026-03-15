@@ -437,7 +437,7 @@ namespace Span
 
             if (selectedItems.Any(i => Helpers.ArchivePathHelper.IsArchivePath(i.Path)))
             {
-                ViewModel.ShowToast("Archive is read-only");
+                ViewModel.ShowToast(_loc.Get("Toast_ArchiveReadOnly"));
                 return;
             }
 
@@ -528,7 +528,7 @@ namespace Span
 
             if (Helpers.ArchivePathHelper.IsArchivePath(destDir))
             {
-                ViewModel.ShowToast("Archive is read-only");
+                ViewModel.ShowToast(_loc.Get("Toast_ArchiveReadOnly"));
                 return;
             }
 
@@ -662,7 +662,7 @@ namespace Span
 
             if (Helpers.ArchivePathHelper.IsArchivePath(destDir))
             {
-                ViewModel.ShowToast("Archive is read-only");
+                ViewModel.ShowToast(_loc.Get("Toast_ArchiveReadOnly"));
                 return;
             }
 
@@ -770,7 +770,7 @@ namespace Span
 
                 if (Helpers.ArchivePathHelper.IsArchivePath(currentFolder.Path))
                 {
-                    ViewModel.ShowToast("Archive is read-only");
+                    ViewModel.ShowToast(_loc.Get("Toast_ArchiveReadOnly"));
                     return;
                 }
 
@@ -929,7 +929,7 @@ namespace Span
             var selectedPath = (selected as FolderViewModel)?.Path ?? (selected as FileViewModel)?.Path;
             if (selectedPath != null && Helpers.ArchivePathHelper.IsArchivePath(selectedPath))
             {
-                ViewModel.ShowToast("Archive is read-only");
+                ViewModel.ShowToast(_loc.Get("Toast_ArchiveReadOnly"));
                 return;
             }
 
@@ -1257,7 +1257,7 @@ namespace Span
 
             if (selectedItems.Any(i => Helpers.ArchivePathHelper.IsArchivePath(i.Path)))
             {
-                ViewModel.ShowToast("Archive is read-only");
+                ViewModel.ShowToast(_loc.Get("Toast_ArchiveReadOnly"));
                 return;
             }
 
@@ -1270,7 +1270,7 @@ namespace Span
             {
                 string confirmContent = selectedItems.Count == 1
                     ? string.Format(_loc.Get("DeleteConfirmContent"), selected.Name)
-                    : string.Format(_loc.Get("DeleteConfirmContent"), $"{selectedItems.Count} items");
+                    : string.Format(_loc.Get("DeleteConfirmContent"), string.Format(_loc.Get("StatusBar_Items"), selectedItems.Count));
 
                 var dialog = new ContentDialog
                 {
@@ -1359,7 +1359,7 @@ namespace Span
 
             if (selectedItems.Any(i => Helpers.ArchivePathHelper.IsArchivePath(i.Path)))
             {
-                ViewModel.ShowToast("Archive is read-only");
+                ViewModel.ShowToast(_loc.Get("Toast_ArchiveReadOnly"));
                 return;
             }
 
@@ -1368,7 +1368,7 @@ namespace Span
 
             string confirmContent = selectedItems.Count == 1
                 ? string.Format(_loc.Get("PermanentDeleteContent"), selected.Name)
-                : string.Format(_loc.Get("PermanentDeleteContent"), $"{selectedItems.Count} items");
+                : string.Format(_loc.Get("PermanentDeleteContent"), string.Format(_loc.Get("StatusBar_Items"), selectedItems.Count));
 
             var dialog = new ContentDialog
             {
@@ -1519,10 +1519,10 @@ namespace Span
             _isSearchFiltered = true;
 
             // Update status bar with search result count
-            ViewModel.StatusItemCountText = $"Search: {filtered.Count} result{(filtered.Count != 1 ? "s" : "")}";
+            ViewModel.StatusItemCountText = string.Format(_loc.Get("Search_ResultCount"), filtered.Count);
             if (filtered.Count == 0)
             {
-                ViewModel.StatusSelectionText = "Esc to clear";
+                ViewModel.StatusSelectionText = _loc.Get("Search_EscToClear");
             }
         }
 
@@ -1730,7 +1730,7 @@ namespace Span
 
             if (selectedItems.Any(i => Helpers.ArchivePathHelper.IsArchivePath(i.Path)))
             {
-                ViewModel.ShowToast("Archive is read-only");
+                ViewModel.ShowToast(_loc.Get("Toast_ArchiveReadOnly"));
                 return;
             }
 

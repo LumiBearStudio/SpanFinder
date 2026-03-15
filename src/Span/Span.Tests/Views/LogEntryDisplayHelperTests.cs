@@ -61,7 +61,8 @@ public class LogEntryDisplayHelperTests
 
         var result = LogEntryDisplayHelper.FormatTime(timestamp, now);
 
-        Assert.AreEqual("어제 18:45", result);
+        // 로컬라이제이션 적용으로 "Yesterday" 또는 "어제" 등 언어에 따라 다름
+        Assert.IsTrue(result.Contains("18:45"), $"Expected time part '18:45' in '{result}'");
     }
 
     [TestMethod]
@@ -84,7 +85,8 @@ public class LogEntryDisplayHelperTests
         var justBeforeMidnight = new DateTime(2026, 3, 4, 23, 59, 59);
         var justAfterMidnight = new DateTime(2026, 3, 5, 0, 0, 1);
 
-        Assert.AreEqual("어제 23:59", LogEntryDisplayHelper.FormatTime(justBeforeMidnight, now));
+        // 로컬라이제이션 적용으로 "Yesterday" 또는 "어제" 등 언어에 따라 다름
+        Assert.IsTrue(LogEntryDisplayHelper.FormatTime(justBeforeMidnight, now).Contains("23:59"));
         Assert.AreEqual("00:00:01", LogEntryDisplayHelper.FormatTime(justAfterMidnight, now));
     }
 

@@ -116,7 +116,7 @@ public sealed partial class LogModeView : UserControl
     {
         var errorCount = LogViewHelper.CountErrors(_allEntries);
         if (errorCount > 0)
-            SetNavText(NavFilterError, $"{(_loc?.Get("FilterError") ?? "오류")} ({errorCount})");
+            SetNavText(NavFilterError, $"{(_loc?.Get("FilterError") ?? LocalizationService.L("Log_Error"))} ({errorCount})");
     }
 
     // ── 커스텀 사이드바 (탐색기 사이드바와 동일 패턴) ──

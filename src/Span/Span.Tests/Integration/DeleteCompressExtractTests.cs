@@ -67,7 +67,8 @@ public class DeleteFileOperationTests
 
         Assert.IsFalse(result.Success);
         Assert.IsNotNull(result.ErrorMessage);
-        Assert.IsTrue(result.ErrorMessage!.Contains("Path not found"));
+        // 로컬라이제이션 적용으로 언어에 따라 메시지가 다름 — 에러 메시지 존재 여부만 확인
+        Assert.IsFalse(string.IsNullOrEmpty(result.ErrorMessage));
     }
 
     [TestMethod]

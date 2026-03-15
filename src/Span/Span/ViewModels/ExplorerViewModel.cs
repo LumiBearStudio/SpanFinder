@@ -1416,7 +1416,7 @@ namespace Span.ViewModels
 
             var virtualFolder = new FolderItem
             {
-                Name = $"검색 결과: {searchRootName}",
+                Name = string.Format(LocalizationService.L("Search_ResultsFolder"), searchRootName),
                 Path = rootPath
             };
             _searchResultFolder = new FolderViewModel(virtualFolder, _fileService);
@@ -1439,7 +1439,7 @@ namespace Span.ViewModels
 
             // 5. 검색 시작 (백그라운드 스레드에서 실행)
             IsRecursiveSearching = true;
-            SearchStatusText = "검색 중...";
+            SearchStatusText = LocalizationService.L("Search_Searching");
 
             _searchCts = new CancellationTokenSource();
             var ct = _searchCts.Token;
@@ -1447,7 +1447,7 @@ namespace Span.ViewModels
             var searchService = new RecursiveSearchService(_fileService);
             var progress = new Progress<RecursiveSearchService.SearchProgress>(p =>
             {
-                SearchStatusText = $"검색 중... {p.FilesFound}개 발견 ({p.FoldersScanned}개 폴더)";
+                SearchStatusText = string.Format(LocalizationService.L("Search_Progress"), p.FilesFound, p.FoldersScanned);
             });
 
             // Channel 기반: 백그라운드에서 검색, UI 스레드에서 배치 수신
@@ -1487,11 +1487,11 @@ namespace Span.ViewModels
             if (!ct.IsCancellationRequested)
             {
                 if (limitReached)
-                    SearchStatusText = $"검색 완료: {count}개 발견 (결과 제한: 최대 {RecursiveSearchService.MaxResults}개)";
+                    SearchStatusText = string.Format(LocalizationService.L("Search_CompleteLimited"), count, RecursiveSearchService.MaxResults);
                 else
                     SearchStatusText = count > 0
-                        ? $"검색 완료: {count}개 발견"
-                        : "검색 결과 없음";
+                        ? string.Format(LocalizationService.L("Search_Complete"), count)
+                        : LocalizationService.L("Search_NoResults");
 
                 IsRecursiveSearching = false;
             }

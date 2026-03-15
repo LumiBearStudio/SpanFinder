@@ -195,21 +195,21 @@ namespace Span.ViewModels
             {
                 // Detailed: "2 modified . 1 staged . 3 untracked"
                 var parts = new List<string>(4);
-                if (ModifiedCount > 0) parts.Add($"{ModifiedCount} modified");
-                if (StagedCount > 0) parts.Add($"{StagedCount} staged");
-                if (UntrackedCount > 0) parts.Add($"{UntrackedCount} untracked");
-                if (DeletedCount > 0) parts.Add($"{DeletedCount} deleted");
+                if (ModifiedCount > 0) parts.Add($"{ModifiedCount} {LocalizationService.L("Git_Modified")}");
+                if (StagedCount > 0) parts.Add($"{StagedCount} {LocalizationService.L("Git_Staged")}");
+                if (UntrackedCount > 0) parts.Add($"{UntrackedCount} {LocalizationService.L("Git_Untracked")}");
+                if (DeletedCount > 0) parts.Add($"{DeletedCount} {LocalizationService.L("Git_Deleted")}");
 
                 StatusText = parts.Count > 0
                     ? string.Join(" \u00b7 ", parts)
-                    : "clean";
+                    : LocalizationService.L("Git_Clean");
             }
             else if (availableWidth >= 350)
             {
                 // Compact: "6 changes"
                 StatusText = TotalChanges > 0
-                    ? $"{TotalChanges} changes"
-                    : "clean";
+                    ? string.Format(LocalizationService.L("Git_Changes"), TotalChanges)
+                    : LocalizationService.L("Git_Clean");
             }
             else
             {
@@ -227,17 +227,17 @@ namespace Span.ViewModels
 
             // 현재 폴더 상태
             var folderParts = new List<string>(4);
-            if (info.FolderModifiedCount > 0) folderParts.Add($"{info.FolderModifiedCount} modified");
-            if (info.FolderStagedCount > 0) folderParts.Add($"{info.FolderStagedCount} staged");
-            if (info.FolderUntrackedCount > 0) folderParts.Add($"{info.FolderUntrackedCount} untracked");
-            if (info.FolderDeletedCount > 0) folderParts.Add($"{info.FolderDeletedCount} deleted");
+            if (info.FolderModifiedCount > 0) folderParts.Add($"{info.FolderModifiedCount} {LocalizationService.L("Git_Modified")}");
+            if (info.FolderStagedCount > 0) folderParts.Add($"{info.FolderStagedCount} {LocalizationService.L("Git_Staged")}");
+            if (info.FolderUntrackedCount > 0) folderParts.Add($"{info.FolderUntrackedCount} {LocalizationService.L("Git_Untracked")}");
+            if (info.FolderDeletedCount > 0) folderParts.Add($"{info.FolderDeletedCount} {LocalizationService.L("Git_Deleted")}");
 
             var folderName = string.IsNullOrEmpty(info.CurrentFolder) ? "/" : info.CurrentFolder;
 
             if (folderParts.Count > 0)
                 sb.AppendLine($"{folderName}: {string.Join(", ", folderParts)}");
             else
-                sb.AppendLine($"{folderName}: clean");
+                sb.AppendLine($"{folderName}: {LocalizationService.L("Git_Clean")}");
 
             // 레포 전체 수치 (폴더와 다른 경우에만)
             int repoTotal = info.ModifiedCount + info.StagedCount + info.UntrackedCount + info.DeletedCount;
@@ -246,7 +246,7 @@ namespace Span.ViewModels
 
             if (repoTotal != folderTotal)
             {
-                sb.Append($"repo total: {repoTotal} changes");
+                sb.Append(string.Format(LocalizationService.L("Git_RepoTotal"), repoTotal));
             }
 
             return sb.ToString().TrimEnd();
@@ -294,7 +294,7 @@ namespace Span.ViewModels
             }
 
             if (files.Count > 20)
-                sb.AppendLine($"(+{files.Count - 20} more)");
+                sb.AppendLine(string.Format(LocalizationService.L("Git_MoreFiles"), files.Count - 20));
 
             return sb.ToString().TrimEnd();
         }

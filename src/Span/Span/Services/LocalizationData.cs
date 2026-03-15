@@ -376,6 +376,7 @@ namespace Span.Services
 
             // ── Search/Address bar ──────────────────────────────────────────
             ("SearchPlaceholder", "Search...", "검색...", "検索...", "搜索...", "搜尋...", "Suchen...", "Buscar...", "Rechercher...", "Pesquisar..."),
+            ("SearchPlaceholderWithHint", "Search (kind: size: ext: date:)", "검색 (kind: size: ext: date:)", "検索 (kind: size: ext: date:)", "搜索 (kind: size: ext: date:)", "搜尋 (kind: size: ext: date:)", "Suchen (kind: size: ext: date:)", "Buscar (kind: size: ext: date:)", "Rechercher (kind: size: ext: date:)", "Pesquisar (kind: size: ext: date:)"),
             ("AddressBarPlaceholder", "Enter path or search", "경로 또는 검색어 입력", "パスまたは検索語を入力", "输入路径或搜索", "輸入路徑或搜尋", "Pfad oder Suche eingeben", "Escribir ruta o buscar", "Entrer un chemin ou rechercher", "Inserir caminho ou pesquisar"),
 
             // ── Preview panel ───────────────────────────────────────────────
@@ -594,6 +595,122 @@ namespace Span.Services
             ("Settings_GitIntegrationDesc", "Show Git badges and commit history in preview", "파일 아이콘에 Git 상태 뱃지와 미리보기 패널에 커밋 이력 표시", "ファイルアイコンにGitステータスバッジとプレビューにコミット履歴を表示", "在文件图标上显示Git状态标记并在预览面板中显示提交历史", "在檔案圖示上顯示Git狀態徽章並在預覽面板中顯示提交歷史", "Git-Abzeichen und Commit-Verlauf in der Vorschau anzeigen", "Mostrar insignias Git e historial de commits en la vista previa", "Afficher les badges Git et l'historique des commits dans l'aperçu", "Mostrar emblemas Git e histórico de commits na visualização"),
             ("Settings_HexPreview", "Hex viewer preview", "Hex 뷰어 미리보기", "Hex ビューアー プレビュー", "Hex 查看器预览", "Hex 檢視器預覽", "Hex-Viewer-Vorschau", "Vista previa del visor Hex", "Aperçu du visualiseur Hex", "Visualização do visualizador Hex"),
             ("Settings_HexPreviewDesc", "Show Hex dump for binary files (.dll, .exe)", "바이너리 파일 선택 시 Hex 덤프 표시", "バイナリファイル選択時にHexダンプを表示", "选择二进制文件时显示Hex转储", "選擇二進位檔案時顯示Hex傾印", "Hex-Dump für Binärdateien (.dll, .exe) anzeigen", "Mostrar volcado Hex para archivos binarios (.dll, .exe)", "Afficher le dump Hex pour les fichiers binaires (.dll, .exe)", "Mostrar dump Hex para arquivos binários (.dll, .exe)"),
+
+            // ── Archive ─────────────────────────────────────────────────────
+            ("Toast_ArchiveReadOnly", "Archive is read-only", "압축 파일은 읽기 전용입니다", "アーカイブは読み取り専用です", "归档文件为只读", "封存檔為唯讀", "Archiv ist schreibgeschützt", "El archivo es de solo lectura", "L'archive est en lecture seule", "O arquivo é somente leitura"),
+
+            // ── Drive labels ────────────────────────────────────────────────
+            ("Drive_LocalDisk", "Local Disk", "로컬 디스크", "ローカル ディスク", "本地磁盘", "本機磁碟", "Lokaler Datenträger", "Disco local", "Disque local", "Disco local"),
+            ("Drive_USB", "USB Drive", "USB 드라이브", "USB ドライブ", "USB 驱动器", "USB 磁碟機", "USB-Laufwerk", "Unidad USB", "Clé USB", "Unidade USB"),
+            ("Drive_Network", "Network Drive", "네트워크 드라이브", "ネットワーク ドライブ", "网络驱动器", "網路磁碟機", "Netzlaufwerk", "Unidad de red", "Lecteur réseau", "Unidade de rede"),
+            ("Drive_CDDVD", "CD/DVD Drive", "CD/DVD 드라이브", "CD/DVD ドライブ", "CD/DVD 驱动器", "CD/DVD 光碟機", "CD/DVD-Laufwerk", "Unidad CD/DVD", "Lecteur CD/DVD", "Unidade CD/DVD"),
+            ("Drive_Default", "Drive", "드라이브", "ドライブ", "驱动器", "磁碟機", "Laufwerk", "Unidad", "Lecteur", "Unidade"),
+
+            // ── Favorites ───────────────────────────────────────────────────
+            ("Favorites_Desktop", "Desktop", "바탕 화면", "デスクトップ", "桌面", "桌面", "Desktop", "Escritorio", "Bureau", "Área de trabalho"),
+            ("Favorites_Downloads", "Downloads", "다운로드", "ダウンロード", "下载", "下載", "Downloads", "Descargas", "Téléchargements", "Downloads"),
+            ("Favorites_Documents", "Documents", "문서", "ドキュメント", "文档", "文件", "Dokumente", "Documentos", "Documents", "Documentos"),
+            ("Favorites_Pictures", "Pictures", "사진", "ピクチャ", "图片", "圖片", "Bilder", "Imágenes", "Images", "Imagens"),
+
+            // ── File operations ─────────────────────────────────────────────
+            ("Toast_OperationCancelled", "Operation cancelled", "작업이 취소되었습니다", "操作がキャンセルされました", "操作已取消", "操作已取消", "Vorgang abgebrochen", "Operación cancelada", "Opération annulée", "Operação cancelada"),
+            ("Toast_NothingToUndo", "Nothing to undo", "실행 취소할 항목이 없습니다", "元に戻す項目がありません", "没有可撤销的操作", "沒有可復原的項目", "Nichts zum Rückgängigmachen", "Nada que deshacer", "Rien à annuler", "Nada para desfazer"),
+            ("Toast_NothingToRedo", "Nothing to redo", "다시 실행할 항목이 없습니다", "やり直す項目がありません", "没有可重做的操作", "沒有可重做的項目", "Nichts zum Wiederherstellen", "Nada que rehacer", "Rien à rétablir", "Nada para refazer"),
+            ("FileOp_BatchRename", "Batch rename {0} items", "{0}개 항목 일괄 이름 변경", "{0}個の項目を一括名前変更", "批量重命名 {0} 个项目", "批次重新命名 {0} 個項目", "{0} Elemente umbenennen", "Renombrar {0} elementos", "Renommer {0} éléments", "Renomear {0} itens"),
+            ("FileOp_RenameFailed", "'{0}' rename failed: {1}", "'{0}' 이름 변경 실패: {1}", "'{0}'の名前変更に失敗: {1}", "'{0}'重命名失败: {1}", "'{0}'重新命名失敗: {1}", "'{0}' Umbenennung fehlgeschlagen: {1}", "Error al renombrar '{0}': {1}", "Échec du renommage de '{0}': {1}", "Falha ao renomear '{0}': {1}"),
+            ("FileOp_ItemsRenamed", "{0} items renamed", "{0}개 항목 이름 변경 완료", "{0}個の項目の名前を変更しました", "{0} 个项目已重命名", "{0} 個項目已重新命名", "{0} Elemente umbenannt", "{0} elementos renombrados", "{0} éléments renommés", "{0} itens renomeados"),
+            ("FileOp_UndoFailed", "Undo failed: '{0}'→'{1}': {2}", "실행 취소 실패: '{0}'→'{1}': {2}", "元に戻す失敗: '{0}'→'{1}': {2}", "撤销失败: '{0}'→'{1}': {2}", "復原失敗: '{0}'→'{1}': {2}", "Rückgängig fehlgeschlagen: '{0}'→'{1}': {2}", "Deshacer fallido: '{0}'→'{1}': {2}", "Annulation échouée: '{0}'→'{1}': {2}", "Desfazer falhou: '{0}'→'{1}': {2}"),
+            ("FileOp_ItemsReverted", "{0} items reverted", "{0}개 항목 복원 완료", "{0}個の項目を元に戻しました", "{0} 个项目已还原", "{0} 個項目已還原", "{0} Elemente wiederhergestellt", "{0} elementos revertidos", "{0} éléments restaurés", "{0} itens revertidos"),
+            ("FileOp_CreateFile", "Create file '{0}'", "파일 '{0}' 만들기", "ファイル '{0}' を作成", "创建文件 '{0}'", "建立檔案 '{0}'", "Datei '{0}' erstellen", "Crear archivo '{0}'", "Créer le fichier '{0}'", "Criar arquivo '{0}'"),
+            ("FileOp_FileModifiedCannotUndo", "File has been modified, cannot undo", "파일이 수정되어 실행 취소할 수 없습니다", "ファイルが変更されたため元に戻せません", "文件已修改，无法撤销", "檔案已修改，無法復原", "Datei wurde geändert, Rückgängig nicht möglich", "El archivo fue modificado, no se puede deshacer", "Le fichier a été modifié, impossible d'annuler", "Arquivo modificado, não é possível desfazer"),
+            ("FileOp_FileNotExist", "File does not exist", "파일이 존재하지 않습니다", "ファイルが存在しません", "文件不存在", "檔案不存在", "Datei existiert nicht", "El archivo no existe", "Le fichier n'existe pas", "O arquivo não existe"),
+            ("FileOp_CreateFolder", "Create folder '{0}'", "폴더 '{0}' 만들기", "フォルダー '{0}' を作成", "创建文件夹 '{0}'", "建立資料夾 '{0}'", "Ordner '{0}' erstellen", "Crear carpeta '{0}'", "Créer le dossier '{0}'", "Criar pasta '{0}'"),
+            ("FileOp_RemoteFolderCannotUndo", "Cannot undo remote folder creation", "원격 폴더 생성은 되돌릴 수 없습니다", "リモートフォルダーの作成は元に戻せません", "无法撤销远程文件夹创建", "無法復原遠端資料夾建立", "Erstellen eines Remote-Ordners kann nicht rückgängig gemacht werden", "No se puede deshacer la creación de carpeta remota", "Impossible d'annuler la création du dossier distant", "Não é possível desfazer a criação da pasta remota"),
+            ("FileOp_FolderNotEmptyCannotUndo", "Folder is not empty, cannot undo", "폴더가 비어있지 않아 실행 취소할 수 없습니다", "フォルダーが空でないため元に戻せません", "文件夹不为空，无法撤销", "資料夾非空白，無法復原", "Ordner ist nicht leer, Rückgängig nicht möglich", "La carpeta no está vacía, no se puede deshacer", "Le dossier n'est pas vide, impossible d'annuler", "Pasta não está vazia, não é possível desfazer"),
+            ("FileOp_Extract", "Extract {0}", "{0} 압축 풀기", "{0} を展開", "解压 {0}", "解壓縮 {0}", "{0} entpacken", "Extraer {0}", "Extraire {0}", "Extrair {0}"),
+            ("FileOp_ExtractedFolderNotExist", "Extracted folder does not exist", "압축 해제된 폴더가 존재하지 않습니다", "展開先フォルダーが存在しません", "解压文件夹不存在", "解壓縮資料夾不存在", "Entpackter Ordner existiert nicht", "La carpeta extraída no existe", "Le dossier extrait n'existe pas", "A pasta extraída não existe"),
+            ("FileOp_Compress", "Compress to {0}", "{0}(으)로 압축", "{0} に圧縮", "压缩到 {0}", "壓縮到 {0}", "Komprimieren zu {0}", "Comprimir a {0}", "Compresser vers {0}", "Comprimir para {0}"),
+            ("FileOp_ZipNotExist", "ZIP file does not exist", "ZIP 파일이 존재하지 않습니다", "ZIPファイルが存在しません", "ZIP文件不存在", "ZIP檔案不存在", "ZIP-Datei existiert nicht", "El archivo ZIP no existe", "Le fichier ZIP n'existe pas", "O arquivo ZIP não existe"),
+
+            // ── Search status ───────────────────────────────────────────────
+            ("Search_Searching", "Searching...", "검색 중...", "検索中...", "搜索中...", "搜尋中...", "Suche...", "Buscando...", "Recherche...", "Pesquisando..."),
+            ("Search_Progress", "Searching... {0} found ({1} folders)", "검색 중... {0}개 발견 ({1}개 폴더)", "検索中... {0}件発見 ({1}フォルダー)", "搜索中... 找到{0}个 ({1}个文件夹)", "搜尋中... 找到{0}個 ({1}個資料夾)", "Suche... {0} gefunden ({1} Ordner)", "Buscando... {0} encontrados ({1} carpetas)", "Recherche... {0} trouvés ({1} dossiers)", "Pesquisando... {0} encontrados ({1} pastas)"),
+            ("Search_CompleteLimited", "Search complete: {0} found (limit: max {1})", "검색 완료: {0}개 발견 (결과 제한: 최대 {1}개)", "検索完了: {0}件発見 (上限: {1}件)", "搜索完成: 找到{0}个 (限制: 最多{1}个)", "搜尋完成: 找到{0}個 (限制: 最多{1}個)", "Suche abgeschlossen: {0} gefunden (Limit: max. {1})", "Búsqueda completada: {0} encontrados (límite: máx. {1})", "Recherche terminée: {0} trouvés (limite: max {1})", "Pesquisa concluída: {0} encontrados (limite: máx. {1})"),
+            ("Search_Complete", "Search complete: {0} found", "검색 완료: {0}개 발견", "検索完了: {0}件発見", "搜索完成: 找到{0}个", "搜尋完成: 找到{0}個", "Suche abgeschlossen: {0} gefunden", "Búsqueda completada: {0} encontrados", "Recherche terminée: {0} trouvés", "Pesquisa concluída: {0} encontrados"),
+            ("Search_NoResults", "No results found", "검색 결과 없음", "結果が見つかりません", "未找到结果", "未找到結果", "Keine Ergebnisse", "Sin resultados", "Aucun résultat", "Nenhum resultado"),
+            ("Search_ResultsFolder", "Search results: {0}", "검색 결과: {0}", "検索結果: {0}", "搜索结果: {0}", "搜尋結果: {0}", "Suchergebnisse: {0}", "Resultados de búsqueda: {0}", "Résultats de recherche: {0}", "Resultados da pesquisa: {0}"),
+            ("Search_ResultCount", "Search: {0} results", "검색: {0}개 결과", "検索: {0}件", "搜索: {0}个结果", "搜尋: {0}個結果", "Suche: {0} Ergebnisse", "Búsqueda: {0} resultados", "Recherche: {0} résultats", "Pesquisa: {0} resultados"),
+            ("Search_EscToClear", "Esc to clear", "Esc로 지우기", "Escでクリア", "按Esc清除", "按Esc清除", "Esc zum Löschen", "Esc para borrar", "Esc pour effacer", "Esc para limpar"),
+
+            // ── Git status ──────────────────────────────────────────────────
+            ("Git_Modified", "modified", "수정됨", "変更済み", "已修改", "已修改", "geändert", "modificado", "modifié", "modificado"),
+            ("Git_Staged", "staged", "스테이지됨", "ステージ済み", "已暂存", "已暫存", "bereitgestellt", "preparado", "indexé", "preparado"),
+            ("Git_Untracked", "untracked", "추적 안 됨", "未追跡", "未跟踪", "未追蹤", "nicht verfolgt", "sin seguimiento", "non suivi", "não rastreado"),
+            ("Git_Deleted", "deleted", "삭제됨", "削除済み", "已删除", "已刪除", "gelöscht", "eliminado", "supprimé", "excluído"),
+            ("Git_Clean", "clean", "변경 없음", "変更なし", "无更改", "無變更", "sauber", "limpio", "propre", "limpo"),
+            ("Git_Changes", "{0} changes", "{0}개 변경", "{0}件の変更", "{0}个更改", "{0}個變更", "{0} Änderungen", "{0} cambios", "{0} modifications", "{0} alterações"),
+            ("Git_RepoTotal", "repo total: {0} changes", "저장소 전체: {0}개 변경", "リポジトリ合計: {0}件の変更", "仓库共计: {0}个更改", "儲存庫共計: {0}個變更", "Repo gesamt: {0} Änderungen", "total del repo: {0} cambios", "total du dépôt: {0} modifications", "total do repo: {0} alterações"),
+            ("Git_MoreFiles", "(+{0} more)", "(+{0}개 더)", "(+{0}件)", "(+{0}个)", "(+{0}個)", "(+{0} weitere)", "(+{0} más)", "(+{0} de plus)", "(+{0} mais)"),
+
+            // ── Progress / Time ─────────────────────────────────────────────
+            ("Progress_FileCount", "{0} / {1} files", "{0} / {1} 파일", "{0} / {1} ファイル", "{0} / {1} 个文件", "{0} / {1} 個檔案", "{0} / {1} Dateien", "{0} / {1} archivos", "{0} / {1} fichiers", "{0} / {1} arquivos"),
+            ("Progress_Resume", "Resume", "재개", "再開", "恢复", "繼續", "Fortsetzen", "Reanudar", "Reprendre", "Retomar"),
+            ("Progress_Pause", "Pause", "일시정지", "一時停止", "暂停", "暫停", "Pause", "Pausar", "Pause", "Pausar"),
+            ("Progress_Cancelling", "Cancelling...", "취소 중...", "キャンセル中...", "取消中...", "取消中...", "Abbrechen...", "Cancelando...", "Annulation...", "Cancelando..."),
+            ("Progress_SecRemaining", "{0} sec remaining", "{0}초 남음", "残り{0}秒", "剩余{0}秒", "剩餘{0}秒", "Noch {0} Sek.", "Quedan {0} seg", "{0} sec restantes", "{0} seg restantes"),
+            ("Progress_MinRemaining", "{0} min remaining", "{0}분 남음", "残り{0}分", "剩余{0}分钟", "剩餘{0}分鐘", "Noch {0} Min.", "Quedan {0} min", "{0} min restantes", "{0} min restantes"),
+            ("Progress_HoursRemaining", "{0} hours remaining", "{0}시간 남음", "残り{0}時間", "剩余{0}小时", "剩餘{0}小時", "Noch {0} Std.", "Quedan {0} horas", "{0} heures restantes", "{0} horas restantes"),
+
+            // ── File types ──────────────────────────────────────────────────
+            ("FileType_File", "File", "파일", "ファイル", "文件", "檔案", "Datei", "Archivo", "Fichier", "Arquivo"),
+            ("FileType_Folder", "Folder", "폴더", "フォルダー", "文件夹", "資料夾", "Ordner", "Carpeta", "Dossier", "Pasta"),
+
+            // ── Folder errors (중복 제거: Error_FolderNotFound/AccessDenied/PathTooLong은 L567/575/569에 정의됨) ──
+            ("Error_NetworkPathNotFound", "Cannot access network path", "네트워크 경로에 접근할 수 없습니다", "ネットワークパスにアクセスできません", "无法访问网络路径", "無法存取網路路徑", "Netzwerkpfad nicht erreichbar", "No se puede acceder a la ruta de red", "Impossible d'accéder au chemin réseau", "Não é possível acessar o caminho de rede"),
+            ("Error_FolderNotFoundGeneric", "Folder not found", "폴더를 찾을 수 없습니다", "フォルダーが見つかりません", "未找到文件夹", "找不到資料夾", "Ordner nicht gefunden", "Carpeta no encontrada", "Dossier introuvable", "Pasta não encontrada"),
+            ("Error_NetworkDisconnected", "Network connection lost", "네트워크 연결이 끊겼습니다", "ネットワーク接続が切断されました", "网络连接已断开", "網路連線已中斷", "Netzwerkverbindung unterbrochen", "Conexión de red perdida", "Connexion réseau perdue", "Conexão de rede perdida"),
+            ("Error_LoadFailed", "Load failed: {0}", "로드 실패: {0}", "読み込み失敗: {0}", "加载失败: {0}", "載入失敗: {0}", "Laden fehlgeschlagen: {0}", "Error al cargar: {0}", "Échec du chargement: {0}", "Falha ao carregar: {0}"),
+
+            // ── Preview ─────────────────────────────────────────────────────
+            ("Preview_Truncated", "[Preview truncated...]", "[미리보기 잘림...]", "[プレビュー省略...]", "[预览已截断...]", "[預覽已截斷...]", "[Vorschau gekürzt...]", "[Vista previa truncada...]", "[Aperçu tronqué...]", "[Visualização truncada...]"),
+            ("Preview_EmptyFile", "[Empty file]", "[빈 파일]", "[空のファイル]", "[空文件]", "[空檔案]", "[Leere Datei]", "[Archivo vacío]", "[Fichier vide]", "[Arquivo vazio]"),
+            ("Preview_BytesShowing", "Showing first {0} bytes of {1} bytes", "{1} bytes 중 처음 {0} bytes 표시", "{1}バイト中最初の{0}バイトを表示", "显示{1}字节中的前{0}字节", "顯示{1}位元組中的前{0}位元組", "Erste {0} von {1} Bytes angezeigt", "Mostrando primeros {0} de {1} bytes", "Affichage des {0} premiers octets sur {1}", "Mostrando primeiros {0} de {1} bytes"),
+            ("Preview_ErrorReadingArchive", "Error reading archive", "압축 파일 읽기 오류", "アーカイブの読み取りエラー", "读取归档文件错误", "讀取封存檔錯誤", "Fehler beim Lesen des Archivs", "Error al leer el archivo", "Erreur de lecture de l'archive", "Erro ao ler o arquivo"),
+            ("Preview_CannotReadArchive", "Cannot read archive", "압축 파일을 읽을 수 없습니다", "アーカイブを読み取れません", "无法读取归档文件", "無法讀取封存檔", "Archiv kann nicht gelesen werden", "No se puede leer el archivo", "Impossible de lire l'archive", "Não é possível ler o arquivo"),
+
+            // ── QuickLook ───────────────────────────────────────────────────
+            ("QuickLook_Title", "Quick Look", "훑어보기", "クイックルック", "快速预览", "快速預覽", "Übersicht", "Vista rápida", "Coup d'œil", "Visualização rápida"),
+            ("QuickLook_TitleWithName", "Quick Look — {0}", "훑어보기 — {0}", "クイックルック — {0}", "快速预览 — {0}", "快速預覽 — {0}", "Übersicht — {0}", "Vista rápida — {0}", "Coup d'œil — {0}", "Visualização rápida — {0}"),
+            ("QuickLook_Items", "{0} items", "{0}개 항목", "{0}個の項目", "{0}个项目", "{0}個項目", "{0} Elemente", "{0} elementos", "{0} éléments", "{0} itens"),
+            ("QuickLook_CalculatingSize", "Calculating size...", "크기 계산 중...", "サイズ計算中...", "正在计算大小...", "正在計算大小...", "Größe wird berechnet...", "Calculando tamaño...", "Calcul de la taille...", "Calculando tamanho..."),
+            ("QuickLook_Copied", "Copied!", "복사됨!", "コピーしました!", "已复制!", "已複製!", "Kopiert!", "¡Copiado!", "Copié !", "Copiado!"),
+            ("QuickLook_ArchiveStats", "{0} files, {1} folders", "{0}개 파일, {1}개 폴더", "{0}ファイル, {1}フォルダー", "{0}个文件, {1}个文件夹", "{0}個檔案, {1}個資料夾", "{0} Dateien, {1} Ordner", "{0} archivos, {1} carpetas", "{0} fichiers, {1} dossiers", "{0} arquivos, {1} pastas"),
+            ("QuickLook_MoreItems", "… +{0} more", "… +{0}개 더", "… +{0}件", "… +{0}个", "… +{0}個", "… +{0} weitere", "… +{0} más", "… +{0} de plus", "… +{0} mais"),
+
+            // ── Status bar / General ────────────────────────────────────────
+            ("StatusBar_DiskSpace", "{0} free / {1}", "{0} 사용 가능 / {1}", "{0} 空き / {1}", "{0} 可用 / {1}", "{0} 可用 / {1}", "{0} frei / {1}", "{0} libre / {1}", "{0} libre / {1}", "{0} livre / {1}"),
+            ("StatusBar_Items", "{0} items", "{0}개 항목", "{0}個の項目", "{0}个项目", "{0}個項目", "{0} Elemente", "{0} elementos", "{0} éléments", "{0} itens"),
+            ("Home_TabName", "Home", "홈", "ホーム", "主页", "首頁", "Startseite", "Inicio", "Accueil", "Início"),
+
+            // ── Delete operations ───────────────────────────────────────────
+            ("Error_ShellNotAvailable", "Shell.Application COM not available", "Shell.Application COM을 사용할 수 없습니다", "Shell.Application COMが利用できません", "Shell.Application COM不可用", "Shell.Application COM無法使用", "Shell.Application COM nicht verfügbar", "Shell.Application COM no disponible", "Shell.Application COM non disponible", "Shell.Application COM não disponível"),
+            ("Error_CannotAccessRecycleBin", "Cannot access Recycle Bin", "휴지통에 접근할 수 없습니다", "ごみ箱にアクセスできません", "无法访问回收站", "無法存取資源回收筒", "Papierkorb nicht erreichbar", "No se puede acceder a la Papelera", "Impossible d'accéder à la Corbeille", "Não é possível acessar a Lixeira"),
+            ("Error_NotFoundInRecycleBin", "Not found in Recycle Bin: {0}", "휴지통에서 찾을 수 없음: {0}", "ごみ箱に見つかりません: {0}", "回收站中未找到: {0}", "資源回收筒中找不到: {0}", "Nicht im Papierkorb gefunden: {0}", "No encontrado en la Papelera: {0}", "Introuvable dans la Corbeille: {0}", "Não encontrado na Lixeira: {0}"),
+            ("Error_CannotStartAdmin", "Cannot start elevated process", "관리자 권한 프로세스를 시작할 수 없습니다", "管理者権限プロセスを開始できません", "无法启动管理员进程", "無法啟動系統管理員程序", "Kann erhöhten Prozess nicht starten", "No se puede iniciar el proceso elevado", "Impossible de démarrer le processus élevé", "Não é possível iniciar o processo elevado"),
+            ("Error_AdminDeleteFailed", "Delete failed with admin privileges: {0}", "관리자 권한으로도 삭제 실패: {0}", "管理者権限でも削除に失敗: {0}", "管理员权限删除失败: {0}", "系統管理員權限刪除失敗: {0}", "Löschen mit Admin-Rechten fehlgeschlagen: {0}", "Eliminación con privilegios de admin fallida: {0}", "Suppression avec privilèges admin échouée: {0}", "Exclusão com privilégios de admin falhou: {0}"),
+            ("Error_AdminRequired", "Admin privileges required (UAC cancelled)", "관리자 권한이 필요합니다 (UAC 취소됨)", "管理者権限が必要です (UACキャンセル)", "需要管理员权限 (UAC已取消)", "需要系統管理員權限 (UAC已取消)", "Administratorrechte erforderlich (UAC abgebrochen)", "Se requieren privilegios de admin (UAC cancelado)", "Privilèges admin requis (UAC annulé)", "Privilégios de admin necessários (UAC cancelado)"),
+            ("Error_AdminDeleteError", "Admin delete error: {0}", "관리자 권한 삭제 오류: {0}", "管理者権限削除エラー: {0}", "管理员删除错误: {0}", "系統管理員刪除錯誤: {0}", "Admin-Löschfehler: {0}", "Error de eliminación de admin: {0}", "Erreur de suppression admin: {0}", "Erro de exclusão de admin: {0}"),
+            ("Error_DeleteFailed", "Delete failed (Win32 error {0})", "삭제 실패 (Win32 오류 {0})", "削除失敗 (Win32エラー {0})", "删除失败 (Win32错误 {0})", "刪除失敗 (Win32錯誤 {0})", "Löschen fehlgeschlagen (Win32-Fehler {0})", "Eliminación fallida (error Win32 {0})", "Suppression échouée (erreur Win32 {0})", "Exclusão falhou (erro Win32 {0})"),
+
+            // ── Rename operations ───────────────────────────────────────────
+            ("Error_InvalidSourcePath", "Invalid source path - no directory component", "잘못된 원본 경로 - 디렉토리 구성요소 없음", "無効なソースパス - ディレクトリコンポーネントなし", "无效源路径 - 无目录组件", "無效來源路徑 - 無目錄元件", "Ungültiger Quellpfad - kein Verzeichnis", "Ruta de origen inválida - sin componente de directorio", "Chemin source invalide - pas de composant de répertoire", "Caminho de origem inválido - sem componente de diretório"),
+
+            // ── Log display ─────────────────────────────────────────────────
+            ("Log_Yesterday", "Yesterday {0}", "어제 {0}", "昨日 {0}", "昨天 {0}", "昨天 {0}", "Gestern {0}", "Ayer {0}", "Hier {0}", "Ontem {0}"),
+            ("Log_Error", "Error", "오류", "エラー", "错误", "錯誤", "Fehler", "Error", "Erreur", "Erro"),
+
+            // ── File operation progress control ─────────────────────────────
+            ("FileOp_CancelItem", "Cancel", "취소", "キャンセル", "取消", "取消", "Abbrechen", "Cancelar", "Annuler", "Cancelar"),
         };
     }
 }

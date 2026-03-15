@@ -1,3 +1,5 @@
+using static Span.Services.LocalizationService;
+
 namespace Span.Services.FileOperations;
 
 /// <summary>
@@ -12,7 +14,7 @@ public class NewFileOperation : IFileOperation
         _filePath = filePath;
     }
 
-    public string Description => $"Create file '{Path.GetFileName(_filePath)}'";
+    public string Description => string.Format(L("FileOp_CreateFile"), Path.GetFileName(_filePath));
     public bool CanUndo => true;
 
     public Task<OperationResult> ExecuteAsync(
@@ -43,9 +45,9 @@ public class NewFileOperation : IFileOperation
                     File.Delete(_filePath);
                     return Task.FromResult(OperationResult.CreateSuccess(_filePath));
                 }
-                return Task.FromResult(OperationResult.CreateFailure("File has been modified, cannot undo"));
+                return Task.FromResult(OperationResult.CreateFailure(L("FileOp_FileModifiedCannotUndo")));
             }
-            return Task.FromResult(OperationResult.CreateFailure("File does not exist"));
+            return Task.FromResult(OperationResult.CreateFailure(L("FileOp_FileNotExist")));
         }
         catch (Exception ex)
         {

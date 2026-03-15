@@ -1974,7 +1974,7 @@ namespace Span
                     HomeAddressIcon.Visibility = Visibility.Collapsed;
                     MainAddressBar.PathSegments = explorer?.PathSegments;
                     MainAddressBar.CurrentPath = explorer?.CurrentPath ?? string.Empty;
-                    SearchBox.PlaceholderText = "Search (kind: size: ext: date:)";
+                    SearchBox.PlaceholderText = _loc.Get("SearchPlaceholderWithHint");
                 }
             }
         }
@@ -2571,7 +2571,7 @@ namespace Span
                     try
                     {
                         await sftp.ConnectAsync(connInfo, password ?? "");
-                        if (!sftp.IsConnected) throw new Exception("SFTP 연결 실패");
+                        if (!sftp.IsConnected) throw new Exception(_loc.Get("Error_ConnectionFailed"));
                     }
                     catch
                     {
@@ -2586,7 +2586,7 @@ namespace Span
                     try
                     {
                         await ftp.ConnectAsync(connInfo, password ?? "");
-                        if (!ftp.IsConnected) throw new Exception("FTP 연결 실패");
+                        if (!ftp.IsConnected) throw new Exception(_loc.Get("Error_ConnectionFailed"));
                     }
                     catch
                     {
@@ -2596,9 +2596,24 @@ namespace Span
                     provider = ftp;
                 }
             }
+            catch (Renci.SshNet.Common.SshAuthenticationException ex)
+            {
+                await ShowRemoteConnectionError(connInfo, string.Format(_loc.Get("Toast_AuthFailed"), ex.Message));
+                return;
+            }
+            catch (System.Net.Sockets.SocketException ex)
+            {
+                await ShowRemoteConnectionError(connInfo, string.Format(_loc.Get("Toast_SocketError"), connInfo.Host, connInfo.Port, ex.Message));
+                return;
+            }
+            catch (TimeoutException ex)
+            {
+                await ShowRemoteConnectionError(connInfo, string.Format(_loc.Get("Toast_TimeoutError"), ex.Message));
+                return;
+            }
             catch (Exception ex)
             {
-                await ShowRemoteConnectionError(connInfo, ex.Message);
+                await ShowRemoteConnectionError(connInfo, string.Format(_loc.Get("Toast_ConnectionError"), ex.Message));
                 return;
             }
 
@@ -2762,14 +2777,14 @@ namespace Span
                 {
                     var sftp = new SftpProvider();
                     await sftp.ConnectAsync(connInfo, savedPassword);
-                    if (!sftp.IsConnected) throw new Exception("SFTP 연결 실패");
+                    if (!sftp.IsConnected) throw new Exception(_loc.Get("Error_ConnectionFailed"));
                     provider = sftp;
                 }
                 else
                 {
                     var ftp = new FtpProvider();
                     await ftp.ConnectAsync(connInfo, savedPassword);
-                    if (!ftp.IsConnected) throw new Exception("FTP 연결 실패");
+                    if (!ftp.IsConnected) throw new Exception(_loc.Get("Error_ConnectionFailed"));
                     provider = ftp;
                 }
             }
@@ -4535,11 +4550,11 @@ namespace Span
 
         void Services.IContextMenuHost.PerformCut(string path)
         {
-            if (Helpers.ArchivePathHelper.IsArchivePath(path)) { ViewModel.ShowToast("Archive is read-only"); return; }
+            if (Helpers.ArchivePathHelper.IsArchivePath(path)) { ViewModel.ShowToast(_loc.Get("Toast_ArchiveReadOnly")); return; }
 
             // Multi-selection support: path 기반으로 올바른 컬럼의 선택 항목을 가져옴
             var paths = GetSelectedPathsForContextMenu(path);
-            if (paths.Any(p => Helpers.ArchivePathHelper.IsArchivePath(p))) { ViewModel.ShowToast("Archive is read-only"); return; }
+            if (paths.Any(p => Helpers.ArchivePathHelper.IsArchivePath(p))) { ViewModel.ShowToast(_loc.Get("Toast_ArchiveReadOnly")); return; }
 
             // 잘라내기 반투명 효과 적용
             var viewModels = GetViewModelsForPaths(paths);
@@ -4599,7 +4614,7 @@ namespace Span
 
         async void Services.IContextMenuHost.PerformPaste(string targetFolderPath)
         {
-            if (Helpers.ArchivePathHelper.IsArchivePath(targetFolderPath)) { ViewModel.ShowToast("Archive is read-only"); return; }
+            if (Helpers.ArchivePathHelper.IsArchivePath(targetFolderPath)) { ViewModel.ShowToast(_loc.Get("Toast_ArchiveReadOnly")); return; }
             try
             {
             List<string> sourcePaths;
@@ -4660,13 +4675,13 @@ namespace Span
 
         async void Services.IContextMenuHost.PerformDelete(string path, string itemName)
         {
-            if (Helpers.ArchivePathHelper.IsArchivePath(path)) { ViewModel.ShowToast("Archive is read-only"); return; }
+            if (Helpers.ArchivePathHelper.IsArchivePath(path)) { ViewModel.ShowToast(_loc.Get("Toast_ArchiveReadOnly")); return; }
             try
             {
             // Multi-selection support: path 기반으로 올바른 컬럼의 선택 항목을 가져옴
             // (Flyout 열린 상태에서 포커스 기반 검색은 잘못된 컬럼을 찾을 수 있음)
             var paths = GetSelectedPathsForContextMenu(path);
-            string displayName = paths.Count > 1 ? $"{paths.Count} items" : itemName;
+            string displayName = paths.Count > 1 ? string.Format(_loc.Get("StatusBar_Items"), paths.Count) : itemName;
 
             var dialog = new ContentDialog
             {
@@ -4698,7 +4713,7 @@ namespace Span
 
         void Services.IContextMenuHost.PerformRename(FileSystemViewModel item)
         {
-            if (Helpers.ArchivePathHelper.IsArchivePath(item.Path)) { ViewModel.ShowToast("Archive is read-only"); return; }
+            if (Helpers.ArchivePathHelper.IsArchivePath(item.Path)) { ViewModel.ShowToast(_loc.Get("Toast_ArchiveReadOnly")); return; }
             try
             {
             Helpers.DebugLogger.Log($"[Rename] PerformRename START: '{item.Name}'");
@@ -4859,7 +4874,7 @@ namespace Span
 
         async void Services.IContextMenuHost.PerformNewFolder(string parentFolderPath)
         {
-            if (Helpers.ArchivePathHelper.IsArchivePath(parentFolderPath)) { ViewModel.ShowToast("Archive is read-only"); return; }
+            if (Helpers.ArchivePathHelper.IsArchivePath(parentFolderPath)) { ViewModel.ShowToast(_loc.Get("Toast_ArchiveReadOnly")); return; }
             string baseName = _loc.Get("NewFolderBaseName");
             string newPath = System.IO.Path.Combine(parentFolderPath, baseName);
 
@@ -4902,7 +4917,7 @@ namespace Span
 
         async void Services.IContextMenuHost.PerformNewFile(string parentFolderPath, string fileName)
         {
-            if (Helpers.ArchivePathHelper.IsArchivePath(parentFolderPath)) { ViewModel.ShowToast("Archive is read-only"); return; }
+            if (Helpers.ArchivePathHelper.IsArchivePath(parentFolderPath)) { ViewModel.ShowToast(_loc.Get("Toast_ArchiveReadOnly")); return; }
             string baseName = System.IO.Path.GetFileNameWithoutExtension(fileName);
             string ext = System.IO.Path.GetExtension(fileName);
             string newPath = System.IO.Path.Combine(parentFolderPath, fileName);
@@ -4949,13 +4964,13 @@ namespace Span
         async void Services.IContextMenuHost.PerformCompress(string[] paths)
         {
             if (paths == null || paths.Length == 0) return;
-            if (paths.Any(p => Helpers.ArchivePathHelper.IsArchivePath(p))) { ViewModel.ShowToast("Archive is read-only"); return; }
+            if (paths.Any(p => Helpers.ArchivePathHelper.IsArchivePath(p))) { ViewModel.ShowToast(_loc.Get("Toast_ArchiveReadOnly")); return; }
 
             try
             {
                 // Multi-selection support: path 기반으로 올바른 컬럼의 선택 항목을 가져옴
                 var allPaths = GetSelectedPathsForContextMenu(paths[0]);
-                if (allPaths.Any(p => Helpers.ArchivePathHelper.IsArchivePath(p))) { ViewModel.ShowToast("Archive is read-only"); return; }
+                if (allPaths.Any(p => Helpers.ArchivePathHelper.IsArchivePath(p))) { ViewModel.ShowToast(_loc.Get("Toast_ArchiveReadOnly")); return; }
 
                 // ZIP name: first item name + .zip
                 string firstPath = allPaths[0];
