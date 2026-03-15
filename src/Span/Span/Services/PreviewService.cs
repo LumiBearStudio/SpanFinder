@@ -52,7 +52,7 @@ namespace Span.Services
         private static readonly HashSet<string> ArchiveExtensions = new(StringComparer.OrdinalIgnoreCase)
         {
             ".zip", ".7z", ".rar", ".tar", ".gz", ".bz2", ".xz",
-            ".tgz", ".tbz2", ".txz", ".iso", ".cab"
+            ".tgz", ".tbz2", ".txz", ".cab"
         };
 
         private static readonly HashSet<string> BinaryExtensions = new(StringComparer.OrdinalIgnoreCase)
