@@ -137,6 +137,7 @@ In `MainWindow.xaml.cs`: `FindChild<T>()` (recursive descendant search), `IsDesc
 - Service methods return `Task<T>`, never `void`. Only UI event handlers can be `async void`.
 - Path comparison: always `StringComparison.OrdinalIgnoreCase`
 - Event handlers: `-= before +=` pattern to prevent accumulation
+- **뷰 기능 4뷰 필수 확인**: 뷰에 관련된 기능(D&D, 리네임, 키보드 단축키, 컨텍스트 메뉴, 선택, 바인딩 등)을 수정/추가할 때는 반드시 Miller, Details, List, Icon 4개 뷰 모두에 적용되었는지 확인. 한 뷰에서만 동작하고 나머지에서 안 되는 것은 파일 탐색기로서 치명적 결함.
 
 ## Common Gotchas
 
