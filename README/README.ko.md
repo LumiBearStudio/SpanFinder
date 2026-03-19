@@ -23,8 +23,7 @@
 
 ---
 
-<!-- GIF 데모가 준비되면 여기에 교체 -->
-![SPAN Finder — 밀러 컬럼 + 미리보기 패널](1.jpg)
+![SPAN Finder — 밀러 컬럼 탐색](miller-columns.gif)
 
 > **폴더 탐색, 원래 이렇게 해야 합니다.**
 > 폴더를 클릭하면 옆 컬럼에 내용이 펼쳐집니다. 지금 어디에 있는지, 어디서 왔는지, 어디로 가는지 — 한 화면에 전부 보입니다. 더 이상 뒤로 가기를 누를 필요가 없습니다.
@@ -122,7 +121,7 @@
 
 ### 테마 & 커스터마이징
 
-![테마 & 커스터마이징 설정](6.jpg)
+![테마 & 커스터마이징](themes.gif)
 
 - **10가지 테마**: Light, Dark, Dracula, Tokyo Night, Catppuccin, Gruvbox, Solarized, Nord, One Dark, Monokai
 - **6단계 행 높이** 및 **6단계 폰트/아이콘 크기** — 독립 제어
