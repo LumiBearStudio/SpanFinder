@@ -244,6 +244,9 @@ namespace Span.Services
         // GetCommandString flags
         private const uint GCS_VERBW = 0x00000004;
 
+        // CMINVOKECOMMANDINFO fMask flags
+        private const uint CMIC_MASK_FLAG_NO_UI = 0x00000400;
+
         private static readonly IntPtr SUBCLASS_ID = (IntPtr)99;
 
         /// <summary>Standard shell verbs that are handled by our custom menu items.</summary>
@@ -331,7 +334,7 @@ namespace Span.Services
                         var invokeInfo = new CMINVOKECOMMANDINFO
                         {
                             cbSize = Marshal.SizeOf<CMINVOKECOMMANDINFO>(),
-                            fMask = 0, hwnd = hwnd,
+                            fMask = CMIC_MASK_FLAG_NO_UI, hwnd = hwnd,
                             lpVerb = (IntPtr)(cmd - (int)FIRST_CMD),
                             nShow = SW_SHOWNORMAL
                         };
@@ -418,18 +421,33 @@ namespace Span.Services
                 IntPtr hMenu = CreatePopupMenu();
                 if (hMenu == IntPtr.Zero) return null;
 
-                hr = contextMenu.QueryContextMenu(hMenu, 0, FIRST_CMD, LAST_CMD,
-                    CMF_NORMAL | CMF_EXPLORE | CMF_CANRENAME);
-                Helpers.DebugLogger.Log($"[ShellContextMenu] CreateSession QueryContextMenu hr=0x{hr:X8} menuCount={GetMenuItemCount(hMenu)}");
-                if (hr < 0)
+                // Suppress system error dialogs from misbehaving shell extensions (thread-scoped).
+                // Covers QueryContextMenu + EnumerateMenuItems (which calls HandleMenuMsg for submenus).
+                Helpers.NativeMethods.SetThreadErrorMode(
+                    Helpers.NativeMethods.SEM_FAILCRITICALERRORS |
+                    Helpers.NativeMethods.SEM_NOGPFAULTERRORBOX |
+                    Helpers.NativeMethods.SEM_NOOPENFILEERRORBOX,
+                    out uint oldErrorMode);
+                List<ShellMenuItem> items;
+                try
                 {
-                    DestroyMenu(hMenu);
-                    return null;
-                }
+                    hr = contextMenu.QueryContextMenu(hMenu, 0, FIRST_CMD, LAST_CMD,
+                        CMF_NORMAL | CMF_EXPLORE | CMF_CANRENAME);
+                    Helpers.DebugLogger.Log($"[ShellContextMenu] CreateSession QueryContextMenu hr=0x{hr:X8} menuCount={GetMenuItemCount(hMenu)}");
+                    if (hr < 0)
+                    {
+                        DestroyMenu(hMenu);
+                        return null;
+                    }
 
-                // Enumerate and filter items
-                Helpers.DebugLogger.Log($"[ShellContextMenu] CreateSession step=EnumerateMenuItems");
-                var items = EnumerateMenuItems(hMenu, contextMenu, cm2, cm3, 0);
+                    // Enumerate and filter items
+                    Helpers.DebugLogger.Log($"[ShellContextMenu] CreateSession step=EnumerateMenuItems");
+                    items = EnumerateMenuItems(hMenu, contextMenu, cm2, cm3, 0);
+                }
+                finally
+                {
+                    Helpers.NativeMethods.SetThreadErrorMode(oldErrorMode, out _);
+                }
                 Helpers.DebugLogger.Log($"[ShellContextMenu] CreateSession EnumerateMenuItems done count={items.Count}");
 
                 var session = new Session(
@@ -611,8 +629,9 @@ namespace Span.Services
                 }
 
                 // Try to get canonical verb
+                // Guard: skip suspiciously high IDs that cause AccessViolation (NVIDIA, etc.)
                 string verb = string.Empty;
-                if (mii.wID >= FIRST_CMD)
+                if (mii.wID >= FIRST_CMD && (mii.wID - FIRST_CMD) < 5000)
                 {
                     IntPtr verbBuf = Marshal.AllocCoTaskMem(512);
                     try
@@ -770,7 +789,7 @@ namespace Span.Services
                     var invokeInfo = new CMINVOKECOMMANDINFO
                     {
                         cbSize = Marshal.SizeOf<CMINVOKECOMMANDINFO>(),
-                        fMask = 0,
+                        fMask = CMIC_MASK_FLAG_NO_UI,
                         hwnd = _hwnd,
                         lpVerb = (IntPtr)(commandId - (int)FIRST_CMD),
                         nShow = SW_SHOWNORMAL

@@ -197,7 +197,9 @@ namespace Span
         }
 
         private int _crashCount;
+        private int _sentryCaptureCount;
         private DateTime _lastCrashTime;
+        private const int MaxSentryCapturesPerSession = 5;
         private void OnUnhandledException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs e)
         {
             var now = DateTime.UtcNow;
@@ -214,15 +216,19 @@ namespace Span
                     Helpers.DebugLogger.Log($"[CRASH] Inner: {e.Exception.InnerException.GetType().FullName}: {e.Exception.InnerException.Message}\n{e.Exception.InnerException.StackTrace}");
             }
             _lastCrashTime = now;
-            // Sentry: DI 서비스 우선, 실패 시 static fallback (FlushAsync 포함)
-            try
+            // Sentry: 세션당 최대 N회만 전송 (반복 네이티브 예외 증폭 방지)
+            // CaptureFatalException(동기 Flush)은 사용하지 않음 — UI 스레드 차단 위험
+            if (_sentryCaptureCount < MaxSentryCapturesPerSession)
             {
-                var crashSvc = Services.GetRequiredService<Services.CrashReportingService>();
-                crashSvc.CaptureException(e.Exception, "UI.UnhandledException");
+                _sentryCaptureCount++;
+                try
+                {
+                    var crashSvc = Services.GetRequiredService<Services.CrashReportingService>();
+                    crashSvc.CaptureException(e.Exception, "UI.UnhandledException",
+                        new Dictionary<string, string> { ["crashCount"] = _crashCount.ToString() });
+                }
+                catch { }
             }
-            catch { }
-            // Static fallback도 항상 시도 (인스턴스 메서드가 조용히 return할 수 있으므로)
-            Span.Services.CrashReportingService.CaptureFatalException(e.Exception, "UI.UnhandledException");
             e.Handled = true;
         }
 

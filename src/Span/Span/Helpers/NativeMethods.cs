@@ -199,6 +199,16 @@ namespace Span.Helpers
             [MarshalAs(UnmanagedType.LPWStr)] public string? shi1_remark;
         }
 
+        // ── kernel32.dll — 스레드 에러 모드 제어 ──
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool SetThreadErrorMode(uint dwNewMode, out uint lpOldMode);
+
+        internal const uint SEM_FAILCRITICALERRORS = 0x0001;
+        internal const uint SEM_NOGPFAULTERRORBOX = 0x0002;
+        internal const uint SEM_NOOPENFILEERRORBOX = 0x8000;
+
         // ── Safe Wrappers (IntPtr.Zero guard + return value check) ──
 
         /// <summary>

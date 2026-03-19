@@ -14,6 +14,10 @@ namespace Span.Helpers
     /// </summary>
     public static class DispatcherHelper
     {
+        /// <summary>Sentry 캡처 쓰로틀: 세션당 최대 전송 횟수</summary>
+        private const int MaxSentryCaptures = 10;
+        private static int s_sentryCaptureCount;
+
         /// <summary>
         /// DispatcherQueue에 안전하게 작업을 예약한다 (기본 우선순위).
         /// </summary>
@@ -63,6 +67,8 @@ namespace Span.Helpers
         {
             var fileName = Path.GetFileName(file);
             DebugLogger.Log($"[SafeEnqueue] {fileName}:{caller} — {ex.Message}");
+            if (s_sentryCaptureCount >= MaxSentryCaptures) return;
+            s_sentryCaptureCount++;
             try
             {
                 App.Current.Services.GetService<Services.CrashReportingService>()

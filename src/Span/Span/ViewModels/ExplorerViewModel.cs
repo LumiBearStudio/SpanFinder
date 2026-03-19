@@ -1359,7 +1359,16 @@ namespace Span.ViewModels
                 UpdatePathHighlights();
 
                 // 컬럼이 UI에 보인 상태에서 로딩 (ProgressRing 표시)
-                await selectedFolder.EnsureChildrenLoadedAsync();
+                if (selectedFolder.IsAlreadyLoaded)
+                {
+                    // 이미 로드된 폴더 재선택: 기존 Children을 즉시 표시하고,
+                    // 백그라운드에서 디스크 재로드하여 외부 변경 반영 (SyncChildren diff 기반)
+                    await selectedFolder.ReloadAsync();
+                }
+                else
+                {
+                    await selectedFolder.EnsureChildrenLoadedAsync();
+                }
 
                 // Re-validate AFTER loading completes
                 if (token.IsCancellationRequested) return;

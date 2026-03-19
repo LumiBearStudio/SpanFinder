@@ -161,6 +161,8 @@ In `MainWindow.xaml.cs`: `FindChild<T>()` (recursive descendant search), `IsDesc
 18. **자세히뷰 헤더-데이터 컬럼 동기화**: 헤더 Grid와 ListView ItemTemplate Grid는 독립적 `*` 계산. splitter 너비는 `RecalcCellTotalWidths()`에서 헤더 ColumnDefinition 누적 합산으로 계산하여 데이터 셀 Width에 포함. 개별 반올림하면 누적 오차 발생.
 19. **Network Shortcuts ReadOnly 속성**: `%APPDATA%\Microsoft\Windows\Network Shortcuts` 하위 폴더는 ReadOnly 속성이 걸려 있어 `Directory.Delete` 실패. 삭제 전 `FileAttributes.Normal`로 속성 해제 필수.
 20. **네트워크 드라이브 이름**: `DriveInfo.VolumeLabel`은 원격 볼륨 레이블(예: "WORK")을 반환. Windows 탐색기와 동일하게 표시하려면 `WNetGetConnectionW`로 UNC 경로를 가져와 공유 이름 추출.
+21. **셸 확장 COM 호스팅 3중 방어**: (1) `SetThreadErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX)`로 에러 다이얼로그 억제 (try/finally 복원 필수) (2) `InvokeCommand`에 `CMIC_MASK_FLAG_NO_UI` 플래그 (3) `GetCommandString` ID > 5000 가드 (NVIDIA 등 AccessViolation 방지). `SetErrorMode`는 프로세스 전역이라 레이스 컨디션 위험 — 반드시 `SetThreadErrorMode` 사용.
+22. **Sentry 캡처 쓰로틀 필수**: 모든 Sentry 전송 경로(`OnUnhandledException`, `DispatcherHelper.SafeEnqueue`)에 세션당 캡처 수 제한. `CaptureFatalException`(동기 flush)은 `OnDomainUnhandledException`(프로세스 종료)에서만 사용, `e.Handled = true`인 비치명적 예외에는 절대 사용 금지.
 
 ## UI State Machine
 

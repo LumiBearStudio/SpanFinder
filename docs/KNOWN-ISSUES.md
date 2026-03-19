@@ -283,6 +283,35 @@
 | **수정** | `WNetGetConnectionW` P/Invoke로 UNC 경로 추출 → 공유 이름 기반 표시 |
 | **교훈** | 네트워크 드라이브 표시에는 `DriveInfo.VolumeLabel` 대신 **`WNetGetConnection`** 사용 |
 
+### 27. 이미 로드된 폴더 재선택 시 외부 변경 미반영 (P0)
+
+| 항목 | 내용 |
+|------|------|
+| **증상** | 폴더 A 클릭 → 다른 폴더로 이동 → 외부에서 A 하위에 새 파일/폴더 생성 → A 재클릭 → 새 항목 안 보임 |
+| **원인** | `HandleFolderSelectionAsync` → `EnsureChildrenLoadedAsync()`에서 `_isLoaded = true`면 즉시 return. 이전에 로드된 FolderViewModel 인스턴스가 재사용되어 디스크 재로드 없이 캐시된 Children 표시 |
+| **수정** | `ExplorerViewModel.cs` — `IsAlreadyLoaded`인 폴더 재선택 시 `ReloadAsync()` 호출 (캐시 무효화 + 디스크 재로드). `SyncChildren` diff 기반이라 스크롤/선택 보존, ProgressRing 미표시 |
+| **교훈** | 밀러 컬럼에서 폴더 재선택은 **항상 디스크 상태와 동기화** 필요. `_isLoaded` 플래그는 초기 로드 최적화용이지 캐시 유효성 보장이 아님. 디바운스(`_selectionDebounce`)가 빠른 키보드 탐색 시 불필요한 리로드 방지 |
+
+### 28. 셸 확장 프로그램 활성화 시 시스템 오류 팝업 (P1) — GitHub Issue #1
+
+
+| 항목 | 내용 |
+|------|------|
+| **증상** | 설정 → 도구 → 셸 확장 프로그램 활성화 후 우클릭 시 시스템 오류 팝업 표시 + 컨텍스트 메뉴 ~5초 지연 |
+| **원인** | (1) 문제 있는 타사 셸 확장(백신, 클라우드 동기화 등)이 `QueryContextMenu()` COM 호출 중 크래시/행 → Windows OS가 WER 오류 다이얼로그 표시 (2) `InvokeCommand`에 에러 UI 억제 플래그 없음 (3) `GetCommandString`에서 높은 ID(>5000)로 `AccessViolation` 발생 가능 (NVIDIA 등) |
+| **수정** | (1) `ShellContextMenu.cs` — `CreateSession()` 내 `QueryContextMenu` + `EnumerateMenuItems` 구간을 `SetThreadErrorMode(SEM_FAILCRITICALERRORS \| SEM_NOGPFAULTERRORBOX \| SEM_NOOPENFILEERRORBOX)`로 감싸기 (스레드 단위, try/finally로 복원) (2) `InvokeCommand` 2곳(`ShowNativeMenu`, `Session.InvokeCommand`)에 `CMIC_MASK_FLAG_NO_UI` 플래그 추가 (3) `GetCommandString` 호출에 `(mii.wID - FIRST_CMD) < 5000` 가드 추가 (4) P/Invoke 선언: `NativeMethods.cs`에 `SetThreadErrorMode` + `SEM_*` 상수 추가 |
+| **참고** | MS 공식 권장: `SetThreadErrorMode`는 `SetErrorMode`보다 안전 (스레드 범위, 레이스 컨디션 없음). `CMIC_MASK_FLAG_NO_UI`는 MS CMINVOKECOMMANDINFO 공식 문서에 명시된 플래그. ID > 5000 가드는 Files App + RX-Explorer 두 프로젝트에서 공통 적용 |
+| **교훈** | 셸 확장 COM 호스팅 시 (1) `SetThreadErrorMode`로 에러 다이얼로그 억제 (2) `CMIC_MASK_FLAG_NO_UI`로 InvokeCommand 에러 UI 억제 (3) `GetCommandString` ID 범위 가드 — 세 겹 방어 필수 |
+
+### 29. Sentry 크래시 리포팅 중복 전송 + UI 차단 (P1)
+
+| 항목 | 내용 |
+|------|------|
+| **증상** | 비치명적 예외 발생 시 Sentry 이벤트 2중 전송 + UI 스레드 3초 블로킹 |
+| **원인** | (1) `OnUnhandledException`에서 `CaptureException`(비동기) + `CaptureFatalException`(동기 3초 flush) 모두 호출 → 중복 + UI 차단 (2) Sentry 캡처에 쓰로틀 없음 → 무제한 전송 (3) `CaptureFatalException`이 `e.Handled = true`인 비치명적 에러에도 사용 |
+| **수정** | (1) `App.xaml.cs` — `OnUnhandledException`에서 `CaptureFatalException` 제거, `CaptureException`만 사용 (2) `_sentryCaptureCount` + `MaxSentryCapturesPerSession = 5` 쓰로틀 추가 (3) `DispatcherHelper.cs` — `HandleException`에도 `MaxSentryCaptures = 10` 세션 쓰로틀 추가 |
+| **교훈** | (1) `CaptureFatalException`(동기 flush)은 프로세스 종료 직전(`OnDomainUnhandledException`)에서만 사용 (2) 비치명적 경로(`e.Handled = true`)에는 비동기 `CaptureException`만 (3) 모든 Sentry 전송 경로에 세션 쓰로틀 필수 |
+
 ---
 
 ## 버그 패턴 Quick Reference
@@ -311,3 +340,6 @@
 | handledEventsToo 이중 처리 | e.Handled 체크로 뷰 처리 완료 키 스킵 | KeyboardHandler.cs |
 | Measure 중 Margin 변경 금지 | ContainerContentChanging에서 Width만 변경 | DetailsModeView.xaml.cs |
 | 헤더-데이터 컬럼 동기화 | 개별 반올림 X, 누적 합산으로 총 너비 계산 | DetailsModeView.xaml.cs |
+| 폴더 재선택 시 디스크 동기화 | IsAlreadyLoaded → ReloadAsync (SyncChildren diff) | ExplorerViewModel.cs |
+| 셸 확장 COM 방어 | SetThreadErrorMode + CMIC_MASK_FLAG_NO_UI + ID 가드 | ShellContextMenu.cs |
+| Sentry 전송 쓰로틀 | 모든 전송 경로에 세션당 캡처 수 제한 | App.xaml.cs, DispatcherHelper.cs |
