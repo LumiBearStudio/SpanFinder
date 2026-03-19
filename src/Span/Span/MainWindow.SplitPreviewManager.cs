@@ -1178,6 +1178,47 @@ namespace Span
         #endregion
 
         // =================================================================
+        //  Inline Preview Splitter (ManipulationDelta — 사이드바 스플리터와 동일 패턴)
+        // =================================================================
+
+        #region Inline Preview Splitter
+
+        private double _inlinePreviewSplitterStartWidth;
+
+        private void OnInlinePreviewSplitterManipulationStarted(object sender, ManipulationStartedRoutedEventArgs e)
+        {
+            _inlinePreviewSplitterStartWidth = InlinePreviewCol.Width.Value;
+        }
+
+        private void OnInlinePreviewSplitterManipulationDelta(object sender, ManipulationDeltaRoutedEventArgs e)
+        {
+            double newWidth = Math.Clamp(_inlinePreviewSplitterStartWidth - e.Cumulative.Translation.X, 200, 800);
+            InlinePreviewCol.Width = new GridLength(newWidth, GridUnitType.Pixel);
+
+            // 사용자 리사이즈 값 즉시 저장 (사이드바 스플리터와 동일 패턴)
+            try
+            {
+                var settings = Windows.Storage.ApplicationData.Current.LocalSettings;
+                settings.Values["LeftPreviewWidth"] = newWidth;
+            }
+            catch { }
+        }
+
+        private void OnPreviewSplitterPointerEntered(object sender, PointerRoutedEventArgs e)
+        {
+            if (sender is UIElement el)
+                Helpers.CursorHelper.SetCursor(el, Microsoft.UI.Input.InputSystemCursorShape.SizeWestEast);
+        }
+
+        private void OnPreviewSplitterPointerExited(object sender, PointerRoutedEventArgs e)
+        {
+            if (sender is UIElement el)
+                Helpers.CursorHelper.SetCursor(el, Microsoft.UI.Input.InputSystemCursorShape.Arrow);
+        }
+
+        #endregion
+
+        // =================================================================
         //  Inline Preview Column (inside Miller Columns)
         // =================================================================
 
@@ -1472,7 +1513,10 @@ namespace Span
         /// </summary>
         private void ShowInlinePreview()
         {
-            InlinePreviewSplitterCol.Width = new GridLength(2, GridUnitType.Pixel);
+            // 이미 표시 중이면 너비를 유지 (드래그 리사이즈 값 보존)
+            if (InlinePreviewColumn.Visibility == Visibility.Visible) return;
+
+            InlinePreviewSplitterCol.Width = new GridLength(6, GridUnitType.Pixel);
 
             // 밀러=Star(남은 공간 전부), 미리보기=고정 픽셀
             // 사이드 패널 미리보기와 동일한 너비 사용 (기본 320px)
@@ -1480,7 +1524,8 @@ namespace Span
             MillerTabsHost.ColumnDefinitions[0].Width = new GridLength(1, GridUnitType.Star);
             InlinePreviewCol.Width = new GridLength(previewWidth, GridUnitType.Pixel);
 
-            InlinePreviewColumn.MinWidth = 320;
+            InlinePreviewSplitter.Visibility = Visibility.Visible;
+            InlinePreviewColumn.MinWidth = 200;
             InlinePreviewColumn.Visibility = Visibility.Visible;
         }
 
@@ -1491,6 +1536,7 @@ namespace Span
         {
             try { _inlinePreviewCts?.Cancel(); } catch (ObjectDisposedException) { }
             _sizeChangedDebounceTimer?.Stop();
+            InlinePreviewSplitter.Visibility = Visibility.Collapsed;
             InlinePreviewSplitterCol.Width = new GridLength(0);
             InlinePreviewCol.Width = new GridLength(0);
             // 밀러 컬럼을 전체 공간으로 복원

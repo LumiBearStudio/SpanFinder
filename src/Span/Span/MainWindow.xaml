@@ -1036,6 +1036,16 @@
                                     </StackPanel>
                                 </ScrollViewer>
 
+                                <!-- Inline Preview Splitter (drag to resize) -->
+                                <Border x:Name="InlinePreviewSplitter" Grid.Column="1" Width="6"
+                                        Background="Transparent"
+                                        ManipulationMode="TranslateX"
+                                        ManipulationStarted="OnInlinePreviewSplitterManipulationStarted"
+                                        ManipulationDelta="OnInlinePreviewSplitterManipulationDelta"
+                                        PointerEntered="OnPreviewSplitterPointerEntered"
+                                        PointerExited="OnPreviewSplitterPointerExited"
+                                        Visibility="Collapsed"/>
+
                                 <!-- Inline Preview Column (appears when file is selected in Miller Columns) -->
                                 <Border x:Name="InlinePreviewColumn" Grid.Column="2"
                                         Background="{ThemeResource SpanBgLayer1Brush}"
@@ -1179,12 +1189,13 @@
 
                         <!-- Preview Splitter (Left) -->
                         <controls:GridSplitter Grid.Column="1" Width="2"
-                            Background="{ThemeResource SpanBorderSubtleBrush}"
+                            Background="Transparent"
                             Visibility="{x:Bind PreviewVisible(ViewModel.IsLeftPreviewEnabled), Mode=OneWay}"/>
 
                         <!-- Preview Panel (Left) -->
                         <views:PreviewPanelView x:Name="LeftPreviewPanel" Grid.Column="2"
                             MinWidth="320"
+                            BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="1,0,0,0"
                             Visibility="{x:Bind PreviewVisible(ViewModel.IsLeftPreviewEnabled), Mode=OneWay}"/>
                     </Grid>
 
@@ -1573,12 +1584,13 @@
 
                         <!-- Preview Splitter (Right) -->
                         <controls:GridSplitter Grid.Column="1" Width="2"
-                            Background="{ThemeResource SpanBorderSubtleBrush}"
+                            Background="Transparent"
                             Visibility="{x:Bind PreviewVisible(ViewModel.IsRightPreviewEnabled), Mode=OneWay}"/>
 
                         <!-- Preview Panel (Right) -->
                         <views:PreviewPanelView x:Name="RightPreviewPanel" Grid.Column="2"
                             MinWidth="320"
+                            BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="1,0,0,0"
                             Visibility="{x:Bind PreviewVisible(ViewModel.IsRightPreviewEnabled), Mode=OneWay}"/>
                     </Grid>
 
