@@ -33,6 +33,27 @@ namespace Span.Models
         /// </summary>
         public string? ConnectionId { get; set; }
 
+        /// <summary>
+        /// 네트워크 위치(Network Shortcuts) 바로가기 폴더 경로.
+        /// 연결 해제 시 이 폴더를 삭제한다.
+        /// </summary>
+        public string? NetworkShortcutPath { get; set; }
+
+        /// <summary>
+        /// 네트워크 위치(바로가기) 여부 — 드라이브 매핑이 아닌 Network Shortcuts 폴더 항목
+        /// </summary>
+        public bool IsNetworkShortcut => !string.IsNullOrEmpty(NetworkShortcutPath);
+
+        /// <summary>
+        /// 인증 필요 여부 (FTP 네트워크 바로가기 중 저장된 연결이 없는 경우).
+        /// 사이드바에서 잠금 아이콘 오버레이 표시용.
+        /// </summary>
+        public bool NeedsAuth { get; set; }
+
+        /// <summary>잠금 뱃지 Visibility (x:Bind용)</summary>
+        public Microsoft.UI.Xaml.Visibility AuthBadgeVisibility =>
+            NeedsAuth ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+
         public bool IsNetworkDrive => IsRemoteConnection || DriveType == "Network";
 
         /// <summary>

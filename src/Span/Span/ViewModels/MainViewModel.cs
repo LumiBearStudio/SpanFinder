@@ -500,9 +500,31 @@ namespace Span.ViewModels
                     return;
                 }
 
-                // Step 4: Skip UI update if drives haven't changed (avoid flicker)
+                // Step 4: Network Shortcuts (네트워크 위치 — Windows 탐색기의 "네트워크 위치" 항목)
+                var networkShortcuts = await _fileService.GetNetworkShortcutsAsync();
+
+                // Step 5: Skip UI update if drives haven't changed (avoid flicker)
                 var newLocalDrives = drives.Where(d => !d.IsNetworkDrive).ToList();
                 var newNetworkDrives = drives.Where(d => d.IsNetworkDrive).ToList();
+                // 네트워크 위치(바로가기)도 네트워크 그룹에 추가
+                // FTP URL 바로가기 중 저장된 연결이 없으면 NeedsAuth 플래그 설정
+                foreach (var ns in networkShortcuts)
+                {
+                    if (ns.Path.StartsWith("ftp://", StringComparison.OrdinalIgnoreCase) ||
+                        ns.Path.StartsWith("ftps://", StringComparison.OrdinalIgnoreCase))
+                    {
+                        try
+                        {
+                            var uri = new Uri(ns.Path);
+                            var hasConn = SavedConnections.Any(c =>
+                                c.Host.Equals(uri.Host, StringComparison.OrdinalIgnoreCase) &&
+                                (c.Protocol == Models.RemoteProtocol.FTP || c.Protocol == Models.RemoteProtocol.FTPS));
+                            ns.NeedsAuth = !hasConn;
+                        }
+                        catch { ns.NeedsAuth = true; }
+                    }
+                }
+                newNetworkDrives.AddRange(networkShortcuts);
 
                 bool drivesChanged = !AreDriveListsEqual(Drives, newLocalDrives)
                                   || !AreDriveListsEqual(NetworkDrives, newNetworkDrives);
@@ -589,11 +611,22 @@ namespace Span.ViewModels
                 AllDrives.Add(DriveItem.FromConnection(conn));
 
             // NetworkAndRemoteDrives: 네트워크 매핑 + 원격 연결 통합
+            // 네트워크 바로가기와 중복되는 SavedConnections는 제외 (호스트 매칭)
+            var shortcutHosts = new HashSet<string>(
+                NetworkDrives.Where(d => d.IsNetworkShortcut && d.Path.Contains("://"))
+                    .Select(d => { try { return new Uri(d.Path).Host; } catch { return ""; } })
+                    .Where(h => !string.IsNullOrEmpty(h)),
+                StringComparer.OrdinalIgnoreCase);
+
             NetworkAndRemoteDrives.Clear();
             foreach (var d in NetworkDrives)
                 NetworkAndRemoteDrives.Add(d);
             foreach (var conn in sortedConnections)
+            {
+                // 네트워크 바로가기와 호스트가 겹치면 스킵 (중복 방지)
+                if (shortcutHosts.Contains(conn.Host)) continue;
                 NetworkAndRemoteDrives.Add(DriveItem.FromConnection(conn));
+            }
 
             // 가시성 알림
             OnPropertyChanged(nameof(HasCloudDrives));

@@ -15,5 +15,8 @@ namespace Span.Services
 
         /// <summary>지정 경로의 파일/폴더 목록을 비동기로 반환한다.</summary>
         Task<List<IFileSystemItem>> GetItemsAsync(string path);
+
+        /// <summary>Windows 네트워크 위치(Network Shortcuts)를 열거한다.</summary>
+        Task<List<DriveItem>> GetNetworkShortcutsAsync();
     }
 }

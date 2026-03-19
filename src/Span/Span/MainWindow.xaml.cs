@@ -102,6 +102,7 @@ namespace Span
 
         // FileSystemWatcher 서비스 참조
         private FileSystemWatcherService? _watcherService;
+        private System.IO.FileSystemWatcher? _networkShortcutsWatcher;
 
         /// <summary>
         /// 현재 테마에 맞는 브러시를 조회한다.
@@ -300,6 +301,7 @@ namespace Span
             // Focus management on ViewMode change
             ViewModel.PropertyChanged += OnViewModelPropertyChanged;
             ViewModel.LastTabClosed += (_, __) => this.Close();
+            ViewModel.NetworkShortcutFtpRequested += OnNetworkShortcutFtpRequested;
 
             // Set ViewModel for Details, List and Icon views (left pane)
             DetailsView.ViewModel = ViewModel.Explorer;
@@ -947,6 +949,8 @@ namespace Span
 
                 // FileSystemWatcher 정리
                 _watcherService?.StopAll();
+                _networkShortcutsWatcher?.Dispose();
+                _networkShortcutsWatcher = null;
 
                 // Unsubscribe settings
                 _settings.SettingChanged -= OnSettingChanged;
@@ -1490,6 +1494,30 @@ namespace Span
             catch (Exception ex)
             {
                 Helpers.DebugLogger.Log($"[FileSystemWatcher] 초기화 실패: {ex.Message}");
+            }
+
+            // Network Shortcuts 폴더 감시 — 네트워크 위치 추가/삭제 시 자동 동기화
+            try
+            {
+                var shortcutsDir = System.IO.Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    "Microsoft", "Windows", "Network Shortcuts");
+                if (System.IO.Directory.Exists(shortcutsDir))
+                {
+                    _networkShortcutsWatcher = new System.IO.FileSystemWatcher(shortcutsDir)
+                    {
+                        NotifyFilter = System.IO.NotifyFilters.DirectoryName,
+                        IncludeSubdirectories = false,
+                        EnableRaisingEvents = true
+                    };
+                    _networkShortcutsWatcher.Created += (s, e) => DispatcherQueue.TryEnqueue(() => ViewModel?.RefreshDrives());
+                    _networkShortcutsWatcher.Deleted += (s, e) => DispatcherQueue.TryEnqueue(() => ViewModel?.RefreshDrives());
+                    _networkShortcutsWatcher.Renamed += (s, e) => DispatcherQueue.TryEnqueue(() => ViewModel?.RefreshDrives());
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[NetworkShortcutsWatcher] 초기화 실패: {ex.Message}");
             }
         }
 
@@ -2624,6 +2652,57 @@ namespace Span
         }
 
         /// <summary>
+        /// 네트워크 바로가기의 FTP URL 클릭 시: URL 파싱 → 기존 연결 검색 → 없으면 등록 다이얼로그 표시.
+        /// </summary>
+        private async void OnNetworkShortcutFtpRequested(object? sender, string ftpUrl)
+        {
+            try
+            {
+                var uri = new Uri(ftpUrl);
+                var host = uri.Host;
+                var port = uri.Port > 0 ? uri.Port : 21;
+                var username = string.IsNullOrEmpty(uri.UserInfo) ? "" : Uri.UnescapeDataString(uri.UserInfo);
+                var remotePath = string.IsNullOrEmpty(uri.AbsolutePath) ? "/" : uri.AbsolutePath;
+                var isFtps = ftpUrl.StartsWith("ftps://", StringComparison.OrdinalIgnoreCase);
+
+                // 기존 SavedConnections에서 같은 호스트+포트 연결 검색
+                var existing = ViewModel.SavedConnections.FirstOrDefault(c =>
+                    c.Host.Equals(host, StringComparison.OrdinalIgnoreCase) &&
+                    c.Port == port &&
+                    (c.Protocol == Models.RemoteProtocol.FTP || c.Protocol == Models.RemoteProtocol.FTPS));
+
+                if (existing != null)
+                {
+                    // 이미 저장된 연결 → 기존 흐름으로 연결
+                    await HandleRemoteConnectionTapped(existing.Id);
+                    return;
+                }
+
+                // 새 연결: URL 정보를 미리 채운 등록 다이얼로그 표시
+                var prefilled = new Models.ConnectionInfo
+                {
+                    DisplayName = host,
+                    Protocol = isFtps ? Models.RemoteProtocol.FTPS : Models.RemoteProtocol.FTP,
+                    Host = host,
+                    Port = port,
+                    Username = username,
+                    RemotePath = remotePath
+                };
+
+                var (result, connInfo, password, _) = await ShowConnectionDialog(prefilled);
+                if (result != ContentDialogResult.Primary || connInfo == null) return;
+
+                // 네트워크 바로가기에서 온 연결은 항상 저장
+                await ConnectAndNavigate(connInfo, password, true);
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[NetworkShortcutFtp] Error: {ex.Message}");
+                ViewModel.ShowToast($"FTP URL 파싱 실패: {ex.Message}");
+            }
+        }
+
+        /// <summary>
         /// 서버 연결 버튼 탭 이벤트.
         /// 연결 대화상자를 표시하고, 사용자가 입력한 연결 정보로
         /// 원격 서버(SFTP/FTP/SMB) 연결을 시도하고, 성공 시 저장한다.
@@ -2632,10 +2711,17 @@ namespace Span
         {
             var (result, connInfo, password, saveChecked) = await ShowConnectionDialog(null);
             if (result != ContentDialogResult.Primary || connInfo == null) return;
+            await ConnectAndNavigate(connInfo, password, saveChecked);
+        }
 
+        /// <summary>
+        /// FTP/SFTP 연결 시도 → 성공 시 저장 + Router 등록 + 탐색.
+        /// OnConnectToServerTapped, OnNetworkShortcutFtpRequested에서 공유.
+        /// </summary>
+        private async Task ConnectAndNavigate(Models.ConnectionInfo connInfo, string? password, bool saveChecked)
+        {
             Helpers.DebugLogger.Log($"[Network] 서버 연결 시도: {connInfo.ToUri()}");
 
-            // 먼저 연결 시도 — 성공 시에만 저장
             var connService = App.Current.Services.GetRequiredService<ConnectionManagerService>();
             var router = App.Current.Services.GetRequiredService<FileSystemRouter>();
             var uriPrefix = FileSystemRouter.GetUriPrefix(connInfo.ToUri());
@@ -2709,6 +2795,9 @@ namespace Span
                 _ = connService.SaveConnectionsAsync();
 
             ViewModel.ShowToast(string.Format(_loc.Get("Toast_Connected"), connInfo.DisplayName));
+
+            // 사이드바 갱신 (잠금 뱃지 제거 + 중복 제거)
+            ViewModel.RefreshDrives();
 
             if (ViewModel.CurrentViewMode == ViewMode.Home)
                 ViewModel.SwitchViewMode(ViewMode.MillerColumns);
@@ -4939,9 +5028,70 @@ namespace Span
 
         void Services.IContextMenuHost.PerformDisconnectDrive(DriveItem drive)
         {
+            // 1) 네트워크 바로가기: NetworkShortcutPath로 직접 삭제
+            if (drive.IsNetworkShortcut)
+            {
+                try
+                {
+                    if (System.IO.Directory.Exists(drive.NetworkShortcutPath))
+                    {
+                        DeleteNetworkShortcutFolder(drive.NetworkShortcutPath!);
+                        ViewModel.RefreshDrives();
+                        return;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Helpers.DebugLogger.Log($"[MainWindow] Delete network shortcut error: {ex.Message}");
+                }
+            }
+
+            // 2) UNC 경로로 Network Shortcuts 폴더에서 일치하는 바로가기 검색 후 삭제
+            //    (캐시에서 로드된 DriveItem은 NetworkShortcutPath가 없을 수 있음)
+            if (drive.Path.StartsWith(@"\\"))
+            {
+                try
+                {
+                    var shortcutsDir = System.IO.Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                        "Microsoft", "Windows", "Network Shortcuts");
+                    if (System.IO.Directory.Exists(shortcutsDir))
+                    {
+                        foreach (var dir in System.IO.Directory.GetDirectories(shortcutsDir))
+                        {
+                            var target = FileSystemService.ResolveNetworkShortcutTarget(dir);
+                            if (string.Equals(target, drive.Path, StringComparison.OrdinalIgnoreCase))
+                            {
+                                DeleteNetworkShortcutFolder(dir);
+                                ViewModel.RefreshDrives();
+                                return;
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Helpers.DebugLogger.Log($"[MainWindow] Search+delete network shortcut error: {ex.Message}");
+                }
+            }
+
+            // 3) 매핑된 네트워크 드라이브: WNetCancelConnection2
             var shellService = App.Current.Services.GetRequiredService<ShellService>();
             if (shellService.DisconnectNetworkDrive(drive.Path))
                 ViewModel.RefreshDrives();
+        }
+
+        /// <summary>
+        /// 네트워크 바로가기 폴더 삭제. 읽기전용/시스템 속성을 해제 후 삭제.
+        /// </summary>
+        private static void DeleteNetworkShortcutFolder(string path)
+        {
+            // 폴더 및 내부 파일의 읽기전용/시스템 속성 제거
+            var dirInfo = new System.IO.DirectoryInfo(path);
+            dirInfo.Attributes = System.IO.FileAttributes.Normal;
+            foreach (var file in dirInfo.GetFiles("*", System.IO.SearchOption.AllDirectories))
+                file.Attributes = System.IO.FileAttributes.Normal;
+            dirInfo.Delete(true);
         }
 
         void Services.IContextMenuHost.PerformOpenFavorite(FavoriteItem fav)

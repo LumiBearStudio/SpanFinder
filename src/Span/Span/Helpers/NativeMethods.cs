@@ -145,6 +145,10 @@ namespace Span.Helpers
             ref NETRESOURCE lpNetResource,
             string? lpPassword, string? lpUsername, int dwFlags);
 
+        [DllImport("mpr.dll", CharSet = CharSet.Unicode)]
+        internal static extern int WNetGetConnectionW(
+            string lpLocalName, System.Text.StringBuilder lpRemoteName, ref int lpnLength);
+
         // WNet constants
         internal const int RESOURCE_GLOBALNET = 0x00000002;
         internal const int RESOURCETYPE_ANY = 0x00000000;

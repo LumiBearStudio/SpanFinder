@@ -623,10 +623,19 @@
                                                 <ColumnDefinition Width="Auto"/>
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0" Text="{x:Bind IconGlyph}"
-                                                       FontFamily="{StaticResource RemixIcons}" FontSize="16"
-                                                       Foreground="{ThemeResource SpanTextSecondaryBrush}"
-                                                       VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                            <Grid Grid.Column="0" Width="16" Height="16"
+                                                  VerticalAlignment="Center" Margin="0,0,12,0">
+                                                <TextBlock Text="{x:Bind IconGlyph}"
+                                                           FontFamily="{StaticResource RemixIcons}" FontSize="16"
+                                                           Foreground="{ThemeResource SpanTextSecondaryBrush}"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                <!-- 잠금 뱃지: 인증 필요 시 표시 -->
+                                                <FontIcon Glyph="&#xE72E;" FontSize="7"
+                                                          Foreground="{ThemeResource SystemFillColorCautionBrush}"
+                                                          HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                                          Margin="0,0,-4,-4"
+                                                          Visibility="{x:Bind AuthBadgeVisibility}"/>
+                                            </Grid>
                                             <TextBlock Grid.Column="1" Text="{x:Bind Name}" FontSize="13"
                                                        VerticalAlignment="Center"
                                                        TextTrimming="CharacterEllipsis"/>

@@ -19,6 +19,11 @@ namespace Span.ViewModels
         #region File Operations
 
         /// <summary>
+        /// 네트워크 바로가기에서 FTP URL 클릭 시 발생. MainWindow가 구독하여 연결 다이얼로그 표시.
+        /// </summary>
+        public event EventHandler<string>? NetworkShortcutFtpRequested;
+
+        /// <summary>
         /// 사이드바/Home 화면에서 드라이브 클릭 시 해당 드라이브로 탐색.
         /// Home/ActionLog 모드인 경우 이전 뷰모드(Details/List/Icon 등)를 복원하여
         /// 사용자가 Home 전환 전에 사용하던 뷰를 유지함.
@@ -26,6 +31,14 @@ namespace Span.ViewModels
         [RelayCommand]
         public void OpenDrive(DriveItem drive)
         {
+            // FTP/HTTP URL → 이벤트로 MainWindow에 위임 (연결 다이얼로그 표시)
+            if (drive.Path.StartsWith("ftp://", StringComparison.OrdinalIgnoreCase) ||
+                drive.Path.StartsWith("ftps://", StringComparison.OrdinalIgnoreCase))
+            {
+                NetworkShortcutFtpRequested?.Invoke(this, drive.Path);
+                return;
+            }
+
             // Home/ActionLog에서 벗어나되, 탐색기 뷰모드(Details/List/Icon)는 보존.
             // ResolveViewModeFromHome()이 _lastClosedViewMode → _viewModeBeforeHome → Miller 순으로 결정.
             var activeViewMode = (IsSplitViewEnabled && ActivePane == ActivePane.Right)
