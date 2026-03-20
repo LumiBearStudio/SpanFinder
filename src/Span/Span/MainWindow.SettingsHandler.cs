@@ -140,11 +140,35 @@ namespace Span
                 }
 
                 // 밀러 컬럼 Border 색상 갱신
-                // {Binding IsActive, Converter=...}는 IsActive 변경 시에만 재평가되므로
-                // 테마 전환 후 수동 갱신 필요
-                RefreshMillerColumnBorders(MillerColumnsControl, accentDimBrush);
-                if (MillerColumnsControlRight != null)
-                    RefreshMillerColumnBorders(MillerColumnsControlRight, accentDimBrush);
+                // BoolToBrushConverter는 DependencyObject(not FrameworkElement)이므로
+                // {ThemeResource}가 테마 변경 시 자동 갱신되지 않음 → 수동 갱신 필수
+                if (RootGrid.Resources.TryGetValue("BoolToBrushConverter", out var conv)
+                    && conv is Helpers.BoolToBrushConverter btb)
+                {
+                    btb.TrueBrush = accentDimBrush;
+                }
+
+                // 모든 탭의 IsActive 바인딩 재평가 (토글로 PropertyChanged 강제 발생)
+                // border.BorderBrush를 직접 설정하면 {Binding}이 파괴되므로 절대 금지
+                foreach (var tab in ViewModel.Tabs)
+                {
+                    if (tab.Explorer is ViewModels.ExplorerViewModel explorer)
+                    {
+                        var activeCol = explorer.Columns.FirstOrDefault(c => c.IsActive);
+                        foreach (var col in explorer.Columns)
+                            col.IsActive = false;
+                        if (activeCol != null)
+                            activeCol.IsActive = true;
+                    }
+                }
+                if (ViewModel.RightExplorer is ViewModels.ExplorerViewModel rightExpl)
+                {
+                    var activeRight = rightExpl.Columns.FirstOrDefault(c => c.IsActive);
+                    foreach (var col in rightExpl.Columns)
+                        col.IsActive = false;
+                    if (activeRight != null)
+                        activeRight.IsActive = true;
+                }
 
                 // 버튼 아이콘 색상 갱신
                 UpdatePreviewButtonState();
@@ -156,18 +180,9 @@ namespace Span
             }
         }
 
-        private static void RefreshMillerColumnBorders(ItemsControl itemsControl, Microsoft.UI.Xaml.Media.SolidColorBrush accentDimBrush)
-        {
-            for (int i = 0; i < itemsControl.Items.Count; i++)
-            {
-                var container = itemsControl.ContainerFromIndex(i) as ContentPresenter;
-                if (container == null) continue;
-                var border = Helpers.VisualTreeHelpers.FindChild<Border>(container);
-                if (border == null) continue;
-                var vm = itemsControl.Items[i] as ViewModels.FolderViewModel;
-                border.BorderBrush = (vm?.IsActive == true) ? accentDimBrush : new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
-            }
-        }
+        // RefreshMillerColumnBorders 삭제됨:
+        // border.BorderBrush를 직접 설정하면 {Binding IsActive, Converter=...}가 파괴됨.
+        // 대신 IsActive 토글로 바인딩 재평가 방식 사용 (RefreshCachedAccentColors 참조).
 
         /// <summary>
         /// DWM 윈도우 프레임 보더 색상을 현재 테마 배경에 맞춘다.
