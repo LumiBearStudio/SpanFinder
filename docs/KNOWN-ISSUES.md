@@ -292,7 +292,16 @@
 | **수정** | `ExplorerViewModel.cs` — `IsAlreadyLoaded`인 폴더 재선택 시 `ReloadAsync()` 호출 (캐시 무효화 + 디스크 재로드). `SyncChildren` diff 기반이라 스크롤/선택 보존, ProgressRing 미표시 |
 | **교훈** | 밀러 컬럼에서 폴더 재선택은 **항상 디스크 상태와 동기화** 필요. `_isLoaded` 플래그는 초기 로드 최적화용이지 캐시 유효성 보장이 아님. 디바운스(`_selectionDebounce`)가 빠른 키보드 탐색 시 불필요한 리로드 방지 |
 
-### 28. 셸 확장 프로그램 활성화 시 시스템 오류 팝업 (P1) — GitHub Issue #1
+### 28. 테마 변경 후 기존 탭 밀러 컬럼 활성 테두리 소실 (P1)
+
+| 항목 | 내용 |
+|------|------|
+| **증상** | 테마 변경 후 이미 열려있던 탭으로 전환하면 활성 컬럼의 1px 테두리가 안 보임. 새로 여는 탭은 정상 |
+| **원인** | (1) `RefreshMillerColumnBorders`가 `border.BorderBrush`를 직접 설정 → WinUI 3에서 DependencyProperty 직접 대입은 `{Binding}`을 **파괴** (2) `BoolToBrushConverter`가 `DependencyObject`(not `FrameworkElement`) → `{ThemeResource}` 자동 갱신 안 됨 → Converter의 `TrueBrush`가 이전 테마 색상 유지 |
+| **수정** | (1) `RefreshMillerColumnBorders` 삭제 — `border.BorderBrush` 직접 설정 금지 (2) `RefreshCachedAccentColors`에서 Converter의 `TrueBrush`를 수동 갱신 (3) 모든 탭의 `IsActive` 토글(false→true)로 바인딩 재평가 강제 |
+| **교훈** | (1) WinUI 3에서 `{Binding}`이 걸린 DependencyProperty에 코드로 직접 값을 대입하면 **바인딩이 파괴**됨 — 절대 금지 (2) `DependencyObject`(non-FrameworkElement)의 `{ThemeResource}`는 테마 변경 시 자동 갱신 안 됨 — 수동 갱신 필수 |
+
+### 29. 셸 확장 프로그램 활성화 시 시스템 오류 팝업 (P1) — GitHub Issue #1
 
 
 | 항목 | 내용 |
@@ -303,7 +312,7 @@
 | **참고** | MS 공식 권장: `SetThreadErrorMode`는 `SetErrorMode`보다 안전 (스레드 범위, 레이스 컨디션 없음). `CMIC_MASK_FLAG_NO_UI`는 MS CMINVOKECOMMANDINFO 공식 문서에 명시된 플래그. ID > 5000 가드는 Files App + RX-Explorer 두 프로젝트에서 공통 적용 |
 | **교훈** | 셸 확장 COM 호스팅 시 (1) `SetThreadErrorMode`로 에러 다이얼로그 억제 (2) `CMIC_MASK_FLAG_NO_UI`로 InvokeCommand 에러 UI 억제 (3) `GetCommandString` ID 범위 가드 — 세 겹 방어 필수 |
 
-### 29. Sentry 크래시 리포팅 중복 전송 + UI 차단 (P1)
+### 30. Sentry 크래시 리포팅 중복 전송 + UI 차단 (P1)
 
 | 항목 | 내용 |
 |------|------|
@@ -341,5 +350,7 @@
 | Measure 중 Margin 변경 금지 | ContainerContentChanging에서 Width만 변경 | DetailsModeView.xaml.cs |
 | 헤더-데이터 컬럼 동기화 | 개별 반올림 X, 누적 합산으로 총 너비 계산 | DetailsModeView.xaml.cs |
 | 폴더 재선택 시 디스크 동기화 | IsAlreadyLoaded → ReloadAsync (SyncChildren diff) | ExplorerViewModel.cs |
+| Binding 파괴 금지 | {Binding} 걸린 DP에 코드 직접 대입 금지 — 토글로 재평가 | SettingsHandler.cs |
+| ThemeResource non-FE | DependencyObject의 {ThemeResource}는 수동 갱신 | BoolToBrushConverter |
 | 셸 확장 COM 방어 | SetThreadErrorMode + CMIC_MASK_FLAG_NO_UI + ID 가드 | ShellContextMenu.cs |
 | Sentry 전송 쓰로틀 | 모든 전송 경로에 세션당 캡처 수 제한 | App.xaml.cs, DispatcherHelper.cs |
