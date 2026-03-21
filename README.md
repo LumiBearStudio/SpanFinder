@@ -28,6 +28,13 @@
 > **Navigate folder hierarchies the way they were meant to be navigated.**
 > Click a folder, its contents appear in the next column. You always see where you are, where you came from, and where you're going — all at once. No more clicking back and forth.
 
+<p align="center">
+  <a href="https://github.com/LumiBearStudio/SpanFinder/stargazers"><img src="https://img.shields.io/github/stars/LumiBearStudio/SpanFinder?style=social" alt="GitHub Stars"></a>
+</p>
+<p align="center">
+  If you find SPAN Finder useful, consider giving it a ⭐ — it helps others discover this project!
+</p>
+
 ---
 
 ## Why SPAN Finder?
