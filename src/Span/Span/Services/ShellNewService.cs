@@ -153,7 +153,20 @@ public class ShellNewService
                     using var extKey = classesRoot.OpenSubKey(extName);
                     if (extKey == null) continue;
 
-                    using var shellNewKey = extKey.OpenSubKey("ShellNew");
+                    // ShellNew를 2단계로 탐색:
+                    // 1차: HKCR\.ext\ShellNew (직접)
+                    // 2차: HKCR\.ext\ProgID\ShellNew (ProgID 서브키 하위)
+                    var shellNewKey = extKey.OpenSubKey("ShellNew");
+                    if (shellNewKey == null)
+                    {
+                        // ProgID 서브키 탐색 (예: .docx\Word.Document.12\ShellNew)
+                        foreach (var subName in extKey.GetSubKeyNames())
+                        {
+                            if (subName.StartsWith('.')) continue; // 다른 확장자 서브키 스킵
+                            shellNewKey = extKey.OpenSubKey($"{subName}\\ShellNew");
+                            if (shellNewKey != null) break;
+                        }
+                    }
                     if (shellNewKey == null) continue;
 
                     var item = new ShellNewItem { Extension = extName };
@@ -202,6 +215,17 @@ public class ShellNewService
         catch (Exception ex)
         {
             Helpers.DebugLogger.Log($"[ShellNew] Registry scan error: {ex.Message}");
+        }
+
+        // .txt가 레지스트리에 없으면 기본 추가 (Windows 11에서 누락 가능)
+        if (!items.Exists(i => i.Extension.Equals(".txt", StringComparison.OrdinalIgnoreCase)))
+        {
+            items.Add(new ShellNewItem
+            {
+                Extension = ".txt",
+                DisplayName = "Text Document",
+                Type = ShellNewType.NullFile
+            });
         }
 
         // 알파벳 순 정렬 (표시 이름 기준)
