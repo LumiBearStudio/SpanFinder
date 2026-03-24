@@ -78,28 +78,32 @@
                                     <Border Grid.ColumnSpan="2" Background="{ThemeResource SpanBgLayer1Brush}"
                                             CornerRadius="6,6,0,0"
                                             Visibility="{x:Bind IsActiveVisible, Mode=OneWay}"/>
-                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Padding="12,0,0,0">
-                                        <!-- Home icon (Segoe Fluent Icons) -->
-                                        <FontIcon Glyph="&#xE80F;" FontSize="14"
-                                                  Foreground="{ThemeResource SpanAccentBrush}"
-                                                  Visibility="{x:Bind IsHomeModeVisible, Mode=OneWay}"/>
-                                        <!-- Settings icon (Segoe Fluent Icons gear) -->
-                                        <FontIcon Glyph="&#xE713;" FontSize="14"
-                                                  Foreground="{ThemeResource SpanAccentBrush}"
-                                                  Visibility="{x:Bind IsSettingsModeVisible, Mode=OneWay}"/>
-                                        <!-- ActionLog icon (clock) -->
-                                        <FontIcon Glyph="&#xE81C;" FontSize="14"
-                                                  Foreground="{ThemeResource SpanAccentBrush}"
-                                                  Visibility="{x:Bind IsActionLogModeVisible, Mode=OneWay}"/>
-                                        <!-- Folder icon (RemixIcons) -->
-                                        <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Folder}" FontSize="14"
-                                                  Foreground="#FFD54F"
-                                                  Visibility="{x:Bind IsNotHomeModeVisible, Mode=OneWay}"/>
-                                        <TextBlock Text="{x:Bind Header, Mode=OneWay}"
+                                    <Grid Grid.Column="0" VerticalAlignment="Center" Padding="12,0,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <!-- Icons (Auto width) -->
+                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="0" Margin="0,0,8,0">
+                                            <FontIcon Glyph="&#xE80F;" FontSize="14"
+                                                      Foreground="{ThemeResource SpanAccentBrush}"
+                                                      Visibility="{x:Bind IsHomeModeVisible, Mode=OneWay}"/>
+                                            <FontIcon Glyph="&#xE713;" FontSize="14"
+                                                      Foreground="{ThemeResource SpanAccentBrush}"
+                                                      Visibility="{x:Bind IsSettingsModeVisible, Mode=OneWay}"/>
+                                            <FontIcon Glyph="&#xE81C;" FontSize="14"
+                                                      Foreground="{ThemeResource SpanAccentBrush}"
+                                                      Visibility="{x:Bind IsActionLogModeVisible, Mode=OneWay}"/>
+                                            <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Folder}" FontSize="14"
+                                                      Foreground="#FFD54F"
+                                                      Visibility="{x:Bind IsNotHomeModeVisible, Mode=OneWay}"/>
+                                        </StackPanel>
+                                        <!-- Tab name (Star width → TextTrimming works) -->
+                                        <TextBlock Grid.Column="1" Text="{x:Bind Header, Mode=OneWay}"
                                                    FontSize="12" Foreground="{ThemeResource SpanTextPrimaryBrush}"
                                                    VerticalAlignment="Center"
                                                    TextTrimming="CharacterEllipsis" MaxLines="1"/>
-                                    </StackPanel>
+                                    </Grid>
                                     <!-- Close button -->
                                     <Button Grid.Column="1" Style="{StaticResource UnifiedButtonStyle}"
                                             Width="24" Height="24" Padding="0" MinWidth="0" MinHeight="0"
