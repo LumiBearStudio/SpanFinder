@@ -31,9 +31,9 @@ public class KeyBindingService
     // ScanCode → VirtualKey 이름 매핑 (한국어/일본어 IME fallback)
     private static readonly Dictionary<uint, string> ScanCodeToKeyName = new()
     {
-        { 41, "OemTilde" },     // ` (backtick)
-        { 40, "OemQuotes" },    // ' (single quote)
-        { 51, "OemComma" },     // , (comma)
+        { 41, "`" },     // backtick
+        { 40, "'" },    // single quote
+        { 51, "," },    // comma
     };
 
     // 구조적 키: 수식키 없이 단독 사용 시 바인딩 차단
@@ -266,10 +266,10 @@ public class KeyBindingService
 
             // Window
             ["span.window.new"]        = ["Ctrl+N"],
-            ["span.window.terminal"]   = ["Ctrl+OemTilde", "Ctrl+OemQuotes"],
-            ["span.window.settings"]   = ["Ctrl+OemComma"],
+            ["span.window.terminal"]   = ["Ctrl+`", "Ctrl+'"],
+            ["span.window.settings"]   = ["Ctrl+,"],
             ["span.window.properties"] = ["Alt+Enter"],
-            ["span.window.help"]       = ["F1", "Shift+OemQuestion"],
+            ["span.window.help"]       = ["F1", "Shift+/"],
 
             // Quick Look
             ["span.quickLook.toggle"] = ["Space"],
@@ -451,18 +451,18 @@ public class KeyBindingService
             VirtualKey.PageDown => "PageDown",
             VirtualKey.Insert  => "Insert",
 
-            // OEM 키
-            (VirtualKey)186 => "OemSemicolon",  // ;
-            (VirtualKey)187 => "Plus",          // =+
-            (VirtualKey)188 => "OemComma",      // ,
-            (VirtualKey)189 => "Minus",         // -
-            (VirtualKey)190 => "OemPeriod",     // .
-            (VirtualKey)191 => "OemQuestion",   // /?
-            (VirtualKey)192 => "OemTilde",      // `~
-            (VirtualKey)219 => "OemOpenBracket",  // [{
-            (VirtualKey)220 => "OemBackslash",    // \|
-            (VirtualKey)221 => "OemCloseBracket", // ]}
-            (VirtualKey)222 => "OemQuotes",       // '"
+            // OEM 키 (사용자 친화적 이름)
+            (VirtualKey)186 => ";",
+            (VirtualKey)187 => "=",
+            (VirtualKey)188 => ",",
+            (VirtualKey)189 => "-",
+            (VirtualKey)190 => ".",
+            (VirtualKey)191 => "/",
+            (VirtualKey)192 => "`",
+            (VirtualKey)219 => "[",
+            (VirtualKey)220 => "\\",
+            (VirtualKey)221 => "]",
+            (VirtualKey)222 => "'",
 
             // Snapshot / PrintScreen
             VirtualKey.Snapshot => "PrintScreen",

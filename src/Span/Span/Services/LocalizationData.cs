@@ -193,6 +193,7 @@ namespace Span.Services
             ("Help_BackForward", "Back / Forward", "뒤로 / 앞으로", "戻る / 進む", "后退 / 前进", "上一頁 / 下一頁", "Zurück / Vorwärts", "Atrás / Adelante", "Précédent / Suivant", "Voltar / Avançar"),
             ("Help_AddressBar", "Focus address bar", "주소 표시줄 포커스", "アドレスバーにフォーカス", "聚焦地址栏", "聚焦網址列", "Adressleiste fokussieren", "Enfocar barra de direcciones", "Focus sur la barre d'adresse", "Focar barra de endereço"),
             ("Help_Search", "Search", "검색", "検索", "搜索", "搜尋", "Suche", "Buscar", "Rechercher", "Pesquisar"),
+            ("Help_Filter", "Filter", "필터", "フィルター", "筛选", "篩選", "Filter", "Filtro", "Filtre", "Filtro"),
             ("Help_QuickLook", "Toggle preview panel", "미리보기 패널 토글", "プレビューパネル切替", "切换预览面板", "切換預覽面板", "Vorschau-Panel umschalten", "Alternar panel de vista previa", "Basculer le panneau d'aperçu", "Alternar painel de visualização"),
             ("Help_Edit", "Edit", "편집", "編集", "编辑", "編輯", "Bearbeiten", "Editar", "Modifier", "Editar"),
             ("Help_Copy", "Copy", "복사", "コピー", "复制", "複製", "Kopieren", "Copiar", "Copier", "Copiar"),
@@ -220,9 +221,12 @@ namespace Span.Services
             ("Help_EqualizeColumns", "Equalize column widths", "컬럼 너비 통일", "カラム幅を均等化", "均分列宽", "平均分配欄寬", "Spaltenbreiten angleichen", "Igualar ancho de columnas", "Égaliser la largeur des colonnes", "Equalizar largura das colunas"),
             ("Help_AutoFitColumns", "Auto-fit columns", "컬럼 자동 맞춤", "カラム自動調整", "自动调整列", "自動調整欄", "Spalten automatisch anpassen", "Autoajustar columnas", "Ajuster automatiquement les colonnes", "Ajustar colunas automaticamente"),
             ("Help_Refresh", "Refresh", "새로고침", "更新", "刷新", "重新整理", "Aktualisieren", "Actualizar", "Actualiser", "Atualizar"),
+            ("Help_ToggleHidden", "Toggle hidden files", "숨김 파일 표시 전환", "隠しファイル切替", "切换隐藏文件", "切換隱藏檔案", "Versteckte Dateien umschalten", "Alternar archivos ocultos", "Basculer les fichiers cachés", "Alternar arquivos ocultos"),
+            ("Help_Fullscreen", "Full screen", "전체 화면", "フルスクリーン", "全屏", "全螢幕", "Vollbild", "Pantalla completa", "Plein écran", "Tela cheia"),
             ("Help_WindowTab", "Window / Tab", "창 / 탭", "ウィンドウ / タブ", "窗口 / 标签页", "視窗 / 索引標籤", "Fenster / Tab", "Ventana / Pestaña", "Fenêtre / Onglet", "Janela / Guia"),
             ("Help_NewTab", "New tab", "새 탭", "新しいタブ", "新建标签页", "新增索引標籤", "Neuer Tab", "Nueva pestaña", "Nouvel onglet", "Nova guia"),
             ("Help_CloseTab", "Close tab", "탭 닫기", "タブを閉じる", "关闭标签页", "關閉索引標籤", "Tab schließen", "Cerrar pestaña", "Fermer l'onglet", "Fechar guia"),
+            ("Help_OpenInNewTab", "Open in new tab", "새 탭에서 열기", "新しいタブで開く", "在新标签页中打开", "在新索引標籤中開啟", "In neuem Tab öffnen", "Abrir en nueva pestaña", "Ouvrir dans un nouvel onglet", "Abrir em nova guia"),
             ("Help_NewWindow", "New window", "새 창", "新しいウィンドウ", "新建窗口", "新增視窗", "Neues Fenster", "Nueva ventana", "Nouvelle fenêtre", "Nova janela"),
             ("Help_OpenTerminal", "Open terminal", "터미널 열기", "ターミナルを開く", "打开终端", "開啟終端機", "Terminal öffnen", "Abrir terminal", "Ouvrir le terminal", "Abrir terminal"),
             ("Help_Settings", "Settings", "설정", "設定", "设置", "設定", "Einstellungen", "Configuración", "Paramètres", "Configurações"),
@@ -609,6 +613,10 @@ namespace Span.Services
             ("Settings_ShortcutsCancelContent", "Discard unsaved changes?", "저장하지 않은 변경사항을 버리시겠습니까?", "保存していない変更を破棄しますか？", "放弃未保存的更改？", "捨棄未儲存的變更？", "Ungespeicherte Änderungen verwerfen?", "¿Descartar cambios sin guardar?", "Annuler les modifications non enregistrées ?", "Descartar alterações não salvas?"),
             ("Settings_ShortcutsSaved", "Shortcuts saved", "단축키가 저장되었습니다", "ショートカットを保存しました", "快捷键已保存", "快速鍵已儲存", "Tastenkürzel gespeichert", "Atajos guardados", "Raccourcis enregistrés", "Atalhos salvos"),
             ("Settings_ShortcutsUnsaved", "Unsaved shortcut changes", "저장하지 않은 단축키 변경사항이 있습니다", "未保存のショートカット変更があります", "有未保存的快捷键更改", "有未儲存的快速鍵變更", "Ungespeicherte Tastenkürzel-Änderungen", "Cambios de atajos sin guardar", "Modifications de raccourcis non enregistrées", "Alterações de atalhos não salvas"),
+            ("Settings_ShortcutsRecordPrompt", "Enter new shortcut for '{0}'", "'{0}'의 새 단축키를 입력하세요", "「{0}」の新しいショートカットを入力してください", "请输入'{0}'的新快捷键", "請輸入「{0}」的新快速鍵", "Neue Tastenkombination für '{0}' eingeben", "Ingrese nuevo atajo para '{0}'", "Saisissez le nouveau raccourci pour '{0}'", "Digite o novo atalho para '{0}'"),
+            ("Settings_ShortcutsPressKey", "Press keys...", "키를 누르세요...", "キーを押してください...", "请按键...", "請按鍵...", "Taste drücken...", "Presione teclas...", "Appuyez sur les touches...", "Pressione as teclas..."),
+            ("Settings_ShortcutsNone", "(None)", "(없음)", "(なし)", "(无)", "(無)", "(Keine)", "(Ninguno)", "(Aucun)", "(Nenhum)"),
+            ("Edit", "Edit", "수정", "編集", "编辑", "編輯", "Bearbeiten", "Editar", "Modifier", "Editar"),
 
             // ── Archive ─────────────────────────────────────────────────────
             ("Toast_ArchiveReadOnly", "Archive is read-only", "압축 파일은 읽기 전용입니다", "アーカイブは読み取り専用です", "归档文件为只读", "封存檔為唯讀", "Archiv ist schreibgeschützt", "El archivo es de solo lectura", "L'archive est en lecture seule", "O arquivo é somente leitura"),
@@ -751,6 +759,8 @@ namespace Span.Services
             ("Shortcuts_Selection", "Selection", "선택", "選択", "选择", "選取", "Auswahl", "Selección", "Sélection", "Seleção"),
             ("Shortcuts_View", "View", "보기", "表示", "查看", "檢視", "Ansicht", "Vista", "Affichage", "Exibição"),
             ("Shortcuts_Window", "Window", "창", "ウィンドウ", "窗口", "視窗", "Fenster", "Ventana", "Fenêtre", "Janela"),
+            ("Shortcuts_Tab", "Tab", "탭", "タブ", "标签页", "分頁", "Tab", "Pestaña", "Onglet", "Aba"),
+            ("Shortcuts_QuickLook", "Quick Look", "빠른 보기", "クイックルック", "快速查看", "快速預覽", "Schnellansicht", "Vista rápida", "Aperçu rapide", "Visualização rápida"),
 
             // ── Shortcut command display names ─────────────────────────────
             ("Shortcut_NavigateBack", "Back", "뒤로 가기", "戻る", "后退", "返回", "Zurück", "Atrás", "Retour", "Voltar"),

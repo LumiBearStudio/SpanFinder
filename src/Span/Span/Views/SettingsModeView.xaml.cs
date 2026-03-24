@@ -649,9 +649,9 @@ public sealed partial class SettingsModeView : UserControl
 
             // Shortcuts
             ShortcutsTitle.Text = _loc.Get("Settings_Shortcuts") ?? "단축키";
-            ShortcutsResetAllBtn.Content = _loc.Get("Settings_ResetAll") ?? "초기화";
-            ShortcutsCancelBtn.Content = _loc.Get("Common_Cancel") ?? "취소";
-            ShortcutsSaveBtn.Content = _loc.Get("Common_Save") ?? "저장";
+            ShortcutsResetAllBtn.Content = _loc.Get("Settings_ShortcutsResetAllTitle") ?? "초기화";
+            ShortcutsCancelBtn.Content = _loc.Get("Cancel") ?? "취소";
+            ShortcutsSaveBtn.Content = _loc.Get("Save") ?? "저장";
 
             // Advanced
             AdvancedTitle.Text = _loc.Get("Settings_Advanced");
@@ -798,6 +798,24 @@ public sealed partial class SettingsModeView : UserControl
 
     // ── Shortcuts Section ──
 
+    /// <summary>
+    /// 현재 테마의 브러시를 가져온다. MainWindow.GetThemeBrush()를 활용하여
+    /// 커스텀 테마(Dracula, Tokyo Night 등) → 시스템 액센트 → XAML 기본값 순으로 정확히 resolve.
+    /// </summary>
+    private Brush GetAccentBrush() => GetThemeBrush("SpanAccentBrush");
+    private Brush GetThemeBrush(string key)
+    {
+        try
+        {
+            // MainWindow.GetThemeBrush() 활용 (윈도우 레벨 커스텀 테마 → 앱 레벨 fallback)
+            foreach (var w in ((App)App.Current).GetRegisteredWindows())
+                if (w is MainWindow mw)
+                    return mw.GetThemeBrush(key);
+        }
+        catch { }
+        return (Brush)Application.Current.Resources[key];
+    }
+
     private void LoadShortcutsSection()
     {
         if (_shortcutsLoaded) return;
@@ -811,6 +829,18 @@ public sealed partial class SettingsModeView : UserControl
         RebuildShortcutItemsUI();
     }
 
+    // 카테고리별 아이콘 매핑
+    private static readonly Dictionary<string, string> _categoryIcons = new()
+    {
+        ["Navigation"] = "\uE707",  // compass
+        ["Edit"]       = "\uE70F",  // edit
+        ["Selection"]  = "\uE762",  // select all
+        ["View"]       = "\uE7B3",  // view
+        ["Tab"]        = "\uE8A0",  // tab
+        ["Window"]     = "\uE737",  // window
+        ["QuickLook"]  = "\uE7B3",  // eye
+    };
+
     private void RebuildShortcutItemsUI()
     {
         if (ShortcutItemsPanel == null || _editingBindings == null) return;
@@ -820,86 +850,231 @@ public sealed partial class SettingsModeView : UserControl
 
         foreach (var category in categories)
         {
-            // 카테고리 헤더
-            var header = new TextBlock
-            {
-                Text = _loc?.Get($"Shortcuts_{category}") ?? category,
-                FontSize = 14,
-                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-                Foreground = (Brush)Application.Current.Resources["SpanTextPrimaryBrush"],
-                Margin = new Thickness(0, 16, 0, 8)
-            };
-            ShortcutItemsPanel.Children.Add(header);
-
-            // 해당 카테고리의 커맨드 목록
+            _shortcutRowIndex = 0;
             var commands = Models.ShortcutCommands.GetCommandsByCategory(category);
+            if (commands == null || !commands.Any()) continue;
 
+            // 컨텐츠 패널 (행들)
+            var itemsPanel = new StackPanel { Spacing = 0 };
             foreach (var commandId in commands)
+                itemsPanel.Children.Add(CreateShortcutRow(commandId));
+
+            // 화살표 아이콘 (회전 애니메이션 대상)
+            var chevron = new FontIcon
             {
-                var row = CreateShortcutRow(commandId);
-                ShortcutItemsPanel.Children.Add(row);
-            }
+                Glyph = "\uE70D", // ChevronDown
+                FontSize = 10,
+                Foreground = (Brush)Application.Current.Resources["SpanTextTertiaryBrush"],
+                VerticalAlignment = VerticalAlignment.Center,
+                RenderTransform = new RotateTransform(),
+                RenderTransformOrigin = new Windows.Foundation.Point(0.5, 0.5)
+            };
+
+            // 카테고리 아이콘
+            var categoryIcon = _categoryIcons.TryGetValue(category, out var glyph) ? glyph : "\uE713";
+
+            // 헤더 버튼 (클릭으로 접기/펼치기)
+            var headerBtn = new Button
+            {
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                HorizontalContentAlignment = HorizontalAlignment.Left,
+                Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent),
+                BorderThickness = new Thickness(0),
+                Padding = new Thickness(12, 8, 12, 8),
+                Content = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    Spacing = 8,
+                    Children =
+                    {
+                        chevron,
+                        new FontIcon
+                        {
+                            Glyph = categoryIcon,
+                            FontSize = 14,
+                            Foreground = GetAccentBrush(),
+                            VerticalAlignment = VerticalAlignment.Center
+                        },
+                        new TextBlock
+                        {
+                            Text = _loc?.Get($"Shortcuts_{category}") ?? category,
+                            FontSize = 13,
+                            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                            Foreground = (Brush)Application.Current.Resources["SpanTextPrimaryBrush"],
+                            VerticalAlignment = VerticalAlignment.Center
+                        }
+                    }
+                }
+            };
+            Helpers.CursorHelper.SetHandCursor(headerBtn);
+
+            // 클릭 → 접기/펼치기 + 애니메이션
+            headerBtn.Click += (s, e) =>
+            {
+                bool collapsing = itemsPanel.Visibility == Visibility.Visible;
+                AnimateExpandCollapse(itemsPanel, chevron, !collapsing);
+            };
+
+            // 항목 들여쓰기 (좌우 동일 마진)
+            itemsPanel.Padding = new Thickness(20, 0, 20, 4);
+
+            // 카드 컨테이너 (1px 테두리 + 둥근 모서리)
+            var card = new Border
+            {
+                Background = (Brush)Application.Current.Resources["SpanBgLayer1Brush"],
+                BorderBrush = (Brush)Application.Current.Resources["SpanBorderSubtleBrush"],
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(0),
+                Margin = new Thickness(0, 0, 0, 8),
+                Child = new StackPanel
+                {
+                    Spacing = 0,
+                    Children = { headerBtn, itemsPanel }
+                }
+            };
+            ShortcutItemsPanel.Children.Add(card);
         }
 
         UpdateSaveButtonState();
     }
 
+    /// <summary>
+    /// 접기/펼치기 애니메이션: chevron 회전 + 컨텐츠 opacity fade.
+    /// </summary>
+    private void AnimateExpandCollapse(StackPanel content, FontIcon chevron, bool expand)
+    {
+        var duration = TimeSpan.FromMilliseconds(200);
+
+        // Chevron 회전: 0° (펼침) ↔ -90° (접힘)
+        var rotateAnim = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+        {
+            To = expand ? 0 : -90,
+            Duration = new Duration(duration),
+            EasingFunction = new Microsoft.UI.Xaml.Media.Animation.CubicEase
+            {
+                EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseInOut
+            }
+        };
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(rotateAnim, chevron.RenderTransform);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(rotateAnim, "Angle");
+
+        if (expand)
+        {
+            // 펼치기: 먼저 Visible → opacity 0→1
+            content.Visibility = Visibility.Visible;
+            content.Opacity = 0;
+            var fadeIn = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+            {
+                From = 0, To = 1,
+                Duration = new Duration(duration),
+                EasingFunction = new Microsoft.UI.Xaml.Media.Animation.CubicEase
+                {
+                    EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut
+                }
+            };
+            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(fadeIn, content);
+            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(fadeIn, "Opacity");
+
+            var sb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
+            sb.Children.Add(rotateAnim);
+            sb.Children.Add(fadeIn);
+            sb.Begin();
+        }
+        else
+        {
+            // 접기: opacity 1→0 → Collapsed
+            var fadeOut = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+            {
+                From = 1, To = 0,
+                Duration = new Duration(duration),
+                EasingFunction = new Microsoft.UI.Xaml.Media.Animation.CubicEase
+                {
+                    EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseIn
+                }
+            };
+            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(fadeOut, content);
+            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(fadeOut, "Opacity");
+
+            var sb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
+            sb.Children.Add(rotateAnim);
+            sb.Children.Add(fadeOut);
+            sb.Completed += (_, _) =>
+            {
+                content.Visibility = Visibility.Collapsed;
+            };
+            sb.Begin();
+        }
+    }
+
+    // 현재 인라인 녹화 중인 행의 StackPanel (keysPanel)
+    private StackPanel? _recordingRowPanel;
+
+    private int _shortcutRowIndex;
+
     private Grid CreateShortcutRow(string commandId)
     {
-        var grid = new Grid { Height = 36, Padding = new Thickness(12, 0, 12, 0) };
+        var grid = new Grid
+        {
+            Height = 36, Padding = new Thickness(12, 0, 12, 0),
+            CornerRadius = new CornerRadius(4),
+            // 짝수/홀수 행 배경 교차 (미세한 줄무늬)
+            Background = (_shortcutRowIndex++ % 2 == 0)
+                ? new SolidColorBrush(Microsoft.UI.Colors.Transparent)
+                : (Brush)Application.Current.Resources["SpanBgLayer2Brush"]
+        };
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-        // 명령 이름
+        // 명령 이름 — ● 공간을 항상 확보 (수정 여부 관계없이 동일 정렬)
         var isModified = IsBindingModified(commandId);
-        var namePanel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
-        if (isModified)
+        var namePanel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, VerticalAlignment = VerticalAlignment.Center };
+        namePanel.Children.Add(new Ellipse
         {
-            var dot = new Ellipse
-            {
-                Width = 6,
-                Height = 6,
-                Fill = (Brush)Application.Current.Resources["SpanAccentBrush"],
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            namePanel.Children.Add(dot);
-        }
+            Width = 6, Height = 6,
+            Fill = isModified
+                ? GetAccentBrush()
+                : new SolidColorBrush(Microsoft.UI.Colors.Transparent), // 항상 자리 차지, 투명으로 숨김
+            VerticalAlignment = VerticalAlignment.Center
+        });
         namePanel.Children.Add(new TextBlock
         {
             Text = Models.ShortcutCommands.GetDisplayName(commandId),
-            FontSize = 13,
-            VerticalAlignment = VerticalAlignment.Center
+            FontSize = 13, VerticalAlignment = VerticalAlignment.Center
         });
         Grid.SetColumn(namePanel, 0);
         grid.Children.Add(namePanel);
 
-        // 키 배지 패널
+        // 키 배지 + 수정 버튼
         var keysPanel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, VerticalAlignment = VerticalAlignment.Center };
         var keys = _editingBindings?.ContainsKey(commandId) == true ? _editingBindings[commandId] : new List<string>();
+        var keyText = keys.Count > 0 ? string.Join(", ", keys) : (_loc?.Get("Settings_ShortcutsNone") ?? "(없음)");
 
-        foreach (var keyStr in keys)
+        keysPanel.Children.Add(new Border
         {
-            var badge = CreateKeyBadge(keyStr, commandId);
-            keysPanel.Children.Add(badge);
-        }
+            Child = new TextBlock
+            {
+                Text = keyText,
+                FontFamily = new FontFamily("Consolas"), FontSize = 11,
+                VerticalAlignment = VerticalAlignment.Center,
+                Foreground = keys.Count > 0
+                    ? GetAccentBrush()
+                    : (Brush)Application.Current.Resources["SpanTextTertiaryBrush"]
+            },
+            Background = (Brush)Application.Current.Resources["SpanBgLayer2Brush"],
+            CornerRadius = new CornerRadius(4), Padding = new Thickness(8, 3, 8, 3)
+        });
 
-        // [+] 추가 버튼
-        var addBtn = new Button
+        var editBtn = new Button
         {
-            Content = "+",
-            FontSize = 11,
-            Padding = new Thickness(6, 2, 6, 2),
-            MinWidth = 0,
-            MinHeight = 0,
-            Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent),
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(4),
-            Tag = commandId
+            Content = _loc?.Get("Edit") ?? "수정",
+            FontSize = 11, Padding = new Thickness(8, 2, 8, 2),
+            MinWidth = 0, MinHeight = 0, Tag = commandId
         };
-        ToolTipService.SetToolTip(addBtn, _loc?.Get("Settings_ShortcutsAddKey") ?? "단축키 추가");
-        addBtn.Click += OnAddKeyClick;
-        keysPanel.Children.Add(addBtn);
+        Helpers.CursorHelper.SetHandCursor(editBtn);
+        editBtn.Click += OnEditKeyClick;
+        keysPanel.Children.Add(editBtn);
 
         Grid.SetColumn(keysPanel, 1);
         grid.Children.Add(keysPanel);
@@ -907,16 +1082,13 @@ public sealed partial class SettingsModeView : UserControl
         // 리셋 버튼
         var resetBtn = new Button
         {
-            Content = "\u21BA",  // ↺
-            FontSize = 14,
-            Padding = new Thickness(4),
-            MinWidth = 0,
-            MinHeight = 0,
+            Content = "\u21BA", FontSize = 14, Padding = new Thickness(4),
+            MinWidth = 0, MinHeight = 0,
             Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent),
-            BorderThickness = new Thickness(0),
-            Tag = commandId,
+            BorderThickness = new Thickness(0), Tag = commandId,
             Margin = new Thickness(8, 0, 0, 0)
         };
+        Helpers.CursorHelper.SetHandCursor(resetBtn);
         ToolTipService.SetToolTip(resetBtn, _loc?.Get("Settings_ShortcutsResetOne") ?? "기본값으로 리셋");
         resetBtn.Click += OnShortcutResetOne;
         Grid.SetColumn(resetBtn, 2);
@@ -925,86 +1097,185 @@ public sealed partial class SettingsModeView : UserControl
         return grid;
     }
 
-    private Border CreateKeyBadge(string keyString, string commandId)
-    {
-        var panel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
-        panel.Children.Add(new TextBlock
-        {
-            Text = keyString,
-            FontFamily = new FontFamily("Consolas"),
-            FontSize = 11,
-            VerticalAlignment = VerticalAlignment.Center
-        });
-
-        // x 제거 버튼
-        var removeBtn = new Button
-        {
-            Content = "\u00D7",  // ×
-            FontSize = 9,
-            Padding = new Thickness(2, 0, 2, 0),
-            MinWidth = 0,
-            MinHeight = 0,
-            Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent),
-            BorderThickness = new Thickness(0),
-            Tag = $"{commandId}|{keyString}"
-        };
-        removeBtn.Click += OnRemoveKeyClick;
-        panel.Children.Add(removeBtn);
-
-        var badge = new Border
-        {
-            Child = panel,
-            Background = (Brush)Application.Current.Resources["SpanBgLayer2Brush"],
-            CornerRadius = new CornerRadius(4),
-            Padding = new Thickness(8, 3, 4, 3)
-        };
-        return badge;
-    }
-
     // ── Shortcut event handlers ──
 
-    private async void OnAddKeyClick(object sender, RoutedEventArgs e)
+    /// <summary>인라인 녹화 모드 진입 — 해당 행의 키 배지 영역을 녹화 UI로 교체</summary>
+    private void OnEditKeyClick(object sender, RoutedEventArgs e)
     {
         try
         {
             var btn = sender as Button;
             var commandId = btn?.Tag as string;
-            if (commandId == null || _keyBindingService == null) return;
+            if (commandId == null || _keyBindingService == null || _editingBindings == null) return;
 
-            var dialog = new ContentDialog
-            {
-                Title = _loc?.Get("Settings_ShortcutsRecord") ?? "단축키 입력",
-                Content = CreateKeyRecorderContent(commandId),
-                CloseButtonText = _loc?.Get("Cancel") ?? "취소",
-                XamlRoot = this.XamlRoot,
-                DefaultButton = ContentDialogButton.None
-            };
+            // 이미 녹화 중이면 취소
+            if (_recordingCommandId != null) CancelInlineRecording();
 
             _recordingCommandId = commandId;
-            _recordingDialog = dialog;
 
-            // MainWindow의 글로벌 키보드 핸들러 억제
-            var windows = ((App)App.Current).GetRegisteredWindows();
-            foreach (var w in windows)
+            // 해당 행의 keysPanel 찾기 (버튼의 부모)
+            var keysPanel = btn.Parent as StackPanel;
+            if (keysPanel == null) return;
+            _recordingRowPanel = keysPanel;
+
+            // 글로벌 키 핸들러 억제
+            foreach (var w in ((App)App.Current).GetRegisteredWindows())
+                if (w is MainWindow mw) mw._isRecordingShortcut = true;
+
+            // keysPanel 내용을 녹화 UI로 교체
+            keysPanel.Children.Clear();
+            var recordingText = new TextBlock
             {
-                if (w is MainWindow mw)
-                    mw._isRecordingShortcut = true;
-            }
-
-            await dialog.ShowAsync();
-
-            foreach (var w in windows)
+                Text = _loc?.Get("Settings_ShortcutsPressKey") ?? "키를 누르세요...",
+                FontFamily = new FontFamily("Consolas"), FontSize = 11,
+                VerticalAlignment = VerticalAlignment.Center,
+                Foreground = GetAccentBrush()
+            };
+            var recordingBadge = new Border
             {
-                if (w is MainWindow mw)
-                    mw._isRecordingShortcut = false;
-            }
-            _recordingCommandId = null;
-            _recordingDialog = null;
+                Child = recordingText,
+                Background = GetAccentBrush(),
+                Opacity = 0.15,
+                CornerRadius = new CornerRadius(4), Padding = new Thickness(12, 3, 12, 3),
+                Tag = recordingText // Tag로 TextBlock 참조
+            };
+            keysPanel.Children.Add(recordingBadge);
+
+            var cancelBtn = new Button
+            {
+                Content = _loc?.Get("Cancel") ?? "취소",
+                FontSize = 11, Padding = new Thickness(8, 2, 8, 2),
+                MinWidth = 0, MinHeight = 0
+            };
+            cancelBtn.Click += (_, _) => CancelInlineRecording();
+            keysPanel.Children.Add(cancelBtn);
+
+            // 키 입력 캡처: keysPanel의 부모 Grid에 KeyDown 등록
+            var parentGrid = keysPanel.Parent as Grid;
+            parentGrid?.AddHandler(UIElement.KeyDownEvent, new KeyEventHandler(OnInlineRecordingKeyDown), true);
         }
         catch (Exception ex)
         {
-            DebugLogger.Log($"[SettingsModeView] OnAddKeyClick error: {ex.Message}");
+            DebugLogger.Log($"[SettingsModeView] OnEditKeyClick error: {ex.Message}");
         }
+    }
+
+    /// <summary>인라인 녹화 취소 — UI를 원래 상태로 복원</summary>
+    private void CancelInlineRecording()
+    {
+        // 글로벌 키 핸들러 복원
+        foreach (var w in ((App)App.Current).GetRegisteredWindows())
+            if (w is MainWindow mw) mw._isRecordingShortcut = false;
+
+        // KeyDown 핸들러 제거
+        if (_recordingRowPanel?.Parent is Grid parentGrid)
+            parentGrid.RemoveHandler(UIElement.KeyDownEvent, new KeyEventHandler(OnInlineRecordingKeyDown));
+
+        _recordingCommandId = null;
+        _recordingRowPanel = null;
+        RebuildShortcutItemsUI();
+    }
+
+    /// <summary>인라인 녹화 중 키 입력 처리</summary>
+    private void OnInlineRecordingKeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (_recordingCommandId == null || _keyBindingService == null || _editingBindings == null) return;
+        e.Handled = true;
+
+        // Escape → 녹화 취소
+        if (e.Key == Windows.System.VirtualKey.Escape)
+        {
+            CancelInlineRecording();
+            return;
+        }
+
+        // 수식키만 누른 경우 무시
+        if (e.Key is Windows.System.VirtualKey.Control or Windows.System.VirtualKey.Shift
+            or Windows.System.VirtualKey.Menu or Windows.System.VirtualKey.LeftControl
+            or Windows.System.VirtualKey.RightControl or Windows.System.VirtualKey.LeftShift
+            or Windows.System.VirtualKey.RightShift or Windows.System.VirtualKey.LeftMenu
+            or Windows.System.VirtualKey.RightMenu)
+            return;
+
+        var ctrl = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control)
+                   .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+        var shift = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Shift)
+                    .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+        var alt = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Menu)
+                  .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+
+        var keyString = Services.KeyBindingService.BuildKeyString(ctrl, shift, alt, e.Key);
+
+        // 시스템/구조적 키 차단 → 배지 텍스트에 경고 표시
+        if (_keyBindingService.IsSystemReserved(keyString) || _keyBindingService.IsStructuralKey(keyString))
+        {
+            if (_recordingRowPanel?.Children[0] is Border badge && badge.Tag is TextBlock txt)
+            {
+                txt.Text = _keyBindingService.IsSystemReserved(keyString)
+                    ? $"{keyString} — {_loc?.Get("Settings_ShortcutsSystemReserved") ?? "시스템 예약 키"}"
+                    : $"{keyString} — {_loc?.Get("Settings_ShortcutsStructural") ?? "변경 불가"}";
+                txt.Foreground = new SolidColorBrush(Microsoft.UI.Colors.Orange);
+            }
+            return; // 녹화 유지, 다른 키 대기
+        }
+
+        // 충돌 검사
+        var conflict = _keyBindingService.CheckConflict(keyString, _recordingCommandId, _editingBindings);
+        if (conflict.Type == Services.ConflictType.AlreadyAssigned)
+        {
+            // 배지에 충돌 표시 + 교체/취소 버튼으로 전환
+            if (_recordingRowPanel != null)
+            {
+                _recordingRowPanel.Children.Clear();
+                var conflictBadge = new Border
+                {
+                    Child = new TextBlock
+                    {
+                        Text = $"{keyString} \u26A0 \"{conflict.ExistingCommandName}\"",
+                        FontFamily = new FontFamily("Consolas"), FontSize = 11,
+                        Foreground = new SolidColorBrush(Microsoft.UI.Colors.Orange),
+                        VerticalAlignment = VerticalAlignment.Center
+                    },
+                    Background = (Brush)Application.Current.Resources["SpanBgLayer2Brush"],
+                    CornerRadius = new CornerRadius(4), Padding = new Thickness(8, 3, 8, 3)
+                };
+                _recordingRowPanel.Children.Add(conflictBadge);
+
+                _pendingReplaceKey = keyString;
+                _pendingReplaceConflictCommandId = conflict.ExistingCommandId;
+
+                var replaceBtn = new Button
+                {
+                    Content = _loc?.Get("Replace") ?? "교체",
+                    FontSize = 11, Padding = new Thickness(8, 2, 8, 2),
+                    MinWidth = 0, MinHeight = 0
+                };
+                replaceBtn.Click += (_, _) =>
+                {
+                    if (_pendingReplaceConflictCommandId != null && _editingBindings.ContainsKey(_pendingReplaceConflictCommandId))
+                        _editingBindings[_pendingReplaceConflictCommandId].Remove(_pendingReplaceKey!);
+                    _editingBindings[_recordingCommandId!] = new List<string> { _pendingReplaceKey! };
+                    _pendingReplaceKey = null;
+                    _pendingReplaceConflictCommandId = null;
+                    CancelInlineRecording();
+                };
+                _recordingRowPanel.Children.Add(replaceBtn);
+
+                var cancelBtn2 = new Button
+                {
+                    Content = _loc?.Get("Cancel") ?? "취소",
+                    FontSize = 11, Padding = new Thickness(8, 2, 8, 2),
+                    MinWidth = 0, MinHeight = 0
+                };
+                cancelBtn2.Click += (_, _) => CancelInlineRecording();
+                _recordingRowPanel.Children.Add(cancelBtn2);
+            }
+            return;
+        }
+
+        // 충돌 없음 — 교체 적용
+        _editingBindings[_recordingCommandId] = new List<string> { keyString };
+        CancelInlineRecording();
     }
 
     private void OnRemoveKeyClick(object sender, RoutedEventArgs e)
@@ -1158,7 +1429,7 @@ public sealed partial class SettingsModeView : UserControl
             FontFamily = new FontFamily("Consolas"),
             FontSize = 16,
             HorizontalAlignment = HorizontalAlignment.Center,
-            Foreground = (Brush)Application.Current.Resources["SpanAccentBrush"],
+            Foreground = GetAccentBrush(),
             Margin = new Thickness(0, 8, 0, 8)
         };
         panel.Children.Add(keyDisplay);
@@ -1264,11 +1535,8 @@ public sealed partial class SettingsModeView : UserControl
             return;
         }
 
-        // 충돌 없음 — 즉시 할당
-        if (!_editingBindings!.ContainsKey(_recordingCommandId!))
-            _editingBindings[_recordingCommandId!] = new List<string>();
-        if (!_editingBindings[_recordingCommandId!].Contains(keyString))
-            _editingBindings[_recordingCommandId!].Add(keyString);
+        // 충돌 없음 — 기존 키를 교체 (추가가 아닌 교체)
+        _editingBindings![_recordingCommandId!] = new List<string> { keyString };
 
         _recordingDialog?.Hide();
         RebuildShortcutItemsUI();
@@ -1285,11 +1553,8 @@ public sealed partial class SettingsModeView : UserControl
         if (_pendingReplaceConflictCommandId != null && _editingBindings.ContainsKey(_pendingReplaceConflictCommandId))
             _editingBindings[_pendingReplaceConflictCommandId].Remove(_pendingReplaceKey);
 
-        // 새 바인딩에 추가
-        if (!_editingBindings.ContainsKey(_recordingCommandId))
-            _editingBindings[_recordingCommandId] = new List<string>();
-        if (!_editingBindings[_recordingCommandId].Contains(_pendingReplaceKey))
-            _editingBindings[_recordingCommandId].Add(_pendingReplaceKey);
+        // 새 바인딩으로 교체 (추가가 아닌 교체)
+        _editingBindings[_recordingCommandId] = new List<string> { _pendingReplaceKey };
 
         _pendingReplaceKey = null;
         _pendingReplaceConflictCommandId = null;

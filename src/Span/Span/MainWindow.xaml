@@ -1613,7 +1613,7 @@
               Canvas.ZIndex="200"
               Background="#80000000"
               PointerPressed="HelpOverlay_PointerPressed">
-            <views:HelpFlyoutContent HorizontalAlignment="Center" VerticalAlignment="Center"
+            <views:HelpFlyoutContent x:Name="HelpFlyoutContentControl" HorizontalAlignment="Center" VerticalAlignment="Center"
                                       Margin="40"/>
         </Grid>
 

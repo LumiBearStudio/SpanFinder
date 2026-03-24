@@ -1099,6 +1099,12 @@ namespace Span
         {
             _isHelpOpen = !_isHelpOpen;
             HelpOverlay.Visibility = _isHelpOpen ? Visibility.Visible : Visibility.Collapsed;
+
+            // Help를 열 때마다 최신 키 바인딩으로 갱신
+            if (_isHelpOpen)
+            {
+                HelpFlyoutContentControl.UpdateKeyTexts();
+            }
         }
 
         private void OnHelpClick(object sender, RoutedEventArgs e)
