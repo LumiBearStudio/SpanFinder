@@ -5,6 +5,8 @@ using Microsoft.UI.Xaml.Media;
 using Span.Models;
 using Span.ViewModels;
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Windows.ApplicationModel.DataTransfer;
@@ -19,6 +21,75 @@ namespace Span
     /// </summary>
     public sealed partial class MainWindow
     {
+        #region Shell Protocol Mappings
+
+        /// <summary>
+        /// shell: 프로토콜을 Environment.SpecialFolder로 매핑.
+        /// null 값은 별도 처리 필요 (예: Downloads).
+        /// </summary>
+        private static readonly Dictionary<string, Environment.SpecialFolder?> _shellFolderMap = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["shell:desktop"] = Environment.SpecialFolder.Desktop,
+            ["shell:documents"] = Environment.SpecialFolder.MyDocuments,
+            ["shell:downloads"] = null, // SpecialFolder에 없음 — ResolveShellPath에서 별도 처리
+            ["shell:pictures"] = Environment.SpecialFolder.MyPictures,
+            ["shell:music"] = Environment.SpecialFolder.MyMusic,
+            ["shell:videos"] = Environment.SpecialFolder.MyVideos,
+            ["shell:personal"] = Environment.SpecialFolder.Personal,
+            ["shell:favorites"] = Environment.SpecialFolder.Favorites,
+            ["shell:recent"] = Environment.SpecialFolder.Recent,
+            ["shell:startup"] = Environment.SpecialFolder.Startup,
+            ["shell:sendto"] = Environment.SpecialFolder.SendTo,
+            ["shell:appdata"] = Environment.SpecialFolder.ApplicationData,
+            ["shell:localappdata"] = Environment.SpecialFolder.LocalApplicationData,
+            ["shell:profile"] = Environment.SpecialFolder.UserProfile,
+            ["shell:programfiles"] = Environment.SpecialFolder.ProgramFiles,
+            ["shell:programfilesx86"] = Environment.SpecialFolder.ProgramFilesX86,
+            ["shell:system"] = Environment.SpecialFolder.System,
+            ["shell:windows"] = Environment.SpecialFolder.Windows,
+            ["shell:fonts"] = Environment.SpecialFolder.Fonts,
+            ["shell:templates"] = Environment.SpecialFolder.Templates,
+            ["shell:commonstartmenu"] = Environment.SpecialFolder.CommonStartMenu,
+            ["shell:commonprograms"] = Environment.SpecialFolder.CommonPrograms,
+            ["shell:commonstartup"] = Environment.SpecialFolder.CommonStartup,
+            ["shell:commondesktop"] = Environment.SpecialFolder.CommonDesktopDirectory,
+            ["shell:programs"] = Environment.SpecialFolder.Programs,
+            ["shell:startmenu"] = Environment.SpecialFolder.StartMenu,
+        };
+
+        /// <summary>
+        /// 가상 폴더 — SPAN에서 직접 탐색 불가, explorer.exe에 위임.
+        /// RecycleBinFolder는 자체 처리되므로 여기에 포함하지 않음.
+        /// </summary>
+        private static readonly HashSet<string> _shellVirtualFolders = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "shell:ControlPanelFolder",
+            "shell:PrintersFolder",
+            "shell:NetworkPlacesFolder",
+            "shell:ThisPCFolder",
+        };
+
+        /// <summary>
+        /// shell: 경로를 실제 파일 시스템 경로로 변환.
+        /// 매핑되지 않는 경로는 null 반환.
+        /// </summary>
+        private static string? ResolveShellPath(string shellPath)
+        {
+            if (_shellFolderMap.TryGetValue(shellPath, out var specialFolder))
+            {
+                if (specialFolder.HasValue)
+                    return Environment.GetFolderPath(specialFolder.Value);
+
+                // Downloads 등 SpecialFolder에 없는 경우 특수 처리
+                if (shellPath.Equals("shell:downloads", StringComparison.OrdinalIgnoreCase))
+                    return System.IO.Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
+            }
+            return null;
+        }
+
+        #endregion
+
         #region Column Scrolling
 
         /// <summary>
@@ -558,13 +629,52 @@ namespace Span
         /// <summary>
         /// AddressBarControl 경로 입력 완료 → 네비게이션.
         /// </summary>
-        private void OnAddressBarPathNavigated(object sender, string path)
+        private async void OnAddressBarPathNavigated(object sender, string path)
         {
             // shell:RecycleBinFolder 입력 시 휴지통 뷰 전환
             if (string.Equals(path, "shell:RecycleBinFolder", System.StringComparison.OrdinalIgnoreCase))
             {
                 ViewModel.SwitchViewMode(Models.ViewMode.RecycleBin);
                 UpdateViewModeVisibility();
+                return;
+            }
+
+            // shell: 프로토콜 매핑 — 실제 폴더 경로로 변환 또는 explorer.exe 위임
+            if (path.StartsWith("shell:", StringComparison.OrdinalIgnoreCase))
+            {
+                // 가상 폴더 → explorer.exe 위임
+                if (_shellVirtualFolders.Contains(path))
+                {
+                    try { Process.Start(new ProcessStartInfo("explorer.exe", path) { UseShellExecute = true }); } catch { }
+                    return;
+                }
+
+                // 실제 폴더 매핑
+                var resolvedPath = ResolveShellPath(path);
+                if (resolvedPath != null && System.IO.Directory.Exists(resolvedPath))
+                {
+                    path = resolvedPath; // 이후 일반 경로 네비게이션으로 fall through
+                }
+                else
+                {
+                    // 알 수 없는 shell: 경로 → explorer.exe에 위임 (crash 방지)
+                    try { Process.Start(new ProcessStartInfo("explorer.exe", path) { UseShellExecute = true }); } catch { }
+                    return;
+                }
+            }
+
+            // ms-settings: 프로토콜 → Windows 설정 앱 열기
+            if (path.StartsWith("ms-settings:", StringComparison.OrdinalIgnoreCase))
+            {
+                try { await Windows.System.Launcher.LaunchUriAsync(new Uri(path)); } catch { }
+                return;
+            }
+
+            // control panel / control 텍스트 입력 → 제어판 열기
+            if (path.Equals("control panel", StringComparison.OrdinalIgnoreCase)
+                || path.Equals("control", StringComparison.OrdinalIgnoreCase))
+            {
+                try { Process.Start(new ProcessStartInfo("control.exe") { UseShellExecute = true }); } catch { }
                 return;
             }
 
