@@ -348,11 +348,26 @@ namespace Span
                 try
                 {
                     var activatedArgs = Microsoft.Windows.AppLifecycle.AppInstance.GetCurrent().GetActivatedEventArgs();
+                    Helpers.DebugLogger.Log($"[App] Activation kind: {activatedArgs.Kind}");
                     if (activatedArgs.Kind == Microsoft.Windows.AppLifecycle.ExtendedActivationKind.Launch)
                     {
                         var launchData = activatedArgs.Data as Windows.ApplicationModel.Activation.ILaunchActivatedEventArgs;
+                        Helpers.DebugLogger.Log($"[App] LaunchData.Arguments: '{launchData?.Arguments}'");
                         if (!string.IsNullOrEmpty(launchData?.Arguments))
                             StartupArguments = launchData.Arguments;
+                    }
+
+                    // Fallback: Environment.GetCommandLineArgs (AppExecutionAlias 대응)
+                    if (string.IsNullOrEmpty(StartupArguments))
+                    {
+                        var cmdArgs = Environment.GetCommandLineArgs();
+                        Helpers.DebugLogger.Log($"[App] CommandLineArgs count: {cmdArgs.Length}, values: [{string.Join(", ", cmdArgs)}]");
+                        if (cmdArgs.Length > 1)
+                        {
+                            var folderArg = cmdArgs[1].Trim().Trim('"');
+                            if (System.IO.Directory.Exists(folderArg))
+                                StartupArguments = folderArg;
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -360,7 +375,7 @@ namespace Span
                     Helpers.DebugLogger.Log($"[App] Activation args check failed: {ex.Message}");
                 }
                 if (StartupArguments != null)
-                    Helpers.DebugLogger.Log($"[App] Launch arguments: {StartupArguments}");
+                    Helpers.DebugLogger.Log($"[App] Final StartupArguments: {StartupArguments}");
 
                 m_window = new MainWindow();
                 RegisterWindow(m_window);
