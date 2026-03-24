@@ -13,7 +13,13 @@ class Program
         var isRedirect = DecideRedirection();
         if (!isRedirect)
         {
-            Microsoft.UI.Xaml.Application.Start((p) => new App());
+            Microsoft.UI.Xaml.Application.Start((p) =>
+            {
+                var context = new Microsoft.UI.Dispatching.DispatcherQueueSynchronizationContext(
+                    Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread());
+                System.Threading.SynchronizationContext.SetSynchronizationContext(context);
+                new App();
+            });
         }
 
         return 0;
