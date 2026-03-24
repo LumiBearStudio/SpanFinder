@@ -162,6 +162,7 @@ namespace Span
                         case Windows.System.VirtualKey.L:       // Ctrl+L: Address Bar
                         case Windows.System.VirtualKey.H:       // Ctrl+H: Toggle Hidden
                         case Windows.System.VirtualKey.N:       // Ctrl+N: New Window
+                        case Windows.System.VirtualKey.Tab:     // Ctrl+Tab: Tab cycling
                             break; // 허용 — fall through to main handler
                         default:
                             // 한국어 키보드: backtick(41), single quote(40), comma(51) 허용
@@ -346,14 +347,16 @@ namespace Span
                         break;
 
                     case Windows.System.VirtualKey.Tab:
-                        // Ctrl+Tab: switch between panes
-                        if (ViewModel.IsSplitViewEnabled)
+                        // Ctrl+Tab / Ctrl+Shift+Tab: 탭 순환 (브라우저/탐색기 표준)
+                        if (ViewModel.Tabs.Count > 1)
                         {
-                            ViewModel.ActivePane = ViewModel.ActivePane == ActivePane.Left
-                                ? ActivePane.Right : ActivePane.Left;
-                            FocusActivePane();
-                            e.Handled = true;
+                            int currentIndex = ViewModel.Tabs.IndexOf(ViewModel.ActiveTab);
+                            int nextIndex = shift
+                                ? (currentIndex - 1 + ViewModel.Tabs.Count) % ViewModel.Tabs.Count
+                                : (currentIndex + 1) % ViewModel.Tabs.Count;
+                            SwitchToTabByIndex(nextIndex);
                         }
+                        e.Handled = true;
                         break;
 
                     case Windows.System.VirtualKey.Enter:
@@ -644,6 +647,12 @@ namespace Span
                         HandlePermanentDelete();
                         e.Handled = true;
                         break;
+
+                    case Windows.System.VirtualKey.F10:
+                        // Shift+F10: Show full native shell context menu (Windows Explorer 표준)
+                        HandleShellContextMenu();
+                        e.Handled = true;
+                        break;
                 }
             }
             else
@@ -677,6 +686,17 @@ namespace Span
                         // F4: Address bar edit mode (Explorer 전통 단축키)
                         if (ViewModel.CurrentViewMode != ViewMode.Home)
                             ShowAddressBarEditMode();
+                        e.Handled = true;
+                        break;
+
+                    case Windows.System.VirtualKey.F6:
+                        // F6: 분할뷰 패인 전환 (Explorer 표준 패인 순환 키)
+                        if (ViewModel.IsSplitViewEnabled)
+                        {
+                            ViewModel.ActivePane = ViewModel.ActivePane == ActivePane.Left
+                                ? ActivePane.Right : ActivePane.Left;
+                            FocusActivePane();
+                        }
                         e.Handled = true;
                         break;
 
@@ -761,7 +781,17 @@ namespace Span
                 // Tab
                 case ShortcutCommands.NewTab: ExecuteNewTab(); return true;
                 case ShortcutCommands.CloseTab: ExecuteCloseTab(); return true;
+                case ShortcutCommands.NextTab: ExecuteNextTab(forward: true); return true;
+                case ShortcutCommands.PrevTab: ExecuteNextTab(forward: false); return true;
                 case ShortcutCommands.OpenInNewTab: ExecuteOpenInNewTab(); return true;
+                case ShortcutCommands.SwitchPane:
+                    if (ViewModel.IsSplitViewEnabled)
+                    {
+                        ViewModel.ActivePane = ViewModel.ActivePane == ActivePane.Left
+                            ? ActivePane.Right : ActivePane.Left;
+                        FocusActivePane();
+                    }
+                    return true;
 
                 // Window
                 case ShortcutCommands.NewWindow: OpenNewWindow(); return true;
@@ -844,7 +874,11 @@ namespace Span
                 _ = GoForwardAndFocusAsync();
                 e.Handled = true;
             }
-            // Middle-click → 새 탭: Ctrl+Enter 단축키로 대체 (WinUI 3 ScrollViewer 제약)
+            else if (properties.IsMiddleButtonPressed)
+            {
+                // Middle-click: 폴더/드라이브/즐겨찾기를 새 탭에서 열기
+                HandleMiddleClickOpenInNewTab(e);
+            }
             else if (properties.IsLeftButtonPressed)
             {
                 // 좌클릭: 빈 영역 클릭 시에도 진행 중인 리네임 취소
@@ -1553,6 +1587,93 @@ namespace Span
                 settingsSvc.ShowHiddenFiles = !settingsSvc.ShowHiddenFiles;
                 ViewModel.ShowToast(settingsSvc.ShowHiddenFiles ? _loc.Get("Toast_HiddenFilesShown") : _loc.Get("Toast_HiddenFilesHidden"));
             }
+        }
+
+        /// <summary>
+        /// 중간 클릭(휠 클릭)으로 폴더/드라이브/즐겨찾기를 새 탭에서 열기.
+        /// handledEventsToo:true로 등록되어 ScrollViewer가 처리한 후에도 호출됨.
+        /// </summary>
+        private void HandleMiddleClickOpenInNewTab(PointerRoutedEventArgs e)
+        {
+            var source = e.OriginalSource as DependencyObject;
+            while (source != null)
+            {
+                if (source is FrameworkElement fe)
+                {
+                    switch (fe.DataContext)
+                    {
+                        case ViewModels.FolderViewModel folder when !string.IsNullOrEmpty(folder.Path) && folder.Name != "..":
+                            ((Services.IContextMenuHost)this).PerformOpenInNewTab(folder.Path);
+                            e.Handled = true;
+                            return;
+                        case Models.DriveItem drive when !string.IsNullOrEmpty(drive.Path):
+                            ((Services.IContextMenuHost)this).PerformOpenInNewTab(drive.Path);
+                            e.Handled = true;
+                            return;
+                        case Models.FavoriteItem fav when !string.IsNullOrEmpty(fav.Path):
+                            ((Services.IContextMenuHost)this).PerformOpenInNewTab(fav.Path);
+                            e.Handled = true;
+                            return;
+                    }
+                }
+                source = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(source);
+            }
+        }
+
+        /// <summary>
+        /// Ctrl+Tab / Ctrl+Shift+Tab: 다음/이전 탭으로 순환 전환.
+        /// </summary>
+        private void ExecuteNextTab(bool forward)
+        {
+            if (ViewModel.Tabs.Count <= 1) return;
+            int currentIndex = ViewModel.Tabs.IndexOf(ViewModel.ActiveTab);
+            int nextIndex = forward
+                ? (currentIndex + 1) % ViewModel.Tabs.Count
+                : (currentIndex - 1 + ViewModel.Tabs.Count) % ViewModel.Tabs.Count;
+            SwitchToTabByIndex(nextIndex);
+        }
+
+        /// <summary>
+        /// 탭 인덱스로 전환 — TabManager의 패턴(패널 Show/Hide + SwitchToTab + 후속 갱신)을 재사용.
+        /// </summary>
+        private void SwitchToTabByIndex(int index)
+        {
+            if (index < 0 || index >= ViewModel.Tabs.Count) return;
+            var tab = ViewModel.Tabs[index];
+
+            if (tab.ViewMode != ViewMode.Settings && tab.ViewMode != ViewMode.ActionLog)
+            {
+                if (tab.Explorer is ViewModels.ExplorerViewModel newExpl)
+                    newExpl.TabSwitchSuppressionTicks = Environment.TickCount64 + 500;
+
+                SwitchMillerPanel(tab.Id);
+                SwitchDetailsPanel(tab.Id, tab.ViewMode == ViewMode.Details);
+                SwitchListPanel(tab.Id, tab.ViewMode == ViewMode.List);
+                SwitchIconPanel(tab.Id, Helpers.ViewModeExtensions.IsIconMode(tab.ViewMode));
+            }
+            ViewModel.SwitchToTab(index);
+            ResubscribeLeftExplorer();
+            UpdateViewModeVisibility();
+            UpdateToolbarButtonStates();
+            FocusActiveView();
+            CloseQuickLookWindow();
+        }
+
+        /// <summary>
+        /// Shift+F10: 선택된 항목에 대해 전체 네이티브 셸 컨텍스트 메뉴를 표시한다.
+        /// </summary>
+        private void HandleShellContextMenu()
+        {
+            var selected = GetCurrentSelected();
+            var path = selected?.Path;
+
+            // 선택 항목이 없으면 현재 폴더의 셸 메뉴를 표시
+            if (string.IsNullOrEmpty(path))
+                path = ViewModel.ActiveExplorer?.CurrentPath;
+            if (string.IsNullOrEmpty(path))
+                return;
+
+            Services.ShellContextMenu.ShowForItem(_hwnd, path);
         }
 
         #endregion

@@ -52,7 +52,10 @@ namespace Span.Models
         // ── Tab ─────────────────────────────────────────────────
         public const string NewTab = "span.tab.new";
         public const string CloseTab = "span.tab.close";
+        public const string NextTab = "span.tab.next";
+        public const string PrevTab = "span.tab.prev";
         public const string OpenInNewTab = "span.tab.openSelectedInNew";
+        public const string SwitchPane = "span.view.switchPane";
 
         // ── Window ──────────────────────────────────────────────
         public const string NewWindow = "span.window.new";
@@ -104,7 +107,10 @@ namespace Span.Models
             // Tab
             { NewTab, "Tab" },
             { CloseTab, "Tab" },
+            { NextTab, "Tab" },
+            { PrevTab, "Tab" },
             { OpenInNewTab, "Tab" },
+            { SwitchPane, "View" },
             // Window
             { NewWindow, "Window" },
             { OpenTerminal, "Window" },
@@ -159,6 +165,9 @@ namespace Span.Models
             // Window
             { NewTab, "Shortcut_NewTab" },
             { CloseTab, "Shortcut_CloseTab" },
+            { NextTab, "Shortcut_NextTab" },
+            { PrevTab, "Shortcut_PrevTab" },
+            { SwitchPane, "Shortcut_SwitchPane" },
             { NewWindow, "Shortcut_NewWindow" },
             { OpenTerminal, "Shortcut_OpenTerminal" },
             { OpenSettings, "Shortcut_OpenSettings" },

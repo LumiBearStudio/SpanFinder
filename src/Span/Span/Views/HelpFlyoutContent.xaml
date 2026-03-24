@@ -163,8 +163,11 @@
                             <Border Style="{StaticResource ShortcutBadge}"><TextBlock x:Name="Key_Preview" Style="{StaticResource ShortcutKeyText}" Text="Ctrl+Shift+P"/></Border>
                             <TextBlock x:Name="DescPreviewPanel" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="미리보기 패널"/></Grid>
                         <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                            <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="Ctrl+Tab"/></Border>
-                            <TextBlock x:Name="DescSwitchPanel" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="패널 전환 (분할 뷰)"/></Grid>
+                            <Border Style="{StaticResource ShortcutBadge}"><TextBlock x:Name="Key_NextTab" Style="{StaticResource ShortcutKeyText}" Text="Ctrl+Tab"/></Border>
+                            <TextBlock x:Name="DescNextTab" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="다음 탭"/></Grid>
+                        <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <Border Style="{StaticResource ShortcutBadge}"><TextBlock Style="{StaticResource ShortcutKeyText}" Text="F6"/></Border>
+                            <TextBlock x:Name="DescSwitchPanel" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="패인 전환 (분할 뷰)"/></Grid>
                         <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Border Style="{StaticResource ShortcutBadge}"><TextBlock x:Name="Key_EqColumns" Style="{StaticResource ShortcutKeyText}" Text="Ctrl+Shift+="/></Border>
                             <TextBlock x:Name="DescEqColumns" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="컬럼 너비 통일"/></Grid>

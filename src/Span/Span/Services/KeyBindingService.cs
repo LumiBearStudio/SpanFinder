@@ -262,7 +262,10 @@ public class KeyBindingService
             // Tab
             ["span.tab.new"]              = ["Ctrl+T"],
             ["span.tab.close"]            = ["Ctrl+W"],
+            ["span.tab.next"]             = ["Ctrl+Tab"],
+            ["span.tab.prev"]             = ["Ctrl+Shift+Tab"],
             ["span.tab.openSelectedInNew"] = ["Ctrl+Enter"],
+            ["span.view.switchPane"]      = ["F6"],
 
             // Window
             ["span.window.new"]        = ["Ctrl+N"],

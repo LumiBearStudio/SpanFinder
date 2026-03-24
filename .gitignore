@@ -21,14 +21,29 @@ builds/
 .claude/
 CLAUDE.md
 AGENTS.md
+.agents/
+.mcp.json
 ROADMAP.md
 docs/
 design/
 
-# Sensitive data (safety net — normally stored outside repo in AppData)
+# Build/debug artifacts
+build_log.txt
+errors.txt
+.bkit-memory.json
+.pdca-status.json
+
+# Sensitive data (safety net)
 connections.json
 credentials.dat
 
 # Debug screenshots at root
 /[0-9]*.png
 /[0-9]*.PNG
+
+# Misc
+test-sentry/
+Logs/
+image.png
+pri_dump.xml
+github-docs

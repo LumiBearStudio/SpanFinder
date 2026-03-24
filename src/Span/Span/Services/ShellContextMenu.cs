@@ -252,7 +252,7 @@ namespace Span.Services
         /// <summary>Standard shell verbs that are handled by our custom menu items.</summary>
         private static readonly HashSet<string> StandardVerbs = new(StringComparer.OrdinalIgnoreCase)
         {
-            "open", "openas", "opencommand", "runas",
+            "open", "openas", "opencommand",
             "cut", "copy", "paste", "link",
             "delete", "rename", "properties",
             "explore", "find",

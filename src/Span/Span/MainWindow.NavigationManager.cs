@@ -542,6 +542,68 @@ namespace Span
         }
 
         /// <summary>
+        /// 주소바 최근 위치 드롭다운 버튼 클릭 핸들러.
+        /// </summary>
+        private void OnRecentLocationsClick(object sender, RoutedEventArgs e)
+        {
+            var explorer = (sender is FrameworkElement fe && fe.Tag is string tag && tag == "Right")
+                ? ViewModel.RightExplorer
+                : ViewModel.ActiveExplorer;
+            ShowRecentLocationsDropdown(sender as FrameworkElement, explorer);
+        }
+
+        /// <summary>
+        /// 최근 방문 폴더 드롭다운을 표시한다. ShowHistoryDropdown 패턴을 재활용.
+        /// </summary>
+        private void ShowRecentLocationsDropdown(FrameworkElement? target, ExplorerViewModel? explorer)
+        {
+            if (target == null) return;
+
+            var recentFolders = ViewModel.RecentFolders;
+            if (recentFolders.Count == 0) return;
+
+            var flyout = new MenuFlyout();
+
+            int maxItems = Math.Min(recentFolders.Count, 20);
+            for (int i = 0; i < maxItems; i++)
+            {
+                var recent = recentFolders[i];
+                var item = new MenuFlyoutItem
+                {
+                    Text = recent.Name,
+                    Icon = new FontIcon { Glyph = "\uE8B7", FontSize = 14 }
+                };
+                ToolTipService.SetToolTip(item, recent.Path);
+
+                var capturedPath = recent.Path;
+                var capturedExplorer = explorer;
+                item.Click += (s, args) =>
+                {
+                    if (capturedExplorer != null)
+                    {
+                        _ = capturedExplorer.NavigateToPath(capturedPath);
+                        ViewModel.SyncNavigationHistoryState();
+                        FocusLastColumnAfterNavigation();
+                    }
+                    else
+                    {
+                        // Home/RecycleBin 등 Explorer가 없는 모드에서는 뷰 전환 후 이동
+                        ViewModel.SwitchViewMode(Models.ViewMode.MillerColumns);
+                        if (ViewModel.ActiveExplorer != null)
+                        {
+                            _ = ViewModel.ActiveExplorer.NavigateToPath(capturedPath);
+                            ViewModel.SyncNavigationHistoryState();
+                        }
+                    }
+                };
+
+                flyout.Items.Add(item);
+            }
+
+            flyout.ShowAt(target);
+        }
+
+        /// <summary>
         /// After Back/Forward navigation, focus the last column so keyboard nav works.
         /// Retries until the ListView container is available (handles async column loading).
         /// </summary>

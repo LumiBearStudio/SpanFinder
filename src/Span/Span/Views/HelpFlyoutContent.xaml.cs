@@ -79,6 +79,7 @@ namespace Span.Views
             DescIcons.Text = _loc.Get("Help_Icons");
             DescSplitView.Text = _loc.Get("Help_SplitView");
             DescPreviewPanel.Text = _loc.Get("Help_PreviewPanel");
+            DescNextTab.Text = _loc.Get("Help_NextTab");
             DescSwitchPanel.Text = _loc.Get("Help_SwitchPanel");
             DescEqColumns.Text = _loc.Get("Help_EqualizeColumns");
             DescAutoFit.Text = _loc.Get("Help_AutoFitColumns");
@@ -140,6 +141,7 @@ namespace Span.Views
             SetKeyText(Key_Fullscreen, bindings, "span.view.fullscreen");
 
             // 창 / 탭
+            SetKeyText(Key_NextTab, bindings, "span.tab.next");
             SetKeyText(Key_NewTab, bindings, "span.tab.new");
             SetKeyText(Key_CloseTab, bindings, "span.tab.close");
             SetKeyText(Key_OpenInNewTab, bindings, "span.tab.openSelectedInNew");
