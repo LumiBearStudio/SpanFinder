@@ -93,6 +93,46 @@ namespace Span
         // disposed UI after OnClosed has started teardown
         private bool _isClosed = false;
         internal bool IsClosed => _isClosed;
+
+        /// <summary>
+        /// Single Instance: 리다이렉트된 폴더를 새 탭으로 엽니다.
+        /// AddNewTab + CreateMillerPanel + SwitchViewMode + NavigateTo를 통합 처리.
+        /// </summary>
+        internal void HandleRedirectedFolder(string folderPath)
+        {
+            if (_isClosed || ViewModel == null) return;
+            try
+            {
+                // 새 탭 추가 + Miller 패널 생성
+                ViewModel.AddNewTab();
+                if (ViewModel.ActiveTab != null)
+                {
+                    CreateMillerPanelForTab(ViewModel.ActiveTab);
+                    SwitchMillerPanel(ViewModel.ActiveTab.Id);
+                }
+
+                // Home → 탐색 뷰로 전환
+                if (ViewModel.CurrentViewMode == ViewMode.Home)
+                {
+                    ViewModel.SwitchViewMode(ViewModel.ResolveViewModeFromHome());
+                }
+                UpdateViewModeVisibility();
+                ResubscribeLeftExplorer();
+
+                // 폴더로 이동 (즐겨찾기 패턴 — 해당 폴더가 루트)
+                var folder = new Models.FolderItem
+                {
+                    Name = System.IO.Path.GetFileName(folderPath) ?? folderPath,
+                    Path = folderPath
+                };
+                _ = ViewModel.ActiveExplorer?.NavigateTo(folder);
+                FocusActiveView();
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[MainWindow] HandleRedirectedFolder error: {ex.Message}");
+            }
+        }
         private bool _forceClose = false;
 
         // Miller Columns checkbox mode tracking

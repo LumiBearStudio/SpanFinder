@@ -492,18 +492,11 @@ namespace Span
                         // 2. 폴더 경로가 있으면 새 탭으로 열기
                         if (!string.IsNullOrEmpty(folderPath) && System.IO.Directory.Exists(folderPath))
                         {
-                            mainWindow.ViewModel?.AddNewTab();
-                            if (mainWindow.ViewModel?.CurrentViewMode == Models.ViewMode.Home)
-                            {
-                                mainWindow.ViewModel.SwitchViewMode(
-                                    mainWindow.ViewModel.ResolveViewModeFromHome());
-                            }
-                            var folder = new Models.FolderItem
-                            {
-                                Name = System.IO.Path.GetFileName(folderPath) ?? folderPath,
-                                Path = folderPath
-                            };
-                            _ = mainWindow.ViewModel?.ActiveExplorer?.NavigateTo(folder);
+                            // StartupArguments에 설정 → MainWindow의 기존 JumpList 처리 로직 재활용
+                            // 이 방식이 AddNewTab + SwitchViewMode를 직접 호출하는 것보다 안전
+                            // (탭 헤더, Miller 패널 등 UI 동기화가 MainWindow에서 통합 처리됨)
+                            StartupArguments = folderPath;
+                            mainWindow.HandleRedirectedFolder(folderPath);
                             Helpers.DebugLogger.Log($"[App] Redirected: opened {folderPath} in new tab");
                         }
                         else
