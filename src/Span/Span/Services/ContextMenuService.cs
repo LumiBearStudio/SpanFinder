@@ -1165,13 +1165,45 @@ namespace Span.Services
         /// <summary>
         /// ShellNew 레지스트리 항목들을 메뉴에 추가한다.
         /// </summary>
+        // 확장자 → RemixIcons 글리프 매핑
+        private static readonly Dictionary<string, string> _shellNewIconMap = new(StringComparer.OrdinalIgnoreCase)
+        {
+            [".txt"] = "\uED0F",   // file-text-line
+            [".rtf"] = "\uED0F",   // file-text-line
+            [".doc"] = "\uED1C",   // file-word-fill
+            [".docx"] = "\uED1C",  // file-word-fill
+            [".xls"] = "\uECDE",   // file-excel-fill
+            [".xlsx"] = "\uECDE",  // file-excel-fill
+            [".ppt"] = "\uED00",   // file-ppt-fill
+            [".pptx"] = "\uED00",  // file-ppt-fill
+            [".pdf"] = "\uECFC",   // file-pdf-fill
+            [".zip"] = "\uED1E",   // file-zip-line
+            [".bmp"] = "\uECE8",   // file-image (image-line)
+            [".png"] = "\uECE8",
+            [".jpg"] = "\uECE8",
+            [".lnk"] = "\uEF60",   // link (links-line)
+        };
+
+        private static string GetShellNewIcon(string extension)
+        {
+            return _shellNewIconMap.TryGetValue(extension, out var glyph) ? glyph : "\uECE0"; // file-default
+        }
+
         private void PopulateShellNewItems(IList<MenuFlyoutItemBase> menuItems, string folderPath, IContextMenuHost host)
         {
+            var remixFont = new Microsoft.UI.Xaml.Media.FontFamily("/Assets/Fonts/remixicon.ttf#RemixIcon, /Assets/Fonts/remixicon.ttf#remixicon");
             var shellNewItems = _shellNewService.GetShellNewItems();
             foreach (var shellItem in shellNewItems)
             {
-                var captured = shellItem; // 클로저 캡처용
-                var menuItem = CreateItem(captured.DisplayName, "\uE8A5", () => host.PerformNewFileFromShellNew(folderPath, captured));
+                var captured = shellItem;
+                var icon = GetShellNewIcon(captured.Extension);
+                var menuItem = CreateItem(captured.DisplayName, null, () => host.PerformNewFileFromShellNew(folderPath, captured));
+                menuItem.Icon = new Microsoft.UI.Xaml.Controls.FontIcon
+                {
+                    Glyph = icon,
+                    FontSize = 14,
+                    FontFamily = remixFont
+                };
                 menuItems.Add(menuItem);
             }
         }
