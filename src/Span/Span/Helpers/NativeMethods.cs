@@ -199,6 +199,28 @@ namespace Span.Helpers
             [MarshalAs(UnmanagedType.LPWStr)] public string? shi1_remark;
         }
 
+        // ── shell32.dll — 휴지통 API ──
+
+        [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+        internal static extern int SHQueryRecycleBin(
+            string? pszRootPath, ref SHQUERYRBINFO pSHQueryRBInfo);
+
+        [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+        internal static extern uint SHEmptyRecycleBin(
+            IntPtr hwnd, string? pszRootPath, uint dwFlags);
+
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct SHQUERYRBINFO
+        {
+            public int cbSize;
+            public long i64Size;
+            public long i64NumItems;
+        }
+
+        internal const uint SHERB_NOCONFIRMATION = 0x00000001;
+        internal const uint SHERB_NOPROGRESSUI   = 0x00000002;
+        internal const uint SHERB_NOSOUND        = 0x00000004;
+
         // ── kernel32.dll — 스레드 에러 모드 제어 ──
 
         [DllImport("kernel32.dll", SetLastError = true)]

@@ -70,6 +70,8 @@ namespace Span.Services
         public string NewFolderGlyph { get; private set; } = "\uED59";
         public string SplitViewGlyph { get; private set; } = "\uEE8C";
         public string CloudGlyph { get; private set; } = "\uEB9C"; // ri-cloud-fill
+        public string RecycleBinEmptyGlyph { get; private set; } = "\uEC2A"; // ri-delete-bin-line
+        public string RecycleBinFullGlyph { get; private set; } = "\uEC29"; // ri-delete-bin-fill
 
         public static IconService Current { get; private set; }
 
@@ -122,6 +124,14 @@ namespace Span.Services
                 "phosphor" => ("\ue2a0", "\ue0e0", "\ue288"),  // hard-drives, disc, globe
                 "tabler" => ("\ueb1f", "\ueb3d", "\uf673"),  // device-floppy, disc, cloud-filled
                 _ => ("\uF251", "\uECA4", "\uEB9C")   // ri-usb-fill, ri-disc-fill, ri-cloud-fill
+            };
+
+            // Recycle Bin glyphs per pack
+            (RecycleBinEmptyGlyph, RecycleBinFullGlyph) = pack switch
+            {
+                "phosphor" => ("\ue450", "\ue44e"),  // ph-trash, ph-trash-fill
+                "tabler" => ("\ueb41", "\ueb41"),    // tabler-trash
+                _ => ("\uEC2A", "\uEC29")            // ri-delete-bin-line, ri-delete-bin-fill
             };
 
             try

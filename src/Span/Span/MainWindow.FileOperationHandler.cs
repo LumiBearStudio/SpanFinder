@@ -1435,6 +1435,8 @@ namespace Span
         {
             if (e.Key == Windows.System.VirtualKey.Escape)
             {
+                // RecycleBin 모드: Escape는 RecycleBinHandler에서 통합 처리
+                if (ViewModel.CurrentViewMode == ViewMode.RecycleBin) return;
                 // 재귀 검색 중이면 취소+복원
                 var explorer = ViewModel.ActiveExplorer;
                 if (explorer?.HasActiveSearchResults == true)
@@ -1455,6 +1457,14 @@ namespace Span
             {
                 string queryText = SearchBox.Text.Trim();
                 if (string.IsNullOrEmpty(queryText)) return;
+
+                // RecycleBin 모드: 자체 필터링
+                if (ViewModel.CurrentViewMode == ViewMode.RecycleBin)
+                {
+                    RecycleBinView.FilterItems(queryText);
+                    e.Handled = true;
+                    return;
+                }
 
                 // Parse the query using Advanced Query Syntax
                 var query = Helpers.SearchQueryParser.Parse(queryText);

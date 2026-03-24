@@ -7,6 +7,7 @@ using Microsoft.UI.Xaml.Shapes;
 using Span.ViewModels;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Windows.Foundation;
 
 namespace Span.Helpers
@@ -62,6 +63,7 @@ namespace Span.Helpers
         private readonly Action<bool> _setIsSyncing;
         /// <summary>선택 완료 시 호출될 동기화 콜백 (null이면 FolderViewModel.SyncSelectedItems 사용).</summary>
         private readonly Action<IList<object>>? _syncCallback;
+        private readonly Action? _afterSyncCallback;
 
         /// <summary>Detach() 호출됨 — 이후 이벤트 무시.</summary>
         private bool _detached;
@@ -72,9 +74,9 @@ namespace Span.Helpers
         /// <summary>PointerPressed 시 Ctrl 키 상태 스냅샷.</summary>
         private bool _isCtrlHeld;
         /// <summary>Active 전환 시 캐시된 아이템 바운드 (가상화된 항목은 제외).</summary>
-        private List<(FileSystemViewModel vm, Rect bounds)> _itemBoundsCache = new();
+        private List<(object item, Rect bounds)> _itemBoundsCache = new();
         /// <summary>Ctrl+드래그 시 기존 선택 상태 스냅샷 (XOR 토글용).</summary>
-        private HashSet<FileSystemViewModel> _preSelectionSnapshot = new();
+        private HashSet<object> _preSelectionSnapshot = new();
         /// <summary>CapturePointer 호출 중 PointerCaptureLost 재진입 방지 가드.</summary>
         private bool _isCapturing;
         /// <summary>러버밴드 시작 전 ListView.CanDragItems 원본값 (복원용).</summary>
@@ -98,18 +100,21 @@ namespace Span.Helpers
         /// <param name="getIsSyncing">선택 동기화 중 여부 조회 콜백.</param>
         /// <param name="setIsSyncing">선택 동기화 플래그 설정 콜백.</param>
         /// <param name="syncCallback">선택 완료 시 ViewModel 동기화 콜백 (null이면 FolderViewModel.SyncSelectedItems).</param>
+        /// <param name="afterSyncCallback">SyncToViewModel 완료 후 호출할 콜백 (예: UpdateStatusBar).</param>
         public RubberBandSelectionHelper(
             Grid contentGrid,
             ListViewBase listView,
             Func<bool> getIsSyncing,
             Action<bool> setIsSyncing,
-            Action<IList<object>>? syncCallback = null)
+            Action<IList<object>>? syncCallback = null,
+            Action? afterSyncCallback = null)
         {
             _contentGrid = contentGrid;
             _listView = listView;
             _getIsSyncing = getIsSyncing;
             _setIsSyncing = setIsSyncing;
             _syncCallback = syncCallback;
+            _afterSyncCallback = afterSyncCallback;
 
             // Create overlay canvas (transparent, not hit-testable when inactive)
             _overlayCanvas = new Canvas
@@ -230,8 +235,7 @@ namespace Span.Helpers
                 {
                     foreach (var item in _listView.SelectedItems)
                     {
-                        if (item is FileSystemViewModel fsvm)
-                            _preSelectionSnapshot.Add(fsvm);
+                        _preSelectionSnapshot.Add(item);
                     }
                 }
 
@@ -430,6 +434,7 @@ namespace Span.Helpers
             {
                 folderVm.SyncSelectedItems(_listView.SelectedItems);
             }
+            _afterSyncCallback?.Invoke();
         }
 
         /// <summary>
@@ -545,8 +550,8 @@ namespace Span.Helpers
                 if (container == null)
                     continue; // virtualized out — skip
 
-                var vm = _listView.Items[i] as FileSystemViewModel;
-                if (vm == null)
+                var item = _listView.Items[i];
+                if (item == null)
                     continue;
 
                 try
@@ -555,7 +560,7 @@ namespace Span.Helpers
                     var topLeft = transform.TransformPoint(new Point(0, 0));
                     var bounds = new Rect(topLeft.X, topLeft.Y,
                         container.ActualWidth, container.ActualHeight);
-                    _itemBoundsCache.Add((vm, bounds));
+                    _itemBoundsCache.Add((item, bounds));
                 }
                 catch
                 {
@@ -601,23 +606,23 @@ namespace Span.Helpers
             var selRect = new Rect(rx, ry, rw, rh);
 
             // Determine which items intersect
-            var intersecting = new HashSet<FileSystemViewModel>();
-            foreach (var (vm, bounds) in _itemBoundsCache)
+            var intersecting = new HashSet<object>();
+            foreach (var (item, bounds) in _itemBoundsCache)
             {
                 if (RectsIntersect(selRect, bounds))
-                    intersecting.Add(vm);
+                    intersecting.Add(item);
             }
 
             // Build target selection set
-            HashSet<FileSystemViewModel> target;
+            HashSet<object> target;
             if (_isCtrlHeld)
             {
                 // XOR: items in snapshot that are NOT in rect, plus items in rect that were NOT in snapshot
-                target = new HashSet<FileSystemViewModel>(_preSelectionSnapshot);
-                foreach (var vm in intersecting)
+                target = new HashSet<object>(_preSelectionSnapshot);
+                foreach (var item in intersecting)
                 {
-                    if (!target.Remove(vm))
-                        target.Add(vm);
+                    if (!target.Remove(item))
+                        target.Add(item);
                 }
             }
             else
@@ -632,21 +637,16 @@ namespace Span.Helpers
                 // Remove items no longer in target
                 for (int i = _listView.SelectedItems.Count - 1; i >= 0; i--)
                 {
-                    if (_listView.SelectedItems[i] is FileSystemViewModel fsvm && !target.Contains(fsvm))
+                    if (!target.Contains(_listView.SelectedItems[i]))
                         _listView.SelectedItems.RemoveAt(i);
                 }
 
                 // Add items newly in target
-                var currentlySelected = new HashSet<FileSystemViewModel>();
-                foreach (var item in _listView.SelectedItems)
+                var currentlySelected = new HashSet<object>(_listView.SelectedItems.Cast<object>());
+                foreach (var item in target)
                 {
-                    if (item is FileSystemViewModel fsvm)
-                        currentlySelected.Add(fsvm);
-                }
-                foreach (var vm in target)
-                {
-                    if (!currentlySelected.Contains(vm))
-                        _listView.SelectedItems.Add(vm);
+                    if (!currentlySelected.Contains(item))
+                        _listView.SelectedItems.Add(item);
                 }
             }
             finally

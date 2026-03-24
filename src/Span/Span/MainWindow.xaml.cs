@@ -1780,6 +1780,18 @@ namespace Span
         {
             if (explorer == null) return;
 
+            // RecycleBin/Home 모드: Explorer 경로 대신 전용 브레드크럼 설정
+            if (ViewModel.CurrentViewMode == ViewMode.RecycleBin)
+            {
+                SetSpecialModeAddressBar(ViewMode.RecycleBin);
+                return;
+            }
+            if (ViewModel.CurrentViewMode == ViewMode.Home)
+            {
+                SetSpecialModeAddressBar(ViewMode.Home);
+                return;
+            }
+
             // Main (single-pane) 주소창
             MainAddressBar.PathSegments = explorer.PathSegments;
             MainAddressBar.CurrentPath = explorer.CurrentPath ?? string.Empty;
@@ -1797,6 +1809,37 @@ namespace Span
         }
 
         /// <summary>
+        /// Home/RecycleBin 등 특수 뷰모드에서 주소바에 아이콘 + 라벨 브레드크럼 설정.
+        /// </summary>
+        /// <summary>
+        /// Home/RecycleBin 모드에서 주소바를 전용 브레드크럼으로 설정.
+        /// XAML 아이콘(HomeAddressIcon/RecycleBinAddressIcon)은 호출자가 관리.
+        /// </summary>
+        private void SetSpecialModeAddressBar(ViewMode mode)
+        {
+            var loc = App.Current.Services.GetService<Services.LocalizationService>();
+            var (label, path) = mode switch
+            {
+                ViewMode.RecycleBin => (loc?.Get("RecycleBin") ?? "Recycle Bin", "shell:RecycleBinFolder"),
+                ViewMode.Home => (loc?.Get("Home") ?? "Home", "::home::"),
+                _ => ("", "")
+            };
+            // isLast: false → chevron(>) 표시 (홈 패턴과 동일)
+            var segments = new System.Collections.ObjectModel.ObservableCollection<Models.PathSegment>
+            {
+                new Models.PathSegment(label, path, isLast: false)
+            };
+            MainAddressBar.PathSegments = segments;
+            MainAddressBar.CurrentPath = path;
+            LeftAddressBar.PathSegments = segments;
+            LeftAddressBar.CurrentPath = path;
+
+            // XAML 아이콘 가시성
+            HomeAddressIcon.Visibility = mode == ViewMode.Home ? Visibility.Visible : Visibility.Collapsed;
+            RecycleBinAddressIcon.Visibility = mode == ViewMode.RecycleBin ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        /// <summary>
         /// LeftExplorer의 CurrentPath 변경 시 MainAddressBar/LeftAddressBar 동기화.
         /// </summary>
         private void OnLeftExplorerCurrentPathChanged(object? sender, PropertyChangedEventArgs e)
@@ -1807,7 +1850,16 @@ namespace Span
             {
                 DispatcherQueue.TryEnqueue(() =>
                 {
+                    // RecycleBin/Home 모드: 전용 브레드크럼으로 강제 재설정
+                    if (ViewModel.CurrentViewMode == ViewMode.RecycleBin
+                        || ViewModel.CurrentViewMode == ViewMode.Home)
+                    {
+                        SetSpecialModeAddressBar(ViewModel.CurrentViewMode);
+                        return;
+                    }
+                    MainAddressBar.PathSegments = explorer.PathSegments;
                     MainAddressBar.CurrentPath = explorer.CurrentPath ?? string.Empty;
+                    LeftAddressBar.PathSegments = explorer.PathSegments;
                     LeftAddressBar.CurrentPath = explorer.CurrentPath ?? string.Empty;
                 });
             }
@@ -1865,9 +1917,23 @@ namespace Span
         private void SetViewModeVisibility(ViewMode mode)
         {
             bool isSpecialMode = mode == ViewMode.Settings || mode == ViewMode.ActionLog;
+            bool isRecycleBin = mode == ViewMode.RecycleBin;
 
             // ★ Host Visible 전에 per-tab 패널 정리 (이전 탭 잔상 방지)
             var tabId = ViewModel.ActiveTab?.Id;
+            if (tabId != null && mode == ViewMode.MillerColumns)
+            {
+                // SwitchMillerPanel은 _activeMillerTabId == tabId일 때 early return하므로
+                // 특수 탭(RecycleBin 등)에서 복귀 시 강제 리셋 후 호출
+                if (_activeMillerTabId != tabId)
+                    SwitchMillerPanel(tabId);
+                else
+                {
+                    // 같은 탭이지만 Host가 Collapsed→Visible로 변경되는 경우 (RecycleBin 복귀)
+                    if (_tabMillerPanels.TryGetValue(tabId, out var mp))
+                        mp.scroller.Visibility = Visibility.Visible;
+                }
+            }
             if (tabId != null && mode == ViewMode.Details)
             {
                 foreach (var kvp in _tabDetailsPanels)
@@ -1907,6 +1973,12 @@ namespace Span
             HomeView.Visibility = mode == ViewMode.Home ? Visibility.Visible : Visibility.Collapsed;
             SettingsView.Visibility = mode == ViewMode.Settings ? Visibility.Visible : Visibility.Collapsed;
             LogView.Visibility = mode == ViewMode.ActionLog ? Visibility.Visible : Visibility.Collapsed;
+            RecycleBinView.Visibility = mode == ViewMode.RecycleBin ? Visibility.Visible : Visibility.Collapsed;
+            if (mode == ViewMode.RecycleBin)
+            {
+                SetSpecialModeAddressBar(ViewMode.RecycleBin);
+                _ = LoadRecycleBinViewAsync();
+            }
             if (mode == ViewMode.Settings)
             {
                 SettingsView.RefreshSettings();
@@ -1919,12 +1991,12 @@ namespace Span
             }
             else if (mode == ViewMode.Home)
             {
-                // Home이 Visible이 된 직후 → 폰트 스케일 적용
+                SetSpecialModeAddressBar(ViewMode.Home);
                 HomeView.ApplyIconFontScale(_iconFontScaleLevel);
             }
 
             // 분할뷰 UI 동기화 — 탭별 분할 상태에 따라 우측 패인 표시/숨김
-            if (ViewModel.IsSplitViewEnabled && !isSpecialMode)
+            if (ViewModel.IsSplitViewEnabled && !isSpecialMode && !isRecycleBin)
             {
                 SplitterCol.Width = new GridLength(0);
                 RightPaneCol.Width = new GridLength(1, GridUnitType.Star);
@@ -1975,7 +2047,7 @@ namespace Span
                     });
                 }
                 // 프리뷰 패널 복원 (활성화 상태에 따라, Home에서는 숨김)
-                bool hidePreview = mode == ViewMode.Home;
+                bool hidePreview = mode == ViewMode.Home || isRecycleBin;
                 bool isMillerMode = mode == ViewMode.MillerColumns;
 
                 if (!hidePreview && ViewModel.IsLeftPreviewEnabled)
@@ -2033,8 +2105,9 @@ namespace Span
             {
                 if (mode == ViewMode.Home)
                 {
-                    // 홈 모드: 🏠 > 홈 > breadcrumb 표시
+                    // 홈 모드: 🏠 > 홈 breadcrumb 표시
                     HomeAddressIcon.Visibility = Visibility.Visible;
+                    RecycleBinAddressIcon.Visibility = Visibility.Collapsed;
                     var homeSegments = new[]
                     {
                         new Models.PathSegment(_loc.Get("Home"), "::home::", isLast: false)
@@ -2042,9 +2115,22 @@ namespace Span
                     MainAddressBar.PathSegments = homeSegments;
                     SearchBox.PlaceholderText = _loc.Get("HomeSearch");
                 }
+                else if (mode == ViewMode.RecycleBin)
+                {
+                    // 휴지통 모드: 🗑 > 휴지통 breadcrumb 표시 (홈과 동일 패턴)
+                    HomeAddressIcon.Visibility = Visibility.Collapsed;
+                    RecycleBinAddressIcon.Visibility = Visibility.Visible;
+                    var rbSegments = new[]
+                    {
+                        new Models.PathSegment(_loc.Get("RecycleBin") ?? "Recycle Bin", "shell:RecycleBinFolder", isLast: false)
+                    };
+                    MainAddressBar.PathSegments = rbSegments;
+                    MainAddressBar.CurrentPath = "shell:RecycleBinFolder";
+                }
                 else
                 {
                     HomeAddressIcon.Visibility = Visibility.Collapsed;
+                    RecycleBinAddressIcon.Visibility = Visibility.Collapsed;
                     MainAddressBar.PathSegments = explorer?.PathSegments;
                     MainAddressBar.CurrentPath = explorer?.CurrentPath ?? string.Empty;
                     SearchBox.PlaceholderText = _loc.Get("SearchPlaceholderWithHint");
@@ -3061,9 +3147,10 @@ namespace Span
                 {
                     var activeViewMode = (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
                         ? ViewModel.RightViewMode : ViewModel.CurrentViewMode;
-                    // ActionLog 모드에서는 사이드바가 필터 메뉴이므로 즐겨찾기 클릭이 발생하지 않음
-                    if (activeViewMode == ViewMode.Home)
+                    if (activeViewMode == ViewMode.Home || activeViewMode == ViewMode.RecycleBin)
+                    {
                         ViewModel.SwitchViewMode(ViewModel.ResolveViewModeFromHome());
+                    }
 
                     var folder = new FolderItem
                     {
@@ -3457,7 +3544,8 @@ namespace Span
                 grid,
                 listView,
                 () => _isSyncingSelection,
-                val => _isSyncingSelection = val);
+                val => _isSyncingSelection = val,
+                afterSyncCallback: () => ViewModel.UpdateStatusBar());
 
             _rubberBandHelpers[grid] = helper;
 

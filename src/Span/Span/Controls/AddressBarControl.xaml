@@ -35,6 +35,11 @@
                     <ItemsRepeater.ItemTemplate>
                         <DataTemplate x:DataType="models:PathSegment">
                             <StackPanel Orientation="Horizontal">
+                                <FontIcon Glyph="{x:Bind IconGlyph}" FontSize="13"
+                                          FontFamily="{StaticResource RemixIcons}"
+                                          Foreground="{ThemeResource SpanTextSecondaryBrush}"
+                                          VerticalAlignment="Center" Margin="4,0,0,0"
+                                          Visibility="{x:Bind IconVisibility}"/>
                                 <Button Content="{x:Bind Name}" Tag="{x:Bind FullPath}"
                                         Click="OnSegmentClick"
                                         Background="Transparent" BorderThickness="0"

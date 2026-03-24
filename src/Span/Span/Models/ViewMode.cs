@@ -53,6 +53,11 @@ namespace Span.Models
         /// <summary>
         /// ActionLog: 파일 작업 로그 뷰
         /// </summary>
-        ActionLog = 9
+        ActionLog = 9,
+
+        /// <summary>
+        /// RecycleBin: 휴지통 전용 뷰 (Settings/ActionLog과 동일한 특수 탭)
+        /// </summary>
+        RecycleBin = 10
     }
 }

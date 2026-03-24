@@ -7,5 +7,13 @@ namespace Span.Helpers
     {
         /// <summary>사이드바 폴더 트리 확장/접힘 상태에 따른 쉐브론 회전 각도 (확장=0°, 접힘=-90°).</summary>
         public static double ChevronAngle(bool expanded) => expanded ? 0 : -90;
+
+        /// <summary>bool → Visibility 변환 (true=Visible, false=Collapsed).</summary>
+        public static Microsoft.UI.Xaml.Visibility BoolToVisibility(bool value) =>
+            value ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+
+        /// <summary>bool → Visibility 반전 변환 (true=Collapsed, false=Visible).</summary>
+        public static Microsoft.UI.Xaml.Visibility NotBoolToVisibility(bool value) =>
+            value ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible;
     }
 }

@@ -445,6 +445,12 @@ namespace Span.ViewModels
             if (tab == null) return;
             if (tab.ViewMode == ViewMode.Settings || tab.ViewMode == ViewMode.ActionLog) return; // 특수 탭 헤더 보호
 
+            if (CurrentViewMode == ViewMode.RecycleBin)
+            {
+                tab.Header = App.Current.Services.GetService<Services.LocalizationService>()?.Get("RecycleBin") ?? "Recycle Bin";
+                tab.ViewMode = ViewMode.RecycleBin;
+                return;
+            }
             if (CurrentViewMode == ViewMode.Home)
             {
                 tab.Header = HomeLabel;

@@ -450,6 +450,7 @@ namespace Span.Views
                         ViewModel.CurrentFolder.SelectedChild = single;
                     }
                 }
+                (ContextMenuHost as MainWindow)?.ViewModel?.UpdateStatusBar();
             }
             finally
             {
@@ -1040,7 +1041,8 @@ namespace Span.Views
                 ListGridView,
                 () => _isSyncingSelection,
                 val => _isSyncingSelection = val,
-                items => _viewModel?.CurrentFolder?.SyncSelectedItems(items));
+                items => _viewModel?.CurrentFolder?.SyncSelectedItems(items),
+                () => (ContextMenuHost as MainWindow)?.ViewModel?.UpdateStatusBar());
         }
 
         private void OnListViewWrapperUnloaded(object sender, RoutedEventArgs e)

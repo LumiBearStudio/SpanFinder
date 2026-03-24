@@ -26,6 +26,27 @@ namespace Span.ViewModels
                 return;
             }
 
+            // RecycleBin mode: Home과 동일하게 현재 탭에서 ViewMode 전환
+            if (mode == ViewMode.RecycleBin)
+            {
+                if (CurrentViewMode == ViewMode.RecycleBin) return;
+                // RecycleBin 전환 전 현재 ViewMode 저장 (복귀용)
+                if (CurrentViewMode != ViewMode.Settings && CurrentViewMode != ViewMode.ActionLog
+                    && CurrentViewMode != ViewMode.Home && CurrentViewMode != ViewMode.RecycleBin)
+                    _viewModeBeforeHome = CurrentViewMode;
+                ActivePane = ActivePane.Left;
+                CurrentViewMode = ViewMode.RecycleBin;
+                LeftViewMode = ViewMode.RecycleBin;
+                if (ActiveTab != null)
+                {
+                    ActiveTab.ViewMode = ViewMode.RecycleBin;
+                }
+                UpdateActiveTabHeader();
+                UpdateStatusBar();
+                _ = RefreshRecycleBinInfoAsync();
+                return;
+            }
+
             // Home mode — targets whichever pane is active
             if (mode == ViewMode.Home)
             {
@@ -48,7 +69,7 @@ namespace Span.ViewModels
                 // Home 전환 전 현재 ViewMode 저장 — 드라이브/즐겨찾기 클릭 시 이전 뷰모드 복원에 사용.
                 // Settings/ActionLog는 탐색기 뷰모드가 아니므로 저장하지 않음 (복원해도 의미 없음).
                 // 저장된 값은 ResolveViewModeFromHome() 또는 CloseTab()에서 소비됨.
-                if (CurrentViewMode != ViewMode.Settings && CurrentViewMode != ViewMode.ActionLog)
+                if (CurrentViewMode != ViewMode.Settings && CurrentViewMode != ViewMode.ActionLog && CurrentViewMode != ViewMode.RecycleBin)
                     _viewModeBeforeHome = CurrentViewMode;
                 Helpers.DebugLogger.Log($"[SwitchViewMode→Home] SAVED _viewModeBeforeHome={_viewModeBeforeHome}");
                 ActivePane = ActivePane.Left;
@@ -135,8 +156,8 @@ namespace Span.ViewModels
         {
             try
             {
-                // Don't persist Home, Settings or ActionLog as startup mode
-                if (CurrentViewMode == ViewMode.Home || CurrentViewMode == ViewMode.Settings || CurrentViewMode == ViewMode.ActionLog) return;
+                // Don't persist Home, Settings, ActionLog or RecycleBin as startup mode
+                if (CurrentViewMode == ViewMode.Home || CurrentViewMode == ViewMode.Settings || CurrentViewMode == ViewMode.ActionLog || CurrentViewMode == ViewMode.RecycleBin) return;
 
                 var settings = Windows.Storage.ApplicationData.Current.LocalSettings;
                 settings.Values["ViewMode"] = (int)CurrentViewMode;

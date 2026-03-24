@@ -273,6 +273,7 @@ namespace Span
         /// </summary>
         private async void OnGoBackClick(object sender, RoutedEventArgs e)
         {
+            if (ViewModel.CurrentViewMode == Models.ViewMode.RecycleBin) return;
             try
             {
                 await ViewModel.GoBackAsync();
@@ -290,6 +291,7 @@ namespace Span
         /// </summary>
         private async void OnGoForwardClick(object sender, RoutedEventArgs e)
         {
+            if (ViewModel.CurrentViewMode == Models.ViewMode.RecycleBin) return;
             try
             {
                 await ViewModel.GoForwardAsync();
@@ -558,10 +560,19 @@ namespace Span
         /// </summary>
         private void OnAddressBarPathNavigated(object sender, string path)
         {
+            // shell:RecycleBinFolder 입력 시 휴지통 뷰 전환
+            if (string.Equals(path, "shell:RecycleBinFolder", System.StringComparison.OrdinalIgnoreCase))
+            {
+                ViewModel.SwitchViewMode(Models.ViewMode.RecycleBin);
+                UpdateViewModeVisibility();
+                return;
+            }
+
             var explorer = ResolveExplorerForAddressBar(sender);
 
-            // Home 모드에서 경로 입력 시 MillerColumns로 전환
-            if (ViewModel.CurrentViewMode == Models.ViewMode.Home)
+            // Home/RecycleBin 모드에서 경로 입력 시 MillerColumns로 전환
+            if (ViewModel.CurrentViewMode == Models.ViewMode.Home
+                || ViewModel.CurrentViewMode == Models.ViewMode.RecycleBin)
             {
                 ViewModel.SwitchViewMode(Models.ViewMode.MillerColumns);
                 UpdateViewModeVisibility();

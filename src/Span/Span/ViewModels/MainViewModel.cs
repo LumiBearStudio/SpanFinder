@@ -297,7 +297,7 @@ namespace Span.ViewModels
         {
             if (_isCleaningUp) return;
 
-            // Settings/Home 모드에서는 상태바 표시 불필요
+            // Settings/Home/ActionLog 모드에서는 상태바 표시 불필요
             if (CurrentViewMode == ViewMode.Settings || CurrentViewMode == ViewMode.Home || CurrentViewMode == ViewMode.ActionLog)
             {
                 StatusItemCountText = "";
@@ -305,6 +305,24 @@ namespace Span.ViewModels
                 StatusDiskSpaceText = "";
                 var modeText = Helpers.ViewModeExtensions.GetDisplayName(CurrentViewMode);
                 StatusViewModeText = modeText;
+                return;
+            }
+
+            // RecycleBin 모드: RecycleBinModeView에서 전달받은 상태 표시
+            if (CurrentViewMode == ViewMode.RecycleBin)
+            {
+                string itemCountBase = string.Format(_loc.Get("StatusItemCount") ?? "{0} items", RecycleBinViewItemCount);
+                StatusItemCountText = itemCountBase;
+                if (RecycleBinViewSelectedCount > 0)
+                {
+                    StatusSelectionText = string.Format(_loc.Get("StatusSelected") ?? "{0} selected", RecycleBinViewSelectedCount);
+                }
+                else
+                {
+                    StatusSelectionText = "";
+                }
+                StatusDiskSpaceText = "";
+                StatusViewModeText = Helpers.ViewModeExtensions.GetDisplayName(ViewMode.RecycleBin);
                 return;
             }
 
@@ -334,6 +352,15 @@ namespace Span.ViewModels
             // Disk space info
             StatusDiskSpaceText = GetDiskSpaceText(explorer?.CurrentPath);
         }
+
+        private static string FormatFileSizeCompact(long bytes) => bytes switch
+        {
+            >= 1L << 30 => $"{bytes / (double)(1L << 30):F1} GB",
+            >= 1L << 20 => $"{bytes / (double)(1L << 20):F1} MB",
+            >= 1L << 10 => $"{bytes / (double)(1L << 10):F1} KB",
+            > 0 => $"{bytes} B",
+            _ => ""
+        };
 
         /// <summary>
         /// Get disk space text for the drive containing the given path.
@@ -421,6 +448,7 @@ namespace Span.ViewModels
             LoadFavorites();
             LoadRecentFolders();
             _ = LoadSavedConnectionsAsync();
+            _ = RefreshRecycleBinInfoAsync();
 
             // Load ViewMode preference (includes split state)
             LoadViewModePreference();
@@ -936,16 +964,17 @@ namespace Span.ViewModels
                 return;
             }
 
-            // Home/ActionLog에서 벗어나며 이전 뷰모드 복원 (OpenDrive와 동일한 패턴)
+            // Home/ActionLog/RecycleBin에서 벗어나며 이전 뷰모드 복원 (OpenDrive와 동일한 패턴)
             var activeViewMode = (IsSplitViewEnabled && ActivePane == ActivePane.Right)
                 ? RightViewMode : CurrentViewMode;
-            if (activeViewMode == ViewMode.Home || activeViewMode == ViewMode.ActionLog)
+            if (activeViewMode == ViewMode.Home || activeViewMode == ViewMode.ActionLog
+                || activeViewMode == ViewMode.RecycleBin)
             {
                 SwitchViewMode(ResolveViewModeFromHome());
             }
 
             var folder = new FolderItem { Name = favorite.Name, Path = favorite.Path };
-            _ = ActiveExplorer.NavigateTo(folder);
+            _ = ActiveExplorer?.NavigateTo(folder);
             Helpers.DebugLogger.Log($"[MainViewModel] Navigated to favorite: {favorite.Name}");
         }
 
@@ -1163,6 +1192,56 @@ namespace Span.ViewModels
             SwitchToTab(Tabs.Count - 1);
             Helpers.DebugLogger.Log($"[MainViewModel] ActionLog tab opened (total: {Tabs.Count})");
         }
+
+        #region Recycle Bin
+
+        // RecycleBin view status (set by RecycleBinModeView via StatusChanged event)
+        internal int RecycleBinViewItemCount { get; set; }
+        internal int RecycleBinViewSelectedCount { get; set; }
+        internal long RecycleBinViewTotalSize { get; set; }
+        internal long RecycleBinViewSelectedSize { get; set; }
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(RecycleBinIsEmpty))]
+        [NotifyPropertyChangedFor(nameof(RecycleBinIconGlyph))]
+        private long _recycleBinItemCount;
+
+        public bool RecycleBinIsEmpty => RecycleBinItemCount == 0;
+
+        /// <summary>
+        /// 사이드바 휴지통 아이콘. 비어있으면 아웃라인, 항목 있으면 채워진 아이콘.
+        /// </summary>
+        public string RecycleBinIconGlyph => RecycleBinIsEmpty
+            ? (Services.IconService.Current?.RecycleBinEmptyGlyph ?? "\uEB2A")
+            : (Services.IconService.Current?.RecycleBinFullGlyph ?? "\uEB29");
+
+        /// <summary>
+        /// 현재 활성 탭이 휴지통 탭인지 여부.
+        /// </summary>
+        public bool IsRecycleBinTab => ActiveTab?.ViewMode == ViewMode.RecycleBin;
+
+        /// <summary>
+        /// SHQueryRecycleBin으로 휴지통 상태를 빠르게 갱신 (사이드바 아이콘/배지용).
+        /// 호출 시점: 앱 시작, 삭제 작업 완료 후, 휴지통 비우기 후, 탭 전환 시.
+        /// </summary>
+        public async Task RefreshRecycleBinInfoAsync()
+        {
+            try
+            {
+                var service = App.Current.Services.GetRequiredService<RecycleBinService>();
+                var info = await service.GetInfoAsync();
+                RecycleBinItemCount = info.ItemCount;
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[MainViewModel] RefreshRecycleBinInfo failed: {ex.Message}");
+            }
+        }
+
+        // OpenOrSwitchToRecycleBinTab / ConvertRecycleBinTabToNormal 제거됨
+        // RecycleBin은 Home과 동일하게 SwitchViewMode(ViewMode.RecycleBin)으로 전환
+
+        #endregion
 
     }
 }

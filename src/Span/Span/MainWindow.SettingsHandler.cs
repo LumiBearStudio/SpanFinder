@@ -1099,6 +1099,12 @@ namespace Span
         {
             _isHelpOpen = !_isHelpOpen;
             HelpOverlay.Visibility = _isHelpOpen ? Visibility.Visible : Visibility.Collapsed;
+
+            // Help를 열 때마다 최신 키 바인딩으로 갱신
+            if (_isHelpOpen)
+            {
+                HelpFlyoutContentControl.UpdateKeyTexts();
+            }
         }
 
         private void OnHelpClick(object sender, RoutedEventArgs e)
@@ -1138,6 +1144,13 @@ namespace Span
             ResubscribeLeftExplorer();
             UpdateViewModeVisibility();
             Helpers.DispatcherHelper.SafeEnqueue(DispatcherQueue, Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, UpdateTitleBarRegions);
+        }
+
+        private void OnRecycleBinTapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
+        {
+            ViewModel.SwitchViewMode(ViewMode.RecycleBin);
+            UpdateViewModeVisibility();
+            Helpers.DebugLogger.Log("[Sidebar] RecycleBin tapped");
         }
 
         // #endregion Help Overlay, Settings/Log Button Handlers

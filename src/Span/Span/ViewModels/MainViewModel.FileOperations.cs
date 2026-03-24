@@ -39,12 +39,13 @@ namespace Span.ViewModels
                 return;
             }
 
-            // Home/ActionLog에서 벗어나되, 탐색기 뷰모드(Details/List/Icon)는 보존.
+            // Home/ActionLog/RecycleBin에서 벗어나되, 탐색기 뷰모드(Details/List/Icon)는 보존.
             // ResolveViewModeFromHome()이 _lastClosedViewMode → _viewModeBeforeHome → Miller 순으로 결정.
             var activeViewMode = (IsSplitViewEnabled && ActivePane == ActivePane.Right)
                 ? RightViewMode : CurrentViewMode;
             Helpers.DebugLogger.Log($"[OpenDrive] activeViewMode={activeViewMode}, CurrentViewMode={CurrentViewMode}");
-            if (activeViewMode == ViewMode.Home || activeViewMode == ViewMode.ActionLog)
+            if (activeViewMode == ViewMode.Home || activeViewMode == ViewMode.ActionLog
+                || activeViewMode == ViewMode.RecycleBin)
             {
                 var resolved = ResolveViewModeFromHome();
                 Helpers.DebugLogger.Log($"[OpenDrive] Home→Drive: switching to {resolved}");
@@ -58,7 +59,7 @@ namespace Span.ViewModels
                 Path = drive.Path
             };
 
-            _ = ActiveExplorer.NavigateTo(driveRoot);
+            _ = ActiveExplorer?.NavigateTo(driveRoot);
         }
 
         private void OnHistoryChanged(object? sender, HistoryChangedEventArgs e)

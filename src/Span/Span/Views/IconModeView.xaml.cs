@@ -150,6 +150,7 @@ namespace Span.Views
             if (sender is GridView gridView)
             {
                 ViewModel.CurrentFolder.SyncSelectedItems(gridView.SelectedItems);
+                (ContextMenuHost as MainWindow)?.ViewModel?.UpdateStatusBar();
             }
         }
 
@@ -582,7 +583,8 @@ namespace Span.Views
                 IconGridView,
                 () => _isSyncingSelection,
                 val => _isSyncingSelection = val,
-                items => ViewModel?.CurrentFolder?.SyncSelectedItems(items));
+                items => ViewModel?.CurrentFolder?.SyncSelectedItems(items),
+                () => (ContextMenuHost as MainWindow)?.ViewModel?.UpdateStatusBar());
         }
 
         private void OnRootGridUnloaded(object sender, RoutedEventArgs e)

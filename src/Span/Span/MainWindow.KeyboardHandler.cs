@@ -20,6 +20,14 @@ namespace Span
     /// </summary>
     public sealed partial class MainWindow
     {
+        private Services.KeyBindingService? _keyBindingService;
+
+        /// <summary>
+        /// 키 녹화 모드 활성화 시 글로벌 키보드 핸들러를 억제.
+        /// 단축키 설정 UI에서 새 바인딩을 녹화할 때 사용.
+        /// </summary>
+        internal bool _isRecordingShortcut;
+
         /// <summary>
         /// 컨텍스트 메뉴(MenuFlyout)가 열려 있는지 확인.
         /// 열려 있으면 키보드 이벤트를 가로채지 않아야 AccessKey가 동작함.
@@ -50,8 +58,13 @@ namespace Span
         /// Ctrl/Shift/Alt 조합에 따라 파일 작업, 탐색, 탭 관리, 뷰 모드 전환,
         /// 설정 열기, 터미널 실행, 검색 등 다양한 단축키를 실행한다.
         /// </summary>
-        private void OnGlobalKeyDown(object sender, KeyRoutedEventArgs e)
+        private async void OnGlobalKeyDown(object sender, KeyRoutedEventArgs e)
         {
+            // 키 녹화 모드에서는 글로벌 핸들러 억제 (단축키 설정 UI에서 새 바인딩 녹화 중)
+            if (_isRecordingShortcut) return;
+
+            _keyBindingService ??= App.Current.Services.GetService<Services.KeyBindingService>();
+
             // 컨텍스트 메뉴 열려 있으면: 수식키 없는 단독 문자 키 → AccessKey 동작 실행
             if (IsContextMenuOpen())
             {
@@ -163,6 +176,57 @@ namespace Span
                 // Alt 키 조합(Alt+Left/Right 등)은 허용
             }
 
+            // RecycleBin 모드: 전용 키보드 핸들러로 위임, 공용 단축키만 fall through
+            if (ViewModel.CurrentViewMode == ViewMode.RecycleBin)
+            {
+                try
+                {
+                    // 공용 Ctrl 단축키 허용 (탭/뷰 전환 등)
+                    if (ctrl)
+                    {
+                        switch (e.Key)
+                        {
+                            case Windows.System.VirtualKey.Number1:
+                            case Windows.System.VirtualKey.Number2:
+                            case Windows.System.VirtualKey.Number3:
+                            case Windows.System.VirtualKey.Number4:
+                            case (Windows.System.VirtualKey)188:    // Ctrl+,
+                            case (Windows.System.VirtualKey)192:    // Ctrl+`
+                            case (Windows.System.VirtualKey)222:    // Ctrl+'
+                            case Windows.System.VirtualKey.T:
+                            case Windows.System.VirtualKey.W:
+                            case Windows.System.VirtualKey.L:
+                            case Windows.System.VirtualKey.N:
+                                break; // fall through to main handler
+                            default:
+                                if (e.KeyStatus.ScanCode == 41 || e.KeyStatus.ScanCode == 40 || e.KeyStatus.ScanCode == 51) break;
+                                // RecycleBin 전용 키 처리
+                                if (await HandleRecycleBinKeyAsync(e.Key, ctrl, shift, alt))
+                                {
+                                    e.Handled = true;
+                                    return;
+                                }
+                                return;
+                        }
+                    }
+                    else
+                    {
+                        // 비-Ctrl 키: RecycleBin 전용 핸들러로 위임
+                        if (await HandleRecycleBinKeyAsync(e.Key, ctrl, shift, alt))
+                        {
+                            e.Handled = true;
+                            return;
+                        }
+                        // Alt 키 조합(Alt+Left/Right 등)은 fall through
+                        if (!alt) return;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Helpers.DebugLogger.Log($"[KeyboardHandler] RecycleBin key error: {ex.Message}");
+                }
+            }
+
             // Escape: 잘라내기 반투명 효과 해제 (클립보드 초기화)
             if (e.Key == Windows.System.VirtualKey.Escape && !ctrl && !shift && !alt)
             {
@@ -177,6 +241,37 @@ namespace Span
                 }
             }
 
+            // ═══ Command Dispatch (KeyBindingService) ═══
+            // 사용자 커스텀 바인딩 + 기본 바인딩에서 키 매칭 → ExecuteCommand 실행
+            if (_keyBindingService != null)
+            {
+                // TextBox 포커스 시 Ctrl+C/X/V/A는 네이티브 텍스트 편집으로 위임
+                bool isTextBoxFocused = false;
+                if (ctrl && !shift && !alt)
+                {
+                    var focused = FocusManager.GetFocusedElement(this.Content.XamlRoot);
+                    if (focused is TextBox || focused is RichEditBox || focused is PasswordBox)
+                    {
+                        if (e.Key is Windows.System.VirtualKey.C or Windows.System.VirtualKey.X
+                            or Windows.System.VirtualKey.V or Windows.System.VirtualKey.A)
+                            isTextBoxFocused = true;
+                    }
+                }
+
+                if (!isTextBoxFocused)
+                {
+                    var commandId = _keyBindingService.ResolveCommand(e.Key, ctrl, shift, alt, e.KeyStatus.ScanCode);
+                    if (commandId != null && ExecuteCommand(commandId))
+                    {
+                        e.Handled = true;
+                        return;
+                    }
+                }
+            }
+            // ═══ End Command Dispatch ═══
+
+            // 기존 switch-case (폴백 — ResolveCommand에서 매칭 안 된 키)
+
             // Alt+Left/Right: Back/Forward navigation (highest priority)
             // Alt+Enter: Show Properties dialog
             // Alt+D: Address bar focus (Explorer 호환)
@@ -185,16 +280,19 @@ namespace Span
                 switch (e.Key)
                 {
                     case Windows.System.VirtualKey.Left:
+                        if (ViewModel.CurrentViewMode == ViewMode.RecycleBin) { e.Handled = true; return; }
                         _ = GoBackAndFocusAsync();
                         e.Handled = true;
                         return;
 
                     case Windows.System.VirtualKey.Right:
+                        if (ViewModel.CurrentViewMode == ViewMode.RecycleBin) { e.Handled = true; return; }
                         _ = GoForwardAndFocusAsync();
                         e.Handled = true;
                         return;
 
                     case Windows.System.VirtualKey.Up:
+                        if (ViewModel.CurrentViewMode == ViewMode.RecycleBin) { e.Handled = true; return; }
                         // Alt+Up: Navigate to parent directory (Explorer/Finder 표준)
                         ViewModel.ActiveExplorer?.NavigateUp();
                         e.Handled = true;
@@ -596,6 +694,86 @@ namespace Span
                             e.Handled = true;
                         break;
                 }
+            }
+        }
+
+        #endregion
+
+        #region Command Dispatch (KeyBindingService)
+
+        /// <summary>
+        /// KeyBindingService에서 resolve된 commandId를 실행.
+        /// ShortcutCommands 상수 기반으로 매칭하여 래퍼 메서드를 호출한다.
+        /// 매칭되는 커맨드가 있으면 true, 없으면 false 반환 (기존 switch-case로 fall through).
+        /// </summary>
+        private bool ExecuteCommand(string commandId)
+        {
+            switch (commandId)
+            {
+                // Navigation
+                case ShortcutCommands.NavigateBack:
+                    if (ViewModel.CurrentViewMode == ViewMode.RecycleBin) return true;
+                    _ = GoBackAndFocusAsync();
+                    return true;
+                case ShortcutCommands.NavigateForward:
+                    if (ViewModel.CurrentViewMode == ViewMode.RecycleBin) return true;
+                    _ = GoForwardAndFocusAsync();
+                    return true;
+                case ShortcutCommands.NavigateUp:
+                    if (ViewModel.CurrentViewMode == ViewMode.RecycleBin) return true;
+                    ViewModel.ActiveExplorer?.NavigateUp();
+                    return true;
+                case ShortcutCommands.AddressBarFocus: ExecuteOpenAddressBar(); return true;
+                case ShortcutCommands.Search: SearchBox.Focus(FocusState.Keyboard); return true;
+                case ShortcutCommands.FilterBar: ToggleFilterBar(); return true;
+
+                // Edit
+                case ShortcutCommands.Copy: HandleCopy(); return true;
+                case ShortcutCommands.Cut: HandleCut(); return true;
+                case ShortcutCommands.Paste: HandlePaste(); return true;
+                case ShortcutCommands.PasteAsShortcut: HandlePasteAsShortcut(); return true;
+                case ShortcutCommands.Delete: HandleDelete(); return true;
+                case ShortcutCommands.PermanentDelete: HandlePermanentDelete(); return true;
+                case ShortcutCommands.Rename: HandleRename(); return true;
+                case ShortcutCommands.Duplicate: HandleDuplicateFile(); return true;
+                case ShortcutCommands.NewFolder: HandleNewFolder(); return true;
+                case ShortcutCommands.Undo: _ = ViewModel.UndoCommand.ExecuteAsync(null); return true;
+                case ShortcutCommands.Redo: _ = ViewModel.RedoCommand.ExecuteAsync(null); return true;
+
+                // Selection
+                case ShortcutCommands.SelectAll: HandleSelectAll(); return true;
+                case ShortcutCommands.SelectNone: HandleSelectNone(); return true;
+                case ShortcutCommands.InvertSelection: HandleInvertSelection(); return true;
+
+                // View
+                case ShortcutCommands.ViewMiller: ExecuteSwitchViewMode(ViewMode.MillerColumns); return true;
+                case ShortcutCommands.ViewDetails: ExecuteSwitchViewMode(ViewMode.Details); return true;
+                case ShortcutCommands.ViewList: ExecuteSwitchViewMode(ViewMode.List); return true;
+                case ShortcutCommands.ViewIcon: ExecuteSwitchViewMode(ViewModel.CurrentIconSize); return true;
+                case ShortcutCommands.ToggleSplitView: ToggleSplitView(); return true;
+                case ShortcutCommands.TogglePreview: TogglePreviewPanel(); return true;
+                case ShortcutCommands.EqualizeColumns: ExecuteEqualizeColumns(); return true;
+                case ShortcutCommands.AutoFitColumns: ExecuteAutoFitColumns(); return true;
+                case ShortcutCommands.Refresh: HandleRefresh(); return true;
+                case ShortcutCommands.ToggleHidden: ExecuteToggleHidden(); return true;
+                case ShortcutCommands.Fullscreen: ToggleFullScreen(); return true;
+
+                // Tab
+                case ShortcutCommands.NewTab: ExecuteNewTab(); return true;
+                case ShortcutCommands.CloseTab: ExecuteCloseTab(); return true;
+                case ShortcutCommands.OpenInNewTab: ExecuteOpenInNewTab(); return true;
+
+                // Window
+                case ShortcutCommands.NewWindow: OpenNewWindow(); return true;
+                case ShortcutCommands.OpenTerminal: HandleOpenTerminal(); return true;
+                case ShortcutCommands.OpenSettings: OpenSettingsTab(); return true;
+                case ShortcutCommands.ShowProperties: HandleShowProperties(); return true;
+                case ShortcutCommands.ShowHelp: ToggleHelpOverlay(); return true;
+
+                // Quick Look — 뷰별 핸들러에서 처리
+                case ShortcutCommands.QuickLook: return false;
+
+                default: return false;
             }
         }
 
@@ -1235,6 +1413,146 @@ namespace Span
             }
 
             OpenQuickLookWindow(selectedItem);
+        }
+
+        #endregion
+
+        #region Command Dispatch Helpers
+
+        /// <summary>
+        /// Ctrl+L: Home 모드이면 MillerColumns로 전환 후 주소바 편집 모드를 연다.
+        /// </summary>
+        private void ExecuteOpenAddressBar()
+        {
+            if (ViewModel.CurrentViewMode == ViewMode.Home)
+            {
+                ViewModel.SwitchViewMode(ViewMode.MillerColumns);
+                UpdateViewModeVisibility();
+            }
+            ShowAddressBarEditMode();
+        }
+
+        /// <summary>
+        /// 뷰 모드 전환 래퍼. _suppressFocusOnViewModeChange 가드 + SwitchViewMode + UI 갱신.
+        /// Icon 모드일 때는 GetActiveIconView()?.UpdateIconSize()도 호출한다.
+        /// </summary>
+        private void ExecuteSwitchViewMode(ViewMode mode)
+        {
+            _suppressFocusOnViewModeChange = true;
+            try
+            {
+                ViewModel.SwitchViewMode(mode);
+                // Icon 모드: 아이콘 크기 업데이트
+                if (mode == ViewMode.IconSmall || mode == ViewMode.IconMedium
+                    || mode == ViewMode.IconLarge || mode == ViewMode.IconExtraLarge)
+                {
+                    GetActiveIconView()?.UpdateIconSize(mode);
+                }
+                UpdateViewModeVisibility();
+                UpdateViewModeIcon();
+                UpdatePreviewButtonState();
+            }
+            finally { _suppressFocusOnViewModeChange = false; }
+        }
+
+        /// <summary>
+        /// Ctrl+T: 새 탭 생성 + Miller 패널 생성 + 뷰 전환 + 포커스.
+        /// </summary>
+        private void ExecuteNewTab()
+        {
+            ViewModel.AddNewTab();
+            if (ViewModel.ActiveTab != null)
+            {
+                CreateMillerPanelForTab(ViewModel.ActiveTab);
+                SwitchMillerPanel(ViewModel.ActiveTab.Id);
+            }
+            ResubscribeLeftExplorer();
+            UpdateViewModeVisibility();
+            FocusActiveView();
+        }
+
+        /// <summary>
+        /// Ctrl+W: Settings/ActionLog 탭이면 전용 닫기, 일반 탭이면 Miller 패널 제거 후 닫기.
+        /// </summary>
+        private void ExecuteCloseTab()
+        {
+            if (ViewModel.ActiveTab?.ViewMode == ViewMode.Settings)
+            {
+                CloseCurrentSettingsTab();
+            }
+            else if (ViewModel.ActiveTab?.ViewMode == ViewMode.ActionLog)
+            {
+                CloseCurrentActionLogTab();
+            }
+            else
+            {
+                var closingTab = ViewModel.ActiveTab;
+                if (closingTab != null) RemoveMillerPanel(closingTab.Id);
+                ViewModel.CloseTab(ViewModel.ActiveTabIndex);
+                if (ViewModel.ActiveTab != null)
+                    SwitchMillerPanel(ViewModel.ActiveTab.Id);
+                ResubscribeLeftExplorer();
+                UpdateViewModeVisibility();
+                FocusActiveView();
+            }
+        }
+
+        /// <summary>
+        /// Ctrl+Enter: 선택된 폴더를 각각 새 탭으로 열기.
+        /// ".." 항목과 빈 경로는 건너뛴다.
+        /// </summary>
+        private void ExecuteOpenInNewTab()
+        {
+            var openInTabItems = GetCurrentSelectedItems();
+            foreach (var item in openInTabItems)
+            {
+                if (item is ViewModels.FolderViewModel folder
+                    && !string.IsNullOrEmpty(folder.Path) && folder.Name != "..")
+                {
+                    ((Services.IContextMenuHost)this).PerformOpenInNewTab(folder.Path);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Ctrl+Shift+=: Miller 모드에서 모든 컬럼을 동일 너비(220)로 균등화.
+        /// </summary>
+        private void ExecuteEqualizeColumns()
+        {
+            if (ViewModel.CurrentViewMode == Models.ViewMode.MillerColumns)
+            {
+                ApplyWidthToAllColumns(ColumnWidth);
+                var eqCtl = GetActiveMillerColumnsControl();
+                eqCtl.InvalidateMeasure();
+                eqCtl.UpdateLayout();
+                GetActiveMillerScrollViewer().InvalidateMeasure();
+                ViewModel.ShowToast(_loc.Get("Toast_ColumnsEqualized"));
+            }
+        }
+
+        /// <summary>
+        /// Ctrl+Shift+-: Miller 모드에서 모든 컬럼을 내용에 맞게 자동 조절.
+        /// </summary>
+        private void ExecuteAutoFitColumns()
+        {
+            if (ViewModel.CurrentViewMode == Models.ViewMode.MillerColumns)
+            {
+                AutoFitAllColumns();
+                ViewModel.ShowToast(_loc.Get("Toast_ColumnsAutoFit"));
+            }
+        }
+
+        /// <summary>
+        /// Ctrl+H: 숨김 파일 표시 토글 + Toast 알림.
+        /// </summary>
+        private void ExecuteToggleHidden()
+        {
+            var settingsSvc = App.Current.Services.GetService<Services.ISettingsService>();
+            if (settingsSvc != null)
+            {
+                settingsSvc.ShowHiddenFiles = !settingsSvc.ShowHiddenFiles;
+                ViewModel.ShowToast(settingsSvc.ShowHiddenFiles ? _loc.Get("Toast_HiddenFilesShown") : _loc.Get("Toast_HiddenFilesHidden"));
+            }
         }
 
         #endregion

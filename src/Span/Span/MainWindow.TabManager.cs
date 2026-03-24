@@ -461,8 +461,8 @@ namespace Span
                     if (ViewModel.Tabs.Count > 1)
                         fe.CapturePointer(e.Pointer);
 
-                    // Settings 탭은 Miller/Details/Icon 패널 없음
-                    if (tab.ViewMode != ViewMode.Settings)
+                    // 특수 탭(Settings/ActionLog)은 Miller/Details/Icon 패널 없음
+                    if (tab.ViewMode != ViewMode.Settings && tab.ViewMode != ViewMode.ActionLog)
                     {
                         // ★ 탭 전환 시 phantom SelectionChanged 억제 (500ms)
                         if (tab.Explorer is ViewModels.ExplorerViewModel newExpl)

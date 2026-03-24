@@ -1205,6 +1205,32 @@ namespace Span
             }
         }
 
+        private void OnRecycleBinDragOver(object sender, DragEventArgs e)
+        {
+            e.AcceptedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Move;
+            e.DragUIOverride.Caption = _loc.Get("DragDrop_MoveToRecycleBin");
+            e.DragUIOverride.IsGlyphVisible = true;
+        }
+
+        private async void OnRecycleBinDrop(object sender, DragEventArgs e)
+        {
+            try
+            {
+                var paths = await ExtractDropPaths(e);
+                if (paths.Count == 0) return;
+
+                var router = App.Current.Services.GetRequiredService<Services.FileSystemRouter>();
+                var operation = new Services.FileOperations.DeleteFileOperation(paths, permanent: false, router: router);
+                await ViewModel.ExecuteFileOperationAsync(operation);
+
+                _ = ViewModel.RefreshRecycleBinInfoAsync();
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[DragDrop] RecycleBin drop error: {ex.Message}");
+            }
+        }
+
         #endregion
 
         #region Column Resize Grip Handlers (Miller Columns drag-to-resize)

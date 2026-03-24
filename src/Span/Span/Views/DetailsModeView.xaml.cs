@@ -598,6 +598,7 @@ namespace Span.Views
             if (sender is ListView listView)
             {
                 ViewModel.CurrentFolder.SyncSelectedItems(listView.SelectedItems);
+                (ContextMenuHost as MainWindow)?.ViewModel?.UpdateStatusBar();
             }
         }
 
@@ -1925,7 +1926,8 @@ namespace Span.Views
                 DetailsListView,
                 () => _isSyncingSelection,
                 val => _isSyncingSelection = val,
-                items => ViewModel?.CurrentFolder?.SyncSelectedItems(items));
+                items => ViewModel?.CurrentFolder?.SyncSelectedItems(items),
+                () => (ContextMenuHost as MainWindow)?.ViewModel?.UpdateStatusBar());
         }
 
         private void OnListViewWrapperUnloaded(object sender, RoutedEventArgs e)

@@ -64,10 +64,17 @@ namespace Span
             => isSplitViewEnabled ? Visibility.Collapsed : Visibility.Visible;
 
         /// <summary>
-        /// Split/Preview buttons: hidden in Settings/ActionLog mode
+        /// Unified bar (address bar + toolbar): hidden only in Settings/ActionLog mode.
+        /// RecycleBin은 주소바 영역을 유지한다 (Home과 동일).
         /// </summary>
         public Visibility IsNotSettingsMode(Models.ViewMode mode)
             => (mode != Models.ViewMode.Settings && mode != Models.ViewMode.ActionLog) ? Visibility.Visible : Visibility.Collapsed;
+
+        /// <summary>
+        /// Split/Preview buttons: hidden in Settings/ActionLog/RecycleBin mode
+        /// </summary>
+        public Visibility IsNotSpecialMode(Models.ViewMode mode)
+            => (mode != Models.ViewMode.Settings && mode != Models.ViewMode.ActionLog && mode != Models.ViewMode.RecycleBin) ? Visibility.Visible : Visibility.Collapsed;
 
         /// <summary>
         /// Settings/ActionLog 모드일 때만 표시 (탭↔콘텐츠 연결 strip)
@@ -271,6 +278,7 @@ namespace Span
             SidebarLocalDrivesText.Text = _loc.Get("LocalDrives");
             SidebarCloudText.Text = _loc.Get("Cloud");
             SidebarNetworkText.Text = _loc.Get("Network");
+            RecycleBinLabel.Text = _loc.Get("RecycleBin");
 
             // --- Main sort menu items ---
             SortByNameItem.Text = _loc.Get("Name");
@@ -411,6 +419,7 @@ namespace Span
 
         private void ToggleSplitView()
         {
+            if (ViewModel.IsRecycleBinTab) return;
             ViewModel.IsSplitViewEnabled = !ViewModel.IsSplitViewEnabled;
 
             if (ViewModel.IsSplitViewEnabled)
@@ -960,6 +969,7 @@ namespace Span
         /// </summary>
         private void TogglePreviewForPane(ActivePane targetPane)
         {
+            if (ViewModel.IsRecycleBinTab) return;
             // 모든 뷰 모드 공통: 사이드 미리보기 패널 토글
             if (targetPane == ActivePane.Left)
             {
