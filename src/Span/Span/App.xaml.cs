@@ -118,6 +118,53 @@ namespace Span
             catch { /* fallback: XAML에 정의된 기본값 사용 */ }
         }
 
+        /// <summary>
+        /// 커맨드라인 문자열에서 폴더 경로 인수를 추출한다.
+        /// AppExecutionAlias 경유 시: "C:\...\spanfinder.exe" "D:\folder" → "D:\folder"
+        /// JumpList 경유 시: "D:\folder" → "D:\folder"
+        /// </summary>
+        private static string? ExtractFolderArgument(string rawArgs)
+        {
+            if (string.IsNullOrWhiteSpace(rawArgs)) return null;
+            rawArgs = rawArgs.Trim();
+
+            // 따옴표로 감싸진 인수들을 파싱
+            var parts = new System.Collections.Generic.List<string>();
+            int i = 0;
+            while (i < rawArgs.Length)
+            {
+                if (rawArgs[i] == '"')
+                {
+                    int end = rawArgs.IndexOf('"', i + 1);
+                    if (end < 0) end = rawArgs.Length;
+                    parts.Add(rawArgs.Substring(i + 1, end - i - 1));
+                    i = end + 1;
+                }
+                else if (rawArgs[i] != ' ')
+                {
+                    int end = rawArgs.IndexOf(' ', i);
+                    if (end < 0) end = rawArgs.Length;
+                    parts.Add(rawArgs.Substring(i, end - i));
+                    i = end;
+                }
+                else { i++; }
+            }
+
+            // 마지막 인수부터 역순으로 폴더 경로 탐색
+            for (int j = parts.Count - 1; j >= 0; j--)
+            {
+                var part = parts[j].Trim().Trim('"');
+                if (!string.IsNullOrEmpty(part) && System.IO.Directory.Exists(part))
+                    return part;
+            }
+
+            // 단일 인수 (따옴표 없는 경로)
+            var trimmed = rawArgs.Trim().Trim('"');
+            if (System.IO.Directory.Exists(trimmed)) return trimmed;
+
+            return rawArgs; // fallback: 원본 반환
+        }
+
         private static Windows.UI.Color ColorFromHex(string hex)
         {
             hex = hex.TrimStart('#');
@@ -354,7 +401,12 @@ namespace Span
                         var launchData = activatedArgs.Data as Windows.ApplicationModel.Activation.ILaunchActivatedEventArgs;
                         Helpers.DebugLogger.Log($"[App] LaunchData.Arguments: '{launchData?.Arguments}'");
                         if (!string.IsNullOrEmpty(launchData?.Arguments))
-                            StartupArguments = launchData.Arguments;
+                        {
+                            // AppExecutionAlias 경유 시 전체 커맨드라인이 옴:
+                            // "C:\...\spanfinder.exe" "D:\folder" → 폴더 경로만 추출
+                            var rawArgs = launchData.Arguments;
+                            StartupArguments = ExtractFolderArgument(rawArgs);
+                        }
                     }
 
                     // Fallback: Environment.GetCommandLineArgs (AppExecutionAlias 대응)
