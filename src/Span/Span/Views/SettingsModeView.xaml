@@ -296,6 +296,21 @@
                             <TextBlock Grid.Column="1" Text="도구" FontSize="13"
                                        VerticalAlignment="Center"/>
                         </Grid>
+                        <Grid x:Name="NavShortcuts" Height="28" Padding="12,0" Tag="Shortcuts"
+                              Background="Transparent"
+                              Tapped="OnNavItemTapped"
+                              PointerEntered="OnNavItemPointerEntered" PointerExited="OnNavItemPointerExited"
+                              helpers:CursorHelper.IsHandCursor="True">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <FontIcon Grid.Column="0" Glyph="&#xEDA7;" FontSize="16"
+                                      Foreground="{ThemeResource SpanTextSecondaryBrush}"
+                                      VerticalAlignment="Center" Margin="0,0,12,0"/>
+                            <TextBlock Grid.Column="1" Text="단축키" FontSize="13"
+                                       VerticalAlignment="Center"/>
+                        </Grid>
                         <Grid x:Name="NavAdvanced" Height="28" Padding="12,0" Tag="Advanced"
                               Background="Transparent"
                               Tapped="OnNavItemTapped"
@@ -1397,6 +1412,28 @@
                                     <ToggleSwitch x:Name="ContextMenuToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="True" OnContent="" OffContent="" />
                                 </Grid>
                             </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <!-- ===== Shortcuts Section ===== -->
+                    <ScrollViewer x:Name="ShortcutsSection" Visibility="Collapsed">
+                        <StackPanel Padding="20" Spacing="0">
+                            <TextBlock x:Name="ShortcutsTitle" Text="단축키" Style="{StaticResource SettingsSectionTitle}"/>
+
+                            <!-- 단축키 항목 (코드비하인드에서 동적 생성) -->
+                            <StackPanel x:Name="ShortcutItemsPanel" Spacing="4"/>
+
+                            <!-- 하단 버튼 -->
+                            <StackPanel Orientation="Horizontal" Spacing="8"
+                                        Margin="0,20,0,0" HorizontalAlignment="Right">
+                                <Button x:Name="ShortcutsResetAllBtn" Content="초기화" MinWidth="80"
+                                        Click="OnShortcutsResetAll"/>
+                                <Button x:Name="ShortcutsCancelBtn" Content="취소" MinWidth="80"
+                                        Click="OnShortcutsCancel" IsEnabled="False"/>
+                                <Button x:Name="ShortcutsSaveBtn" Content="저장" MinWidth="80"
+                                        Style="{StaticResource AccentButtonStyle}"
+                                        Click="OnShortcutsSave" IsEnabled="False"/>
+                            </StackPanel>
                         </StackPanel>
                     </ScrollViewer>
 

@@ -11,29 +11,29 @@ namespace Span.Models
     public static class ShortcutCommands
     {
         // ── Navigation ──────────────────────────────────────────
-        public const string NavigateBack = "span.navigation.back";
-        public const string NavigateForward = "span.navigation.forward";
-        public const string NavigateUp = "span.navigation.up";
-        public const string AddressBarFocus = "span.navigation.addressbar";
-        public const string Search = "span.navigation.search";
-        public const string FilterBar = "span.navigation.filterbar";
+        public const string NavigateBack = "span.navigate.back";
+        public const string NavigateForward = "span.navigate.forward";
+        public const string NavigateUp = "span.navigate.up";
+        public const string AddressBarFocus = "span.navigate.addressBar";
+        public const string Search = "span.navigate.search";
+        public const string FilterBar = "span.navigate.filterBar";
 
         // ── Edit ────────────────────────────────────────────────
         public const string Copy = "span.edit.copy";
         public const string Cut = "span.edit.cut";
         public const string Paste = "span.edit.paste";
-        public const string PasteAsShortcut = "span.edit.pasteasshortcut";
+        public const string PasteAsShortcut = "span.edit.pasteAsShortcut";
         public const string Delete = "span.edit.delete";
-        public const string PermanentDelete = "span.edit.permanentdelete";
+        public const string PermanentDelete = "span.edit.permanentDelete";
         public const string Rename = "span.edit.rename";
         public const string Duplicate = "span.edit.duplicate";
-        public const string NewFolder = "span.edit.newfolder";
+        public const string NewFolder = "span.edit.newFolder";
         public const string Undo = "span.edit.undo";
         public const string Redo = "span.edit.redo";
 
         // ── Selection ───────────────────────────────────────────
-        public const string SelectAll = "span.selection.selectall";
-        public const string SelectNone = "span.selection.selectnone";
+        public const string SelectAll = "span.selection.selectAll";
+        public const string SelectNone = "span.selection.selectNone";
         public const string InvertSelection = "span.selection.invert";
 
         // ── View ────────────────────────────────────────────────
@@ -41,24 +41,26 @@ namespace Span.Models
         public const string ViewDetails = "span.view.details";
         public const string ViewList = "span.view.list";
         public const string ViewIcon = "span.view.icon";
-        public const string ToggleSplitView = "span.view.splitview";
+        public const string ToggleSplitView = "span.view.splitView";
         public const string TogglePreview = "span.view.preview";
-        public const string EqualizeColumns = "span.view.equalizecolumns";
-        public const string AutoFitColumns = "span.view.autofitcolumns";
+        public const string EqualizeColumns = "span.view.equalizeColumns";
+        public const string AutoFitColumns = "span.view.autoFitColumns";
         public const string Refresh = "span.view.refresh";
-        public const string ToggleHidden = "span.view.togglehidden";
+        public const string ToggleHidden = "span.view.toggleHidden";
         public const string Fullscreen = "span.view.fullscreen";
 
-        // ── Window / Tab ────────────────────────────────────────
-        public const string NewTab = "span.window.newtab";
-        public const string CloseTab = "span.window.closetab";
-        public const string NewWindow = "span.window.newwindow";
+        // ── Tab ─────────────────────────────────────────────────
+        public const string NewTab = "span.tab.new";
+        public const string CloseTab = "span.tab.close";
+        public const string OpenInNewTab = "span.tab.openSelectedInNew";
+
+        // ── Window ──────────────────────────────────────────────
+        public const string NewWindow = "span.window.new";
         public const string OpenTerminal = "span.window.terminal";
         public const string OpenSettings = "span.window.settings";
         public const string ShowProperties = "span.window.properties";
         public const string ShowHelp = "span.window.help";
-        public const string OpenInNewTab = "span.window.openinnewtab";
-        public const string QuickLook = "span.window.quicklook";
+        public const string QuickLook = "span.quickLook.toggle";
 
         // ── 내부 레지스트리 ─────────────────────────────────────
 
@@ -99,16 +101,18 @@ namespace Span.Models
             { Refresh, "View" },
             { ToggleHidden, "View" },
             { Fullscreen, "View" },
+            // Tab
+            { NewTab, "Tab" },
+            { CloseTab, "Tab" },
+            { OpenInNewTab, "Tab" },
             // Window
-            { NewTab, "Window" },
-            { CloseTab, "Window" },
             { NewWindow, "Window" },
             { OpenTerminal, "Window" },
             { OpenSettings, "Window" },
             { ShowProperties, "Window" },
             { ShowHelp, "Window" },
-            { OpenInNewTab, "Window" },
-            { QuickLook, "Window" },
+            // Quick Look
+            { QuickLook, "QuickLook" },
         };
 
         /// <summary>
