@@ -19,6 +19,7 @@ namespace Span.Services
             ("OpenTerminal", "Open terminal", "터미널 열기", "ターミナルを開く", "打开终端", "開啟終端機", "Terminal öffnen", "Abrir terminal", "Ouvrir le terminal", "Abrir terminal"),
             ("Refresh", "Refresh", "새로고침", "更新", "刷新", "重新整理", "Aktualisieren", "Actualizar", "Actualiser", "Atualizar"),
             ("Undo", "Undo", "실행 취소", "元に戻す", "撤消", "復原", "Rückgängig", "Deshacer", "Annuler", "Desfazer"),
+            ("Format", "Format", "포맷", "フォーマット", "格式化", "格式化", "Formatieren", "Formatear", "Formater", "Formatar"),
             ("DiskCleanup", "Disk Cleanup", "디스크 정리", "ディスク クリーンアップ", "磁盘清理", "磁碟清理", "Datenträgerbereinigung", "Limpieza de disco", "Nettoyage de disque", "Limpeza de disco"),
             ("Properties", "Properties", "속성", "プロパティ", "属性", "內容", "Eigenschaften", "Propiedades", "Propriétés", "Propriedades"),
             ("AddToFavorites", "Add to favorites", "즐겨찾기에 추가", "お気に入りに追加", "添加到收藏夹", "新增到我的最愛", "Zu Favoriten hinzufügen", "Agregar a favoritos", "Ajouter aux favoris", "Adicionar aos favoritos"),

@@ -535,10 +535,14 @@ namespace Span.Services
                     menu.Items.Add(new MenuFlyoutSeparator());
                 }
 
-                // 디스크 관리: 디스크 정리 (로컬/리무버블만, 네트워크 제외)
+                // 디스크 관리: 포맷, 디스크 정리 (로컬/리무버블만, 네트워크 제외)
                 if (!isNetwork)
                 {
                     var driveLetter = drive.Path.TrimEnd('\\');
+                    menu.Items.Add(CreateItem(_loc.Get("Format"), "\uEBD2", () =>
+                    {
+                        try { _shellService.FormatDrive(drive.Path); } catch { }
+                    }));
                     menu.Items.Add(CreateItem(_loc.Get("DiskCleanup"), "\uE74D", () =>
                     {
                         try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("cleanmgr.exe", $"/d {driveLetter}") { UseShellExecute = true }); } catch { }

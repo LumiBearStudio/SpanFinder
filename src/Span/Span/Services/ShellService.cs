@@ -77,6 +77,27 @@ namespace Span.Services
             }
         }
 
+        public void FormatDrive(string drivePath)
+        {
+            try
+            {
+                // SHFormatDrive는 Win32 API — ShellExecuteEx "format" verb 사용
+                var info = new SHELLEXECUTEINFO
+                {
+                    cbSize = Marshal.SizeOf<SHELLEXECUTEINFO>(),
+                    lpVerb = "format",
+                    lpFile = drivePath,
+                    nShow = 1, // SW_SHOWNORMAL
+                    fMask = SEE_MASK_INVOKEIDLIST
+                };
+                ShellExecuteEx(ref info);
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[ShellService] FormatDrive error: {ex.Message}");
+            }
+        }
+
         public void ShowProperties(string path)
         {
             try
