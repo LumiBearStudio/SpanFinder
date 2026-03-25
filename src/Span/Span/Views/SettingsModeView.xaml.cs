@@ -682,6 +682,18 @@ public sealed partial class SettingsModeView : UserControl
             HexPreviewLabel.Text = _loc.Get("Settings_HexPreview");
             HexPreviewDesc.Text = _loc.Get("Settings_HexPreviewDesc");
 
+            // Support Development
+            SupportTitle.Text = _loc.Get("Settings_SupportTitle") ?? "Support Development";
+            SupportDesc.Text = _loc.Get("Settings_SupportDesc") ?? "SPAN Finder is a free open-source project. Your support means a lot!";
+            SupportGitHubDesc.Text = _loc.Get("Settings_SupportGitHubDesc") ?? "Sponsor on GitHub";
+            SupportTossLabel.Text = _loc.Get("Settings_SupportTossLabel") ?? "토스로 후원하기";
+            SupportTossDesc.Text = _loc.Get("Settings_SupportTossDesc") ?? "토스 송금으로 간편하게 후원";
+            SupportStoreDesc.Text = _loc.Get("Settings_SupportStoreDesc") ?? "Support via Store purchase";
+            // 토스는 한국어일 때만 표시
+            SupportTossCard.Visibility = _loc.Language == "ko"
+                ? Microsoft.UI.Xaml.Visibility.Visible
+                : Microsoft.UI.Xaml.Visibility.Collapsed;
+
             // About
             AboutTitle.Text = _loc.Get("Settings_AboutNav");
             CopyrightLabel.Text = "© 2026 LumiBear Studio. All rights reserved.";
@@ -1683,5 +1695,23 @@ public sealed partial class SettingsModeView : UserControl
         {
             Helpers.DebugLogger.Log($"[Settings] ExportRestoreReg error: {ex.Message}");
         }
+    }
+
+    // ── Support Development ──
+
+    private async void OnSupportGitHubClick(object sender, RoutedEventArgs e)
+    {
+        try { await Windows.System.Launcher.LaunchUriAsync(new Uri("https://github.com/sponsors/LumiBearStudio")); } catch { }
+    }
+
+    private async void OnSupportTossClick(object sender, RoutedEventArgs e)
+    {
+        // TODO: 토스 후원 링크 설정 후 활성화
+        try { await Windows.System.Launcher.LaunchUriAsync(new Uri("https://toss.me/")); } catch { }
+    }
+
+    private void OnSupportStoreClick(object sender, RoutedEventArgs e)
+    {
+        // TODO: MS Store IAP 등록 후 StoreContext.RequestPurchaseAsync 구현
     }
 }

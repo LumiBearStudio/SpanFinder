@@ -1604,6 +1604,75 @@
                                     </StackPanel>
                                 </Grid>
                             </Border>
+
+                            <!-- ═══ Support Development ═══ -->
+                            <TextBlock x:Name="SupportTitle" Text="개발자 후원" Style="{StaticResource SettingsSectionTitle}" Margin="0,24,0,8"/>
+                            <TextBlock x:Name="SupportDesc" Text="SPAN Finder는 무료 오픈소스 프로젝트입니다. 개발을 응원해 주시면 큰 힘이 됩니다!"
+                                       FontSize="12" Foreground="{ThemeResource SpanTextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+
+                            <!-- GitHub Sponsors -->
+                            <Border Style="{StaticResource SettingsCardBorder}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Style="{StaticResource CardIconContainer}">
+                                        <FontIcon Glyph="&#xE006;" Style="{StaticResource CardIconStyle}" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock x:Name="SupportGitHubLabel" Text="GitHub Sponsors" Style="{StaticResource SettingsCardLabel}" />
+                                        <TextBlock x:Name="SupportGitHubDesc" Text="GitHub에서 후원하기" Style="{StaticResource SettingsCardDesc}" />
+                                    </StackPanel>
+                                    <Button x:Name="SupportGitHubBtn" Grid.Column="2" Content="Open" MinWidth="70"
+                                            Click="OnSupportGitHubClick" VerticalAlignment="Center"
+                                            helpers:CursorHelper.IsHandCursor="True"/>
+                                </Grid>
+                            </Border>
+
+                            <!-- Toss (한국어일 때만 표시) -->
+                            <Border x:Name="SupportTossCard" Style="{StaticResource SettingsCardBorder}" Visibility="Collapsed">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Style="{StaticResource CardIconContainer}">
+                                        <FontIcon Glyph="&#xE8C8;" Style="{StaticResource CardIconStyle}" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock x:Name="SupportTossLabel" Text="토스로 후원하기" Style="{StaticResource SettingsCardLabel}" />
+                                        <TextBlock x:Name="SupportTossDesc" Text="토스 송금으로 간편하게 후원" Style="{StaticResource SettingsCardDesc}" />
+                                    </StackPanel>
+                                    <Button x:Name="SupportTossBtn" Grid.Column="2" Content="Open" MinWidth="70"
+                                            Click="OnSupportTossClick" VerticalAlignment="Center"
+                                            helpers:CursorHelper.IsHandCursor="True"/>
+                                </Grid>
+                            </Border>
+
+                            <!-- MS Store (준비 중) -->
+                            <Border x:Name="SupportStoreCard" Style="{StaticResource SettingsCardBorder}" Visibility="Collapsed">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Style="{StaticResource CardIconContainer}">
+                                        <FontIcon Glyph="&#xE719;" Style="{StaticResource CardIconStyle}" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock x:Name="SupportStoreLabel" Text="Microsoft Store" Style="{StaticResource SettingsCardLabel}" />
+                                        <TextBlock x:Name="SupportStoreDesc" Text="Store 내 구매로 후원" Style="{StaticResource SettingsCardDesc}" />
+                                    </StackPanel>
+                                    <Button x:Name="SupportStoreBtn" Grid.Column="2" Content="Open" MinWidth="70"
+                                            Click="OnSupportStoreClick" VerticalAlignment="Center"
+                                            helpers:CursorHelper.IsHandCursor="True"/>
+                                </Grid>
+                            </Border>
+
                         </StackPanel>
                     </ScrollViewer>
 
