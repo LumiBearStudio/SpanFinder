@@ -343,7 +343,28 @@ namespace Span.ViewModels
             {
                 StatusItemCountText = string.Format(_loc.Get("StatusItemCount") ?? "{0} items", itemCount);
             }
-            StatusSelectionText = selCount > 0 ? string.Format(_loc.Get("StatusSelected") ?? "{0} selected", selCount) : "";
+            if (selCount > 0)
+            {
+                var selText = string.Format(_loc.Get("StatusSelected") ?? "{0} selected", selCount);
+                // Calculate total size of selected items
+                long totalSize = 0;
+                if (folder?.SelectedItems != null)
+                {
+                    foreach (var item in folder.SelectedItems)
+                    {
+                        totalSize += item.SizeValue;
+                    }
+                }
+                if (totalSize > 0)
+                {
+                    selText += $" ({FormatFileSizeCompact(totalSize)})";
+                }
+                StatusSelectionText = selText;
+            }
+            else
+            {
+                StatusSelectionText = "";
+            }
 
             var mode = (IsSplitViewEnabled && ActivePane == ActivePane.Right)
                 ? RightViewMode : CurrentViewMode;

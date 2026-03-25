@@ -257,6 +257,7 @@ public class KeyBindingService
             ["span.view.autoFitColumns"]   = ["Ctrl+Shift+Minus"],
             ["span.view.refresh"]          = ["F5"],
             ["span.view.toggleHidden"]     = ["Ctrl+H"],
+            ["span.view.toggleExtensions"] = ["Ctrl+Shift+H"],
             ["span.view.fullscreen"]       = ["F11"],
 
             // Tab

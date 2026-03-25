@@ -777,6 +777,7 @@ namespace Span
                 case ShortcutCommands.AutoFitColumns: ExecuteAutoFitColumns(); return true;
                 case ShortcutCommands.Refresh: HandleRefresh(); return true;
                 case ShortcutCommands.ToggleHidden: ExecuteToggleHidden(); return true;
+                case ShortcutCommands.ToggleExtensions: ExecuteToggleExtensions(); return true;
                 case ShortcutCommands.Fullscreen: ToggleFullScreen(); return true;
 
                 // Tab
@@ -1587,6 +1588,19 @@ namespace Span
             {
                 settingsSvc.ShowHiddenFiles = !settingsSvc.ShowHiddenFiles;
                 ViewModel.ShowToast(settingsSvc.ShowHiddenFiles ? _loc.Get("Toast_HiddenFilesShown") : _loc.Get("Toast_HiddenFilesHidden"));
+            }
+        }
+
+        /// <summary>
+        /// Ctrl+Shift+H: 파일 확장자 표시 토글 + Toast 알림.
+        /// </summary>
+        private void ExecuteToggleExtensions()
+        {
+            var settingsSvc = App.Current.Services.GetService<Services.ISettingsService>();
+            if (settingsSvc != null)
+            {
+                settingsSvc.ShowFileExtensions = !settingsSvc.ShowFileExtensions;
+                ViewModel.ShowToast(settingsSvc.ShowFileExtensions ? _loc.Get("Toast_ExtensionsShown") : _loc.Get("Toast_ExtensionsHidden"));
             }
         }
 

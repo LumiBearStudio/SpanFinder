@@ -117,6 +117,7 @@ namespace Span.Services
             ("CloseOtherTabs", "Close Other Tabs", "다른 탭 모두 닫기", "他のタブをすべて閉じる", "关闭其他标签页", "關閉其他索引標籤", "Andere Tabs schließen", "Cerrar otras pestañas", "Fermer les autres onglets", "Fechar outras guias"),
             ("CloseTabsToRight", "Close Tabs to Right", "오른쪽 탭 닫기", "右側のタブを閉じる", "关闭右侧标签页", "關閉右側索引標籤", "Tabs rechts schließen", "Cerrar pestañas a la derecha", "Fermer les onglets à droite", "Fechar guias à direita"),
             ("DuplicateTab", "Duplicate Tab", "탭 복제", "タブを複製", "复制标签页", "複製索引標籤", "Tab duplizieren", "Duplicar pestaña", "Dupliquer l'onglet", "Duplicar guia"),
+            ("MoveToNewWindow", "Move to New Window", "새 창으로 이동", "新しいウィンドウに移動", "移动到新窗口", "移至新視窗", "In neues Fenster verschieben", "Mover a nueva ventana", "Déplacer vers une nouvelle fenêtre", "Mover para nova janela"),
 
             // ── Duplicate ───────────────────────────────────────────────────
             ("DuplicateSuffix", " - Copy", " - 복사본", " - コピー", " - 副本", " - 複本", " - Kopie", " - Copia", " - Copie", " - Cópia"),
@@ -504,6 +505,8 @@ namespace Span.Services
             ("Toast_ShellCommandFailed", "{0} failed", "{0} 실행 실패", "{0} の実行に失敗しました", "{0} 执行失败", "{0} 執行失敗", "{0} fehlgeschlagen", "{0} ha fallado", "{0} a échoué", "{0} falhou"),
             ("Toast_HiddenFilesShown", "Hidden files shown", "숨김 파일 표시", "隠しファイルを表示", "显示隐藏文件", "顯示隱藏檔案", "Versteckte Dateien angezeigt", "Archivos ocultos mostrados", "Fichiers cachés affichés", "Arquivos ocultos mostrados"),
             ("Toast_HiddenFilesHidden", "Hidden files hidden", "숨김 파일 숨김", "隠しファイルを非表示", "隐藏文件已隐藏", "隱藏檔案已隱藏", "Versteckte Dateien ausgeblendet", "Archivos ocultos ocultados", "Fichiers cachés masqués", "Arquivos ocultos ocultados"),
+            ("Toast_ExtensionsShown", "File extensions shown", "파일 확장자 표시", "ファイル拡張子を表示", "显示文件扩展名", "顯示副檔名", "Dateinamenerweiterungen angezeigt", "Extensiones de archivo mostradas", "Extensions de fichiers affichées", "Extensões de arquivo mostradas"),
+            ("Toast_ExtensionsHidden", "File extensions hidden", "파일 확장자 숨김", "ファイル拡張子を非表示", "隐藏文件扩展名", "隱藏副檔名", "Dateinamenerweiterungen ausgeblendet", "Extensiones de archivo ocultadas", "Extensions de fichiers masquées", "Extensões de arquivo ocultadas"),
             ("Toast_ColumnsEqualized", "All columns equalized to default width", "모든 컬럼이 기본 너비로 동일화됨", "全カラムをデフォルト幅に揃えました", "所有列已调整为默认宽度", "所有欄已調整為預設寬度", "Alle Spalten auf Standardbreite angeglichen", "Todas las columnas igualadas al ancho predeterminado", "Toutes les colonnes égalisées à la largeur par défaut", "Todas as colunas equalizadas para largura padrão"),
             ("Toast_ColumnsAutoFit", "All columns auto-fitted to content", "모든 컬럼이 내용에 맞게 자동 조정됨", "全カラムを内容に合わせて自動調整しました", "所有列已自动适应内容", "所有欄已自動適應內容", "Alle Spalten automatisch an Inhalt angepasst", "Todas las columnas autoajustadas al contenido", "Toutes les colonnes ajustées automatiquement au contenu", "Todas as colunas autoajustadas ao conteúdo"),
             ("Toast_CompressSuccess", "Compressed to '{0}'", "'{0}'(으)로 압축 완료", "'{0}'に圧縮しました", "已压缩为\u201C{0}\u201D", "已壓縮為「{0}」", "Komprimiert zu '{0}'", "Comprimido a '{0}'", "Compressé en « {0} »", "Comprimido em '{0}'"),
@@ -806,6 +809,7 @@ namespace Span.Services
             ("Shortcut_AutoFitColumns", "Auto-fit columns", "컬럼 자동 맞춤", "列幅を自動調整", "自动适应列宽", "自動調整欄寬", "Spaltenbreite automatisch anpassen", "Autoajustar columnas", "Ajuster automatiquement les colonnes", "Ajustar colunas automaticamente"),
             ("Shortcut_Refresh", "Refresh", "새로고침", "更新", "刷新", "重新整理", "Aktualisieren", "Actualizar", "Actualiser", "Atualizar"),
             ("Shortcut_ToggleHidden", "Toggle hidden files", "숨김 파일 표시", "隠しファイルの表示切替", "切换隐藏文件", "切換隱藏檔案", "Versteckte Dateien umschalten", "Alternar archivos ocultos", "Basculer les fichiers cachés", "Alternar arquivos ocultos"),
+            ("Shortcut_ToggleExtensions", "Toggle file extensions", "파일 확장자 표시 전환", "ファイル拡張子の表示切替", "切换文件扩展名", "切換副檔名", "Dateinamenerweiterungen umschalten", "Alternar extensiones de archivo", "Basculer les extensions de fichiers", "Alternar extensões de arquivo"),
             ("Shortcut_Fullscreen", "Fullscreen", "전체 화면", "全画面", "全屏", "全螢幕", "Vollbild", "Pantalla completa", "Plein écran", "Tela cheia"),
             ("Shortcut_NewTab", "New tab", "새 탭", "新しいタブ", "新标签页", "新索引標籤", "Neuer Tab", "Nueva pestaña", "Nouvel onglet", "Nova guia"),
             ("Shortcut_CloseTab", "Close tab", "탭 닫기", "タブを閉じる", "关闭标签页", "關閉索引標籤", "Tab schließen", "Cerrar pestaña", "Fermer l'onglet", "Fechar guia"),

@@ -47,6 +47,7 @@ namespace Span.Models
         public const string AutoFitColumns = "span.view.autoFitColumns";
         public const string Refresh = "span.view.refresh";
         public const string ToggleHidden = "span.view.toggleHidden";
+        public const string ToggleExtensions = "span.view.toggleExtensions";
         public const string Fullscreen = "span.view.fullscreen";
 
         // ── Tab ─────────────────────────────────────────────────
@@ -103,6 +104,7 @@ namespace Span.Models
             { AutoFitColumns, "View" },
             { Refresh, "View" },
             { ToggleHidden, "View" },
+            { ToggleExtensions, "View" },
             { Fullscreen, "View" },
             // Tab
             { NewTab, "Tab" },
@@ -161,6 +163,7 @@ namespace Span.Models
             { AutoFitColumns, "Shortcut_AutoFitColumns" },
             { Refresh, "Shortcut_Refresh" },
             { ToggleHidden, "Shortcut_ToggleHidden" },
+            { ToggleExtensions, "Shortcut_ToggleExtensions" },
             { Fullscreen, "Shortcut_Fullscreen" },
             // Window
             { NewTab, "Shortcut_NewTab" },

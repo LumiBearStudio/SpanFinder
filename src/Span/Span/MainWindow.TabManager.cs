@@ -494,6 +494,29 @@ namespace Span
                 int index = ViewModel.Tabs.IndexOf(tab);
                 if (index >= 0)
                 {
+                    // Middle-click: close tab (if not last tab)
+                    if (e.GetCurrentPoint(fe).Properties.IsMiddleButtonPressed && ViewModel.Tabs.Count > 1)
+                    {
+                        RemoveMillerPanel(tab.Id);
+                        RemoveDetailsPanel(tab.Id);
+                        RemoveListPanel(tab.Id);
+                        RemoveIconPanel(tab.Id);
+                        ViewModel.CloseTab(index);
+                        if (ViewModel.ActiveTab != null)
+                        {
+                            SwitchMillerPanel(ViewModel.ActiveTab.Id);
+                            SwitchDetailsPanel(ViewModel.ActiveTab.Id, ViewModel.ActiveTab.ViewMode == ViewMode.Details);
+                            SwitchListPanel(ViewModel.ActiveTab.Id, ViewModel.ActiveTab.ViewMode == ViewMode.List);
+                            SwitchIconPanel(ViewModel.ActiveTab.Id, Helpers.ViewModeExtensions.IsIconMode(ViewModel.ActiveTab.ViewMode));
+                        }
+                        ResubscribeLeftExplorer();
+                        UpdateViewModeVisibility();
+                        FocusActiveView();
+                        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, UpdateTitleBarRegions);
+                        e.Handled = true;
+                        return;
+                    }
+
                     // Record drag start for tear-off detection
                     _tabDragStartPoint = e.GetCurrentPoint(null).Position;
                     _draggingTab = tab;
@@ -1185,6 +1208,19 @@ namespace Span
                 flyout.Items.Add(closeRightItem);
 
                 flyout.Items.Add(new MenuFlyoutSeparator());
+
+                // Move to New Window
+                var moveToNewWindowItem = new MenuFlyoutItem
+                {
+                    Text = _loc.Get("MoveToNewWindow"),
+                    Icon = new FontIcon { Glyph = "\uE8A7" }
+                };
+                moveToNewWindowItem.Click += (s, args) =>
+                {
+                    TearOffTab(tab);
+                };
+                moveToNewWindowItem.IsEnabled = ViewModel.Tabs.Count > 1;
+                flyout.Items.Add(moveToNewWindowItem);
 
                 // Duplicate Tab
                 var duplicateItem = new MenuFlyoutItem
