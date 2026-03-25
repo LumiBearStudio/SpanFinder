@@ -485,14 +485,15 @@ namespace Span
                         break;
 
                     case Windows.System.VirtualKey.H:
-                        // Ctrl+H: Toggle hidden files visibility
+                        if (shift)
                         {
-                            var settingsSvc = App.Current.Services.GetService<Services.ISettingsService>();
-                            if (settingsSvc != null)
-                            {
-                                settingsSvc.ShowHiddenFiles = !settingsSvc.ShowHiddenFiles;
-                                ViewModel.ShowToast(settingsSvc.ShowHiddenFiles ? _loc.Get("Toast_HiddenFilesShown") : _loc.Get("Toast_HiddenFilesHidden"));
-                            }
+                            // Ctrl+Shift+H: Toggle file extensions visibility
+                            ExecuteToggleExtensions();
+                        }
+                        else
+                        {
+                            // Ctrl+H: Toggle hidden files visibility
+                            ExecuteToggleHidden();
                         }
                         e.Handled = true;
                         break;
