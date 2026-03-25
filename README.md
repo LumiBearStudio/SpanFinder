@@ -45,7 +45,7 @@
 | **Multi-Tab** | Windows 11 only (basic) | Full tabs with tear-off, duplication, session restore |
 | **Split View** | No | Dual-pane with independent view modes |
 | **Preview Panel** | Basic | 10+ file types — images, video, audio, code, hex, fonts, PDF |
-| **Keyboard Navigation** | Limited | 30+ shortcuts, type-ahead search, full keyboard-first design |
+| **Keyboard Navigation** | Limited | 150+ features, 30+ shortcuts, type-ahead search, full keyboard-first design |
 | **Batch Rename** | No | Regex, prefix/suffix, sequential numbering |
 | **Undo/Redo** | Limited | Full operation history (configurable depth) |
 | **Custom Themes** | No | 10 themes — Dracula, Tokyo Night, Catppuccin, Gruvbox, Nord, and more |
@@ -122,8 +122,12 @@ Press **Space** for Quick Look (macOS Finder style):
 | Ctrl+Shift+N | New folder |
 | F2 | Rename (batch rename if multi-select) |
 | Ctrl+T / W | New tab / Close tab |
+| Ctrl+Tab / Ctrl+Shift+Tab | Cycle tabs forward / backward |
 | Ctrl+1-4 | Switch view mode |
 | Ctrl+Shift+E | Toggle split view |
+| F6 | Switch split view pane |
+| Ctrl+Shift+H | Toggle file extensions |
+| Shift+F10 | Full native shell context menu |
 | Delete | Move to Recycle Bin |
 
 ### Themes & Customization
@@ -156,6 +160,26 @@ Press **Space** for Quick Look (macOS Finder style):
 - **Structured queries**: `type:image`, `size:>100MB`, `date:today`, `ext:.pdf`
 - **Type-ahead**: Start typing in any column to filter instantly
 - **Background processing**: Search never freezes the UI
+
+### Recycle Bin Integration *(v1.1.1.0)*
+
+- Dedicated Recycle Bin tab — browse, restore, or permanently delete items
+- **Empty Recycle Bin** button in toolbar
+- Full Miller / Details / List / Icon view support for binned items
+
+### Power User Enhancements *(v1.1.2.0)*
+
+- **Middle-click to open in new tab**: Works on folders, drives, and sidebar favorites
+- **Tab context menu "Move to New Window"**: Tear off any tab via right-click
+- **Recent locations AutoSuggest**: Address bar shows recently visited folders on focus
+- **Localized folder navigation**: Type "Downloads", "文書", "바탕화면" etc. in any language — 100+ OS display names resolved via Known Folder cache
+- **Virtual folder navigation**: Type "Control Panel", "This PC", "Network" (10 languages) to navigate shell namespaces
+- **Shell command execution**: Type `cmd`, `powershell`, `calc`, `notepad` in the address bar to launch directly
+- **Run as Administrator**: Right-click `.exe` / `.msi` / `.bat` / `.cmd` for a UAC-elevated launch option
+- **Shift+F10**: Force full native shell context menu regardless of selection
+- **Status bar selection size**: Shows "3 selected (15.2 MB)" aggregate for multi-select
+- **Drive context menu**: Format and Disk Cleanup actions for drives
+- **Background context menu**: Undo and Folder Properties in empty-area right-click menu
 
 ---
 
