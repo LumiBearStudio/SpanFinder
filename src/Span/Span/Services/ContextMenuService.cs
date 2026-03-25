@@ -633,11 +633,15 @@ namespace Span.Services
 
             menu.Items.Add(new MenuFlyoutSeparator());
             menu.Items.Add(CreateItem(_loc.Get("Refresh") + "  F5", "\uE72C", () => host.PerformRefresh(), "F"));
+            menu.Items.Add(CreateItem(_loc.Get("Undo") + "  Ctrl+Z", "\uE7A7", () => host.PerformUndo(), "Z"));
 
             if (!isArchive && !FileSystemRouter.IsRemotePath(folderPath))
             {
                 menu.Items.Add(CreateItem(_loc.Get("OpenTerminal"), "\uE756", () => host.PerformOpenTerminal(folderPath), "E"));
             }
+
+            menu.Items.Add(new MenuFlyoutSeparator());
+            menu.Items.Add(CreateItem(_loc.Get("Properties") + "  Alt+Enter", "\uE946", () => host.PerformShowProperties(folderPath), "P"));
 
             TrackFlyout(menu);
             return menu;

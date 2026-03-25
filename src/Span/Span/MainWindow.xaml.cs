@@ -5658,6 +5658,17 @@ namespace Span
             HandleRefresh();
         }
 
+        void Services.IContextMenuHost.PerformUndo()
+        {
+            _ = ViewModel.UndoCommand.ExecuteAsync(null);
+        }
+
+        void Services.IContextMenuHost.PerformShowProperties(string path)
+        {
+            var shellService = App.Current.Services.GetRequiredService<Services.ShellService>();
+            shellService.ShowProperties(path);
+        }
+
         // =================================================================
         //  Help / Settings / Log
         // =================================================================

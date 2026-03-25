@@ -18,6 +18,7 @@ namespace Span.Services
             ("OpenInNewTab", "Open in new tab", "새 탭에서 열기", "新しいタブで開く", "在新标签页中打开", "在新索引標籤中開啟", "In neuem Tab öffnen", "Abrir en nueva pestaña", "Ouvrir dans un nouvel onglet", "Abrir em nova guia"),
             ("OpenTerminal", "Open terminal", "터미널 열기", "ターミナルを開く", "打开终端", "開啟終端機", "Terminal öffnen", "Abrir terminal", "Ouvrir le terminal", "Abrir terminal"),
             ("Refresh", "Refresh", "새로고침", "更新", "刷新", "重新整理", "Aktualisieren", "Actualizar", "Actualiser", "Atualizar"),
+            ("Undo", "Undo", "실행 취소", "元に戻す", "撤消", "復原", "Rückgängig", "Deshacer", "Annuler", "Desfazer"),
             ("Properties", "Properties", "속성", "プロパティ", "属性", "內容", "Eigenschaften", "Propiedades", "Propriétés", "Propriedades"),
             ("AddToFavorites", "Add to favorites", "즐겨찾기에 추가", "お気に入りに追加", "添加到收藏夹", "新增到我的最愛", "Zu Favoriten hinzufügen", "Agregar a favoritos", "Ajouter aux favoris", "Adicionar aos favoritos"),
             ("RemoveFromFavorites", "Remove from favorites", "즐겨찾기에서 제거", "お気に入りから削除", "从收藏夹中删除", "從我的最愛中移除", "Aus Favoriten entfernen", "Quitar de favoritos", "Supprimer des favoris", "Remover dos favoritos"),

@@ -43,5 +43,7 @@ namespace Span.Services
         void PerformOpenInNewTab(string folderPath);
         void PerformOpenTerminal(string folderPath);
         void PerformRefresh();
+        void PerformUndo();
+        void PerformShowProperties(string path);
     }
 }
