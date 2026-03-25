@@ -94,12 +94,21 @@
             <AutoSuggestBox.Resources>
                 <!-- 드롭다운 아이템 간격/폰트 축소 -->
                 <Thickness x:Key="AutoSuggestListItemMargin">0</Thickness>
-                <x:Double x:Key="AutoSuggestListItemMinHeight">28</x:Double>
+                <Thickness x:Key="AutoSuggestListItemContainerPadding">0</Thickness>
+                <x:Double x:Key="AutoSuggestListItemMinHeight">20</x:Double>
+                <Thickness x:Key="AutoSuggestListPadding">2</Thickness>
             </AutoSuggestBox.Resources>
+            <AutoSuggestBox.ItemContainerStyle>
+                <Style TargetType="ListViewItem">
+                    <Setter Property="MinHeight" Value="20"/>
+                    <Setter Property="Padding" Value="8,1"/>
+                    <Setter Property="Margin" Value="0"/>
+                </Style>
+            </AutoSuggestBox.ItemContainerStyle>
             <AutoSuggestBox.ItemTemplate>
                 <DataTemplate x:DataType="x:String">
-                    <TextBlock Text="{x:Bind}" FontSize="11" Padding="4,2"
-                               TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Text="{x:Bind}" FontSize="11" Padding="0"
+                               Margin="0" TextTrimming="CharacterEllipsis"/>
                 </DataTemplate>
             </AutoSuggestBox.ItemTemplate>
         </AutoSuggestBox>
