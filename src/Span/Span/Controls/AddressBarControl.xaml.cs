@@ -16,6 +16,7 @@ namespace Span.Controls
     {
         private bool _isEditMode;
         private int _scaleLevel;
+        private string? _lastUserInput;
 
         public AddressBarControl()
         {
@@ -299,7 +300,8 @@ namespace Span.Controls
         {
             if (args.Reason != AutoSuggestionBoxTextChangeReason.UserInput) return;
 
-            var text = sender.Text?.Trim();
+            _lastUserInput = sender.Text?.Trim();
+            var text = _lastUserInput;
             if (string.IsNullOrEmpty(text))
             {
                 ShowRecentFoldersSuggestions();
@@ -397,9 +399,21 @@ namespace Span.Controls
 
         private void OnAutoSuggestQuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
         {
-            var path = args.QueryText?.Trim();
-            if (string.IsNullOrEmpty(path)) return;
+            string? path;
+            if (args.ChosenSuggestion is string chosen)
+            {
+                // 드롭다운에서 항목을 클릭/선택한 경우
+                path = chosen;
+            }
+            else
+            {
+                // Enter 직접 입력 — UpdateTextOnSelect가 텍스트를 교체했을 수 있으므로
+                // 사용자가 마지막으로 타이핑한 원본 텍스트를 우선 사용
+                path = _lastUserInput ?? args.QueryText?.Trim();
+            }
+            _lastUserInput = null;
 
+            if (string.IsNullOrEmpty(path)) return;
             path = Environment.ExpandEnvironmentVariables(path);
             PathNavigated?.Invoke(this, path);
             ShowBreadcrumbMode();
