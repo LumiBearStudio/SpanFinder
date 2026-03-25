@@ -661,6 +661,10 @@ namespace Span
                         GetActiveDetailsView()?.FocusListView();
                         break;
 
+                    case Models.ViewMode.List:
+                        GetActiveListView()?.FocusGridView();
+                        break;
+
                     case Models.ViewMode.IconSmall:
                     case Models.ViewMode.IconMedium:
                     case Models.ViewMode.IconLarge:

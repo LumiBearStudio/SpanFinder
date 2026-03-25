@@ -5599,16 +5599,37 @@ namespace Span
             var explorer = new ViewModels.ExplorerViewModel(root, App.Current.Services.GetRequiredService<Services.FileSystemService>());
             var viewMode = ViewModel.CurrentViewMode;
             explorer.EnableAutoNavigation = viewMode == Models.ViewMode.MillerColumns;
+
+            // 드라이브 루트 대응: GetFileName("C:\")은 빈 문자열 반환
+            var header = System.IO.Path.GetFileName(folderPath.TrimEnd('\\', '/'));
+            if (string.IsNullOrEmpty(header)) header = folderPath;
+
             var tab = new Models.TabItem
             {
-                Header = System.IO.Path.GetFileName(folderPath),
+                Header = header,
                 Path = folderPath,
                 ViewMode = viewMode,
                 IconSize = Models.ViewMode.IconMedium,
                 Explorer = explorer
             };
             ViewModel.Tabs.Add(tab);
+
+            // View 레벨 패널 생성 및 전환
+            CreateMillerPanelForTab(tab);
+            if (tab.Explorer is ViewModels.ExplorerViewModel newExpl)
+                newExpl.TabSwitchSuppressionTicks = Environment.TickCount64 + 500;
+            SwitchMillerPanel(tab.Id);
+            SwitchDetailsPanel(tab.Id, tab.ViewMode == Models.ViewMode.Details);
+            SwitchListPanel(tab.Id, tab.ViewMode == Models.ViewMode.List);
+            SwitchIconPanel(tab.Id, Helpers.ViewModeExtensions.IsIconMode(tab.ViewMode));
+
             ViewModel.SwitchToTab(ViewModel.Tabs.Count - 1);
+            ResubscribeLeftExplorer();
+            UpdateViewModeVisibility();
+            UpdateToolbarButtonStates();
+            FocusActiveView();
+            CloseQuickLookWindow();
+
             _ = explorer.NavigateToPath(folderPath);
         }
 

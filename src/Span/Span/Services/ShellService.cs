@@ -57,6 +57,26 @@ namespace Span.Services
             }
         }
 
+        public void RunAsAdmin(string filePath)
+        {
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(filePath)
+                {
+                    UseShellExecute = true,
+                    Verb = "runas"
+                });
+            }
+            catch (System.ComponentModel.Win32Exception)
+            {
+                // User cancelled UAC dialog — ignore
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[ShellService] RunAsAdmin error: {ex.Message}");
+            }
+        }
+
         public void ShowProperties(string path)
         {
             try

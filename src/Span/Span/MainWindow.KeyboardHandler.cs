@@ -198,6 +198,7 @@ namespace Span
                             case Windows.System.VirtualKey.W:
                             case Windows.System.VirtualKey.L:
                             case Windows.System.VirtualKey.N:
+                            case Windows.System.VirtualKey.Tab:     // Ctrl+Tab: Tab cycling
                                 break; // fall through to main handler
                             default:
                                 if (e.KeyStatus.ScanCode == 41 || e.KeyStatus.ScanCode == 40 || e.KeyStatus.ScanCode == 51) break;
@@ -218,8 +219,8 @@ namespace Span
                             e.Handled = true;
                             return;
                         }
-                        // Alt 키 조합(Alt+Left/Right 등)은 fall through
-                        if (!alt) return;
+                        // Alt 키 조합(Alt+Left/Right 등) 및 F6(패인 전환)은 fall through
+                        if (!alt && e.Key != Windows.System.VirtualKey.F6) return;
                     }
                 }
                 catch (Exception ex)

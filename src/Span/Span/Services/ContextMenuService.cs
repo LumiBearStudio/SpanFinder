@@ -340,6 +340,13 @@ namespace Span.Services
                 {
                     menu.Items.Add(CreateItem(_loc.Get("OpenWith"), "\uE7AC", () => _ = _shellService.OpenWithAsync(file.Path), "A"));
                 }
+                // 실행 가능 파일에 "관리자 권한으로 실행" 추가
+                var fileExt = System.IO.Path.GetExtension(file.Path)?.ToLowerInvariant();
+                if (fileExt is ".exe" or ".msi" or ".bat" or ".cmd")
+                {
+                    menu.Items.Add(CreateItem(_loc.Get("RunAsAdmin"), "\uE7EF",
+                        () => _shellService.RunAsAdmin(file.Path)));
+                }
                 menu.Items.Add(new MenuFlyoutSeparator());
 
                 if (!isArchive)

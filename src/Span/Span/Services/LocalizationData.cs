@@ -7,6 +7,7 @@ namespace Span.Services
             // ── Context menu items ──────────────────────────────────────────
             ("Open", "Open", "열기", "開く", "打开", "開啟", "Öffnen", "Abrir", "Ouvrir", "Abrir"),
             ("OpenWith", "Open with...", "연결 프로그램...", "プログラムから開く...", "打开方式...", "開啟方式...", "Öffnen mit...", "Abrir con...", "Ouvrir avec...", "Abrir com..."),
+            ("RunAsAdmin", "Run as administrator", "관리자 권한으로 실행", "管理者として実行", "以管理员身份运行", "以系統管理員身分執行", "Als Administrator ausführen", "Ejecutar como administrador", "Exécuter en tant qu'administrateur", "Executar como administrador"),
             ("Cut", "Cut", "잘라내기", "切り取り", "剪切", "剪下", "Ausschneiden", "Cortar", "Couper", "Recortar"),
             ("Copy", "Copy", "복사", "コピー", "复制", "複製", "Kopieren", "Copiar", "Copier", "Copiar"),
             ("Paste", "Paste", "붙여넣기", "貼り付け", "粘贴", "貼上", "Einfügen", "Pegar", "Coller", "Colar"),
