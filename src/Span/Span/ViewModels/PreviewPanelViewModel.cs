@@ -143,8 +143,15 @@ namespace Span.ViewModels
             _debounceTimer = new Timer(
                 _ => _dispatcherQueue.TryEnqueue(async () =>
                 {
-                    if (!_disposed)
-                        await UpdatePreviewAsync(selectedItem);
+                    try
+                    {
+                        if (!_disposed)
+                            await UpdatePreviewAsync(selectedItem);
+                    }
+                    catch (Exception ex)
+                    {
+                        Helpers.DebugLogger.Log($"[PreviewPanel] UpdatePreview error: {ex.Message}");
+                    }
                 }),
                 null,
                 DebounceMs,

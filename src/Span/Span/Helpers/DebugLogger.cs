@@ -15,8 +15,10 @@ namespace Span.Helpers
 
         private static string InitLogFilePath()
         {
-            var exeDir = AppContext.BaseDirectory;
-            var logsDir = Path.Combine(exeDir, "Logs");
+            // MSIX 패키지 앱은 AppContext.BaseDirectory(Program Files\WindowsApps)가 읽기 전용.
+            // LocalApplicationData로 변경하여 Store 배포에서도 로그 파일 생성 보장.
+            var baseDir = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            var logsDir = Path.Combine(baseDir, "Span", "Logs");
             try { Directory.CreateDirectory(logsDir); } catch { }
             return Path.Combine(logsDir, "Span_Debug.log");
         }
@@ -88,6 +90,23 @@ namespace Span.Helpers
         public static void Shutdown()
         {
             _channel.Writer.TryComplete();
+        }
+
+        /// <summary>
+        /// 크래시 시점에 channel에 남아있는 로그를 동기로 파일에 flush.
+        /// AttachLogFile 호출 전에 실행하여 최신 로그가 첨부되도록 보장.
+        /// </summary>
+        public static void FlushSync()
+        {
+            try
+            {
+                using var sw = new StreamWriter(LogFilePath, append: true);
+                while (_channel.Reader.TryRead(out var msg))
+                {
+                    sw.WriteLine(msg);
+                }
+            }
+            catch { }
         }
 
         private static async Task ConsumeLogsAsync()

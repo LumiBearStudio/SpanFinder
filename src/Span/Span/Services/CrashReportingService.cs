@@ -332,11 +332,27 @@ public sealed class CrashReportingService : IDisposable
     {
         try
         {
+            // Channel에 대기 중인 로그를 파일로 flush (크래시 직전 로그 누락 방지)
+            Helpers.DebugLogger.FlushSync();
+
             var logPath = Helpers.DebugLogger.GetLogFilePath();
-            if (string.IsNullOrEmpty(logPath) || !File.Exists(logPath)) return;
+            if (string.IsNullOrEmpty(logPath))
+            {
+                scope.SetExtra("log.status", "path_empty");
+                return;
+            }
+            if (!File.Exists(logPath))
+            {
+                scope.SetExtra("log.status", $"file_not_found: {ScrubPaths(logPath)}");
+                return;
+            }
 
             var logBytes = ReadTailBytes(logPath, MaxLogAttachmentBytes);
-            if (logBytes == null || logBytes.Length == 0) return;
+            if (logBytes == null || logBytes.Length == 0)
+            {
+                scope.SetExtra("log.status", "file_empty");
+                return;
+            }
 
             // 경로 스크러빙 적용
             var logText = Encoding.UTF8.GetString(logBytes);
@@ -344,10 +360,11 @@ public sealed class CrashReportingService : IDisposable
             var scrubbedBytes = Encoding.UTF8.GetBytes(scrubbedText);
 
             scope.AddAttachment(scrubbedBytes, "Span_Debug.log", AttachmentType.Default, "text/plain");
+            scope.SetExtra("log.status", $"attached ({scrubbedBytes.Length} bytes)");
         }
-        catch
+        catch (Exception ex)
         {
-            // 로그 첨부 실패가 크래시 리포팅을 방해하면 안 됨
+            scope.SetExtra("log.status", $"error: {ex.Message}");
         }
     }
 
