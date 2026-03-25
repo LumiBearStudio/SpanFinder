@@ -210,6 +210,22 @@ namespace Span.Helpers
             [MarshalAs(UnmanagedType.LPWStr)] public string? shi1_remark;
         }
 
+        // ── shell32.dll — 로컬라이즈된 폴더 이름 해석 ──
+
+        [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+        internal static extern int SHParseDisplayName(
+            string pszName, IntPtr pbc,
+            out IntPtr ppidl, uint sfgaoIn, out uint psfgaoOut);
+
+        [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool SHGetPathFromIDListW(IntPtr pidl, System.Text.StringBuilder pszPath);
+
+        // ── ole32.dll — COM 메모리 해제 ──
+
+        [DllImport("ole32.dll")]
+        internal static extern void CoTaskMemFree(IntPtr pv);
+
         // ── shell32.dll — 휴지통 API ──
 
         [DllImport("shell32.dll", CharSet = CharSet.Unicode)]

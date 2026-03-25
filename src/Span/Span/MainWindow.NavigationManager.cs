@@ -58,6 +58,36 @@ namespace Span
         };
 
         /// <summary>
+        /// Span 전용 뷰(홈/휴지통)의 로컬라이즈 이름 → ViewMode 매핑.
+        /// SHParseDisplayName이 처리할 수 없는 Span 내부 뷰만 포함.
+        /// </summary>
+        private static readonly Dictionary<string, Models.ViewMode> _localizedViewNameMap =
+            new(StringComparer.OrdinalIgnoreCase)
+            {
+                // Home
+                ["home"] = Models.ViewMode.Home,
+                ["홈"] = Models.ViewMode.Home,
+                ["ホーム"] = Models.ViewMode.Home,
+                ["主页"] = Models.ViewMode.Home,
+                ["首頁"] = Models.ViewMode.Home,
+                ["start"] = Models.ViewMode.Home,
+                ["inicio"] = Models.ViewMode.Home,
+                ["accueil"] = Models.ViewMode.Home,
+                ["início"] = Models.ViewMode.Home,
+                // Recycle Bin
+                ["recycle bin"] = Models.ViewMode.RecycleBin,
+                ["recyclebin"] = Models.ViewMode.RecycleBin,
+                ["휴지통"] = Models.ViewMode.RecycleBin,
+                ["ごみ箱"] = Models.ViewMode.RecycleBin,
+                ["回收站"] = Models.ViewMode.RecycleBin,
+                ["資源回收筒"] = Models.ViewMode.RecycleBin,
+                ["papierkorb"] = Models.ViewMode.RecycleBin,
+                ["papelera"] = Models.ViewMode.RecycleBin,
+                ["corbeille"] = Models.ViewMode.RecycleBin,
+                ["lixeira"] = Models.ViewMode.RecycleBin,
+            };
+
+        /// <summary>
         /// 가상 폴더 — SPAN에서 직접 탐색 불가, explorer.exe에 위임.
         /// RecycleBinFolder는 자체 처리되므로 여기에 포함하지 않음.
         /// </summary>
@@ -86,6 +116,56 @@ namespace Span
                         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
             }
             return null;
+        }
+
+        // ── 로컬라이즈된 폴더 이름 해석 ──
+
+        private enum LocalizedPathAction { NavigateFileSystem, SwitchViewMode, OpenExternal, Failed }
+
+        private struct LocalizedPathResult
+        {
+            public LocalizedPathAction Action;
+            public string? ResolvedPath;
+            public Models.ViewMode ViewMode;
+        }
+
+        /// <summary>
+        /// 로컬라이즈된 폴더 이름(예: "다운로드", "ダウンロード")을 실제 경로 또는 뷰 모드로 해석.
+        /// 1단계: Span 내부 뷰 정적 매핑 → 2단계: SHParseDisplayName (Shell API).
+        /// </summary>
+        private async Task<LocalizedPathResult> ResolveLocalizedPathAsync(string input)
+        {
+            // 1단계: Span 전용 뷰 정적 매핑
+            if (_localizedViewNameMap.TryGetValue(input.Trim(), out var viewMode))
+                return new LocalizedPathResult { Action = LocalizedPathAction.SwitchViewMode, ViewMode = viewMode };
+
+            // 2단계: SHParseDisplayName (백그라운드 스레드)
+            return await Task.Run(() =>
+            {
+                IntPtr pidl = IntPtr.Zero;
+                try
+                {
+                    int hr = Helpers.NativeMethods.SHParseDisplayName(input, IntPtr.Zero, out pidl, 0, out _);
+                    if (hr != 0 || pidl == IntPtr.Zero)
+                        return new LocalizedPathResult { Action = LocalizedPathAction.Failed };
+
+                    var sb = new System.Text.StringBuilder(260);
+                    if (Helpers.NativeMethods.SHGetPathFromIDListW(pidl, sb) && sb.Length > 0)
+                        return new LocalizedPathResult { Action = LocalizedPathAction.NavigateFileSystem, ResolvedPath = sb.ToString() };
+
+                    // 가상 폴더 (제어판 등) — explorer.exe에 위임
+                    return new LocalizedPathResult { Action = LocalizedPathAction.OpenExternal };
+                }
+                catch
+                {
+                    return new LocalizedPathResult { Action = LocalizedPathAction.Failed };
+                }
+                finally
+                {
+                    if (pidl != IntPtr.Zero)
+                        Helpers.NativeMethods.CoTaskMemFree(pidl);
+                }
+            });
         }
 
         #endregion
@@ -690,6 +770,51 @@ namespace Span
                 return;
             }
 
+            // ── 로컬라이즈된 폴더 이름 해석 (예: "다운로드", "ダウンロード", "휴지통") ──
+            if (!path.Contains('\\') && !path.Contains('/') && !path.Contains(':'))
+            {
+                try
+                {
+                    var result = await ResolveLocalizedPathAsync(path);
+                    if (_isClosed) return;
+
+                    switch (result.Action)
+                    {
+                        case LocalizedPathAction.SwitchViewMode:
+                            ViewModel.SwitchViewMode(result.ViewMode);
+                            UpdateViewModeVisibility();
+                            return;
+
+                        case LocalizedPathAction.NavigateFileSystem:
+                            if (ViewModel.CurrentViewMode == Models.ViewMode.Home
+                                || ViewModel.CurrentViewMode == Models.ViewMode.RecycleBin)
+                            {
+                                ViewModel.SwitchViewMode(ViewModel.ResolveViewModeFromHome());
+                                UpdateViewModeVisibility();
+                            }
+                            var navExplorer = ResolveExplorerForAddressBar(sender);
+                            if (navExplorer != null)
+                                _ = navExplorer.NavigateToPath(result.ResolvedPath!);
+                            return;
+
+                        case LocalizedPathAction.OpenExternal:
+                            try
+                            {
+                                Process.Start(new ProcessStartInfo("explorer.exe", path) { UseShellExecute = true });
+                            }
+                            catch { }
+                            return;
+
+                        case LocalizedPathAction.Failed:
+                            break; // fall-through to existing logic
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Helpers.DebugLogger.Log($"[Navigation] ResolveLocalizedPath error: {ex.Message}");
+                }
+            }
+
             var explorer = ResolveExplorerForAddressBar(sender);
 
             // Home/RecycleBin 모드에서 경로 입력 시 MillerColumns로 전환
@@ -733,6 +858,8 @@ namespace Span
                 var archiveUri = Helpers.ArchivePathHelper.TryBuildArchiveUri(path);
                 if (archiveUri != null)
                     _ = explorer.NavigateToPath(archiveUri);
+                else
+                    ViewModel.ShowToast(string.Format(_loc.Get("Op_PathNotFound"), path), isError: true);
             }
         }
 
