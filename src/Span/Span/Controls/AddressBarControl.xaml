@@ -97,6 +97,7 @@
                 <Thickness x:Key="AutoSuggestListItemContainerPadding">0</Thickness>
                 <x:Double x:Key="AutoSuggestListItemMinHeight">24</x:Double>
                 <Thickness x:Key="AutoSuggestListPadding">4</Thickness>
+                <x:Double x:Key="AutoSuggestListMaxHeight">240</x:Double>
             </AutoSuggestBox.Resources>
             <AutoSuggestBox.ItemContainerStyle>
                 <Style TargetType="ListViewItem">
