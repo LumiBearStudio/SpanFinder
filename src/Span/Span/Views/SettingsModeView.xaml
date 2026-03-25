@@ -1548,21 +1548,35 @@
 
                             <!-- Default File Manager -->
                             <Border Style="{StaticResource SettingsCardBorder}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <Border Grid.Column="0" Style="{StaticResource CardIconContainer}">
-                                        <FontIcon Glyph="&#xED43;" Style="{StaticResource CardIconStyle}" />
-                                    </Border>
-                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                                        <TextBlock x:Name="DefaultFMLabel" Text="기본 파일 관리자" Style="{StaticResource SettingsCardLabel}" />
-                                        <TextBlock x:Name="DefaultFMDesc" Text="폴더/드라이브를 열 때 SPAN Finder 사용" Style="{StaticResource SettingsCardDesc}" />
+                                <StackPanel Spacing="8">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <Border Grid.Column="0" Style="{StaticResource CardIconContainer}">
+                                            <FontIcon Glyph="&#xED43;" Style="{StaticResource CardIconStyle}" />
+                                        </Border>
+                                        <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                            <TextBlock x:Name="DefaultFMLabel" Text="기본 파일 관리자" Style="{StaticResource SettingsCardLabel}" />
+                                            <TextBlock x:Name="DefaultFMDesc" Text="폴더/드라이브를 열 때 SPAN Finder 사용" Style="{StaticResource SettingsCardDesc}" />
+                                        </StackPanel>
+                                        <ToggleSwitch x:Name="DefaultFileManagerToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="False" OnContent="" OffContent="" />
+                                    </Grid>
+                                    <!-- 안내 문구 -->
+                                    <StackPanel x:Name="DefaultFMInfoPanel" Spacing="4" Padding="36,0,0,4">
+                                        <TextBlock x:Name="DefaultFMInfo1" TextWrapping="Wrap" FontSize="11"
+                                                   Foreground="{ThemeResource SpanTextTertiaryBrush}"
+                                                   Text="• 등록 시 UAC(관리자 권한) 승인이 필요합니다. 승인해야 정상 동작합니다."/>
+                                        <TextBlock x:Name="DefaultFMInfo2" TextWrapping="Wrap" FontSize="11"
+                                                   Foreground="{ThemeResource SpanTextTertiaryBrush}"
+                                                   Text="• 해제 시에도 UAC 승인이 필요합니다. SPAN Finder를 제거하기 전에 반드시 이 설정을 먼저 해제하세요."/>
+                                        <TextBlock x:Name="DefaultFMInfo3" TextWrapping="Wrap" FontSize="11"
+                                                   Foreground="{ThemeResource SystemFillColorCautionBrush}"
+                                                   Text="⚠ 앱 삭제 전 해제하지 않으면 폴더 열기가 동작하지 않을 수 있습니다. 이 경우 .reg 복원 파일을 사용하세요."/>
                                     </StackPanel>
-                                    <ToggleSwitch x:Name="DefaultFileManagerToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="False" OnContent="" OffContent="" />
-                                </Grid>
+                                </StackPanel>
                             </Border>
 
                             <!-- .reg 파일 내보내기 (fallback) -->

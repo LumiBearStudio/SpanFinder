@@ -670,6 +670,9 @@ public sealed partial class SettingsModeView : UserControl
             CrashReportDesc.Text = _loc.Get("Settings_CrashReportDesc");
             DefaultFMLabel.Text = _loc.Get("Settings_DefaultFileManager") ?? "기본 파일 관리자";
             DefaultFMDesc.Text = _loc.Get("Settings_DefaultFMDesc") ?? "폴더/드라이브를 열 때 SPAN Finder 사용";
+            DefaultFMInfo1.Text = _loc.Get("Settings_DefaultFMInfo1") ?? "• 등록 시 UAC(관리자 권한) 승인이 필요합니다. 승인해야 정상 동작합니다.";
+            DefaultFMInfo2.Text = _loc.Get("Settings_DefaultFMInfo2") ?? "• 해제 시에도 UAC 승인이 필요합니다. SPAN Finder를 제거하기 전에 반드시 이 설정을 먼저 해제하세요.";
+            DefaultFMInfo3.Text = _loc.Get("Settings_DefaultFMInfo3") ?? "⚠ 앱 삭제 전 해제하지 않으면 폴더 열기가 동작하지 않을 수 있습니다. 이 경우 .reg 복원 파일을 사용하세요.";
             DefaultFMExportLabel.Text = _loc.Get("Settings_DefaultFMExport") ?? ".reg 파일 수동 적용";
             DefaultFMExportDesc.Text = _loc.Get("Settings_DefaultFMExportDesc") ?? "자동 등록이 실패한 경우 .reg 파일을 내보내서 직접 실행하세요";
             ExportSetRegBtn.Content = _loc.Get("Settings_DefaultFMExportSet") ?? "등록";
