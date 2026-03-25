@@ -5624,9 +5624,21 @@ namespace Span
             SwitchIconPanel(tab.Id, Helpers.ViewModeExtensions.IsIconMode(tab.ViewMode));
 
             ViewModel.SwitchToTab(ViewModel.Tabs.Count - 1);
+
+            // 분할뷰 → 단일뷰 전환: SwitchToTab이 backing field로 IsSplitViewEnabled=false 설정하지만
+            // Grid Column 너비와 x:Bind는 자동 갱신되지 않으므로 직접 처리
+            if (!ViewModel.IsSplitViewEnabled)
+            {
+                SplitterCol.Width = new GridLength(0);
+                RightPaneCol.Width = new GridLength(0);
+                UnsubscribeRightExplorerForAddressBar();
+            }
+            ViewModel.NotifySplitViewChanged();
+
             ResubscribeLeftExplorer();
             UpdateViewModeVisibility();
             UpdateToolbarButtonStates();
+            SyncAddressBarControls(ViewModel.Explorer);
             FocusActiveView();
             CloseQuickLookWindow();
 

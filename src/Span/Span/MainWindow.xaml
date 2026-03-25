@@ -199,30 +199,20 @@
                 </StackPanel>
 
                 <appcontrols:AddressBarControl x:Name="MainAddressBar" Grid.Column="1"
+                    RecentFolders="{x:Bind ViewModel.RecentFolders, Mode=OneWay}"
                     BreadcrumbSegmentClicked="OnAddressBarBreadcrumbClicked"
                     BreadcrumbChevronClicked="OnAddressBarChevronClicked"
                     PathNavigated="OnAddressBarPathNavigated"/>
 
-                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="0">
-                    <!-- 최근 위치 드롭다운 버튼 -->
-                    <Button x:Name="RecentLocationsButton"
-                            Style="{StaticResource UnifiedButtonStyle}"
-                            ToolTipService.ToolTip="Recent locations"
-                            Click="OnRecentLocationsClick"
-                            Padding="4,4" MinWidth="0" MinHeight="0"
-                            Margin="2,0,0,0">
-                        <FontIcon Glyph="&#xE81C;" FontSize="10"/>
-                    </Button>
-                    <!-- 경로 복사 버튼 -->
-                    <Button x:Name="CopyPathButton" AutomationProperties.AutomationId="Button_CopyPath"
-                            Style="{StaticResource UnifiedButtonStyle}"
-                            ToolTipService.ToolTip="경로 복사"
-                            Click="OnCopyPathClick"
-                            Padding="4,4" MinWidth="0" MinHeight="0"
-                            Margin="2,0,0,0">
-                        <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Copy}" FontSize="12"/>
-                    </Button>
-                </StackPanel>
+                <!-- 경로 복사 버튼 -->
+                <Button x:Name="CopyPathButton" AutomationProperties.AutomationId="Button_CopyPath" Grid.Column="2"
+                        Style="{StaticResource UnifiedButtonStyle}"
+                        ToolTipService.ToolTip="경로 복사"
+                        Click="OnCopyPathClick"
+                        Padding="4,4" MinWidth="0" MinHeight="0"
+                        Margin="2,0,0,0">
+                    <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Copy}" FontSize="12"/>
+                </Button>
             </Grid>
 
             <!-- Commands -->
@@ -778,19 +768,13 @@
                             </Button>
                         </StackPanel>
                         <!-- Breadcrumb + Edit mode -->
-                        <appcontrols:AddressBarControl x:Name="LeftAddressBar" Grid.Column="1" 
+                        <appcontrols:AddressBarControl x:Name="LeftAddressBar" Grid.Column="1"
+                            RecentFolders="{x:Bind ViewModel.RecentFolders, Mode=OneWay}"
                             BreadcrumbSegmentClicked="OnAddressBarBreadcrumbClicked"
                             BreadcrumbChevronClicked="OnAddressBarChevronClicked"
                             PathNavigated="OnAddressBarPathNavigated"/>
-                        <!-- Pane actions: RecentLocations | CopyPath | Sort, ViewMode, Preview -->
+                        <!-- Pane actions: CopyPath | Sort, ViewMode, Preview -->
                         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="0" VerticalAlignment="Center" Margin="0,0,2,0">
-                            <!-- Recent Locations -->
-                            <Button x:Name="LeftRecentLocationsButton" Style="{StaticResource UnifiedButtonStyle}"
-                                    ToolTipService.ToolTip="Recent locations"
-                                    Tag="Left" Click="OnRecentLocationsClick"
-                                    Padding="4" MinWidth="0" MinHeight="0" Width="26" Height="26">
-                                <FontIcon Glyph="&#xE81C;" FontSize="10"/>
-                            </Button>
                             <!-- CopyPath -->
                             <Button x:Name="LeftCopyPathButton" Style="{StaticResource UnifiedButtonStyle}"
                                     ToolTipService.ToolTip="경로 복사" Tag="Left" Click="OnPaneCopyPathClick"
@@ -1235,19 +1219,13 @@
                             </Button>
                         </StackPanel>
                         <!-- Breadcrumb + Edit mode -->
-                        <appcontrols:AddressBarControl x:Name="RightAddressBar" Grid.Column="1" 
+                        <appcontrols:AddressBarControl x:Name="RightAddressBar" Grid.Column="1"
+                            RecentFolders="{x:Bind ViewModel.RecentFolders, Mode=OneWay}"
                             BreadcrumbSegmentClicked="OnAddressBarBreadcrumbClicked"
                             BreadcrumbChevronClicked="OnAddressBarChevronClicked"
                             PathNavigated="OnAddressBarPathNavigated"/>
-                        <!-- Pane actions: RecentLocations | CopyPath | Sort, ViewMode, Preview -->
+                        <!-- Pane actions: CopyPath | Sort, ViewMode, Preview -->
                         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="0" VerticalAlignment="Center" Margin="0,0,2,0">
-                            <!-- Recent Locations -->
-                            <Button x:Name="RightRecentLocationsButton" Style="{StaticResource UnifiedButtonStyle}"
-                                    ToolTipService.ToolTip="Recent locations"
-                                    Tag="Right" Click="OnRecentLocationsClick"
-                                    Padding="4" MinWidth="0" MinHeight="0" Width="26" Height="26">
-                                <FontIcon Glyph="&#xE81C;" FontSize="10"/>
-                            </Button>
                             <!-- CopyPath -->
                             <Button x:Name="RightCopyPathButton" Style="{StaticResource UnifiedButtonStyle}"
                                     ToolTipService.ToolTip="경로 복사" Tag="Right" Click="OnPaneCopyPathClick"

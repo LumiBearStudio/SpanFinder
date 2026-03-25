@@ -114,6 +114,19 @@ namespace Span.Controls
             set => SetValue(CurrentPathProperty, value);
         }
 
+        public static readonly DependencyProperty RecentFoldersProperty =
+            DependencyProperty.Register(nameof(RecentFolders), typeof(IEnumerable),
+                typeof(AddressBarControl), new PropertyMetadata(null));
+
+        /// <summary>
+        /// 최근 방문 폴더 목록. 편집 모드 진입 시 텍스트 미입력 상태에서 드롭다운에 표시.
+        /// </summary>
+        public IEnumerable RecentFolders
+        {
+            get => (IEnumerable)GetValue(RecentFoldersProperty);
+            set => SetValue(RecentFoldersProperty, value);
+        }
+
         /// <summary>
         /// Font size for breadcrumb segments. Defaults to 11 for split pane, 12 for single pane.
         /// </summary>
@@ -193,6 +206,9 @@ namespace Span.Controls
             if (Helpers.ArchivePathHelper.IsArchivePath(displayPath))
                 displayPath = displayPath.Substring(Helpers.ArchivePathHelper.Prefix.Length);
             AutoSuggest.Text = displayPath;
+
+            // 편집 모드 진입 시 최근 방문 폴더를 초기 제안으로 표시
+            ShowRecentFoldersSuggestions();
 
             // Collapsed→Visible 전환 후 내부 TextBox 비주얼 트리가 materialize될 때까지
             // 한 프레임 대기. UpdateLayout()은 AccessViolation 위험이 있어 사용하지 않음.
@@ -286,7 +302,7 @@ namespace Span.Controls
             var text = sender.Text?.Trim();
             if (string.IsNullOrEmpty(text))
             {
-                sender.ItemsSource = null;
+                ShowRecentFoldersSuggestions();
                 return;
             }
 
@@ -341,6 +357,25 @@ namespace Span.Controls
             {
                 sender.ItemsSource = null;
             }
+        }
+
+        /// <summary>
+        /// RecentFolders를 AutoSuggestBox 드롭다운에 표시. 편집 모드 진입 시 또는 텍스트 삭제 시 호출.
+        /// </summary>
+        private void ShowRecentFoldersSuggestions()
+        {
+            if (RecentFolders == null)
+            {
+                AutoSuggest.ItemsSource = null;
+                return;
+            }
+            var recent = RecentFolders.Cast<object>()
+                .Where(item => item is Models.FavoriteItem)
+                .Cast<Models.FavoriteItem>()
+                .Select(f => f.Path)
+                .Take(15)
+                .ToList();
+            AutoSuggest.ItemsSource = recent.Count > 0 ? recent : null;
         }
 
         private void OnAutoSuggestSuggestionChosen(AutoSuggestBox sender, AutoSuggestBoxSuggestionChosenEventArgs args)

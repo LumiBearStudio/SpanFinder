@@ -439,6 +439,14 @@ namespace Span.ViewModels
         }
 
         /// <summary>
+        /// 분할뷰 상태를 x:Bind에 통지. SwitchToTab이 backing field로 설정할 때 호출.
+        /// </summary>
+        public void NotifySplitViewChanged()
+        {
+            OnPropertyChanged(nameof(IsSplitViewEnabled));
+        }
+
+        /// <summary>
         /// Sync the active tab's header/icon with the current explorer state.
         /// </summary>
         public void UpdateActiveTabHeader()
