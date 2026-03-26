@@ -87,7 +87,8 @@ public sealed partial class SettingsModeView : UserControl
         _loc = App.Current.Services.GetService(typeof(LocalizationService)) as LocalizationService;
         LocalizeUI();
         if (_loc != null) _loc.LanguageChanged += LocalizeUI;
-        this.Unloaded += (s, e) => { if (_loc != null) _loc.LanguageChanged -= LocalizeUI; };
+        this.Loaded += (s, e) => { try { HeartAnimation.Begin(); } catch { } };
+        this.Unloaded += (s, e) => { if (_loc != null) _loc.LanguageChanged -= LocalizeUI; try { HeartAnimation.Stop(); } catch { } };
     }
 
     /// <summary>
@@ -544,6 +545,9 @@ public sealed partial class SettingsModeView : UserControl
             // Header
             SettingsTitle.Text = _loc.Get("Settings");
             // Navigation (커스텀 Grid 사이드바)
+            NavGroupSettings.Text = _loc.Get("Settings_NavGroupSettings") ?? "Settings";
+            NavGroupExplorer.Text = _loc.Get("Settings_NavGroupExplorer") ?? "Explorer";
+            NavGroupAdvanced.Text = _loc.Get("Settings_NavGroupAdvanced") ?? "Advanced";
             SetNavText(NavGeneral, _loc.Get("Settings_General"));
             SetNavText(NavAppearance, _loc.Get("Settings_Appearance"));
             SetNavText(NavBrowsing, _loc.Get("Settings_Browsing"));
@@ -1718,6 +1722,13 @@ public sealed partial class SettingsModeView : UserControl
     }
 
     // ── Support Development ──
+
+    private void OnSettingsSidebarSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        // TODO: 곰돌이 완성 후 Collapsed 해제
+        // LumiBearPanel.Visibility = e.NewSize.Height > 500
+        //     ? Visibility.Visible : Visibility.Collapsed;
+    }
 
     private void OnSidebarSectionToggled(object sender, RoutedEventArgs e)
     {

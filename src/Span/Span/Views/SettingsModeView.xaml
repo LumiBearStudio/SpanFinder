@@ -234,8 +234,18 @@
             <!-- 사이드바: 탐색기와 완전 동일 -->
             <Border Grid.Column="0" Background="{ThemeResource SpanBgLayer1Brush}"
                     BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="0,0,1,0">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <Grid x:Name="SettingsSidebarGrid" SizeChanged="OnSettingsSidebarSizeChanged">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Padding="0,4">
+                        <!-- 그룹: 설정 -->
+                        <TextBlock x:Name="NavGroupSettings" Text="설정"
+                                   Style="{StaticResource CaptionTextBlockStyle}"
+                                   Foreground="{ThemeResource SpanTextTertiaryBrush}" FontWeight="SemiBold"
+                                   Margin="16,4,16,4"/>
                         <Grid x:Name="NavGeneral" Height="28" Padding="12,0" Tag="General"
                               Background="{ThemeResource SpanBgSelectedBrush}"
                               Tapped="OnNavItemTapped"
@@ -266,6 +276,11 @@
                             <TextBlock Grid.Column="1" Text="모양" FontSize="13"
                                        VerticalAlignment="Center"/>
                         </Grid>
+                        <!-- 그룹: 탐색기 -->
+                        <TextBlock x:Name="NavGroupExplorer" Text="탐색기"
+                                   Style="{StaticResource CaptionTextBlockStyle}"
+                                   Foreground="{ThemeResource SpanTextTertiaryBrush}" FontWeight="SemiBold"
+                                   Margin="16,12,16,4"/>
                         <Grid x:Name="NavBrowsing" Height="28" Padding="12,0" Tag="Browsing"
                               Background="Transparent"
                               Tapped="OnNavItemTapped"
@@ -296,6 +311,11 @@
                             <TextBlock x:Name="NavSidebarText" Grid.Column="1" Text="사이드바" FontSize="13"
                                        VerticalAlignment="Center"/>
                         </Grid>
+                        <!-- 그룹: 고급 -->
+                        <TextBlock x:Name="NavGroupAdvanced" Text="고급"
+                                   Style="{StaticResource CaptionTextBlockStyle}"
+                                   Foreground="{ThemeResource SpanTextTertiaryBrush}" FontWeight="SemiBold"
+                                   Margin="16,12,16,4"/>
                         <Grid x:Name="NavTools" Height="28" Padding="12,0" Tag="Tools"
                               Background="Transparent"
                               Tapped="OnNavItemTapped"
@@ -389,6 +409,50 @@
                         </Grid>
                     </StackPanel>
                 </ScrollViewer>
+
+                <!-- LumiBear 도트 애니메이션 (하단 고정) -->
+                <Grid x:Name="LumiBearPanel" Grid.Row="1" Width="130" Height="90" HorizontalAlignment="Center" Margin="0,4,0,8" Visibility="Collapsed">
+                    <Grid.Resources>
+                        <Storyboard x:Name="HeartAnimation" RepeatBehavior="Forever">
+                            <DoubleAnimation Storyboard.TargetName="Heart1Transform" Storyboard.TargetProperty="Y"
+                                             From="0" To="-30" Duration="0:0:2"/>
+                            <DoubleAnimation Storyboard.TargetName="Heart1" Storyboard.TargetProperty="Opacity"
+                                             From="1" To="0" Duration="0:0:2"/>
+                            <DoubleAnimation Storyboard.TargetName="Heart2Transform" Storyboard.TargetProperty="Y"
+                                             From="0" To="-40" Duration="0:0:2.5" BeginTime="0:0:0.8"/>
+                            <DoubleAnimation Storyboard.TargetName="Heart2" Storyboard.TargetProperty="Opacity"
+                                             From="1" To="0" Duration="0:0:2.5" BeginTime="0:0:0.8"/>
+                            <DoubleAnimation Storyboard.TargetName="Heart3Transform" Storyboard.TargetProperty="Y"
+                                             From="0" To="-35" Duration="0:0:2.2" BeginTime="0:0:1.5"/>
+                            <DoubleAnimation Storyboard.TargetName="Heart3" Storyboard.TargetProperty="Opacity"
+                                             From="1" To="0" Duration="0:0:2.2" BeginTime="0:0:1.5"/>
+                            <DoubleAnimation Storyboard.TargetName="BearBreathTransform" Storyboard.TargetProperty="Y"
+                                             From="0" To="0.5" Duration="0:0:2.5" AutoReverse="True"/>
+                        </Storyboard>
+                    </Grid.Resources>
+
+                    <!-- 도트 곰 이미지 -->
+                    <Image Source="ms-appx:///Assets/lumibear_sleeping.png" Width="107" Height="75"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           Stretch="Uniform">
+                        <Image.RenderTransform><TranslateTransform x:Name="BearBreathTransform"/></Image.RenderTransform>
+                    </Image>
+
+                    <!-- 핑크 하트 파티클 -->
+                    <FontIcon x:Name="Heart1" Glyph="&#xEB52;" FontSize="14" Foreground="#FF69B4" Opacity="0"
+                              HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,10,10,0">
+                        <FontIcon.RenderTransform><TranslateTransform x:Name="Heart1Transform"/></FontIcon.RenderTransform>
+                    </FontIcon>
+                    <FontIcon x:Name="Heart2" Glyph="&#xEB52;" FontSize="10" Foreground="#FF69B4" Opacity="0"
+                              HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,5,25,0">
+                        <FontIcon.RenderTransform><TranslateTransform x:Name="Heart2Transform"/></FontIcon.RenderTransform>
+                    </FontIcon>
+                    <FontIcon x:Name="Heart3" Glyph="&#xEB52;" FontSize="12" Foreground="#FF69B4" Opacity="0"
+                              HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,18,2,0">
+                        <FontIcon.RenderTransform><TranslateTransform x:Name="Heart3Transform"/></FontIcon.RenderTransform>
+                    </FontIcon>
+                </Grid>
+                </Grid>
             </Border>
 
             <!-- 콘텐츠 영역 -->
@@ -1960,6 +2024,20 @@
                                                 <TextBlock Text="Renci — MIT License" FontSize="11" Foreground="{ThemeResource SpanTextTertiaryBrush}" />
                                             </StackPanel>
                                             <TextBlock Grid.Column="1" Text="v2025.1.0" FontSize="11" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center" />
+                                        </Grid>
+                                    </Border>
+
+                                    <Border Background="{ThemeResource SpanBgLayer2Brush}" CornerRadius="6" Padding="12,8" Margin="48,0,0,0">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0" Spacing="2">
+                                                <TextBlock Text="ColorCode.WinUI" FontSize="13" FontWeight="SemiBold" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
+                                                <TextBlock Text="Microsoft Community Toolkit — MIT License" FontSize="11" Foreground="{ThemeResource SpanTextTertiaryBrush}" />
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="1" Text="v2.0.15" FontSize="11" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center" />
                                         </Grid>
                                     </Border>
                                 </StackPanel>
