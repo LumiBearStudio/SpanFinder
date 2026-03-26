@@ -63,6 +63,7 @@
     <ProjectCapability Include="Msix" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="ColorCode.WinUI" Version="2.0.15" />
     <PackageReference Include="CommunityToolkit.WinUI.Controls.Sizers" Version="8.2.251219" />
     <PackageReference Include="FluentFTP" Version="53.0.2" />
 <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260209005" />
@@ -94,11 +95,9 @@
       <_BuildDate>$([System.DateTime]::UtcNow.ToString("yyyyMMdd"))</_BuildDate>
       <_BuildInfoPath>$(ProjectDir)BuildInfo.g.cs</_BuildInfoPath>
     </PropertyGroup>
-    <WriteLinesToFile File="$(_BuildInfoPath)"
-                     Lines="namespace Span%3B;internal static class BuildInfo;{;    public const string BuildDate = &quot;$(_BuildDate)&quot;%3B;}"
-                     Overwrite="true" />
+    <WriteLinesToFile File="$(_BuildInfoPath)" Lines="namespace Span%3B;internal static class BuildInfo;{;    public const string BuildDate = &quot;$(_BuildDate)&quot;%3B;}" Overwrite="true" />
     <ItemGroup>
-      <Compile Include="$(_BuildInfoPath)" Condition="!@(Compile->AnyHaveMetadataValue('Identity','$(_BuildInfoPath)'))" />
+      <Compile Include="$(_BuildInfoPath)" Condition="!@(Compile-&gt;AnyHaveMetadataValue('Identity','$(_BuildInfoPath)'))" />
     </ItemGroup>
   </Target>
 
@@ -112,17 +111,12 @@
       <_XbfWithPath Include="$(IntermediateOutputPath)Views\**\*.xbf" />
       <_XbfWithPath Include="$(IntermediateOutputPath)Assets\**\*.xbf" />
     </ItemGroup>
-    <Copy SourceFiles="@(_XbfWithPath)"
-          DestinationFiles="@(_XbfWithPath->'$(IntermediateOutputPath)embed\%(RecursiveDir)%(Filename)%(Extension)')"
-          SkipUnchangedFiles="true"
-          Condition="'@(_XbfWithPath)' != ''" />
+    <Copy SourceFiles="@(_XbfWithPath)" DestinationFiles="@(_XbfWithPath->'$(IntermediateOutputPath)embed\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" Condition="'@(_XbfWithPath)' != ''" />
     <!-- Rebuild embed.resfiles with correct relative paths -->
     <ItemGroup>
       <_EmbedXbf Remove="@(_EmbedXbf)" />
       <_EmbedXbf Include="$(IntermediateOutputPath)embed\**\*.xbf" />
     </ItemGroup>
-    <WriteLinesToFile File="$(IntermediateOutputPath)embed\embed.resfiles"
-                     Lines="@(_EmbedXbf->'%(RecursiveDir)%(Filename)%(Extension)')"
-                     Overwrite="true" />
+    <WriteLinesToFile File="$(IntermediateOutputPath)embed\embed.resfiles" Lines="@(_EmbedXbf->'%(RecursiveDir)%(Filename)%(Extension)')" Overwrite="true" />
   </Target>
 </Project>

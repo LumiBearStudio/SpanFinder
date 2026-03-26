@@ -1,8 +1,12 @@
+using ColorCode;
+using ColorCode.Common;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Documents;
 using Span.Services;
 using Span.ViewModels;
 using System;
+using System.Collections.Generic;
 using Windows.Media.Playback;
 
 namespace Span.Views
@@ -31,10 +35,77 @@ namespace Span.Views
             };
         }
 
+        private static readonly Dictionary<string, ILanguage> _extToLanguage = new(StringComparer.OrdinalIgnoreCase)
+        {
+            [".cs"] = Languages.CSharp,
+            [".c"] = Languages.Cpp,
+            [".cpp"] = Languages.Cpp,
+            [".h"] = Languages.Cpp,
+            [".hpp"] = Languages.Cpp,
+            [".css"] = Languages.Css,
+            [".html"] = Languages.Html,
+            [".htm"] = Languages.Html,
+            [".js"] = Languages.JavaScript,
+            [".jsx"] = Languages.JavaScript,
+            [".ts"] = Languages.Typescript,
+            [".tsx"] = Languages.Typescript,
+            [".json"] = Languages.JavaScript,
+            [".xml"] = Languages.Xml,
+            [".xaml"] = Languages.Xml,
+            [".csproj"] = Languages.Xml,
+            [".svg"] = Languages.Xml,
+            [".sql"] = Languages.Sql,
+            [".php"] = Languages.Php,
+            [".ps1"] = Languages.PowerShell,
+            [".psm1"] = Languages.PowerShell,
+            [".java"] = Languages.Java,
+            [".vb"] = Languages.VbDotNet,
+            [".fs"] = Languages.FSharp,
+            [".fsx"] = Languages.FSharp,
+            [".md"] = Languages.Markdown,
+            [".markdown"] = Languages.Markdown,
+        };
+
         public void Initialize(PreviewPanelViewModel viewModel)
         {
             ViewModel = viewModel;
             RootPanel.DataContext = ViewModel;
+            viewModel.PropertyChanged += OnViewModelPropertyChanged;
+        }
+
+        private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(PreviewPanelViewModel.TextPreview))
+                ApplySyntaxHighlighting();
+        }
+
+        private void ApplySyntaxHighlighting()
+        {
+            CodePreviewBlock.Blocks.Clear();
+            var text = ViewModel?.TextPreview;
+            if (string.IsNullOrEmpty(text)) return;
+
+            var ext = ViewModel?.TextFileExtension ?? "";
+            if (_extToLanguage.TryGetValue(ext, out var language))
+            {
+                try
+                {
+                    var theme = ActualTheme == ElementTheme.Light ? ElementTheme.Light : ElementTheme.Dark;
+                    var formatter = new RichTextBlockFormatter(theme);
+                    formatter.FormatRichTextBlock(text, language, CodePreviewBlock);
+                    return;
+                }
+                catch
+                {
+                    // 하이라이팅 실패 시 단색 폴백
+                    CodePreviewBlock.Blocks.Clear();
+                }
+            }
+
+            // 미지원 확장자 또는 폴백: 단색 텍스트
+            var para = new Paragraph();
+            para.Inlines.Add(new Run { Text = text });
+            CodePreviewBlock.Blocks.Add(para);
         }
 
         public void UpdatePreview(FileSystemViewModel? selectedItem)
@@ -182,6 +253,8 @@ namespace Span.Views
         {
             _seekTimer?.Stop();
             StopMedia();
+            if (ViewModel != null)
+                ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
             ViewModel?.Dispose();
             ViewModel = null;
             RootPanel.DataContext = null;

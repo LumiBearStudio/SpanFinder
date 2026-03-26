@@ -49,18 +49,18 @@
                        Stretch="Uniform" MaxHeight="400"
                        HorizontalAlignment="Center"/>
 
-                <!-- Text Preview -->
+                <!-- Text Preview (Syntax Highlighted) -->
                 <Border Visibility="{Binding IsTextVisible, Converter={StaticResource VisConv}}"
                         Background="{ThemeResource SpanBgLayer1Brush}"
                         CornerRadius="4" Padding="8" MaxHeight="300">
                     <ScrollViewer VerticalScrollBarVisibility="Auto"
                                   HorizontalScrollBarVisibility="Auto"
                                   MaxHeight="284">
-                        <TextBlock Text="{Binding TextPreview}"
-                                   FontFamily="{StaticResource MonoFont}" FontSize="11"
-                                   TextWrapping="Wrap"
-                                   IsTextSelectionEnabled="True"
-                                   Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
+                        <RichTextBlock x:Name="CodePreviewBlock"
+                                       FontFamily="{StaticResource MonoFont}" FontSize="11"
+                                       TextWrapping="Wrap"
+                                       IsTextSelectionEnabled="True"
+                                       Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
                     </ScrollViewer>
                 </Border>
 

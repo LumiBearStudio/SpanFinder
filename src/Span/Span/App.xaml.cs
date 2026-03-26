@@ -162,17 +162,18 @@ namespace Span
                 else { i++; }
             }
 
-            // 마지막 인수부터 역순으로 폴더 경로 탐색
+            // 마지막 인수부터 역순으로 폴더/파일 경로 탐색
             for (int j = parts.Count - 1; j >= 0; j--)
             {
                 var part = parts[j].Trim().Trim('"');
-                if (!string.IsNullOrEmpty(part) && System.IO.Directory.Exists(part))
+                if (!string.IsNullOrEmpty(part)
+                    && (System.IO.Directory.Exists(part) || System.IO.File.Exists(part) || IsRecycleBinArgument(part)))
                     return part;
             }
 
             // 단일 인수 (따옴표 없는 경로)
             var trimmed = rawArgs.Trim().Trim('"');
-            if (System.IO.Directory.Exists(trimmed)) return trimmed;
+            if (System.IO.Directory.Exists(trimmed) || System.IO.File.Exists(trimmed)) return trimmed;
 
             return rawArgs; // fallback: 원본 반환
         }
@@ -433,7 +434,9 @@ namespace Span
                         if (cmdArgs.Length > 1)
                         {
                             var folderArg = cmdArgs[1].Trim().Trim('"');
-                            if (System.IO.Directory.Exists(folderArg))
+                            if (System.IO.Directory.Exists(folderArg)
+                                || System.IO.File.Exists(folderArg)
+                                || IsRecycleBinArgument(folderArg))
                                 StartupArguments = folderArg;
                         }
                     }
@@ -514,6 +517,12 @@ namespace Span
                                 StartupArguments = folderPath;
                                 mainWindow.HandleRedirectedFolder(folderPath);
                                 Helpers.DebugLogger.Log($"[App] Redirected: opened {folderPath} in new tab");
+                            }
+                            else if (System.IO.File.Exists(folderPath))
+                            {
+                                StartupArguments = folderPath;
+                                mainWindow.HandleRedirectedFile(folderPath);
+                                Helpers.DebugLogger.Log($"[App] Redirected: opened file {folderPath}");
                             }
                             else
                             {

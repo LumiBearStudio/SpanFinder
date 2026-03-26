@@ -134,6 +134,68 @@ namespace Span
             }
         }
 
+        /// <summary>파일 경로가 넘어온 경우: 부모 폴더를 열고 해당 파일을 선택.</summary>
+        internal void HandleRedirectedFile(string filePath)
+        {
+            if (_isClosed || ViewModel == null) return;
+            var parentDir = System.IO.Path.GetDirectoryName(filePath);
+            if (string.IsNullOrEmpty(parentDir) || !System.IO.Directory.Exists(parentDir)) return;
+
+            try
+            {
+                var fileName = System.IO.Path.GetFileName(filePath);
+
+                // 새 탭 추가 + Miller 패널 생성
+                ViewModel.AddNewTab();
+                if (ViewModel.ActiveTab != null)
+                {
+                    CreateMillerPanelForTab(ViewModel.ActiveTab);
+                    SwitchMillerPanel(ViewModel.ActiveTab.Id);
+                }
+
+                if (ViewModel.CurrentViewMode == ViewMode.Home
+                    || ViewModel.CurrentViewMode == ViewMode.RecycleBin)
+                {
+                    ViewModel.SwitchViewMode(ViewModel.ResolveViewModeFromHome());
+                }
+                UpdateViewModeVisibility();
+                ResubscribeLeftExplorer();
+
+                // 부모 폴더로 이동 후 파일 선택
+                var folder = new Models.FolderItem
+                {
+                    Name = System.IO.Path.GetFileName(parentDir) ?? parentDir,
+                    Path = parentDir
+                };
+                _ = NavigateAndSelectFileAsync(folder, fileName);
+                FocusActiveView();
+                Helpers.DebugLogger.Log($"[MainWindow] HandleRedirectedFile: {parentDir} → select {fileName}");
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[MainWindow] HandleRedirectedFile error: {ex.Message}");
+            }
+        }
+
+        private async Task NavigateAndSelectFileAsync(Models.FolderItem folder, string fileName)
+        {
+            var explorer = ViewModel?.ActiveExplorer;
+            if (explorer == null) return;
+            await explorer.NavigateTo(folder);
+
+            // 로딩 완료 후 파일 선택 시도
+            await Task.Delay(300); // 폴더 로드 대기
+            var lastCol = explorer.Columns.LastOrDefault();
+            if (lastCol == null) return;
+
+            var target = lastCol.Children.FirstOrDefault(
+                i => string.Equals(i.Name, fileName, StringComparison.OrdinalIgnoreCase));
+            if (target != null)
+            {
+                target.IsSelected = true;
+            }
+        }
+
         /// <summary>앱 활성화 시 새 탭 + 휴지통 뷰로 전환.</summary>
         internal void HandleRecycleBinActivation()
         {
@@ -746,6 +808,28 @@ namespace Span
                                     UpdateViewModeVisibility();
                                 }
                                 _ = ViewModel.ActiveExplorer?.NavigateToPath(jumpArg);
+                            }
+                            else if (System.IO.File.Exists(jumpArg))
+                            {
+                                // 파일 경로 → 부모 폴더 열고 파일 선택
+                                Helpers.DebugLogger.Log($"[Startup] File argument: {jumpArg}");
+                                var parentDir = System.IO.Path.GetDirectoryName(jumpArg);
+                                var fileName = System.IO.Path.GetFileName(jumpArg);
+                                if (!string.IsNullOrEmpty(parentDir) && System.IO.Directory.Exists(parentDir))
+                                {
+                                    if (ViewModel.CurrentViewMode == ViewMode.Home
+                                        || ViewModel.CurrentViewMode == ViewMode.RecycleBin)
+                                    {
+                                        ViewModel.SwitchViewMode(ViewModel.ResolveViewModeFromHome());
+                                        UpdateViewModeVisibility();
+                                    }
+                                    var folder = new Models.FolderItem
+                                    {
+                                        Name = System.IO.Path.GetFileName(parentDir) ?? parentDir,
+                                        Path = parentDir
+                                    };
+                                    _ = NavigateAndSelectFileAsync(folder, fileName);
+                                }
                             }
                         }
                     }

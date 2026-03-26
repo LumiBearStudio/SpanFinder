@@ -70,6 +70,7 @@ namespace Span.ViewModels
 
         [ObservableProperty] private BitmapImage? _imagePreview;
         [ObservableProperty] private string? _textPreview;
+        [ObservableProperty] private string _textFileExtension = "";
         [ObservableProperty] private BitmapImage? _pdfPreview;
         [ObservableProperty] private MediaSource? _mediaSource;
         [ObservableProperty] private string? _hexPreview;
@@ -231,6 +232,7 @@ namespace Span.ViewModels
                     break;
 
                 case PreviewType.Text:
+                    TextFileExtension = System.IO.Path.GetExtension(item.Path)?.ToLowerInvariant() ?? "";
                     TextPreview = await _previewService.LoadTextPreviewAsync(item.Path, ct);
                     break;
 
