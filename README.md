@@ -11,6 +11,7 @@
   <a href="https://apps.microsoft.com/detail/9P7NJ351X9TL"><img src="https://img.shields.io/badge/Microsoft_Store-Download-blue?style=for-the-badge&logo=microsoft" alt="Microsoft Store"></a>
   <a href="https://github.com/LumiBearStudio/SpanFinder/releases/latest"><img src="https://img.shields.io/github/v/release/LumiBearStudio/SpanFinder?style=for-the-badge&label=Latest" alt="Latest Release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/LumiBearStudio/SpanFinder?style=for-the-badge" alt="License"></a>
+  <a href="https://github.com/sponsors/LumiBearStudio"><img src="https://img.shields.io/badge/Sponsor-%E2%9D%A4-ff69b4?style=for-the-badge&logo=github-sponsors" alt="Sponsor"></a>
 </p>
 
 <p align="center">
@@ -238,6 +239,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for build setup, coding conventions, and 
 
 If SPAN Finder makes your file management better, consider:
 
+- **[Sponsor on GitHub](https://github.com/sponsors/LumiBearStudio)** — buy me a coffee, a hamburger, or a steak
 - **Star this repo** to help others discover it
 - **Share** with colleagues who miss macOS Finder on Windows
 - **Report bugs** — every issue report makes SPAN Finder more stable
@@ -257,6 +259,7 @@ This project is licensed under the [GNU General Public License v3.0](LICENSE).
 
 <p align="center">
   <a href="https://apps.microsoft.com/detail/9P7NJ351X9TL">Microsoft Store</a> ·
+  <a href="https://github.com/sponsors/LumiBearStudio">Sponsor</a> ·
   <a href="PRIVACY.md">Privacy Policy</a> ·
   <a href="OpenSourceLicenses.md">Open Source Licenses</a> ·
   <a href="https://github.com/LumiBearStudio/SpanFinder/issues">Bug Reports & Feature Requests</a>

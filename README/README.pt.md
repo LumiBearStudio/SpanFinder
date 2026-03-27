@@ -10,6 +10,8 @@ O SPAN Finder reinventa a navegação de arquivos no Windows. Inspirado pela ele
 
 [![Baixar da Microsoft Store](https://get.microsoft.com/images/pt-br%20dark.svg)](https://apps.microsoft.com/detail/9P7NJ351X9TL)
 
+[![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-ff69b4?style=for-the-badge&logo=github-sponsors)](https://github.com/sponsors/LumiBearStudio)
+
 ---
 
 ## Por que SPAN Finder?
@@ -97,4 +99,4 @@ O nome "SPAN Finder" e o logotipo oficial são marcas registradas da LumiBear St
 
 ---
 
-[Microsoft Store](https://www.microsoft.com/store/apps/9P42MFRMH07X) | [GitHub](https://github.com/LumiBearStudio/SpanFinder) | [Reportar bugs](https://github.com/LumiBearStudio/SpanFinder/issues) | [Privacidade](https://github.com/LumiBearStudio/SpanFinder/blob/main/github-docs/PRIVACY.md)
+[Microsoft Store](https://www.microsoft.com/store/apps/9P42MFRMH07X) | [Sponsor](https://github.com/sponsors/LumiBearStudio) | [GitHub](https://github.com/LumiBearStudio/SpanFinder) | [Reportar bugs](https://github.com/LumiBearStudio/SpanFinder/issues) | [Privacidade](https://github.com/LumiBearStudio/SpanFinder/blob/main/github-docs/PRIVACY.md)

@@ -11,6 +11,7 @@
   <a href="https://apps.microsoft.com/detail/9P7NJ351X9TL"><img src="https://img.shields.io/badge/Microsoft_Store-다운로드-blue?style=for-the-badge&logo=microsoft" alt="Microsoft Store"></a>
   <a href="https://github.com/LumiBearStudio/SpanFinder/releases/latest"><img src="https://img.shields.io/github/v/release/LumiBearStudio/SpanFinder?style=for-the-badge&label=Latest" alt="Latest Release"></a>
   <a href="../LICENSE"><img src="https://img.shields.io/github/license/LumiBearStudio/SpanFinder?style=for-the-badge" alt="License"></a>
+  <a href="https://github.com/sponsors/LumiBearStudio"><img src="https://img.shields.io/badge/후원-%E2%9D%A4-ff69b4?style=for-the-badge&logo=github-sponsors" alt="후원"></a>
 </p>
 
 <p align="center">
@@ -207,6 +208,7 @@ dotnet test src/Span/Span.Tests/Span.Tests.csproj -p:Platform=x64
 
 SPAN Finder가 유용하다면:
 
+- **[GitHub에서 후원하기](https://github.com/sponsors/LumiBearStudio)** — 커피, 햄버거, 또는 스테이크 한 끼 사주세요
 - **이 저장소에 Star**를 눌러 더 많은 사람들이 발견할 수 있도록 도와주세요
 - macOS Finder가 그리운 동료에게 **공유**해주세요
 - **버그를 제보**해주세요 — 모든 이슈 리포트가 SPAN Finder를 더 안정적으로 만듭니다
