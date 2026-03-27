@@ -243,14 +243,27 @@ namespace Span
             {
                 if (Content is FrameworkElement root)
                 {
-                    // 윈도우 레벨 ThemeDictionaries 확인 (커스텀 테마 우선)
                     var currentThemeKey = root.ActualTheme == ElementTheme.Light ? "Light" : "Dark";
+
+                    // 1. 윈도우 레벨 ThemeDictionaries (커스텀 테마 오버라이드 우선)
                     if (root.Resources.ThemeDictionaries.TryGetValue(currentThemeKey, out var dict)
                         && dict is ResourceDictionary rd
                         && rd.TryGetValue(key, out var val)
                         && val is SolidColorBrush brush)
                     {
                         return brush;
+                    }
+
+                    // 2. 앱 레벨 ThemeDictionaries (root.ActualTheme 기준으로 올바른 테마 사전 조회)
+                    // Application.Current.Resources[key]는 Application.RequestedTheme 기준이라
+                    // 시스템 Dark + 사용자 Light 선택 시 잘못된 브러시를 반환하므로,
+                    // 명시적으로 currentThemeKey로 조회
+                    if (Application.Current.Resources.ThemeDictionaries.TryGetValue(currentThemeKey, out var appDict)
+                        && appDict is ResourceDictionary appRd
+                        && appRd.TryGetValue(key, out var appVal)
+                        && appVal is SolidColorBrush appBrush)
+                    {
+                        return appBrush;
                     }
                 }
             }

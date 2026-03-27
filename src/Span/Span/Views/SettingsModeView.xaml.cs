@@ -89,6 +89,19 @@ public sealed partial class SettingsModeView : UserControl
         if (_loc != null) _loc.LanguageChanged += LocalizeUI;
         this.Loaded += (s, e) => { try { HeartAnimation.Begin(); } catch { } };
         this.Unloaded += (s, e) => { if (_loc != null) _loc.LanguageChanged -= LocalizeUI; try { HeartAnimation.Stop(); } catch { } };
+
+        // 테마 변경 시 단축키 UI 리빌드 (코드 생성 UI는 {ThemeResource} 자동 갱신 안 됨)
+        // 생성자에서 등록: LoadShortcutsSection 호출 전에 테마 변경이 일어날 수 있으므로
+        // DispatcherQueue Low priority로 지연하여 테마 전환 완료 후 올바른 브러시로 리빌드
+        this.ActualThemeChanged += (_, _) =>
+        {
+            if (_shortcutsLoaded && ShortcutItemsPanel != null)
+                DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+                {
+                    if (_shortcutsLoaded && ShortcutItemsPanel != null)
+                        RebuildShortcutItemsUI();
+                });
+        };
     }
 
     /// <summary>
@@ -874,13 +887,6 @@ public sealed partial class SettingsModeView : UserControl
         _keyBindingService = App.Current.Services.GetService<Services.KeyBindingService>();
         if (_keyBindingService == null) return;
 
-        // 테마 변경 시 단축키 UI 리빌드 (코드 생성 UI는 {ThemeResource} 자동 갱신 안 됨)
-        this.ActualThemeChanged += (_, _) =>
-        {
-            if (_shortcutsLoaded && ShortcutItemsPanel != null)
-                RebuildShortcutItemsUI();
-        };
-
         _savedBindings = _keyBindingService.CloneCurrentBindings();
         _editingBindings = _keyBindingService.CloneCurrentBindings();
         _shortcutsLoaded = true;
@@ -1100,7 +1106,8 @@ public sealed partial class SettingsModeView : UserControl
         namePanel.Children.Add(new TextBlock
         {
             Text = Models.ShortcutCommands.GetDisplayName(commandId),
-            FontSize = 13, VerticalAlignment = VerticalAlignment.Center
+            FontSize = 13, VerticalAlignment = VerticalAlignment.Center,
+            Foreground = GetThemeBrush("SpanTextPrimaryBrush")
         });
         Grid.SetColumn(namePanel, 0);
         grid.Children.Add(namePanel);
