@@ -264,9 +264,10 @@ namespace Span.Services
         #endregion
 
         // Active context menu refs for message forwarding (set during TrackPopupMenu)
-        private static IContextMenu2? s_cm2;
-        private static IContextMenu3? s_cm3;
-        private static SubclassProc? s_subclassDelegate; // prevent GC collection
+        // [ThreadStatic] — 멀티윈도우 각각 고유 UI 스레드이므로 스레드별 분리
+        [ThreadStatic] private static IContextMenu2? s_cm2;
+        [ThreadStatic] private static IContextMenu3? s_cm3;
+        [ThreadStatic] private static SubclassProc? s_subclassDelegate; // prevent GC collection
 
         /// <summary>
         /// Show native shell context menu for a file or folder at current cursor position.
@@ -480,8 +481,7 @@ namespace Span.Services
                 if (pidl != IntPtr.Zero) CoTaskMemFree(pidl);
                 if (contextMenuObj != null) try { Marshal.ReleaseComObject(contextMenuObj); } catch { }
                 if (shellFolderObj != null) try { Marshal.ReleaseComObject(shellFolderObj); } catch { }
-                if (contextMenuPtr != IntPtr.Zero) Marshal.Release(contextMenuPtr);
-                if (shellFolderPtr != IntPtr.Zero) Marshal.Release(shellFolderPtr);
+                // ReleaseComObject가 이미 IUnknown::Release() 호출 — 원시 포인터 Release 제거 (이중 Release 방지)
             }
         }
 
@@ -766,6 +766,7 @@ namespace Span.Services
             private readonly IntPtr _pidl;
             private readonly IntPtr _hMenu;
             private readonly IntPtr _hwnd;
+            private readonly object _lock = new();
             private bool _disposed;
 
             /// <summary>Shell extension menu items (standard verbs already filtered out)</summary>
@@ -793,71 +794,84 @@ namespace Span.Services
             /// </summary>
             public bool InvokeCommand(int commandId)
             {
-                if (_disposed) return false;
-                try { SentrySdk.AddBreadcrumb($"InvokeCommand id={commandId}", "shell.menu"); } catch { }
-                try
+                lock (_lock)
                 {
-                    var invokeInfo = new CMINVOKECOMMANDINFO
-                    {
-                        cbSize = Marshal.SizeOf<CMINVOKECOMMANDINFO>(),
-                        fMask = CMIC_MASK_FLAG_NO_UI,
-                        hwnd = _hwnd,
-                        lpVerb = (IntPtr)(commandId - (int)FIRST_CMD),
-                        nShow = SW_SHOWNORMAL
-                    };
-                    // Suppress system error dialogs from misbehaving shell extensions (thread-scoped)
-                    Helpers.NativeMethods.SetThreadErrorMode(
-                        Helpers.NativeMethods.SEM_FAILCRITICALERRORS |
-                        Helpers.NativeMethods.SEM_NOGPFAULTERRORBOX |
-                        Helpers.NativeMethods.SEM_NOOPENFILEERRORBOX,
-                        out uint oldErrorMode);
+                    if (_disposed) return false;
+                    try { SentrySdk.AddBreadcrumb($"InvokeCommand id={commandId}", "shell.menu"); } catch { }
                     try
                     {
-                        ((IContextMenu)_contextMenuImpl).InvokeCommand(ref invokeInfo);
+                        var invokeInfo = new CMINVOKECOMMANDINFO
+                        {
+                            cbSize = Marshal.SizeOf<CMINVOKECOMMANDINFO>(),
+                            fMask = CMIC_MASK_FLAG_NO_UI,
+                            hwnd = _hwnd,
+                            lpVerb = (IntPtr)(commandId - (int)FIRST_CMD),
+                            nShow = SW_SHOWNORMAL
+                        };
+                        // Suppress system error dialogs from misbehaving shell extensions (thread-scoped)
+                        Helpers.NativeMethods.SetThreadErrorMode(
+                            Helpers.NativeMethods.SEM_FAILCRITICALERRORS |
+                            Helpers.NativeMethods.SEM_NOGPFAULTERRORBOX |
+                            Helpers.NativeMethods.SEM_NOOPENFILEERRORBOX,
+                            out uint oldErrorMode);
+                        try
+                        {
+                            ((IContextMenu)_contextMenuImpl).InvokeCommand(ref invokeInfo);
+                        }
+                        finally
+                        {
+                            Helpers.NativeMethods.SetThreadErrorMode(oldErrorMode, out _);
+                        }
+                        Helpers.DebugLogger.Log($"[ShellContextMenu.Session] Command invoked: {commandId}");
+                        return true;
                     }
-                    finally
+                    catch (System.Runtime.InteropServices.InvalidComObjectException)
                     {
-                        Helpers.NativeMethods.SetThreadErrorMode(oldErrorMode, out _);
+                        // RCW detached — user right-clicked another item before command executed; safe to ignore
+                        Helpers.DebugLogger.Log($"[ShellContextMenu.Session] RCW detached, skipping command: {commandId}");
+                        _disposed = true;
+                        return false;
                     }
-                    Helpers.DebugLogger.Log($"[ShellContextMenu.Session] Command invoked: {commandId}");
-                    return true;
-                }
-                catch (System.Runtime.InteropServices.COMException comEx)
-                    when (comEx.HResult == unchecked((int)0x80004004)   // E_ABORT
-                       || comEx.HResult == unchecked((int)0x800704C7)) // ERROR_CANCELLED
-                {
-                    Helpers.DebugLogger.Log($"[ShellContextMenu.Session] Command cancelled by user: {commandId}");
-                    return true; // User cancelled — not a failure
-                }
-                catch (Exception ex)
-                {
-                    Helpers.DebugLogger.Log($"[ShellContextMenu.Session] InvokeCommand error: {ex.Message}");
-                    try { App.Current.Services.GetService<CrashReportingService>()?.CaptureException(ex, "ShellContextMenu.InvokeCommand"); } catch { }
-                    return false;
+                    catch (System.Runtime.InteropServices.COMException comEx)
+                        when (comEx.HResult == unchecked((int)0x80004004)   // E_ABORT
+                           || comEx.HResult == unchecked((int)0x800704C7)) // ERROR_CANCELLED
+                    {
+                        Helpers.DebugLogger.Log($"[ShellContextMenu.Session] Command cancelled by user: {commandId}");
+                        return true; // User cancelled — not a failure
+                    }
+                    catch (Exception ex)
+                    {
+                        Helpers.DebugLogger.Log($"[ShellContextMenu.Session] InvokeCommand error: {ex.Message}");
+                        try { App.Current.Services.GetService<CrashReportingService>()?.CaptureException(ex, "ShellContextMenu.InvokeCommand"); } catch { }
+                        return false;
+                    }
                 }
             }
 
             public void Dispose()
             {
-                if (_disposed) return;
-                _disposed = true;
-
-                try
+                lock (_lock)
                 {
-                    if (_hMenu != IntPtr.Zero) DestroyMenu(_hMenu);
-                    if (_pidl != IntPtr.Zero) CoTaskMemFree(_pidl);
+                    if (_disposed) return;
+                    _disposed = true;
 
-                    // RCW를 통해 Release — Marshal.Release와 이중 호출하면 참조 카운트 오류 발생
-                    try { Marshal.ReleaseComObject(_contextMenuObj); } catch { }
-                    try { Marshal.ReleaseComObject(_shellFolderObj); } catch { }
+                    try
+                    {
+                        if (_hMenu != IntPtr.Zero) DestroyMenu(_hMenu);
+                        if (_pidl != IntPtr.Zero) CoTaskMemFree(_pidl);
 
-                    // 원시 포인터 Release 제거: ReleaseComObject가 이미 IUnknown::Release() 호출
-                    // if (_contextMenuPtr != IntPtr.Zero) Marshal.Release(_contextMenuPtr);
-                    // if (_shellFolderPtr != IntPtr.Zero) Marshal.Release(_shellFolderPtr);
-                }
-                catch (Exception ex)
-                {
-                    Helpers.DebugLogger.Log($"[ShellContextMenu.Session] Dispose error: {ex.Message}");
+                        // RCW를 통해 Release — Marshal.Release와 이중 호출하면 참조 카운트 오류 발생
+                        try { Marshal.ReleaseComObject(_contextMenuObj); } catch { }
+                        try { Marshal.ReleaseComObject(_shellFolderObj); } catch { }
+
+                        // 원시 포인터 Release 제거: ReleaseComObject가 이미 IUnknown::Release() 호출
+                        // if (_contextMenuPtr != IntPtr.Zero) Marshal.Release(_contextMenuPtr);
+                        // if (_shellFolderPtr != IntPtr.Zero) Marshal.Release(_shellFolderPtr);
+                    }
+                    catch (Exception ex)
+                    {
+                        Helpers.DebugLogger.Log($"[ShellContextMenu.Session] Dispose error: {ex.Message}");
+                    }
                 }
             }
         }

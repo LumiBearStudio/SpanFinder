@@ -1,6 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Span.Helpers
 {
@@ -12,17 +13,29 @@ namespace Span.Helpers
         public static void CreateShortcut(string lnkPath, string targetPath, string? description = null)
         {
             var link = (IShellLink)new ShellLink();
-            link.SetPath(targetPath);
-            if (!string.IsNullOrEmpty(description))
-                link.SetDescription(description);
+            try
+            {
+                link.SetPath(targetPath);
+                if (!string.IsNullOrEmpty(description))
+                    link.SetDescription(description);
 
-            // Set working directory to target's parent folder
-            var dir = System.IO.Path.GetDirectoryName(targetPath);
-            if (!string.IsNullOrEmpty(dir))
-                link.SetWorkingDirectory(dir);
+                // Set working directory to target's parent folder
+                var dir = System.IO.Path.GetDirectoryName(targetPath);
+                if (!string.IsNullOrEmpty(dir))
+                    link.SetWorkingDirectory(dir);
 
-            var file = (IPersistFile)link;
-            file.Save(lnkPath, false);
+                var file = (IPersistFile)link;
+                file.Save(lnkPath, false);
+            }
+            catch (Exception ex)
+            {
+                try { App.Current.Services.GetService<Services.CrashReportingService>()?.CaptureException(ex, "ShortcutHelper.CreateShortcut"); } catch { }
+                throw;
+            }
+            finally
+            {
+                try { Marshal.ReleaseComObject(link); } catch { }
+            }
         }
 
         [ComImport]

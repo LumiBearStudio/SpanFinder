@@ -477,7 +477,7 @@ namespace Span
             _contextMenuService.XamlRootProvider = () => Content.XamlRoot;
             _contextMenuService.InvokeFailedCallback = (itemName) =>
             {
-                DispatcherQueue.TryEnqueue(() =>
+                Helpers.DispatcherHelper.SafeEnqueue(DispatcherQueue, () =>
                 {
                     ViewModel.ShowToast(string.Format(_loc.Get("Toast_ShellCommandFailed"), itemName), 3000, isError: true);
                 });
@@ -1606,7 +1606,7 @@ namespace Span
                 && (DateTime.UtcNow - firstDate).TotalDays < 7)
                 return;
 
-            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+            Helpers.DispatcherHelper.SafeEnqueue(DispatcherQueue, Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
             {
                 _ = RequestStoreRatingAsync();
             });
@@ -1694,9 +1694,9 @@ namespace Span
                         IncludeSubdirectories = false,
                         EnableRaisingEvents = true
                     };
-                    _networkShortcutsWatcher.Created += (s, e) => DispatcherQueue.TryEnqueue(() => ViewModel?.RefreshDrives());
-                    _networkShortcutsWatcher.Deleted += (s, e) => DispatcherQueue.TryEnqueue(() => ViewModel?.RefreshDrives());
-                    _networkShortcutsWatcher.Renamed += (s, e) => DispatcherQueue.TryEnqueue(() => ViewModel?.RefreshDrives());
+                    _networkShortcutsWatcher.Created += (s, e) => Helpers.DispatcherHelper.SafeEnqueue(DispatcherQueue, () => ViewModel?.RefreshDrives());
+                    _networkShortcutsWatcher.Deleted += (s, e) => Helpers.DispatcherHelper.SafeEnqueue(DispatcherQueue, () => ViewModel?.RefreshDrives());
+                    _networkShortcutsWatcher.Renamed += (s, e) => Helpers.DispatcherHelper.SafeEnqueue(DispatcherQueue, () => ViewModel?.RefreshDrives());
                 }
             }
             catch (Exception ex)
@@ -1861,11 +1861,11 @@ namespace Span
             }
             else if (e.PropertyName == nameof(MainViewModel.IsToastVisible))
             {
-                DispatcherQueue.TryEnqueue(() => AnimateToast(ViewModel.IsToastVisible));
+                Helpers.DispatcherHelper.SafeEnqueue(DispatcherQueue, () => AnimateToast(ViewModel.IsToastVisible));
             }
             else if (e.PropertyName == nameof(MainViewModel.ToastMessage))
             {
-                DispatcherQueue.TryEnqueue(() =>
+                Helpers.DispatcherHelper.SafeEnqueue(DispatcherQueue, () =>
                 {
                     if (!string.IsNullOrEmpty(ViewModel.ToastMessage))
                         ToastText.Text = ViewModel.ToastMessage;
@@ -1877,7 +1877,7 @@ namespace Span
                 // 클라우드/네트워크 드라이브가 비동기 로딩 후 나타나면 사이드바 스케일 재적용
                 if (_iconFontScaleLevel > 0)
                 {
-                    DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+                    Helpers.DispatcherHelper.SafeEnqueue(DispatcherQueue, Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
                     {
                         ApplyIconFontScaleToSidebar(13.0 + _iconFontScaleLevel, 16.0 + _iconFontScaleLevel);
                     });
@@ -1885,7 +1885,7 @@ namespace Span
             }
             else if (e.PropertyName == nameof(MainViewModel.IsToastError))
             {
-                DispatcherQueue.TryEnqueue(() =>
+                Helpers.DispatcherHelper.SafeEnqueue(DispatcherQueue, () =>
                 {
                     if (ViewModel.IsToastError)
                     {
@@ -1939,7 +1939,7 @@ namespace Span
             _subscribedLeftExplorer = newExplorer;
 
             // M3: Preview 구독 갱신 — 크리티컬 패스에서 분리
-            DispatcherQueue.TryEnqueue(() =>
+            Helpers.DispatcherHelper.SafeEnqueue(DispatcherQueue, () =>
             {
                 UnsubscribePreviewSelection(isLeft: true);
                 if (ViewModel.IsLeftPreviewEnabled)
@@ -2041,7 +2041,7 @@ namespace Span
 
             if (e.PropertyName == nameof(ExplorerViewModel.CurrentPath))
             {
-                DispatcherQueue.TryEnqueue(() =>
+                Helpers.DispatcherHelper.SafeEnqueue(DispatcherQueue, () =>
                 {
                     // RecycleBin/Home 모드: 전용 브레드크럼으로 강제 재설정
                     if (ViewModel.CurrentViewMode == ViewMode.RecycleBin
@@ -2059,7 +2059,7 @@ namespace Span
             else if (e.PropertyName == nameof(ExplorerViewModel.HasActiveSearchResults) ||
                      e.PropertyName == nameof(ExplorerViewModel.IsRecursiveSearching))
             {
-                DispatcherQueue.TryEnqueue(() =>
+                Helpers.DispatcherHelper.SafeEnqueue(DispatcherQueue, () =>
                 {
                     bool showLoc = explorer.HasActiveSearchResults;
                     GetActiveDetailsView()?.ShowLocationColumn(showLoc);
@@ -2232,7 +2232,7 @@ namespace Span
 
                     // Settings/ActionLog 모드에서 사이드바가 Collapsed → ItemsPanelRoot null → 스케일 누락.
                     // Visible 복원 직후 사이드바 폰트 스케일 재적용.
-                    DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+                    Helpers.DispatcherHelper.SafeEnqueue(DispatcherQueue, Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
                     {
                         double itemFont = 13.0 + _iconFontScaleLevel;
                         double iconFont = 16.0 + _iconFontScaleLevel;
@@ -2333,7 +2333,7 @@ namespace Span
 
         private void OnNavigationError(string message)
         {
-            DispatcherQueue.TryEnqueue(() => ViewModel.ShowError(message));
+            Helpers.DispatcherHelper.SafeEnqueue(DispatcherQueue, () => ViewModel.ShowError(message));
         }
 
         /// <summary>
@@ -5262,7 +5262,7 @@ namespace Span
 
         private void OnShellFileOpening(string fileName)
         {
-            DispatcherQueue.TryEnqueue(() =>
+            Helpers.DispatcherHelper.SafeEnqueue(DispatcherQueue, () =>
             {
                 if (_isClosed) return;
                 ViewModel?.ShowToast($"\"{fileName}\" {_loc.Get("Opening")}...", 2000);

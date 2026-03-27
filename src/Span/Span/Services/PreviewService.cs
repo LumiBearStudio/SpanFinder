@@ -151,6 +151,7 @@ namespace Span.Services
                 {
                     var bitmap = new BitmapImage();
                     await bitmap.SetSourceAsync(thumbnail);
+                    ct.ThrowIfCancellationRequested(); // SetSourceAsync 후 취소 여부 재확인
                     return bitmap;
                 }
 
@@ -162,6 +163,7 @@ namespace Span.Services
 
                 var fullBitmap = new BitmapImage();
                 await fullBitmap.SetSourceAsync(stream);
+                ct.ThrowIfCancellationRequested(); // SetSourceAsync 후 취소 여부 재확인
                 return fullBitmap;
             }
             catch (OperationCanceledException) { throw; }
@@ -203,6 +205,7 @@ namespace Span.Services
 
         public async Task<BitmapImage?> LoadPdfPreviewAsync(string filePath, CancellationToken ct)
         {
+            InMemoryRandomAccessStream? stream = null;
             try
             {
                 var fi = new FileInfo(filePath);
@@ -215,7 +218,7 @@ namespace Span.Services
                 if (pdfDoc.PageCount == 0) return null;
 
                 using var page = pdfDoc.GetPage(0);
-                using var stream = new InMemoryRandomAccessStream();
+                stream = new InMemoryRandomAccessStream();
 
                 var options = new PdfPageRenderOptions
                 {
@@ -229,6 +232,11 @@ namespace Span.Services
                 var bitmap = new BitmapImage();
                 stream.Seek(0);
                 await bitmap.SetSourceAsync(stream);
+
+                // SetSourceAsync 완료 후 취소 여부 재확인 (H-5)
+                ct.ThrowIfCancellationRequested();
+
+                stream = null; // bitmap이 소유 — dispose 하지 않음
                 return bitmap;
             }
             catch (OperationCanceledException) { throw; }
@@ -236,6 +244,10 @@ namespace Span.Services
             {
                 Helpers.DebugLogger.Log($"[PreviewService] PDF load error: {ex.Message}");
                 return null;
+            }
+            finally
+            {
+                stream?.Dispose();
             }
         }
 

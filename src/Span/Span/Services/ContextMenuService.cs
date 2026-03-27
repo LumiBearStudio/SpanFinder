@@ -1127,8 +1127,17 @@ namespace Span.Services
                     {
                         _activeFlyout?.Hide();
                         var dq = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
-                        if (dq != null) dq.TryEnqueue(() => action());
-                        else action();
+                        if (dq != null)
+                            Helpers.DispatcherHelper.SafeEnqueue(dq, () => action());
+                        else
+                        {
+                            try { action(); }
+                            catch (Exception ex)
+                            {
+                                Helpers.DebugLogger.Log($"[ContextMenu] Action invoke failed: {ex.Message}");
+                                try { App.Current.Services.GetService<CrashReportingService>()?.CaptureException(ex, "ContextMenu.ActionInvoke"); } catch { }
+                            }
+                        }
                         return true;
                     }
                 }
@@ -1140,8 +1149,17 @@ namespace Span.Services
                 {
                     _activeFlyout?.Hide();
                     var dq = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
-                    if (dq != null) dq.TryEnqueue(() => toggleAction());
-                    else toggleAction();
+                    if (dq != null)
+                        Helpers.DispatcherHelper.SafeEnqueue(dq, () => toggleAction());
+                    else
+                    {
+                        try { toggleAction(); }
+                        catch (Exception ex)
+                        {
+                            Helpers.DebugLogger.Log($"[ContextMenu] ToggleAction invoke failed: {ex.Message}");
+                            try { App.Current.Services.GetService<CrashReportingService>()?.CaptureException(ex, "ContextMenu.ToggleActionInvoke"); } catch { }
+                        }
+                    }
                     return true;
                 }
 

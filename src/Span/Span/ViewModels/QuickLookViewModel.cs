@@ -405,7 +405,13 @@ namespace Span.ViewModels
             ImagePreview = null;
             TextPreview = null;
             PdfPreview = null;
-            MediaSource = null;
+            // MediaSource dispose 후 null 설정 (리소스 누수 방지)
+            if (MediaSource != null)
+            {
+                var old = MediaSource;
+                MediaSource = null;
+                try { old.Dispose(); } catch { }
+            }
             HexPreview = null;
             FontFamilySource = "";
             FontFormat = "";

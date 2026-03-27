@@ -4,6 +4,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Span.Helpers;
 using Span.Models;
 using Span.Services.FileOperations;
@@ -169,11 +170,22 @@ namespace Span.Services
                                         dynamic? targetFolder = shell.NameSpace(target.OriginalLocation);
                                         if (targetFolder != null)
                                         {
-                                            // 0x0014 = FOF_NOCONFIRMATION (0x10) | FOF_SILENT (0x04)
-                                            targetFolder.MoveHere(binItem, 0x0014);
-                                            result.AffectedPaths.Add(target.OriginalPath);
-                                            found = true;
-                                            Marshal.ReleaseComObject(targetFolder);
+                                            try
+                                            {
+                                                // 0x0014 = FOF_NOCONFIRMATION (0x10) | FOF_SILENT (0x04)
+                                                targetFolder.MoveHere(binItem, 0x0014);
+                                                result.AffectedPaths.Add(target.OriginalPath);
+                                                found = true;
+                                            }
+                                            catch (Exception ex)
+                                            {
+                                                try { App.Current.Services.GetService<CrashReportingService>()?.CaptureException(ex, "RecycleBinService.RestoreItems.MoveHere"); } catch { }
+                                                throw;
+                                            }
+                                            finally
+                                            {
+                                                try { Marshal.ReleaseComObject(targetFolder); } catch { }
+                                            }
                                         }
                                         break;
                                     }

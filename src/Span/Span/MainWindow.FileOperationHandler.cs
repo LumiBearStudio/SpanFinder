@@ -705,12 +705,19 @@ namespace Span
                     var shellType = Type.GetTypeFromCLSID(new Guid("72C24DD5-D70A-438B-8A42-98424B88AFB8"));
                     if (shellType == null) break;
                     dynamic shell = Activator.CreateInstance(shellType)!;
-                    var shortcut = shell.CreateShortcut(lnkPath);
-                    shortcut.TargetPath = srcPath;
-                    shortcut.WorkingDirectory = System.IO.Path.GetDirectoryName(srcPath) ?? "";
-                    shortcut.Save();
-                    System.Runtime.InteropServices.Marshal.ReleaseComObject(shortcut);
-                    System.Runtime.InteropServices.Marshal.ReleaseComObject(shell);
+                    dynamic? shortcut = null;
+                    try
+                    {
+                        shortcut = shell.CreateShortcut(lnkPath);
+                        shortcut.TargetPath = srcPath;
+                        shortcut.WorkingDirectory = System.IO.Path.GetDirectoryName(srcPath) ?? "";
+                        shortcut.Save();
+                    }
+                    finally
+                    {
+                        if (shortcut != null) try { System.Runtime.InteropServices.Marshal.ReleaseComObject(shortcut); } catch { }
+                        try { System.Runtime.InteropServices.Marshal.ReleaseComObject(shell); } catch { }
+                    }
                     created++;
                 }
                 catch (Exception ex)

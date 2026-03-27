@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using Microsoft.Extensions.DependencyInjection;
 using Span.Models;
 
 namespace Span.Services
@@ -113,42 +114,56 @@ namespace Span.Services
                 dynamic? folder = shell?.NameSpace(QuickAccessCLSID);
                 if (folder == null) return favorites;
 
-                dynamic items = folder.Items();
-                int count = (int)items.Count;
-                int order = 0;
-
-                for (int i = 0; i < count; i++)
+                dynamic? items = null;
+                try
                 {
-                    try
+                    items = folder.Items();
+                    int count = (int)items.Count;
+                    int order = 0;
+
+                    for (int i = 0; i < count; i++)
                     {
-                        dynamic item = items.Item(i);
-                        string? path = item.Path;
-                        if (string.IsNullOrEmpty(path) || !Directory.Exists(path))
-                            continue;
-
-                        string name = item.Name ?? Path.GetFileName(path);
-                        var (glyph, color) = GetIconForPath(path);
-
-                        favorites.Add(new FavoriteItem
+                        dynamic? item = null;
+                        try
                         {
-                            Name = name,
-                            Path = path,
-                            IconGlyph = glyph,
-                            IconColor = color,
-                            Order = order++
-                        });
+                            item = items.Item(i);
+                            string? path = item.Path;
+                            if (string.IsNullOrEmpty(path) || !Directory.Exists(path))
+                                continue;
+
+                            string name = item.Name ?? Path.GetFileName(path);
+                            var (glyph, color) = GetIconForPath(path);
+
+                            favorites.Add(new FavoriteItem
+                            {
+                                Name = name,
+                                Path = path,
+                                IconGlyph = glyph,
+                                IconColor = color,
+                                Order = order++
+                            });
+                        }
+                        catch
+                        {
+                            // Skip problematic items (network folders offline, etc.)
+                        }
+                        finally
+                        {
+                            if (item != null) try { Marshal.ReleaseComObject(item); } catch { }
+                        }
                     }
-                    catch
-                    {
-                        // Skip problematic items (network folders offline, etc.)
-                    }
+                }
+                finally
+                {
+                    if (items != null) try { Marshal.ReleaseComObject(items); } catch { }
+                    try { Marshal.ReleaseComObject(folder); } catch { }
                 }
             }
             finally
             {
                 if (shell != null)
                 {
-                    try { Marshal.FinalReleaseComObject(shell); } catch { }
+                    try { Marshal.ReleaseComObject(shell); } catch { }
                 }
             }
 
@@ -194,25 +209,35 @@ namespace Span.Services
                 dynamic? folder = shell?.NameSpace(path);
                 if (folder == null) return;
 
-                dynamic self = folder.Self;
-                // Windows 11: "pintohome", Windows 10: "pintoquickaccess"
-                try { self.InvokeVerb("pintohome"); }
-                catch
+                dynamic? self = null;
+                try
                 {
-                    try { self.InvokeVerb("pintoquickaccess"); } catch { }
-                }
+                    self = folder.Self;
+                    // Windows 11: "pintohome", Windows 10: "pintoquickaccess"
+                    try { self.InvokeVerb("pintohome"); }
+                    catch
+                    {
+                        try { self.InvokeVerb("pintoquickaccess"); } catch { }
+                    }
 
-                Helpers.DebugLogger.Log($"[FavoritesService] Pinned to Quick Access: {path}");
+                    Helpers.DebugLogger.Log($"[FavoritesService] Pinned to Quick Access: {path}");
+                }
+                finally
+                {
+                    if (self != null) try { Marshal.ReleaseComObject(self); } catch { }
+                    try { Marshal.ReleaseComObject(folder); } catch { }
+                }
             }
             catch (Exception ex)
             {
                 Helpers.DebugLogger.Log($"[FavoritesService] Pin failed: {ex.Message}");
+                try { App.Current.Services.GetService<CrashReportingService>()?.CaptureException(ex, "FavoritesService.PinToQuickAccess"); } catch { }
             }
             finally
             {
                 if (shell != null)
                 {
-                    try { Marshal.FinalReleaseComObject(shell); } catch { }
+                    try { Marshal.ReleaseComObject(shell); } catch { }
                 }
             }
         }
@@ -229,40 +254,55 @@ namespace Span.Services
                 dynamic? qa = shell?.NameSpace(QuickAccessCLSID);
                 if (qa == null) return;
 
-                dynamic items = qa.Items();
-                int count = (int)items.Count;
-
-                for (int i = 0; i < count; i++)
+                dynamic? items = null;
+                try
                 {
-                    try
-                    {
-                        dynamic item = items.Item(i);
-                        string? itemPath = item.Path;
-                        if (string.Equals(itemPath, path, StringComparison.OrdinalIgnoreCase))
-                        {
-                            // Windows 11: "unpinfromhome", Windows 10: "unpinfromquickaccess"
-                            try { item.InvokeVerb("unpinfromhome"); }
-                            catch
-                            {
-                                try { item.InvokeVerb("unpinfromquickaccess"); } catch { }
-                            }
+                    items = qa.Items();
+                    int count = (int)items.Count;
 
-                            Helpers.DebugLogger.Log($"[FavoritesService] Unpinned from Quick Access: {path}");
-                            break;
+                    for (int i = 0; i < count; i++)
+                    {
+                        dynamic? item = null;
+                        try
+                        {
+                            item = items.Item(i);
+                            string? itemPath = item.Path;
+                            if (string.Equals(itemPath, path, StringComparison.OrdinalIgnoreCase))
+                            {
+                                // Windows 11: "unpinfromhome", Windows 10: "unpinfromquickaccess"
+                                try { item.InvokeVerb("unpinfromhome"); }
+                                catch
+                                {
+                                    try { item.InvokeVerb("unpinfromquickaccess"); } catch { }
+                                }
+
+                                Helpers.DebugLogger.Log($"[FavoritesService] Unpinned from Quick Access: {path}");
+                                break;
+                            }
+                        }
+                        catch { }
+                        finally
+                        {
+                            if (item != null) try { Marshal.ReleaseComObject(item); } catch { }
                         }
                     }
-                    catch { }
+                }
+                finally
+                {
+                    if (items != null) try { Marshal.ReleaseComObject(items); } catch { }
+                    try { Marshal.ReleaseComObject(qa); } catch { }
                 }
             }
             catch (Exception ex)
             {
                 Helpers.DebugLogger.Log($"[FavoritesService] Unpin failed: {ex.Message}");
+                try { App.Current.Services.GetService<CrashReportingService>()?.CaptureException(ex, "FavoritesService.UnpinFromQuickAccess"); } catch { }
             }
             finally
             {
                 if (shell != null)
                 {
-                    try { Marshal.FinalReleaseComObject(shell); } catch { }
+                    try { Marshal.ReleaseComObject(shell); } catch { }
                 }
             }
         }

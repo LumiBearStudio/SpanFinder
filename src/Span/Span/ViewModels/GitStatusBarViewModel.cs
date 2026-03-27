@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Dispatching;
+using Span.Helpers;
 using Span.Models;
 using Span.Services;
 using System;
@@ -101,7 +102,7 @@ namespace Span.ViewModels
             _debounceTimer = new System.Threading.Timer(_ =>
             {
                 if (_disposed) return;
-                _dispatcherQueue.TryEnqueue(() => _ = ExecuteUpdateAsync(ct));
+                Helpers.DispatcherHelper.SafeEnqueue(_dispatcherQueue, () => _ = ExecuteUpdateAsync(ct));
             }, null, DebounceMs, Timeout.Infinite);
 
             return Task.CompletedTask;

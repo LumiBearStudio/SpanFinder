@@ -1636,34 +1636,42 @@ public sealed partial class SettingsModeView : UserControl
 
     private async void OnDefaultFileManagerToggled(object sender, RoutedEventArgs e)
     {
-        if (_isLoading) return;
-
-        var service = App.Current.Services.GetService<Services.DefaultFileManagerService>();
-        if (service == null) return;
-
-        bool wantOn = DefaultFileManagerToggle.IsOn;
-        bool success = wantOn ? await service.SetAsDefaultAsync() : await service.UnsetDefaultAsync();
-
-        if (!success)
+        try
         {
-            // 롤백
-            _isLoading = true;
-            DefaultFileManagerToggle.IsOn = !wantOn;
-            _isLoading = false;
+            if (_isLoading) return;
 
-            // fallback: .reg 내보내기 패널 표시
-            if (wantOn)
+            var service = App.Current.Services.GetService<Services.DefaultFileManagerService>();
+            if (service == null) return;
+
+            bool wantOn = DefaultFileManagerToggle.IsOn;
+            bool success = wantOn ? await service.SetAsDefaultAsync() : await service.UnsetDefaultAsync();
+
+            if (!success)
             {
-                DefaultFMExportPanel.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
-                ShowToastFromSettings(_loc?.Get("Settings_DefaultFMFailed") ?? "자동 등록에 실패했습니다. .reg 파일을 직접 실행하세요.");
+                // 롤백
+                _isLoading = true;
+                DefaultFileManagerToggle.IsOn = !wantOn;
+                _isLoading = false;
+
+                // fallback: .reg 내보내기 패널 표시
+                if (wantOn)
+                {
+                    DefaultFMExportPanel.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
+                    ShowToastFromSettings(_loc?.Get("Settings_DefaultFMFailed") ?? "자동 등록에 실패했습니다. .reg 파일을 직접 실행하세요.");
+                }
+            }
+            else
+            {
+                DefaultFMExportPanel.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
+                ShowToastFromSettings(wantOn
+                    ? (_loc?.Get("Settings_DefaultFMSet") ?? "기본 파일 관리자로 설정되었습니다")
+                    : (_loc?.Get("Settings_DefaultFMUnset") ?? "기본 파일 관리자 설정이 해제되었습니다"));
             }
         }
-        else
+        catch (Exception ex)
         {
-            DefaultFMExportPanel.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
-            ShowToastFromSettings(wantOn
-                ? (_loc?.Get("Settings_DefaultFMSet") ?? "기본 파일 관리자로 설정되었습니다")
-                : (_loc?.Get("Settings_DefaultFMUnset") ?? "기본 파일 관리자 설정이 해제되었습니다"));
+            Helpers.DebugLogger.Log($"[Settings] DefaultFileManager toggle error: {ex.Message}");
+            try { App.Current.Services.GetService<Services.CrashReportingService>()?.CaptureException(ex, "OnDefaultFileManagerToggled"); } catch { }
         }
     }
 
@@ -1755,17 +1763,32 @@ public sealed partial class SettingsModeView : UserControl
 
     private async void OnSupportCoffeeClick(object sender, RoutedEventArgs e)
     {
-        await PurchaseAddonAsync("9N6NW4DXJJ4R");
+        try { await PurchaseAddonAsync("9N6NW4DXJJ4R"); }
+        catch (Exception ex)
+        {
+            Helpers.DebugLogger.Log($"[Store] Coffee purchase error: {ex.Message}");
+            try { App.Current.Services.GetService<Services.CrashReportingService>()?.CaptureException(ex, "OnSupportCoffeeClick"); } catch { }
+        }
     }
 
     private async void OnSupportHamburgerClick(object sender, RoutedEventArgs e)
     {
-        await PurchaseAddonAsync("9NDJTWKC0J4G");
+        try { await PurchaseAddonAsync("9NDJTWKC0J4G"); }
+        catch (Exception ex)
+        {
+            Helpers.DebugLogger.Log($"[Store] Hamburger purchase error: {ex.Message}");
+            try { App.Current.Services.GetService<Services.CrashReportingService>()?.CaptureException(ex, "OnSupportHamburgerClick"); } catch { }
+        }
     }
 
     private async void OnSupportSteakClick(object sender, RoutedEventArgs e)
     {
-        await PurchaseAddonAsync("9PLL94FJHN51");
+        try { await PurchaseAddonAsync("9PLL94FJHN51"); }
+        catch (Exception ex)
+        {
+            Helpers.DebugLogger.Log($"[Store] Steak purchase error: {ex.Message}");
+            try { App.Current.Services.GetService<Services.CrashReportingService>()?.CaptureException(ex, "OnSupportSteakClick"); } catch { }
+        }
     }
 
     private async Task PurchaseAddonAsync(string storeId)

@@ -431,7 +431,7 @@ namespace Span.ViewModels
             _toastTimer = new System.Threading.Timer(_ =>
             {
                 if (dq != null)
-                    dq.TryEnqueue(() => { IsToastVisible = false; });
+                    Helpers.DispatcherHelper.SafeEnqueue(dq, () => { IsToastVisible = false; });
                 else
                     IsToastVisible = false;
             }, null, durationMs, System.Threading.Timeout.Infinite);

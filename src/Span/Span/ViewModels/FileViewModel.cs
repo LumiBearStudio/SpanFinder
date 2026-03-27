@@ -35,6 +35,7 @@ namespace Span.ViewModels
 
         private bool _thumbnailLoaded;
         private bool _thumbnailLoading;
+        private CancellationTokenSource? _thumbnailCts;
 
         public FileViewModel(FileItem model) : base(model)
         {
@@ -72,25 +73,31 @@ namespace Span.ViewModels
 
             _thumbnailLoading = true;
 
+            // 이전 로딩 취소 후 새 CTS 생성
+            _thumbnailCts?.Cancel();
+            var cts = new CancellationTokenSource();
+            _thumbnailCts = cts;
+
             // 동시 로딩 제한 (Shell API 과부하 방지)
             await _thumbnailThrottle.WaitAsync();
+            MemoryStream? memStream = null;
             try
             {
                 // SemaphoreSlim 대기 중 이미 로드/취소되었을 수 있음
-                if (_thumbnailLoaded) return;
+                if (_thumbnailLoaded || cts.IsCancellationRequested) return;
 
                 var filePath = Path;
 
                 // 파일 존재 여부 + 클라우드 상태를 백그라운드 스레드에서 확인
                 var (exists, isCloudOnly) = await Task.Run(() =>
                     (File.Exists(filePath), Services.CloudSyncService.IsCloudOnlyFile(filePath)));
-                if (!exists) return;
+                if (!exists || cts.IsCancellationRequested) return;
 
                 // Video files & cloud-only files: use Shell thumbnail API
                 // (videos can't be decoded via BitmapImage; cloud files must not trigger download)
                 if (IsVideoFile || isCloudOnly)
                 {
-                    await LoadShellThumbnailAsync(filePath, decodePixelWidth, isCloudOnly);
+                    await LoadShellThumbnailAsync(filePath, decodePixelWidth, isCloudOnly, cts.Token);
                     return;
                 }
 
@@ -101,27 +108,44 @@ namespace Span.ViewModels
                     if (fi.Length > 20 * 1024 * 1024) return null; // Skip files > 20MB
                     return File.ReadAllBytes(filePath);
                 });
-                if (fileBytes == null || !_thumbnailLoading) return;
+                if (fileBytes == null || !_thumbnailLoading || cts.IsCancellationRequested) return;
 
                 var bitmap = new BitmapImage();
                 bitmap.DecodePixelWidth = decodePixelWidth;
                 bitmap.DecodePixelType = DecodePixelType.Logical;
-                // 이미지 디코딩 실패 감지
+                // 이미지 디코딩 실패 감지 + Sentry 보고
                 bitmap.ImageFailed += (s, args) =>
-                    Helpers.DebugLogger.LogCrash($"BitmapImage.ImageFailed({Name})",
-                        args.ErrorMessage != null ? new InvalidOperationException(args.ErrorMessage) : null);
+                {
+                    var ex = args.ErrorMessage != null ? new InvalidOperationException(args.ErrorMessage) : null;
+                    Helpers.DebugLogger.LogCrash($"BitmapImage.ImageFailed({Name})", ex);
+                    if (ex != null)
+                    {
+                        try { (App.Current.Services.GetService(typeof(Services.CrashReportingService)) as Services.CrashReportingService)?.CaptureException(ex, $"BitmapImage.ImageFailed({Name})"); } catch { }
+                    }
+                };
 
                 Helpers.DebugLogger.Log($"[Thumbnail] SetSourceAsync START: {Name} ({fileBytes.Length} bytes)");
-                using var memStream = new MemoryStream(fileBytes);
+                // MemoryStream을 using 없이 생성 — SetSourceAsync 후 BitmapImage가 내부 참조할 수 있음
+                memStream = new MemoryStream(fileBytes);
                 var ras = memStream.AsRandomAccessStream();
-                await bitmap.SetSourceAsync(ras);
+                try
+                {
+                    await bitmap.SetSourceAsync(ras);
+                }
+                catch (Exception ex)
+                {
+                    Helpers.DebugLogger.Log($"[FileViewModel] SetSourceAsync failed for {Name}: {ex.Message}");
+                    try { (App.Current.Services.GetService(typeof(Services.CrashReportingService)) as Services.CrashReportingService)?.CaptureException(ex, $"SetSourceAsync({Name})"); } catch { }
+                    return;
+                }
                 Helpers.DebugLogger.Log($"[Thumbnail] SetSourceAsync OK: {Name} (pixel={bitmap.PixelWidth}x{bitmap.PixelHeight})");
 
-                // Guard: column may have been removed during async decode
-                if (!_thumbnailLoading) return;
+                // Guard: 비동기 디코드 중 컨테이너 재활용/취소되었을 수 있음
+                if (!_thumbnailLoading || cts.IsCancellationRequested) return;
 
                 ThumbnailSource = bitmap;
                 _thumbnailLoaded = true;
+                memStream = null; // bitmap이 소유 — dispose 하지 않음
             }
             catch (Exception ex)
             {
@@ -129,6 +153,7 @@ namespace Span.ViewModels
             }
             finally
             {
+                memStream?.Dispose();
                 _thumbnailThrottle.Release();
                 _thumbnailLoading = false;
             }
@@ -139,11 +164,13 @@ namespace Span.ViewModels
         /// 동영상: Shell이 프레임 캡처 썸네일 생성.
         /// 클라우드 전용: ReturnOnlyIfCached로 다운로드 방지, 캐시 없으면 스킵.
         /// </summary>
-        private async Task LoadShellThumbnailAsync(string filePath, int decodePixelWidth, bool cacheOnly)
+        private async Task LoadShellThumbnailAsync(string filePath, int decodePixelWidth, bool cacheOnly, CancellationToken ct)
         {
             try
             {
                 var storageFile = await StorageFile.GetFileFromPathAsync(filePath);
+                if (ct.IsCancellationRequested) return;
+
                 var options = cacheOnly
                     ? ThumbnailOptions.ReturnOnlyIfCached
                     : ThumbnailOptions.UseCurrentScale;
@@ -152,6 +179,8 @@ namespace Span.ViewModels
                     ThumbnailMode.SingleItem,
                     (uint)decodePixelWidth,
                     options);
+
+                if (ct.IsCancellationRequested) return;
 
                 if (thumbnail != null && thumbnail.Type == ThumbnailType.Image)
                 {
@@ -162,14 +191,21 @@ namespace Span.ViewModels
                     bitmap.DecodePixelWidth = decodePixelWidth;
                     bitmap.DecodePixelType = DecodePixelType.Logical;
                     bitmap.ImageFailed += (s, args) =>
-                        Helpers.DebugLogger.LogCrash($"BitmapImage.ImageFailed.Shell({Name})",
-                            args.ErrorMessage != null ? new InvalidOperationException(args.ErrorMessage) : null);
+                    {
+                        var ex = args.ErrorMessage != null ? new InvalidOperationException(args.ErrorMessage) : null;
+                        Helpers.DebugLogger.LogCrash($"BitmapImage.ImageFailed.Shell({Name})", ex);
+                        if (ex != null)
+                        {
+                            try { (App.Current.Services.GetService(typeof(Services.CrashReportingService)) as Services.CrashReportingService)?.CaptureException(ex, $"BitmapImage.ImageFailed.Shell({Name})"); } catch { }
+                        }
+                    };
 
                     Helpers.DebugLogger.Log($"[Thumbnail] Shell SetSourceAsync START: {Name}");
                     await bitmap.SetSourceAsync(thumbnail);
                     Helpers.DebugLogger.Log($"[Thumbnail] Shell SetSourceAsync OK: {Name}");
 
-                    if (!_thumbnailLoading) return;
+                    // 비동기 디코드 후 취소 여부 재확인
+                    if (!_thumbnailLoading || ct.IsCancellationRequested) return;
 
                     ThumbnailSource = bitmap;
                     _thumbnailLoaded = true;
@@ -188,6 +224,7 @@ namespace Span.ViewModels
         /// </summary>
         public void UnloadThumbnail()
         {
+            _thumbnailCts?.Cancel();
             _thumbnailLoading = false;
             _thumbnailLoaded = false;
             ThumbnailSource = null;
