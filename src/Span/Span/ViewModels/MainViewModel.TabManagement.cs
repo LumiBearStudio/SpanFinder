@@ -795,5 +795,33 @@ namespace Span.ViewModels
         }
 
         #endregion
+
+        // =================================================================
+        //  Workspace
+        // =================================================================
+
+        #region Workspace
+
+        /// <summary>
+        /// 현재 모든 탭의 상태를 DTO 리스트로 수집 (Settings 탭 제외).
+        /// </summary>
+        public List<TabStateDto> CollectCurrentTabStates()
+        {
+            var list = new List<TabStateDto>();
+            foreach (var tab in Tabs)
+            {
+                if (tab.Explorer == null) continue; // Settings tab 제외
+                list.Add(new TabStateDto(
+                    tab.Id,
+                    tab.Header,
+                    tab.Explorer?.CurrentPath ?? tab.Path ?? "",
+                    (int)tab.ViewMode,
+                    (int)tab.IconSize
+                ));
+            }
+            return list;
+        }
+
+        #endregion
     }
 }

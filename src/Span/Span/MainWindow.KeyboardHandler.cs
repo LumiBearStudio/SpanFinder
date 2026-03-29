@@ -803,6 +803,14 @@ namespace Span
                 case ShortcutCommands.ShowProperties: HandleShowProperties(); return true;
                 case ShortcutCommands.ShowHelp: ToggleHelpOverlay(); return true;
 
+                // Workspace
+                case ShortcutCommands.SaveWorkspace:
+                    _ = ShowSaveWorkspaceDialogAsync();
+                    return true;
+                case ShortcutCommands.OpenWorkspacePalette:
+                    _ = ShowWorkspacePaletteAsync();
+                    return true;
+
                 // Quick Look — 뷰별 핸들러에서 처리
                 case ShortcutCommands.QuickLook: return false;
 

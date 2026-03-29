@@ -385,6 +385,9 @@ namespace Span
             _loc = App.Current.Services.GetRequiredService<Services.LocalizationService>();
             _settings = App.Current.Services.GetRequiredService<Services.SettingsService>();
 
+            // Workspace button
+            WorkspaceButton.Click += async (s, e) => await ShowWorkspacePaletteAsync();
+
             // Subscribe to file open events for toast feedback
             var shellService = App.Current.Services.GetRequiredService<ShellService>();
             shellService.FileOpening += OnShellFileOpening;

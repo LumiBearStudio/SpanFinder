@@ -9,6 +9,7 @@ using Span.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Span
 {
@@ -1234,6 +1235,16 @@ namespace Span
                 };
                 flyout.Items.Add(duplicateItem);
 
+                flyout.Items.Add(new MenuFlyoutSeparator());
+                var saveWorkspaceItem = new MenuFlyoutItem
+                {
+                    Text = _loc?.Get("Workspace_Save") ?? "Save tab layout...",
+                    Icon = new FontIcon { Glyph = "\uE74E" }
+                };
+                Helpers.CursorHelper.SetHandCursor(saveWorkspaceItem);
+                saveWorkspaceItem.Click += async (s, args) => await ShowSaveWorkspaceDialogAsync();
+                flyout.Items.Add(saveWorkspaceItem);
+
                 flyout.ShowAt(fe, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
                 {
                     Position = e.GetPosition(fe)
@@ -1311,6 +1322,244 @@ namespace Span
             catch (Exception ex)
             {
                 Helpers.DebugLogger.Log($"[ReDock] Error docking tab: {ex.Message}");
+            }
+        }
+
+        #endregion
+
+        // =================================================================
+        //  Workspace
+        // =================================================================
+
+        #region Workspace
+
+        private async Task ShowSaveWorkspaceDialogAsync()
+        {
+            var nameBox = new TextBox
+            {
+                PlaceholderText = _loc?.Get("Workspace_NamePlaceholder") ?? "Workspace name",
+                Width = 300
+            };
+
+            var dialog = new ContentDialog
+            {
+                Title = _loc?.Get("Workspace_SaveTitle") ?? "Save Workspace",
+                Content = nameBox,
+                PrimaryButtonText = _loc?.Get("Save") ?? "Save",
+                CloseButtonText = _loc?.Get("Cancel") ?? "Cancel",
+                XamlRoot = Content.XamlRoot,
+                DefaultButton = ContentDialogButton.Primary
+            };
+
+            var result = await dialog.ShowAsync();
+            if (result != ContentDialogResult.Primary) return;
+
+            var name = nameBox.Text?.Trim();
+            if (string.IsNullOrEmpty(name))
+            {
+                ViewModel.ShowToast(_loc?.Get("Workspace_NameRequired") ?? "Please enter a name.", 2000, isError: true);
+                return;
+            }
+
+            var workspaceService = App.Current.Services.GetService<Services.WorkspaceService>();
+            if (workspaceService == null) return;
+
+            var tabs = ViewModel.CollectCurrentTabStates();
+            var activeIndex = ViewModel.Tabs.IndexOf(ViewModel.ActiveTab);
+
+            var workspace = new WorkspaceDto(
+                Id: Guid.NewGuid().ToString(),
+                Name: name,
+                Tabs: tabs,
+                ActiveTabIndex: Math.Max(0, activeIndex),
+                CreatedAt: DateTime.UtcNow,
+                LastUsedAt: DateTime.UtcNow
+            );
+
+            await workspaceService.SaveWorkspaceAsync(workspace);
+            ViewModel.ShowToast($"\"{name}\" saved", 2000);
+        }
+
+        internal async Task ShowWorkspacePaletteAsync()
+        {
+            var workspaceService = App.Current.Services.GetService<Services.WorkspaceService>();
+            if (workspaceService == null) return;
+
+            var workspaces = await workspaceService.GetWorkspacesAsync();
+            var autoSave = await workspaceService.GetAutoSaveAsync();
+
+            var flyout = new MenuFlyout();
+
+            // Title
+            var titleItem = new MenuFlyoutItem
+            {
+                Text = _loc?.Get("Workspace_PaletteTitle") ?? "Workspaces",
+                IsEnabled = false
+            };
+            flyout.Items.Add(titleItem);
+            flyout.Items.Add(new MenuFlyoutSeparator());
+
+            // Auto-save (previous session)
+            if (autoSave != null)
+            {
+                var autoItem = new MenuFlyoutItem
+                {
+                    Text = $"{_loc?.Get("Workspace_PreviousSession") ?? "Previous Session"} ({autoSave.Tabs.Count})",
+                    Icon = new FontIcon { Glyph = "\uE81C" }
+                };
+                Helpers.CursorHelper.SetHandCursor(autoItem);
+                autoItem.Click += async (s, e) => await RestoreWorkspaceAsync(autoSave);
+                flyout.Items.Add(autoItem);
+                flyout.Items.Add(new MenuFlyoutSeparator());
+            }
+
+            if (workspaces.Count == 0)
+            {
+                flyout.Items.Add(new MenuFlyoutItem
+                {
+                    Text = _loc?.Get("Workspace_Empty") ?? "No saved workspaces",
+                    IsEnabled = false
+                });
+            }
+            else
+            {
+                foreach (var ws in workspaces.OrderByDescending(w => w.LastUsedAt))
+                {
+                    var tabCountText = string.Format(_loc?.Get("Workspace_TabCount") ?? "{0} tabs", ws.Tabs.Count);
+                    var item = new MenuFlyoutItem
+                    {
+                        Text = $"{ws.Name}  ({tabCountText})",
+                        Icon = new FontIcon { Glyph = "\uE838" }
+                    };
+                    Helpers.CursorHelper.SetHandCursor(item);
+                    var captured = ws;
+                    item.Click += async (s, e) => await RestoreWorkspaceAsync(captured);
+                    flyout.Items.Add(item);
+                }
+            }
+
+            // Add "Save current..." at the bottom
+            flyout.Items.Add(new MenuFlyoutSeparator());
+            var saveItem = new MenuFlyoutItem
+            {
+                Text = _loc?.Get("Workspace_Save") ?? "Save tab layout...",
+                Icon = new FontIcon { Glyph = "\uE74E" }
+            };
+            Helpers.CursorHelper.SetHandCursor(saveItem);
+            saveItem.Click += async (s, e) => await ShowSaveWorkspaceDialogAsync();
+            flyout.Items.Add(saveItem);
+
+            flyout.ShowAt(WorkspaceButton);
+        }
+
+        private async Task RestoreWorkspaceAsync(WorkspaceDto workspace)
+        {
+            try
+            {
+                var workspaceService = App.Current.Services.GetService<Services.WorkspaceService>();
+                if (workspaceService == null) return;
+
+                // Auto-save current tabs before switching
+                var currentTabs = ViewModel.CollectCurrentTabStates();
+                var currentIndex = ViewModel.Tabs.IndexOf(ViewModel.ActiveTab);
+                await workspaceService.AutoSaveAsync(currentTabs, Math.Max(0, currentIndex));
+
+                // Close all existing tabs and their panels
+                while (ViewModel.Tabs.Count > 0)
+                {
+                    var tab = ViewModel.Tabs[0];
+                    RemoveMillerPanel(tab.Id);
+                    RemoveDetailsPanel(tab.Id);
+                    RemoveListPanel(tab.Id);
+                    RemoveIconPanel(tab.Id);
+                    ViewModel.Tabs.RemoveAt(0);
+                }
+
+                // Create tabs from workspace DTOs
+                var dtos = workspace.Tabs;
+                if (dtos.Count == 0)
+                {
+                    // Fallback: create a default Home tab
+                    ViewModel.AddNewTab();
+                    var newTab = ViewModel.ActiveTab;
+                    if (newTab != null)
+                    {
+                        CreateMillerPanelForTab(newTab);
+                        SwitchMillerPanel(newTab.Id);
+                        SwitchDetailsPanel(newTab.Id, false);
+                        SwitchListPanel(newTab.Id, false);
+                        SwitchIconPanel(newTab.Id, false);
+                    }
+                    ResubscribeLeftExplorer();
+                    UpdateViewModeVisibility();
+                    return;
+                }
+
+                // Create each tab with explorer and panels
+                for (int i = 0; i < dtos.Count; i++)
+                {
+                    var dto = dtos[i];
+                    var viewMode = Enum.IsDefined(typeof(ViewMode), dto.ViewMode)
+                        ? (ViewMode)dto.ViewMode : ViewMode.MillerColumns;
+                    var iconSize = Enum.IsDefined(typeof(ViewMode), dto.IconSize)
+                        ? (ViewMode)dto.IconSize : ViewMode.IconMedium;
+
+                    var root = new FolderItem { Name = "PC", Path = "PC" };
+                    var fileService = App.Current.Services.GetRequiredService<Services.FileSystemService>();
+                    var explorer = new ExplorerViewModel(root, fileService);
+                    explorer.EnableAutoNavigation = viewMode == ViewMode.Details
+                        || viewMode == ViewMode.List
+                        || Helpers.ViewModeExtensions.IsIconMode(viewMode);
+
+                    var tab = new TabItem
+                    {
+                        Id = dto.Id,
+                        Header = dto.Header,
+                        Path = dto.Path,
+                        ViewMode = viewMode,
+                        IconSize = iconSize,
+                        IsActive = false,
+                        Explorer = explorer
+                    };
+
+                    ViewModel.Tabs.Add(tab);
+                    CreateMillerPanelForTab(tab);
+
+                    // Navigate if path is not empty and not Home
+                    if (!string.IsNullOrEmpty(dto.Path) && viewMode != ViewMode.Home)
+                    {
+                        _ = explorer.NavigateToPath(dto.Path);
+                    }
+                }
+
+                // Set active tab
+                var targetIndex = Math.Clamp(workspace.ActiveTabIndex, 0, ViewModel.Tabs.Count - 1);
+                ViewModel.SwitchToTab(targetIndex);
+
+                var activeTab = ViewModel.ActiveTab;
+                if (activeTab != null)
+                {
+                    SwitchMillerPanel(activeTab.Id);
+                    SwitchDetailsPanel(activeTab.Id, activeTab.ViewMode == ViewMode.Details);
+                    SwitchListPanel(activeTab.Id, activeTab.ViewMode == ViewMode.List);
+                    SwitchIconPanel(activeTab.Id, Helpers.ViewModeExtensions.IsIconMode(activeTab.ViewMode));
+                }
+
+                ResubscribeLeftExplorer();
+                UpdateViewModeVisibility();
+                FocusActiveView();
+                DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, UpdateTitleBarRegions);
+
+                // Update last used time
+                var updated = workspace with { LastUsedAt = DateTime.UtcNow };
+                await workspaceService.SaveWorkspaceAsync(updated);
+
+                ViewModel.ShowToast($"\"{workspace.Name}\"", 1500);
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[Workspace] Restore failed: {ex.Message}");
+                ViewModel.ShowToast("Workspace restore failed", 3000, isError: true);
             }
         }
 

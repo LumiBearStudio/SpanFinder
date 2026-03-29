@@ -858,6 +858,21 @@ namespace Span.Services
             ("Shortcut_ShowHelp", "Help", "도움말", "ヘルプ", "帮助", "說明", "Hilfe", "Ayuda", "Aide", "Ajuda"),
             ("Shortcut_OpenInNewTab", "Open in new tab", "새 탭에서 열기", "新しいタブで開く", "在新标签页中打开", "在新索引標籤中開啟", "In neuem Tab öffnen", "Abrir en nueva pestaña", "Ouvrir dans un nouvel onglet", "Abrir em nova guia"),
             ("Shortcut_QuickLook", "Quick Look", "빠른 보기", "クイックルック", "快速查看", "快速查看", "Schnellansicht", "Vista rápida", "Coup d'œil", "Visualização rápida"),
+            ("Shortcut_SaveWorkspace", "Save workspace", "워크스페이스 저장", "ワークスペース保存", "保存工作区", "儲存工作區", "Arbeitsbereich speichern", "Guardar espacio de trabajo", "Enregistrer l'espace de travail", "Salvar área de trabalho"),
+            ("Shortcut_OpenWorkspacePalette", "Open workspace palette", "워크스페이스 팔레트", "ワークスペースパレット", "打开工作区面板", "開啟工作區面板", "Arbeitsbereich-Palette öffnen", "Abrir paleta de espacios", "Ouvrir la palette d'espaces", "Abrir paleta de trabalho"),
+
+            // ── Workspace UI ──
+            ("Workspace_Save", "Save tab layout...", "탭 구성 저장...", "タブ構成を保存...", "保存标签页布局...", "儲存分頁配置...", "Tab-Layout speichern...", "Guardar disposición de pestañas...", "Enregistrer la disposition des onglets...", "Salvar layout de abas..."),
+            ("Workspace_PaletteTitle", "Workspaces", "워크스페이스", "ワークスペース", "工作区", "工作區", "Arbeitsbereiche", "Espacios de trabajo", "Espaces de travail", "Áreas de trabalho"),
+            ("Workspace_Empty", "No saved workspaces", "저장된 워크스페이스가 없습니다", "保存されたワークスペースはありません", "没有保存的工作区", "沒有儲存的工作區", "Keine gespeicherten Arbeitsbereiche", "No hay espacios guardados", "Aucun espace enregistré", "Nenhuma área salva"),
+            ("Workspace_PreviousSession", "Previous Session", "이전 세션", "前のセッション", "上一个会话", "上一個工作階段", "Vorherige Sitzung", "Sesión anterior", "Session précédente", "Sessão anterior"),
+            ("Workspace_TabCount", "{0} tabs", "탭 {0}개", "タブ{0}個", "{0}个标签页", "{0}個分頁", "{0} Tabs", "{0} pestañas", "{0} onglets", "{0} abas"),
+            ("Workspace_Delete", "Delete", "삭제", "削除", "删除", "刪除", "Löschen", "Eliminar", "Supprimer", "Excluir"),
+            ("Workspace_Rename", "Rename", "이름 변경", "名前変更", "重命名", "重新命名", "Umbenennen", "Renombrar", "Renommer", "Renomear"),
+            ("Workspace_SaveTitle", "Save Workspace", "워크스페이스 저장", "ワークスペース保存", "保存工作区", "儲存工作區", "Arbeitsbereich speichern", "Guardar espacio", "Enregistrer l'espace", "Salvar área"),
+            ("Workspace_NamePlaceholder", "Workspace name", "워크스페이스 이름", "ワークスペース名", "工作区名称", "工作區名稱", "Name des Arbeitsbereichs", "Nombre del espacio", "Nom de l'espace", "Nome da área"),
+            ("Workspace_NameRequired", "Please enter a name.", "이름을 입력하세요.", "名前を入力してください。", "请输入名称。", "請輸入名稱。", "Bitte einen Namen eingeben.", "Ingrese un nombre.", "Veuillez entrer un nom.", "Digite um nome."),
+            ("Workspace_Tooltip", "Workspaces", "워크스페이스", "ワークスペース", "工作区", "工作區", "Arbeitsbereiche", "Espacios de trabajo", "Espaces de travail", "Áreas de trabalho"),
         };
     }
 }
