@@ -867,6 +867,7 @@ namespace Span.Services
             ("Workspace_Empty", "No saved workspaces", "저장된 워크스페이스가 없습니다", "保存されたワークスペースはありません", "没有保存的工作区", "沒有儲存的工作區", "Keine gespeicherten Arbeitsbereiche", "No hay espacios guardados", "Aucun espace enregistré", "Nenhuma área salva"),
             ("Workspace_PreviousSession", "Previous Session", "이전 세션", "前のセッション", "上一个会话", "上一個工作階段", "Vorherige Sitzung", "Sesión anterior", "Session précédente", "Sessão anterior"),
             ("Workspace_TabCount", "{0} tabs", "탭 {0}개", "タブ{0}個", "{0}个标签页", "{0}個分頁", "{0} Tabs", "{0} pestañas", "{0} onglets", "{0} abas"),
+            ("Workspace_Restore", "Restore", "복원", "復元", "恢复", "還原", "Wiederherstellen", "Restaurar", "Restaurer", "Restaurar"),
             ("Workspace_Delete", "Delete", "삭제", "削除", "删除", "刪除", "Löschen", "Eliminar", "Supprimer", "Excluir"),
             ("Workspace_Rename", "Rename", "이름 변경", "名前変更", "重命名", "重新命名", "Umbenennen", "Renombrar", "Renommer", "Renomear"),
             ("Workspace_SaveTitle", "Save Workspace", "워크스페이스 저장", "ワークスペース保存", "保存工作区", "儲存工作區", "Arbeitsbereich speichern", "Guardar espacio", "Enregistrer l'espace", "Salvar área"),

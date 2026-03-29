@@ -1390,28 +1390,19 @@ namespace Span
 
             var flyout = new MenuFlyout();
 
-            // Title
+            // Title — 아이콘 + 볼드로 헤더 강조
             var titleItem = new MenuFlyoutItem
             {
                 Text = _loc?.Get("Workspace_PaletteTitle") ?? "Workspaces",
-                IsEnabled = false
+                Icon = new FontIcon { Glyph = "\uE8F1", FontSize = 14 },
+                IsEnabled = true
             };
+            // 클릭해도 아무 동작 안 함 (헤더 역할만)
+            titleItem.Click += (s, e) => { };
             flyout.Items.Add(titleItem);
             flyout.Items.Add(new MenuFlyoutSeparator());
 
-            // Auto-save (previous session)
-            if (autoSave != null)
-            {
-                var autoItem = new MenuFlyoutItem
-                {
-                    Text = $"{_loc?.Get("Workspace_PreviousSession") ?? "Previous Session"} ({autoSave.Tabs.Count})",
-                    Icon = new FontIcon { Glyph = "\uE81C" }
-                };
-                Helpers.CursorHelper.SetHandCursor(autoItem);
-                autoItem.Click += async (s, e) => await RestoreWorkspaceAsync(autoSave);
-                flyout.Items.Add(autoItem);
-                flyout.Items.Add(new MenuFlyoutSeparator());
-            }
+            // (이전 세션 autosave 기능 제거 — UX 혼란 방지)
 
             if (workspaces.Count == 0)
             {
@@ -1426,15 +1417,59 @@ namespace Span
                 foreach (var ws in workspaces.OrderByDescending(w => w.LastUsedAt))
                 {
                     var tabCountText = string.Format(_loc?.Get("Workspace_TabCount") ?? "{0} tabs", ws.Tabs.Count);
-                    var item = new MenuFlyoutItem
+                    var subItem = new MenuFlyoutSubItem
                     {
                         Text = $"{ws.Name}  ({tabCountText})",
                         Icon = new FontIcon { Glyph = "\uE838" }
                     };
-                    Helpers.CursorHelper.SetHandCursor(item);
+
+                    // 복원
+                    var restoreItem = new MenuFlyoutItem
+                    {
+                        Text = _loc?.Get("Workspace_Restore") ?? "Restore",
+                        Icon = new FontIcon { Glyph = "\uE777" }
+                    };
                     var captured = ws;
-                    item.Click += async (s, e) => await RestoreWorkspaceAsync(captured);
-                    flyout.Items.Add(item);
+                    restoreItem.Click += async (s, e) => await RestoreWorkspaceAsync(captured);
+                    subItem.Items.Add(restoreItem);
+
+                    // 이름 변경
+                    var renameItem = new MenuFlyoutItem
+                    {
+                        Text = _loc?.Get("Workspace_Rename") ?? "Rename",
+                        Icon = new FontIcon { Glyph = "\uE70F" }
+                    };
+                    renameItem.Click += async (s, e) =>
+                    {
+                        var nameBox = new TextBox { Text = captured.Name, Width = 250 };
+                        var dlg = new ContentDialog
+                        {
+                            Title = _loc?.Get("Workspace_Rename") ?? "Rename",
+                            Content = nameBox,
+                            PrimaryButtonText = _loc?.Get("Save") ?? "Save",
+                            CloseButtonText = _loc?.Get("Cancel") ?? "Cancel",
+                            XamlRoot = Content.XamlRoot,
+                            DefaultButton = ContentDialogButton.Primary
+                        };
+                        if (await dlg.ShowAsync() == ContentDialogResult.Primary && !string.IsNullOrWhiteSpace(nameBox.Text))
+                            await workspaceService.RenameWorkspaceAsync(captured.Id, nameBox.Text.Trim());
+                    };
+                    subItem.Items.Add(renameItem);
+
+                    // 삭제
+                    var deleteItem = new MenuFlyoutItem
+                    {
+                        Text = _loc?.Get("Workspace_Delete") ?? "Delete",
+                        Icon = new FontIcon { Glyph = "\uE74D", Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.IndianRed) }
+                    };
+                    deleteItem.Click += async (s, e) =>
+                    {
+                        await workspaceService.DeleteWorkspaceAsync(captured.Id);
+                        ViewModel.ShowToast($"\"{captured.Name}\" deleted", 1500);
+                    };
+                    subItem.Items.Add(deleteItem);
+
+                    flyout.Items.Add(subItem);
                 }
             }
 
@@ -1459,96 +1494,100 @@ namespace Span
                 var workspaceService = App.Current.Services.GetService<Services.WorkspaceService>();
                 if (workspaceService == null) return;
 
-                // Auto-save current tabs before switching
-                var currentTabs = ViewModel.CollectCurrentTabStates();
-                var currentIndex = ViewModel.Tabs.IndexOf(ViewModel.ActiveTab);
-                await workspaceService.AutoSaveAsync(currentTabs, Math.Max(0, currentIndex));
-
-                // Close all existing tabs and their panels
-                while (ViewModel.Tabs.Count > 0)
-                {
-                    var tab = ViewModel.Tabs[0];
-                    RemoveMillerPanel(tab.Id);
-                    RemoveDetailsPanel(tab.Id);
-                    RemoveListPanel(tab.Id);
-                    RemoveIconPanel(tab.Id);
-                    ViewModel.Tabs.RemoveAt(0);
-                }
-
-                // Create tabs from workspace DTOs
                 var dtos = workspace.Tabs;
-                if (dtos.Count == 0)
-                {
-                    // Fallback: create a default Home tab
-                    ViewModel.AddNewTab();
-                    var newTab = ViewModel.ActiveTab;
-                    if (newTab != null)
-                    {
-                        CreateMillerPanelForTab(newTab);
-                        SwitchMillerPanel(newTab.Id);
-                        SwitchDetailsPanel(newTab.Id, false);
-                        SwitchListPanel(newTab.Id, false);
-                        SwitchIconPanel(newTab.Id, false);
-                    }
-                    ResubscribeLeftExplorer();
-                    UpdateViewModeVisibility();
-                    return;
-                }
+                if (dtos.Count == 0) return;
 
-                // Create each tab with explorer and panels
-                for (int i = 0; i < dtos.Count; i++)
+                // 1단계: 기존 탭 ID 기억 (나중에 제거용)
+                var oldTabIds = ViewModel.Tabs.Select(t => t.Id).ToList();
+
+                // 2단계: 새 탭 추가 (PerformOpenInNewTab 인라인, 뷰모드 MillerColumns 강제)
+                var fileService = App.Current.Services.GetRequiredService<Services.FileSystemService>();
+                foreach (var dto in dtos)
                 {
-                    var dto = dtos[i];
-                    var viewMode = Enum.IsDefined(typeof(ViewMode), dto.ViewMode)
-                        ? (ViewMode)dto.ViewMode : ViewMode.MillerColumns;
-                    var iconSize = Enum.IsDefined(typeof(ViewMode), dto.IconSize)
-                        ? (ViewMode)dto.IconSize : ViewMode.IconMedium;
+                    var path = dto.Path ?? "";
+                    if (string.IsNullOrEmpty(path)) continue;
 
                     var root = new FolderItem { Name = "PC", Path = "PC" };
-                    var fileService = App.Current.Services.GetRequiredService<Services.FileSystemService>();
                     var explorer = new ExplorerViewModel(root, fileService);
+                    var viewMode = Enum.IsDefined(typeof(ViewMode), dto.ViewMode)
+                        ? (ViewMode)dto.ViewMode : ViewMode.MillerColumns;
                     explorer.EnableAutoNavigation = viewMode == ViewMode.Details
                         || viewMode == ViewMode.List
                         || Helpers.ViewModeExtensions.IsIconMode(viewMode);
 
+                    var header = System.IO.Path.GetFileName(path.TrimEnd('\\', '/'));
+                    if (string.IsNullOrEmpty(header)) header = path;
+
                     var tab = new TabItem
                     {
-                        Id = dto.Id,
-                        Header = dto.Header,
-                        Path = dto.Path,
+                        Header = header,
+                        Path = path,
                         ViewMode = viewMode,
-                        IconSize = iconSize,
-                        IsActive = false,
+                        IconSize = ViewMode.IconMedium,
                         Explorer = explorer
                     };
-
                     ViewModel.Tabs.Add(tab);
-                    CreateMillerPanelForTab(tab);
 
-                    // Navigate if path is not empty and not Home
-                    if (!string.IsNullOrEmpty(dto.Path) && viewMode != ViewMode.Home)
+                    CreateMillerPanelForTab(tab);
+                    if (tab.Explorer is ExplorerViewModel newExpl)
+                        newExpl.TabSwitchSuppressionTicks = Environment.TickCount64 + 500;
+                    SwitchMillerPanel(tab.Id);
+                    SwitchDetailsPanel(tab.Id, viewMode == ViewMode.Details);
+                    SwitchListPanel(tab.Id, viewMode == ViewMode.List);
+                    SwitchIconPanel(tab.Id, Helpers.ViewModeExtensions.IsIconMode(viewMode));
+
+                    ViewModel.SwitchToTab(ViewModel.Tabs.Count - 1);
+
+                    if (!ViewModel.IsSplitViewEnabled)
                     {
-                        _ = explorer.NavigateToPath(dto.Path);
+                        SplitterCol.Width = new GridLength(0);
+                        RightPaneCol.Width = new GridLength(0);
+                        UnsubscribeRightExplorerForAddressBar();
+                    }
+                    ViewModel.NotifySplitViewChanged();
+                    ResubscribeLeftExplorer();
+                    UpdateViewModeVisibility();
+                    UpdateToolbarButtonStates();
+                    SyncAddressBarControls(ViewModel.Explorer);
+
+                    _ = explorer.NavigateToPath(path);
+                }
+
+                // 3단계: 이전 탭 제거 (새 탭이 이미 존재하므로 EnsureDefaultTab 트리거 안 됨)
+                foreach (var oldId in oldTabIds)
+                {
+                    var oldTab = ViewModel.Tabs.FirstOrDefault(t => t.Id == oldId);
+                    if (oldTab != null)
+                    {
+                        RemoveMillerPanel(oldTab.Id);
+                        RemoveDetailsPanel(oldTab.Id);
+                        RemoveListPanel(oldTab.Id);
+                        RemoveIconPanel(oldTab.Id);
+                        ViewModel.Tabs.Remove(oldTab);
                     }
                 }
 
-                // Set active tab
-                var targetIndex = Math.Clamp(workspace.ActiveTabIndex, 0, ViewModel.Tabs.Count - 1);
-                ViewModel.SwitchToTab(targetIndex);
-
-                var activeTab = ViewModel.ActiveTab;
-                if (activeTab != null)
+                // 4단계: 모든 탭 IsActive 초기화 후 활성 탭 설정
+                if (ViewModel.Tabs.Count > 0)
                 {
-                    SwitchMillerPanel(activeTab.Id);
-                    SwitchDetailsPanel(activeTab.Id, activeTab.ViewMode == ViewMode.Details);
-                    SwitchListPanel(activeTab.Id, activeTab.ViewMode == ViewMode.List);
-                    SwitchIconPanel(activeTab.Id, Helpers.ViewModeExtensions.IsIconMode(activeTab.ViewMode));
-                }
+                    // 이전 탭 제거로 인덱스가 밀렸으므로 전체 IsActive 리셋
+                    foreach (var t in ViewModel.Tabs)
+                        t.IsActive = false;
 
-                ResubscribeLeftExplorer();
-                UpdateViewModeVisibility();
-                FocusActiveView();
-                DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, UpdateTitleBarRegions);
+                    var targetIdx = Math.Clamp(workspace.ActiveTabIndex, 0, ViewModel.Tabs.Count - 1);
+                    ViewModel.SwitchToTab(targetIdx);
+                    var finalTab = ViewModel.ActiveTab;
+                    if (finalTab != null)
+                    {
+                        SwitchMillerPanel(finalTab.Id);
+                        SwitchDetailsPanel(finalTab.Id, finalTab.ViewMode == ViewMode.Details);
+                        SwitchListPanel(finalTab.Id, finalTab.ViewMode == ViewMode.List);
+                        SwitchIconPanel(finalTab.Id, Helpers.ViewModeExtensions.IsIconMode(finalTab.ViewMode));
+                    }
+                    ResubscribeLeftExplorer();
+                    UpdateViewModeVisibility();
+                    FocusActiveView();
+                }
 
                 // Update last used time
                 var updated = workspace with { LastUsedAt = DateTime.UtcNow };

@@ -696,7 +696,7 @@
                                 ToolTipService.ToolTip="워크스페이스"
                                 Padding="6,4" MinWidth="0" MinHeight="0"
                                 helpers:CursorHelper.IsHandCursor="True">
-                            <FontIcon Glyph="&#xE838;" FontSize="14"/>
+                            <FontIcon Glyph="&#xE8F1;" FontSize="14"/>
                         </Button>
                     </StackPanel>
                     <Button x:Name="SettingsButton" AutomationProperties.AutomationId="Button_Settings" Style="{StaticResource UnifiedButtonStyle}"
