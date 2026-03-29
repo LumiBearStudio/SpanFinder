@@ -26,6 +26,7 @@ namespace Span.ViewModels
         private readonly ISettingsService _settings;
         private readonly Microsoft.UI.Dispatching.DispatcherQueue _dispatcherQueue;
         private CancellationTokenSource? _currentCts;
+        private CancellationTokenSource? _hashCts;
         private Timer? _debounceTimer;
         private bool _disposed;
         private const int DebounceMs = 200;
@@ -89,6 +90,12 @@ namespace Span.ViewModels
 
         [ObservableProperty] private string _gitLastCommitInfo = "";
         [ObservableProperty] private bool _hasGitInfo;
+
+        // --- File Hash ---
+
+        [ObservableProperty] private string _fileHashText = "";
+        [ObservableProperty] private bool _isHashCalculating;
+        [ObservableProperty] private bool _showHashSection;
 
         // --- Computed visibility ---
 
@@ -197,8 +204,9 @@ namespace Span.ViewModels
                 // 3. Content loading + Git info (병렬)
                 var contentTask = LoadContentAsync(previewType, item, ct);
                 var gitTask = LoadGitInfoAsync(item, isFolder, ct);
+                var hashTask = LoadFileHashAsync(item, isFolder, ct);
 
-                await Task.WhenAll(contentTask, gitTask);
+                await Task.WhenAll(contentTask, gitTask, hashTask);
             }
             catch (OperationCanceledException)
             {
@@ -311,6 +319,71 @@ namespace Span.ViewModels
             {
                 GitLastCommitInfo = "";
                 HasGitInfo = false;
+            }
+        }
+
+        private async Task LoadFileHashAsync(FileSystemViewModel item, bool isFolder, CancellationToken ct)
+        {
+            // Settings OFF or folder → hide
+            if (!(_settings?.ShowFileHash ?? false) || isFolder)
+            {
+                ShowHashSection = false;
+                FileHashText = "";
+                return;
+            }
+
+            // Remote/archive → skip
+            if (Services.FileSystemRouter.IsRemotePath(item.Path)
+                || Helpers.ArchivePathHelper.IsArchivePath(item.Path))
+            {
+                ShowHashSection = false;
+                return;
+            }
+
+            // Cancel previous hash
+            _hashCts?.Cancel();
+            var hashCts = new CancellationTokenSource();
+            _hashCts = hashCts;
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, hashCts.Token);
+            var hashCt = linkedCts.Token;
+
+            try
+            {
+                ShowHashSection = true;
+                IsHashCalculating = true;
+                FileHashText = "";
+
+                var filePath = item.Path;
+                var hash = await Task.Run(async () =>
+                {
+                    const int bufferSize = 65536;
+                    using var sha256 = System.Security.Cryptography.SHA256.Create();
+                    using var stream = new System.IO.FileStream(
+                        filePath, System.IO.FileMode.Open, System.IO.FileAccess.Read,
+                        System.IO.FileShare.Read, bufferSize, useAsync: true);
+
+                    var buffer = new byte[bufferSize];
+                    int read;
+                    while ((read = await stream.ReadAsync(buffer, 0, buffer.Length, hashCt)) > 0)
+                    {
+                        sha256.TransformBlock(buffer, 0, read, null, 0);
+                    }
+                    sha256.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
+                    return Convert.ToHexString(sha256.Hash!).ToLowerInvariant();
+                }, hashCt);
+
+                if (!hashCt.IsCancellationRequested)
+                {
+                    FileHashText = hash;
+                    IsHashCalculating = false;
+                }
+            }
+            catch (OperationCanceledException) { /* normal cancellation */ }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[Preview] Hash error: {ex.Message}");
+                ShowHashSection = false;
+                IsHashCalculating = false;
             }
         }
 
@@ -503,6 +576,12 @@ namespace Span.ViewModels
             // Git 정보 초기화
             GitLastCommitInfo = "";
             HasGitInfo = false;
+
+            // Hash 정보 초기화
+            _hashCts?.Cancel();
+            FileHashText = "";
+            ShowHashSection = false;
+            IsHashCalculating = false;
         }
 
         public void ClearPreview()
@@ -524,6 +603,7 @@ namespace Span.ViewModels
         {
             _disposed = true;
             try { _currentCts?.Cancel(); _currentCts?.Dispose(); } catch (ObjectDisposedException) { }
+            try { _hashCts?.Cancel(); _hashCts?.Dispose(); } catch (ObjectDisposedException) { }
             _debounceTimer?.Dispose();
             ClearPreviewContent();
         }

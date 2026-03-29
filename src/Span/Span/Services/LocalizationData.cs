@@ -646,6 +646,8 @@ namespace Span.Services
             ("Settings_GitIntegrationDesc", "Show Git badges and commit history in preview", "파일 아이콘에 Git 상태 뱃지와 미리보기 패널에 커밋 이력 표시", "ファイルアイコンにGitステータスバッジとプレビューにコミット履歴を表示", "在文件图标上显示Git状态标记并在预览面板中显示提交历史", "在檔案圖示上顯示Git狀態徽章並在預覽面板中顯示提交歷史", "Git-Abzeichen und Commit-Verlauf in der Vorschau anzeigen", "Mostrar insignias Git e historial de commits en la vista previa", "Afficher les badges Git et l'historique des commits dans l'aperçu", "Mostrar emblemas Git e histórico de commits na visualização"),
             ("Settings_HexPreview", "Hex viewer preview", "Hex 뷰어 미리보기", "Hex ビューアー プレビュー", "Hex 查看器预览", "Hex 檢視器預覽", "Hex-Viewer-Vorschau", "Vista previa del visor Hex", "Aperçu du visualiseur Hex", "Visualização do visualizador Hex"),
             ("Settings_HexPreviewDesc", "Show Hex dump for binary files (.dll, .exe)", "바이너리 파일 선택 시 Hex 덤프 표시", "バイナリファイル選択時にHexダンプを表示", "选择二进制文件时显示Hex转储", "選擇二進位檔案時顯示Hex傾印", "Hex-Dump für Binärdateien (.dll, .exe) anzeigen", "Mostrar volcado Hex para archivos binarios (.dll, .exe)", "Afficher le dump Hex pour les fichiers binaires (.dll, .exe)", "Mostrar dump Hex para arquivos binários (.dll, .exe)"),
+            ("Settings_FileHash", "File hash", "파일 해싱", "ファイルハッシュ", "文件哈希", "檔案雜湊", "Datei-Hash", "Hash de archivo", "Hash de fichier", "Hash de arquivo"),
+            ("Settings_FileHashDesc", "Show SHA256 hash at the bottom of preview panel", "미리보기 패널 하단에 SHA256 해시를 표시합니다", "プレビューパネル下部にSHA256ハッシュを表示", "在预览面板底部显示SHA256哈希", "在預覽面板底部顯示SHA256雜湊", "SHA256-Hash im Vorschaufenster anzeigen", "Mostrar hash SHA256 en el panel de vista previa", "Afficher le hash SHA256 dans le panneau d'aperçu", "Mostrar hash SHA256 no painel de visualização"),
 
             // ── Shortcut editor ────────────────────────────────────────────
             ("Settings_Shortcuts", "Shortcuts", "단축키", "ショートカット", "快捷键", "快速鍵", "Tastenkürzel", "Atajos", "Raccourcis", "Atalhos"),
@@ -745,6 +747,9 @@ namespace Span.Services
             ("Preview_BytesShowing", "Showing first {0} bytes of {1} bytes", "{1} bytes 중 처음 {0} bytes 표시", "{1}バイト中最初の{0}バイトを表示", "显示{1}字节中的前{0}字节", "顯示{1}位元組中的前{0}位元組", "Erste {0} von {1} Bytes angezeigt", "Mostrando primeros {0} de {1} bytes", "Affichage des {0} premiers octets sur {1}", "Mostrando primeiros {0} de {1} bytes"),
             ("Preview_ErrorReadingArchive", "Error reading archive", "압축 파일 읽기 오류", "アーカイブの読み取りエラー", "读取归档文件错误", "讀取封存檔錯誤", "Fehler beim Lesen des Archivs", "Error al leer el archivo", "Erreur de lecture de l'archive", "Erro ao ler o arquivo"),
             ("Preview_CannotReadArchive", "Cannot read archive", "압축 파일을 읽을 수 없습니다", "アーカイブを読み取れません", "无法读取归档文件", "無法讀取封存檔", "Archiv kann nicht gelesen werden", "No se puede leer el archivo", "Impossible de lire l'archive", "Não é possível ler o arquivo"),
+            ("Preview_Hash", "SHA256", "SHA256", "SHA256", "SHA256", "SHA256", "SHA256", "SHA256", "SHA256", "SHA256"),
+            ("Preview_HashCalculating", "Calculating...", "계산 중...", "計算中...", "计算中...", "計算中...", "Berechnung...", "Calculando...", "Calcul en cours...", "Calculando..."),
+            ("Preview_HashCopied", "Copied!", "복사됨!", "コピーしました!", "已复制!", "已複製!", "Kopiert!", "¡Copiado!", "Copié !", "Copiado!"),
 
             // ── QuickLook ───────────────────────────────────────────────────
             ("QuickLook_Title", "Quick Look", "훑어보기", "クイックルック", "快速预览", "快速預覽", "Übersicht", "Vista rápida", "Coup d'œil", "Visualização rápida"),
