@@ -1683,6 +1683,25 @@
                                 </Grid>
                             </Border>
 
+                            <!-- File Hash Toggle -->
+                            <Border Style="{StaticResource SettingsCardBorder}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Style="{StaticResource CardIconContainer}">
+                                        <FontIcon Glyph="&#xE8D7;" Style="{StaticResource CardIconStyle}" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock x:Name="FileHashLabel" Text="File hash" Style="{StaticResource SettingsCardLabel}" />
+                                        <TextBlock x:Name="FileHashDesc" Text="Show SHA256 hash at the bottom of preview panel" Style="{StaticResource SettingsCardDesc}" />
+                                    </StackPanel>
+                                    <ToggleSwitch x:Name="FileHashToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="False" OnContent="" OffContent="" />
+                                </Grid>
+                            </Border>
+
                             <!-- Crash Reporting Toggle -->
                             <Border Style="{StaticResource SettingsCardBorder}">
                                 <Grid>

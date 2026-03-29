@@ -249,6 +249,7 @@ public sealed partial class SettingsModeView : UserControl
             DeveloperMenuToggle.IsOn = _settings.ShowDeveloperMenu;
             GitIntegrationToggle.IsOn = _settings.ShowGitIntegration;
             HexPreviewToggle.IsOn = _settings.ShowHexPreview;
+            FileHashToggle.IsOn = _settings.ShowFileHash;
             CopilotMenuToggle.IsOn = _settings.ShowCopilotMenu;
             ContextMenuToggle.IsOn = _settings.ShowContextMenu;
             CrashReportToggle.IsOn = _settings.EnableCrashReporting;
@@ -416,6 +417,7 @@ public sealed partial class SettingsModeView : UserControl
         DeveloperMenuToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowDeveloperMenu = DeveloperMenuToggle.IsOn; };
         GitIntegrationToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowGitIntegration = GitIntegrationToggle.IsOn; };
         HexPreviewToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowHexPreview = HexPreviewToggle.IsOn; };
+        FileHashToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowFileHash = FileHashToggle.IsOn; };
         CopilotMenuToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowCopilotMenu = CopilotMenuToggle.IsOn; };
         ContextMenuToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowContextMenu = ContextMenuToggle.IsOn; };
         CrashReportToggle.Toggled += (s, e) => { if (!_isLoading) _settings.EnableCrashReporting = CrashReportToggle.IsOn; };
@@ -435,7 +437,7 @@ public sealed partial class SettingsModeView : UserControl
         foreach (var toggle in new[] {
             FavoritesTreeToggle, SystemTrayToggle, WindowPositionToggle,
             ShellExtrasToggle, ShellExtensionsToggle, DeveloperMenuToggle, GitIntegrationToggle,
-            HexPreviewToggle, CopilotMenuToggle, ContextMenuToggle, CrashReportToggle,
+            HexPreviewToggle, FileHashToggle, CopilotMenuToggle, ContextMenuToggle, CrashReportToggle,
             DefaultFileManagerToggle, DefaultPreviewToggle, PreviewFolderInfoToggle })
             Helpers.CursorHelper.SetHandCursor(toggle);
 
@@ -723,6 +725,8 @@ public sealed partial class SettingsModeView : UserControl
             GitIntegrationDesc.Text = _loc.Get("Settings_GitIntegrationDesc");
             HexPreviewLabel.Text = _loc.Get("Settings_HexPreview");
             HexPreviewDesc.Text = _loc.Get("Settings_HexPreviewDesc");
+            FileHashLabel.Text = _loc.Get("Settings_FileHash");
+            FileHashDesc.Text = _loc.Get("Settings_FileHashDesc");
 
             // Support Development
             SupportTitle.Text = _loc.Get("Settings_SupportTitle") ?? "Support Development";

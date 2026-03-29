@@ -51,6 +51,7 @@ namespace Span.Services
         bool ShowGitIntegration { get; set; }
         bool ShowHexPreview { get; set; }
         bool EnableCrashReporting { get; set; }
+        bool ShowFileHash { get; set; }
     }
 
     /// <summary>

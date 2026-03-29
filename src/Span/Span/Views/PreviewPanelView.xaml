@@ -351,6 +351,41 @@
                                Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
                 </StackPanel>
 
+                <!-- File Hash (SHA256) -->
+                <StackPanel x:Name="HashSection"
+                            Visibility="{Binding ShowHashSection, Converter={StaticResource VisConv}}"
+                            Spacing="4">
+                    <Rectangle Height="1" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="0,4,0,0"/>
+                    <TextBlock x:Name="LabelHash" Text="SHA256" FontSize="11" FontWeight="SemiBold"
+                               Foreground="{ThemeResource SpanTextTertiaryBrush}" Margin="0,2,0,0"/>
+
+                    <!-- Calculating state -->
+                    <TextBlock x:Name="HashCalcText" Text="계산 중..."
+                               Visibility="{Binding IsHashCalculating, Converter={StaticResource VisConv}}"
+                               FontSize="11" Foreground="{ThemeResource SpanTextTertiaryBrush}"/>
+
+                    <!-- Hash result + copy button -->
+                    <Grid Visibility="{Binding FileHashText, Converter={StaticResource VisConv}}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="{Binding FileHashText}"
+                                   FontSize="10" FontFamily="Consolas"
+                                   TextWrapping="Wrap" IsTextSelectionEnabled="True"
+                                   Foreground="{ThemeResource SpanTextSecondaryBrush}"
+                                   VerticalAlignment="Center"/>
+                        <Button x:Name="CopyHashButton" Grid.Column="1"
+                                Width="28" Height="28" Padding="0"
+                                Background="Transparent" BorderThickness="0"
+                                VerticalAlignment="Top" Margin="4,0,0,0"
+                                ToolTipService.ToolTip="Copy"
+                                helpers:CursorHelper.IsHandCursor="True">
+                            <FontIcon Glyph="&#xE8C8;" FontSize="12"/>
+                        </Button>
+                    </Grid>
+                </StackPanel>
+
             </StackPanel>
         </ScrollViewer>
     </Grid>

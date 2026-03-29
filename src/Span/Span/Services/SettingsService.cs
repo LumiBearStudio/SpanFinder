@@ -223,6 +223,12 @@ public class SettingsService : ISettingsService
         set => Set("ShowHexPreview", value);
     }
 
+    public bool ShowFileHash
+    {
+        get => Get("ShowFileHash", false);
+        set => Set("ShowFileHash", value);
+    }
+
     public bool EnableCrashReporting
     {
         get => Get("EnableCrashReporting", true);   // 기본값 ON

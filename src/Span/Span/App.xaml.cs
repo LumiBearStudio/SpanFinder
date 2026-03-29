@@ -346,6 +346,7 @@ namespace Span
             services.AddSingleton<Services.KeyBindingService>();
             services.AddSingleton<Services.DefaultFileManagerService>();
             services.AddSingleton<Services.ShellNewService>();
+            services.AddSingleton<Services.WorkspaceService>();
 
             // Interface registrations (for testability — resolve to same singleton)
             services.AddSingleton<Services.IFileSystemService>(sp => sp.GetRequiredService<Services.FileSystemService>());

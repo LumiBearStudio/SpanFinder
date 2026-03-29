@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text.Json;
 using Windows.System;
 using Span.Helpers;
+using Span.Models;
 
 namespace Span.Services;
 
@@ -277,6 +278,10 @@ public class KeyBindingService
 
             // Quick Look
             ["span.quickLook.toggle"] = ["Space"],
+
+            // Workspace
+            [ShortcutCommands.SaveWorkspace] = ["Ctrl+Shift+S"],
+            [ShortcutCommands.OpenWorkspacePalette] = ["Ctrl+Shift+W"],
         };
     }
 

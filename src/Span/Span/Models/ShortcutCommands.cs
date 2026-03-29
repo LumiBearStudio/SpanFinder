@@ -66,6 +66,10 @@ namespace Span.Models
         public const string ShowHelp = "span.window.help";
         public const string QuickLook = "span.quickLook.toggle";
 
+        // ── Workspace ──────────────────────────────────────────
+        public const string SaveWorkspace = "span.workspace.save";
+        public const string OpenWorkspacePalette = "span.workspace.open";
+
         // ── 내부 레지스트리 ─────────────────────────────────────
 
         private static readonly Dictionary<string, string> _categories = new()
@@ -121,6 +125,9 @@ namespace Span.Models
             { ShowHelp, "Window" },
             // Quick Look
             { QuickLook, "QuickLook" },
+            // Workspace
+            { SaveWorkspace, "Workspace" },
+            { OpenWorkspacePalette, "Workspace" },
         };
 
         /// <summary>
@@ -178,6 +185,9 @@ namespace Span.Models
             { ShowHelp, "Shortcut_ShowHelp" },
             { OpenInNewTab, "Shortcut_OpenInNewTab" },
             { QuickLook, "Shortcut_QuickLook" },
+            // Workspace
+            { SaveWorkspace, "Shortcut_SaveWorkspace" },
+            { OpenWorkspacePalette, "Shortcut_OpenWorkspacePalette" },
         };
 
         /// <summary>

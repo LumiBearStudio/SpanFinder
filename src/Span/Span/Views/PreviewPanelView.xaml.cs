@@ -27,6 +27,7 @@ namespace Span.Views
                 LocalizeUI();
                 if (_loc != null) _loc.LanguageChanged += LocalizeUI;
                 Helpers.CursorHelper.SetHandCursor(CenterPlayButton);
+                CopyHashButton.Click += OnCopyHashClick;
             };
             this.Unloaded += (s, e) =>
             {
@@ -207,6 +208,30 @@ namespace Span.Views
             catch { }
         }
 
+        // ── Hash 복사 ────────────────────────────────────────────
+
+        private void OnCopyHashClick(object sender, RoutedEventArgs e)
+        {
+            var hash = ViewModel?.FileHashText;
+            if (string.IsNullOrEmpty(hash)) return;
+
+            var dp = new Windows.ApplicationModel.DataTransfer.DataPackage();
+            dp.SetText(hash);
+            Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(dp);
+
+            // Visual feedback: change icon to checkmark briefly
+            if (CopyHashButton.Content is FontIcon icon)
+            {
+                var original = icon.Glyph;
+                icon.Glyph = "\uE73E"; // Checkmark
+                var timer = DispatcherQueue.CreateTimer();
+                timer.Interval = TimeSpan.FromSeconds(1.5);
+                timer.IsRepeating = false;
+                timer.Tick += (s, _) => { icon.Glyph = original; };
+                timer.Start();
+            }
+        }
+
         // ── 시크 타이머: 진행 표시 + 디코딩 불가 감지 + 재생 완료 ──
 
         private void StartSeekTimer()
@@ -268,6 +293,8 @@ namespace Span.Views
             LabelArtist.Text = _loc.Get("Preview_Artist");
             LabelAlbum.Text = _loc.Get("Preview_Album");
             LabelGit.Text = _loc.Get("Preview_Git");
+            LabelHash.Text = _loc.Get("Preview_Hash") ?? "SHA256";
+            HashCalcText.Text = _loc.Get("Preview_HashCalculating") ?? "계산 중...";
             LabelCompressed.Text = _loc.Get("Preview_Compressed");
             LabelOriginal.Text = _loc.Get("Preview_Original");
         }
