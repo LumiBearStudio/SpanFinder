@@ -113,11 +113,15 @@ namespace Span.ViewModels
                 var bitmap = new BitmapImage();
                 bitmap.DecodePixelWidth = decodePixelWidth;
                 bitmap.DecodePixelType = DecodePixelType.Logical;
-                // 이미지 디코딩 실패 감지 + Sentry 보고
+                // 이미지 디코딩 실패 감지 — 클라우드/네트워크 에러는 Sentry 필터링
                 bitmap.ImageFailed += (s, args) =>
                 {
-                    var ex = args.ErrorMessage != null ? new InvalidOperationException(args.ErrorMessage) : null;
-                    Helpers.DebugLogger.LogCrash($"BitmapImage.ImageFailed({Name})", ex);
+                    var msg = args.ErrorMessage;
+                    Helpers.DebugLogger.Log($"[Thumbnail] ImageFailed({Name}): {msg}");
+                    // E_NETWORK_ERROR 등 네트워크/클라우드 에러는 Sentry 노이즈 → 로그만
+                    if (msg != null && (msg.Contains("NETWORK") || msg.Contains("0x80072") || msg.Contains("0x80070005")))
+                        return;
+                    var ex = msg != null ? new InvalidOperationException(msg) : null;
                     if (ex != null)
                     {
                         try { (App.Current.Services.GetService(typeof(Services.CrashReportingService)) as Services.CrashReportingService)?.CaptureException(ex, $"BitmapImage.ImageFailed({Name})"); } catch { }
@@ -135,7 +139,14 @@ namespace Span.ViewModels
                 catch (Exception ex)
                 {
                     Helpers.DebugLogger.Log($"[FileViewModel] SetSourceAsync failed for {Name}: {ex.Message}");
-                    try { (App.Current.Services.GetService(typeof(Services.CrashReportingService)) as Services.CrashReportingService)?.CaptureException(ex, $"SetSourceAsync({Name})"); } catch { }
+                    // WIC 네트워크/클라우드 에러 (0x88982F50 등)는 Sentry 필터링
+                    bool isNetworkWicError = ex.HResult == unchecked((int)0x88982F50)
+                        || ex.HResult == unchecked((int)0x80072EE7)
+                        || ex.Message.Contains("NETWORK");
+                    if (!isNetworkWicError)
+                    {
+                        try { (App.Current.Services.GetService(typeof(Services.CrashReportingService)) as Services.CrashReportingService)?.CaptureException(ex, $"SetSourceAsync({Name})"); } catch { }
+                    }
                     return;
                 }
                 Helpers.DebugLogger.Log($"[Thumbnail] SetSourceAsync OK: {Name} (pixel={bitmap.PixelWidth}x{bitmap.PixelHeight})");
@@ -192,8 +203,11 @@ namespace Span.ViewModels
                     bitmap.DecodePixelType = DecodePixelType.Logical;
                     bitmap.ImageFailed += (s, args) =>
                     {
-                        var ex = args.ErrorMessage != null ? new InvalidOperationException(args.ErrorMessage) : null;
-                        Helpers.DebugLogger.LogCrash($"BitmapImage.ImageFailed.Shell({Name})", ex);
+                        var msg = args.ErrorMessage;
+                        Helpers.DebugLogger.Log($"[Thumbnail] ImageFailed.Shell({Name}): {msg}");
+                        if (msg != null && (msg.Contains("NETWORK") || msg.Contains("0x80072") || msg.Contains("0x80070005")))
+                            return;
+                        var ex = msg != null ? new InvalidOperationException(msg) : null;
                         if (ex != null)
                         {
                             try { (App.Current.Services.GetService(typeof(Services.CrashReportingService)) as Services.CrashReportingService)?.CaptureException(ex, $"BitmapImage.ImageFailed.Shell({Name})"); } catch { }
