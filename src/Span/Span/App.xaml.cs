@@ -135,6 +135,21 @@ namespace Span
                 || arg.Contains("{645FF040-5081-101B-9F08-00AA002F954E}", StringComparison.OrdinalIgnoreCase);
         }
 
+        /// <summary>
+        /// MSIX/WindowsApps 패키지 경로 필터 — 기본 파일관리자로 등록 시
+        /// 탐색기 아이콘 클릭 때 패키지 폴더가 인자로 전달되는 것을 방지
+        /// </summary>
+        private static bool IsSystemPackagePath(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return false;
+            // WindowsApps 패키지 폴더 (MSIX AppExecutionAlias 경로)
+            if (path.Contains(@"\Microsoft\WindowsApps", StringComparison.OrdinalIgnoreCase)) return true;
+            // Program Files\WindowsApps (시스템 패키지 설치 경로)
+            if (path.Contains(@"\WindowsApps\", StringComparison.OrdinalIgnoreCase)
+                && path.Contains(@"Program Files", StringComparison.OrdinalIgnoreCase)) return true;
+            return false;
+        }
+
         private static string? ExtractFolderArgument(string rawArgs)
         {
             if (string.IsNullOrWhiteSpace(rawArgs)) return null;
@@ -167,13 +182,14 @@ namespace Span
             {
                 var part = parts[j].Trim().Trim('"');
                 if (!string.IsNullOrEmpty(part)
-                    && (System.IO.Directory.Exists(part) || System.IO.File.Exists(part) || IsRecycleBinArgument(part)))
+                    && (System.IO.Directory.Exists(part) || System.IO.File.Exists(part) || IsRecycleBinArgument(part))
+                    && !IsSystemPackagePath(part))
                     return part;
             }
 
             // 단일 인수 (따옴표 없는 경로)
             var trimmed = rawArgs.Trim().Trim('"');
-            if (System.IO.Directory.Exists(trimmed) || System.IO.File.Exists(trimmed)) return trimmed;
+            if ((System.IO.Directory.Exists(trimmed) || System.IO.File.Exists(trimmed)) && !IsSystemPackagePath(trimmed)) return trimmed;
 
             return rawArgs; // fallback: 원본 반환
         }
@@ -441,9 +457,10 @@ namespace Span
                         if (cmdArgs.Length > 1)
                         {
                             var folderArg = cmdArgs[1].Trim().Trim('"');
-                            if (System.IO.Directory.Exists(folderArg)
+                            if ((System.IO.Directory.Exists(folderArg)
                                 || System.IO.File.Exists(folderArg)
                                 || IsRecycleBinArgument(folderArg))
+                                && !IsSystemPackagePath(folderArg))
                                 StartupArguments = folderArg;
                         }
                     }
