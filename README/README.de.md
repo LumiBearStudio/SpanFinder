@@ -98,6 +98,19 @@ dotnet build src/Span/Span/Span.csproj -p:Platform=x64
 
 Siehe [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## Datenschutz & Telemetrie
+
+SPAN Finder verwendet [Sentry](https://sentry.io) **ausschließlich für Absturzberichte** — und Sie können es abschalten.
+
+- **Was wir erfassen**: Ausnahmetyp, Stack-Trace, OS-Version, App-Version
+- **Was wir NICHT erfassen**: Dateinamen, Ordnerpfade, Browserverlauf, persönliche Daten
+- **Keine Nutzungsanalyse, kein Tracking, keine Werbung**
+- Alle Dateipfade in Absturzberichten werden vor dem Senden automatisch bereinigt
+- **Deaktivierbar**: Einstellungen > Erweitert > „Absturzberichte" ausschalten
+- Der Quellcode ist offen — überprüfen Sie es selbst in [`CrashReportingService.cs`](../src/Span/Span/Services/CrashReportingService.cs)
+
+Details finden Sie in der [Datenschutzerklärung](../PRIVACY.md).
+
 ## Lizenz
 
 [GNU General Public License v3.0](LICENSE) (mit Microsoft Store-Vertriebsausnahme)

@@ -98,6 +98,19 @@ dotnet build src/Span/Span/Span.csproj -p:Platform=x64
 
 请查看 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
+## 隐私与遥测
+
+SPAN Finder仅将[Sentry](https://sentry.io)用于**崩溃报告**，且可以关闭。
+
+- **收集的内容**：异常类型、堆栈跟踪、操作系统版本、应用版本
+- **不收集的内容**：文件名、文件夹路径、浏览记录、个人信息
+- **无使用分析、无追踪、无广告**
+- 崩溃报告中的所有文件路径在发送前会自动清除
+- **可关闭**：设置 > 高级 > "崩溃报告"开关即可完全禁用
+- 源代码已公开——可在[`CrashReportingService.cs`](../src/Span/Span/Services/CrashReportingService.cs)中自行验证
+
+详情请参阅[隐私政策](../PRIVACY.md)。
+
 ## 许可证
 
 [GNU General Public License v3.0](LICENSE)（含Microsoft Store分发例外）

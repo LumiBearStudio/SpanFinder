@@ -231,6 +231,22 @@ SPAN Finder가 유용하다면:
 
 ---
 
+## 개인정보 & 텔레메트리
+
+SPAN Finder는 [Sentry](https://sentry.io)를 **크래시 리포팅 용도로만** 사용하며, 끌 수 있습니다.
+
+- **수집하는 것**: 예외 유형, 스택 트레이스, OS 버전, 앱 버전
+- **수집하지 않는 것**: 파일 이름, 폴더 경로, 탐색 기록, 개인정보
+- **사용 분석, 추적, 광고 일절 없음**
+- 크래시 리포트의 모든 파일 경로는 전송 전 자동으로 스크러빙됩니다
+- `SendDefaultPii = false` — IP 주소나 사용자 식별자를 수집하지 않습니다
+- **비활성화 가능**: 설정 > 고급 > "크래시 리포팅" 토글로 완전히 끌 수 있습니다
+- 소스 코드가 공개되어 있습니다 — [`CrashReportingService.cs`](../src/Span/Span/Services/CrashReportingService.cs)에서 직접 확인하세요
+
+자세한 내용은 [개인정보 처리방침](../PRIVACY.md)을 참고하세요.
+
+---
+
 ## 라이선스
 
 이 프로젝트는 [GNU General Public License v3.0](../LICENSE)에 따라 라이선스됩니다.

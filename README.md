@@ -259,6 +259,22 @@ If SPAN Finder makes your file management better, consider:
 
 ---
 
+## Privacy & Telemetry
+
+SPAN Finder uses [Sentry](https://sentry.io) for **crash reporting only** — and you can turn it off.
+
+- **What we collect**: Exception type, stack trace, OS version, app version
+- **What we DON'T collect**: File names, folder paths, browsing history, personal information
+- **No usage analytics, no tracking, no ads**
+- All file paths in crash reports are automatically scrubbed before sending
+- `SendDefaultPii = false` — no IP addresses or user identifiers
+- **Opt-out**: Settings > Advanced > "Crash Reporting" toggle to disable completely
+- Source code is open — verify yourself in [`CrashReportingService.cs`](src/Span/Span/Services/CrashReportingService.cs)
+
+See [Privacy Policy](PRIVACY.md) for full details.
+
+---
+
 ## License
 
 This project is licensed under the [GNU General Public License v3.0](LICENSE).

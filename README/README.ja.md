@@ -98,6 +98,19 @@ dotnet build src/Span/Span/Span.csproj -p:Platform=x64
 
 [CONTRIBUTING.md](CONTRIBUTING.md)をご覧ください。
 
+## プライバシー & テレメトリ
+
+SPAN Finderは[Sentry](https://sentry.io)を**クラッシュレポートのみ**に使用しており、オフにできます。
+
+- **収集するもの**: 例外タイプ、スタックトレース、OSバージョン、アプリバージョン
+- **収集しないもの**: ファイル名、フォルダパス、閲覧履歴、個人情報
+- **使用状況分析、トラッキング、広告は一切なし**
+- クラッシュレポート内のファイルパスは送信前に自動的にスクラブされます
+- **無効化可能**: 設定 > 詳細設定 > 「クラッシュレポート」トグルで完全にオフにできます
+- ソースコードは公開されています — [`CrashReportingService.cs`](../src/Span/Span/Services/CrashReportingService.cs)でご確認ください
+
+詳細は[プライバシーポリシー](../PRIVACY.md)をご覧ください。
+
 ## ライセンス
 
 [GNU General Public License v3.0](LICENSE)（Microsoft Store配布例外あり）
