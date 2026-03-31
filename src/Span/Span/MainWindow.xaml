@@ -340,7 +340,7 @@
                 <Rectangle Width="1" Height="20" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="4,0"/>
                 <TextBox x:Name="SearchBox" AutomationProperties.AutomationId="TextBox_Search" Width="220" Height="28" FontSize="12"
                          PlaceholderText="Search (kind: size: ext: date:)"
-                         ToolTipService.ToolTip="Advanced search syntax:&#x0a;  kind:image  kind:video  kind:document&#x0a;  size:&gt;1MB  size:&lt;100KB  size:large&#x0a;  date:today  date:thisweek  date:&gt;2024-01-01&#x0a;  ext:.pdf  ext:.txt&#x0a;Combine: kind:image size:&gt;1MB"
+                         ToolTipService.ToolTip="Enter: Search current folder&#x0a;Ctrl+Enter: Search from root&#x0a;&#x0a;Advanced syntax:&#x0a;  kind:image  kind:video  kind:document&#x0a;  size:&gt;1MB  size:&lt;100KB  size:large&#x0a;  date:today  date:thisweek  date:&gt;2024-01-01&#x0a;  ext:.pdf  ext:.txt&#x0a;Combine: kind:image size:&gt;1MB"
                          KeyDown="OnSearchBoxKeyDown"/>
             </StackPanel>
         </Grid>

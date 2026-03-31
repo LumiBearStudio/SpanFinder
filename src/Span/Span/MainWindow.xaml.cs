@@ -2070,6 +2070,9 @@ namespace Span
                     MainAddressBar.CurrentPath = explorer.CurrentPath ?? string.Empty;
                     LeftAddressBar.PathSegments = explorer.PathSegments;
                     LeftAddressBar.CurrentPath = explorer.CurrentPath ?? string.Empty;
+
+                    // Downloads folder: deferred auto-grouping after children load
+                    ScheduleDownloadsGroupingIfNeeded(explorer);
                 });
             }
             else if (e.PropertyName == nameof(ExplorerViewModel.HasActiveSearchResults) ||
@@ -5733,6 +5736,81 @@ namespace Span
             catch { }
 
             Helpers.DebugLogger.Log($"[GroupBy] Applied: {groupBy}");
+        }
+
+        /// <summary>
+        /// 다운로드 폴더 진입 시 children 로드 완료 후 DateModified 그룹핑 자동 적용.
+        /// 다운로드 폴더를 벗어나면 그룹핑 해제.
+        /// Miller Columns 모드에서는 그룹핑 미적용 (정렬만).
+        /// </summary>
+        private bool _isDownloadsAutoGrouped;
+        private System.ComponentModel.PropertyChangedEventHandler? _downloadsLoadHandler;
+        private FolderViewModel? _watchedDownloadsFolder;
+
+        private void ScheduleDownloadsGroupingIfNeeded(ExplorerViewModel explorer)
+        {
+            // 이전 감시 정리
+            CleanupDownloadsLoadWatch();
+
+            if (ViewModel.CurrentViewMode == Models.ViewMode.MillerColumns) return;
+
+            var path = explorer.CurrentPath;
+            bool isDownloads = !string.IsNullOrEmpty(path) && Helpers.KnownFolderHelper.IsDownloadsFolder(path);
+
+            if (!isDownloads)
+            {
+                if (_isDownloadsAutoGrouped)
+                {
+                    _isDownloadsAutoGrouped = false;
+                    ((Services.IContextMenuHost)this).ApplyGroupBy("None");
+                }
+                return;
+            }
+
+            // 다운로드 폴더 — children 로드 완료 후 그룹핑 적용
+            var folder = explorer.CurrentFolder;
+            if (folder == null) return;
+
+            if (folder.Children.Count > 0)
+            {
+                // 이미 로드됨 (캐시) — 즉시 적용
+                _isDownloadsAutoGrouped = true;
+                ((Services.IContextMenuHost)this).ApplyGroupBy("DateModified");
+                return;
+            }
+
+            // Children 아직 비어있음 — IsLoading 변화 감시
+            // (CurrentPath 설정 시점에는 EnsureChildrenLoadedAsync 호출 전이라
+            //  IsLoading=false, Children.Count=0 상태일 수 있음)
+            _watchedDownloadsFolder = folder;
+            _downloadsLoadHandler = (s, e) =>
+            {
+                if (e.PropertyName == nameof(FolderViewModel.IsLoading) && s is FolderViewModel f && !f.IsLoading)
+                {
+                    CleanupDownloadsLoadWatch();
+                    DispatcherQueue?.TryEnqueue(() =>
+                    {
+                        // 아직 다운로드 폴더에 있는지 확인
+                        if (ViewModel?.ActiveExplorer != null &&
+                            Helpers.KnownFolderHelper.IsDownloadsFolder(ViewModel.ActiveExplorer.CurrentPath))
+                        {
+                            _isDownloadsAutoGrouped = true;
+                            ((Services.IContextMenuHost)this).ApplyGroupBy("DateModified");
+                        }
+                    });
+                }
+            };
+            folder.PropertyChanged += _downloadsLoadHandler;
+        }
+
+        private void CleanupDownloadsLoadWatch()
+        {
+            if (_downloadsLoadHandler != null && _watchedDownloadsFolder != null)
+            {
+                _watchedDownloadsFolder.PropertyChanged -= _downloadsLoadHandler;
+            }
+            _downloadsLoadHandler = null;
+            _watchedDownloadsFolder = null;
         }
 
         void Services.IContextMenuHost.PerformSelectAll()

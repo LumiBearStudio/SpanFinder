@@ -1397,6 +1397,7 @@ namespace Span.ViewModels
 
         private FolderViewModel? _searchResultFolder;
         private List<FolderViewModel>? _preSearchColumns;
+        private Dictionary<FolderViewModel, FileSystemViewModel?>? _preSearchSelectedChildren;
         private string _preSearchPath = "";
         private CancellationTokenSource? _searchCts;
 
@@ -1408,8 +1409,9 @@ namespace Span.ViewModels
             // 1. 기존 검색 취소
             CancelRecursiveSearchInternal(restoreColumns: false);
 
-            // 2. 현재 Columns/Path 저장 (Escape 복원용)
+            // 2. 현재 Columns/Path/SelectedChild 저장 (Escape 복원용)
             _preSearchColumns = Columns.ToList();
+            _preSearchSelectedChildren = Columns.ToDictionary(c => c, c => c.SelectedChild);
             _preSearchPath = CurrentPath;
 
             // 3. 가상 FolderViewModel 생성
@@ -1554,10 +1556,21 @@ namespace Span.ViewModels
                     AddColumn(col);
                 }
 
+                // SelectedChild 복원 → PathIndicator 표시용
+                if (_preSearchSelectedChildren != null)
+                {
+                    foreach (var col in _preSearchColumns)
+                    {
+                        if (_preSearchSelectedChildren.TryGetValue(col, out var selected))
+                            col.SelectedChild = selected;
+                    }
+                }
+
                 CurrentPath = _preSearchPath;
                 SelectedFile = null;
 
                 _preSearchColumns = null;
+                _preSearchSelectedChildren = null;
                 _preSearchPath = "";
             }
         }

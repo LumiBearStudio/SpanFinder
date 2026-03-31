@@ -1108,28 +1108,37 @@ namespace Span.Views
             try
             {
                 System.Collections.Generic.IEnumerable<FileSystemViewModel> sorted;
+                bool mixFoldersFiles = column.IsDownloadsFolder;
 
                 switch (sortBy)
                 {
                     case "Name":
-                        sorted = ascending
-                            ? column.Children.OrderBy(x => x is FileViewModel ? 1 : 0).ThenBy(x => x.Name, Helpers.NaturalStringComparer.Instance)
-                            : column.Children.OrderBy(x => x is FileViewModel ? 1 : 0).ThenByDescending(x => x.Name, Helpers.NaturalStringComparer.Instance);
+                        sorted = mixFoldersFiles
+                            ? (ascending ? column.Children.OrderBy(x => x.Name, Helpers.NaturalStringComparer.Instance)
+                                         : column.Children.OrderByDescending(x => x.Name, Helpers.NaturalStringComparer.Instance))
+                            : (ascending ? column.Children.OrderBy(x => x is FileViewModel ? 1 : 0).ThenBy(x => x.Name, Helpers.NaturalStringComparer.Instance)
+                                         : column.Children.OrderBy(x => x is FileViewModel ? 1 : 0).ThenByDescending(x => x.Name, Helpers.NaturalStringComparer.Instance));
                         break;
                     case "DateModified":
-                        sorted = ascending
-                            ? column.Children.OrderBy(x => x is FileViewModel ? 1 : 0).ThenBy(x => x.DateModifiedValue)
-                            : column.Children.OrderBy(x => x is FileViewModel ? 1 : 0).ThenByDescending(x => x.DateModifiedValue);
+                        sorted = mixFoldersFiles
+                            ? (ascending ? column.Children.OrderBy(x => x.DateModifiedValue)
+                                         : column.Children.OrderByDescending(x => x.DateModifiedValue))
+                            : (ascending ? column.Children.OrderBy(x => x is FileViewModel ? 1 : 0).ThenBy(x => x.DateModifiedValue)
+                                         : column.Children.OrderBy(x => x is FileViewModel ? 1 : 0).ThenByDescending(x => x.DateModifiedValue));
                         break;
                     case "Type":
-                        sorted = ascending
-                            ? column.Children.OrderBy(x => x is FileViewModel ? 1 : 0).ThenBy(x => x.FileType)
-                            : column.Children.OrderBy(x => x is FileViewModel ? 1 : 0).ThenByDescending(x => x.FileType);
+                        sorted = mixFoldersFiles
+                            ? (ascending ? column.Children.OrderBy(x => x.FileType)
+                                         : column.Children.OrderByDescending(x => x.FileType))
+                            : (ascending ? column.Children.OrderBy(x => x is FileViewModel ? 1 : 0).ThenBy(x => x.FileType)
+                                         : column.Children.OrderBy(x => x is FileViewModel ? 1 : 0).ThenByDescending(x => x.FileType));
                         break;
                     case "Size":
-                        sorted = ascending
-                            ? column.Children.OrderBy(x => x is FileViewModel ? 1 : 0).ThenBy(x => x.SizeValue)
-                            : column.Children.OrderBy(x => x is FileViewModel ? 1 : 0).ThenByDescending(x => x.SizeValue);
+                        sorted = mixFoldersFiles
+                            ? (ascending ? column.Children.OrderBy(x => x.SizeValue)
+                                         : column.Children.OrderByDescending(x => x.SizeValue))
+                            : (ascending ? column.Children.OrderBy(x => x is FileViewModel ? 1 : 0).ThenBy(x => x.SizeValue)
+                                         : column.Children.OrderBy(x => x is FileViewModel ? 1 : 0).ThenByDescending(x => x.SizeValue));
                         break;
                     case "Git":
                         sorted = ascending
@@ -1356,59 +1365,7 @@ namespace Span.Views
         }
 
         private string GetGroupKey(FileSystemViewModel item, string groupBy)
-        {
-            switch (groupBy)
-            {
-                case "Name":
-                    // Group by first letter
-                    var firstChar = !string.IsNullOrEmpty(item.Name)
-                        ? char.ToUpperInvariant(item.Name[0]).ToString()
-                        : "#";
-                    return char.IsLetter(firstChar[0]) ? firstChar : "#";
-
-                case "Type":
-                    if (item is FolderViewModel) return "Folder";
-                    return string.IsNullOrEmpty(item.FileType) ? "Unknown" : item.FileType.ToUpperInvariant();
-
-                case "DateModified":
-                    var date = item.DateModifiedValue;
-                    var now = DateTime.Now;
-                    if (date.Date == now.Date) return "Today";
-                    if (date.Date == now.Date.AddDays(-1)) return "Yesterday";
-                    if (date >= now.Date.AddDays(-(int)now.DayOfWeek)) return "This Week";
-                    if (date.Year == now.Year && date.Month == now.Month) return "This Month";
-                    if (date.Year == now.Year) return "This Year";
-                    return date.Year > 0 ? date.Year.ToString() : "Unknown";
-
-                case "Size":
-                    if (item is FolderViewModel) return "Folders";
-                    var size = item.SizeValue;
-                    if (size == 0) return "Empty (0 B)";
-                    if (size < 16 * 1024) return "Tiny (< 16 KB)";
-                    if (size < 1024 * 1024) return "Small (< 1 MB)";
-                    if (size < 128 * 1024 * 1024) return "Medium (< 128 MB)";
-                    if (size < 1024L * 1024 * 1024) return "Large (< 1 GB)";
-                    return "Huge (> 1 GB)";
-
-                default:
-                    return string.Empty;
-            }
-        }
-
-        /// <summary>
-        /// Helper class for grouped items displayed in ListView.
-        /// Implements IGrouping-like interface for data binding.
-        /// </summary>
-        private class ItemGroup : List<FileSystemViewModel>
-        {
-            public string Key { get; }
-            public new int Count => base.Count;
-
-            public ItemGroup(string key, IEnumerable<FileSystemViewModel> items) : base(items)
-            {
-                Key = key;
-            }
-        }
+            => Helpers.GroupByHelper.GetGroupKey(item, groupBy);
 
         #endregion
 
@@ -1812,7 +1769,7 @@ namespace Span.Views
                 var groups = filtered
                     .GroupBy(item => GetGroupKey(item, _currentGroupBy))
                     .OrderBy(g => g.Key)
-                    .Select(g => new ItemGroup(g.Key + " (" + g.Count() + ")", g))
+                    .Select(g => new Helpers.ItemGroup(Helpers.GroupByHelper.StripSortPrefix(g.Key) + " (" + g.Count() + ")", g))
                     .ToList();
 
                 var cvs = new CollectionViewSource
@@ -1848,10 +1805,40 @@ namespace Span.Views
         }
 
         /// <summary>
+        /// 다운로드 폴더 자동 정렬 상태 추적. 벗어날 때 원래 정렬로 복원.
+        /// </summary>
+        private bool _isAutoSortedForDownloads;
+        private string? _savedSortBeforeDownloads;
+        private bool _savedAscBeforeDownloads;
+
+        /// <summary>
         /// Called when ViewModel changes or sort completes. Re-applies all view settings.
+        /// Downloads folder: auto-override to DateModified descending.
         /// </summary>
         private void ApplyCurrentView()
         {
+            bool isDownloads = ViewModel?.CurrentFolder is FolderViewModel folder && folder.IsDownloadsFolder;
+
+            if (isDownloads)
+            {
+                if (!_isAutoSortedForDownloads)
+                {
+                    _savedSortBeforeDownloads = _currentSortBy;
+                    _savedAscBeforeDownloads = _isAscending;
+                    _isAutoSortedForDownloads = true;
+                }
+                _currentSortBy = "DateModified";
+                _isAscending = false;
+                UpdateSortIndicators();
+            }
+            else if (_isAutoSortedForDownloads)
+            {
+                _currentSortBy = _savedSortBeforeDownloads ?? "Name";
+                _isAscending = _savedAscBeforeDownloads;
+                _isAutoSortedForDownloads = false;
+                UpdateSortIndicators();
+            }
+
             SortItems(_currentSortBy, _isAscending);
             TriggerGitStateLoad();
         }

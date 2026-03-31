@@ -650,7 +650,7 @@ namespace Span.Views
             var groups = items
                 .GroupBy(item => Helpers.GroupByHelper.GetGroupKey(item, _currentGroupBy))
                 .OrderBy(g => g.Key)
-                .Select(g => new Helpers.ItemGroup(g.Key + " (" + g.Count() + ")", g))
+                .Select(g => new Helpers.ItemGroup(Helpers.GroupByHelper.StripSortPrefix(g.Key) + " (" + g.Count() + ")", g))
                 .ToList();
 
             var cvs = new Microsoft.UI.Xaml.Data.CollectionViewSource

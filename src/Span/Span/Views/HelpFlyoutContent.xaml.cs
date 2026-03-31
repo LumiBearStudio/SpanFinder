@@ -52,6 +52,8 @@ namespace Span.Views
             DescBackForward.Text = _loc.Get("Help_BackForward");
             DescAddressBar.Text = _loc.Get("Help_AddressBar");
             DescSearch.Text = _loc.Get("Help_Search");
+            DescSearchEnter.Text = _loc.Get("Help_SearchCurrentFolder");
+            DescSearchGlobal.Text = _loc.Get("Help_SearchGlobal");
             DescFilter.Text = _loc.Get("Help_Filter");
             DescQuickLook.Text = _loc.Get("Help_QuickLook");
 

@@ -1489,7 +1489,23 @@ namespace Span
             else if (e.Key == Windows.System.VirtualKey.Enter)
             {
                 string queryText = SearchBox.Text.Trim();
-                if (string.IsNullOrEmpty(queryText)) return;
+                if (string.IsNullOrEmpty(queryText))
+                {
+                    // 빈 검색어 + Enter → 검색 결과/인라인 필터 해제 후 원래 폴더 복원
+                    var exp = ViewModel.ActiveExplorer;
+                    if (exp?.HasActiveSearchResults == true)
+                    {
+                        exp.CancelRecursiveSearch();
+                        ViewModel.UpdateStatusBar();
+                    }
+                    else if (_isSearchFiltered)
+                    {
+                        RestoreSearchFilter();
+                    }
+                    GetActiveMillerColumnsControl().Focus(FocusState.Keyboard);
+                    e.Handled = true;
+                    return;
+                }
 
                 // RecycleBin 모드: 자체 필터링
                 if (ViewModel.CurrentViewMode == ViewMode.RecycleBin)
@@ -1512,11 +1528,32 @@ namespace Span
                     RestoreSearchFilter();
                 }
 
-                // 검색 루트 결정: 첫 번째 컬럼 = 네비게이션 루트 (macOS Finder 방식)
-                // Miller Columns에서 D:\ → Projects → src 로 진입해도
-                // Columns[0].Path = "D:\" 이므로 드라이브 전체 검색 가능.
-                var rootFolder = explorer.Columns.FirstOrDefault();
-                string rootPath = rootFolder?.Path ?? explorer.CurrentPath;
+                // 검색 루트 결정:
+                // Enter = 현재 활성 폴더 기준 검색 (마지막 폴더 컬럼)
+                // Ctrl+Enter = 전역 검색 (Columns[0] 루트)
+                bool isGlobalSearch = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(
+                    Windows.System.VirtualKey.Control).HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+
+                string rootPath;
+                if (isGlobalSearch)
+                {
+                    var rootFolder = explorer.Columns.FirstOrDefault();
+                    rootPath = rootFolder?.Path ?? explorer.CurrentPath;
+                }
+                else
+                {
+                    // 현재 활성 폴더: 마지막 폴더형 컬럼 (파일 선택 시 마지막 컬럼이 파일이 아닌 폴더)
+                    rootPath = explorer.CurrentPath;
+                    for (int i = explorer.Columns.Count - 1; i >= 0; i--)
+                    {
+                        var col = explorer.Columns[i];
+                        if (!string.IsNullOrEmpty(col.Path))
+                        {
+                            rootPath = col.Path;
+                            break;
+                        }
+                    }
+                }
                 if (string.IsNullOrEmpty(rootPath) || rootPath == "PC") return;
 
                 // 숨김 파일 설정 확인

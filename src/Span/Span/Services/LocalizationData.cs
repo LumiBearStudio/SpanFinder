@@ -197,7 +197,9 @@ namespace Span.Services
             ("Help_HomeEnd", "First / Last item", "목록 처음 / 끝", "リストの先頭 / 末尾", "第一项 / 最后一项", "第一個 / 最後一個項目", "Erstes / Letztes Element", "Primer / Último elemento", "Premier / Dernier élément", "Primeiro / Último item"),
             ("Help_BackForward", "Back / Forward", "뒤로 / 앞으로", "戻る / 進む", "后退 / 前进", "上一頁 / 下一頁", "Zurück / Vorwärts", "Atrás / Adelante", "Précédent / Suivant", "Voltar / Avançar"),
             ("Help_AddressBar", "Focus address bar", "주소 표시줄 포커스", "アドレスバーにフォーカス", "聚焦地址栏", "聚焦網址列", "Adressleiste fokussieren", "Enfocar barra de direcciones", "Focus sur la barre d'adresse", "Focar barra de endereço"),
-            ("Help_Search", "Search", "검색", "検索", "搜索", "搜尋", "Suche", "Buscar", "Rechercher", "Pesquisar"),
+            ("Help_Search", "Search focus", "검색 포커스", "検索フォーカス", "搜索焦点", "搜尋焦點", "Suche fokussieren", "Enfocar búsqueda", "Focus recherche", "Focar pesquisa"),
+            ("Help_SearchCurrentFolder", "Search current folder", "현재 폴더 검색", "現在のフォルダーを検索", "搜索当前文件夹", "搜尋目前資料夾", "Aktuellen Ordner durchsuchen", "Buscar en carpeta actual", "Rechercher dans le dossier actuel", "Pesquisar pasta atual"),
+            ("Help_SearchGlobal", "Search from root", "전역 검색 (루트부터)", "ルートから検索", "从根目录搜索", "從根目錄搜尋", "Ab Stammordner suchen", "Buscar desde la raíz", "Rechercher depuis la racine", "Pesquisar da raiz"),
             ("Help_Filter", "Filter", "필터", "フィルター", "筛选", "篩選", "Filter", "Filtro", "Filtre", "Filtro"),
             ("Help_QuickLook", "Toggle preview panel", "미리보기 패널 토글", "プレビューパネル切替", "切换预览面板", "切換預覽面板", "Vorschau-Panel umschalten", "Alternar panel de vista previa", "Basculer le panneau d'aperçu", "Alternar painel de visualização"),
             ("Help_Edit", "Edit", "편집", "編集", "编辑", "編輯", "Bearbeiten", "Editar", "Modifier", "Editar"),
@@ -874,6 +876,24 @@ namespace Span.Services
             ("Workspace_NamePlaceholder", "Workspace name", "워크스페이스 이름", "ワークスペース名", "工作区名称", "工作區名稱", "Name des Arbeitsbereichs", "Nombre del espacio", "Nom de l'espace", "Nome da área"),
             ("Workspace_NameRequired", "Please enter a name.", "이름을 입력하세요.", "名前を入力してください。", "请输入名称。", "請輸入名稱。", "Bitte einen Namen eingeben.", "Ingrese un nombre.", "Veuillez entrer un nom.", "Digite um nome."),
             ("Workspace_Tooltip", "Workspaces", "워크스페이스", "ワークスペース", "工作区", "工作區", "Arbeitsbereiche", "Espacios de trabajo", "Espaces de travail", "Áreas de trabalho"),
+
+            // ── Group labels ───────────────────────────────────────────────
+            ("Group_Today", "Today", "오늘", "今日", "今天", "今天", "Heute", "Hoy", "Aujourd'hui", "Hoje"),
+            ("Group_Yesterday", "Yesterday", "어제", "昨日", "昨天", "昨天", "Gestern", "Ayer", "Hier", "Ontem"),
+            ("Group_ThisWeek", "Earlier this week", "이번 주 초", "今週初め", "本周早些时候", "本週稍早", "Früher diese Woche", "Antes esta semana", "Plus tôt cette semaine", "Mais cedo esta semana"),
+            ("Group_LastWeek", "Last week", "지난주", "先週", "上周", "上週", "Letzte Woche", "La semana pasada", "La semaine dernière", "Semana passada"),
+            ("Group_ThisMonth", "Earlier this month", "이번 달 초", "今月初め", "本月早些时候", "本月稍早", "Früher diesen Monat", "Antes este mes", "Plus tôt ce mois-ci", "Mais cedo este mês"),
+            ("Group_LastMonth", "Last month", "지난달", "先月", "上个月", "上個月", "Letzter Monat", "El mes pasado", "Le mois dernier", "Mês passado"),
+            ("Group_Older", "A long time ago", "오래 전", "かなり前", "很久以前", "很久以前", "Vor langer Zeit", "Hace mucho tiempo", "Il y a longtemps", "Há muito tempo"),
+            ("Group_Folders", "Folders", "폴더", "フォルダー", "文件夹", "資料夾", "Ordner", "Carpetas", "Dossiers", "Pastas"),
+            ("Group_Unknown", "Unknown", "알 수 없음", "不明", "未知", "未知", "Unbekannt", "Desconocido", "Inconnu", "Desconhecido"),
+            ("Group_Empty", "Empty (0 B)", "비어 있음 (0 B)", "空 (0 B)", "空 (0 B)", "空 (0 B)", "Leer (0 B)", "Vacío (0 B)", "Vide (0 o)", "Vazio (0 B)"),
+            ("Group_Tiny", "Tiny (< 16 KB)", "아주 작음 (< 16 KB)", "極小 (< 16 KB)", "极小 (< 16 KB)", "極小 (< 16 KB)", "Winzig (< 16 KB)", "Diminuto (< 16 KB)", "Minuscule (< 16 Ko)", "Minúsculo (< 16 KB)"),
+            ("Group_Small", "Small (< 1 MB)", "작음 (< 1 MB)", "小 (< 1 MB)", "小 (< 1 MB)", "小 (< 1 MB)", "Klein (< 1 MB)", "Pequeño (< 1 MB)", "Petit (< 1 Mo)", "Pequeno (< 1 MB)"),
+            ("Group_Medium", "Medium (< 128 MB)", "보통 (< 128 MB)", "中 (< 128 MB)", "中等 (< 128 MB)", "中等 (< 128 MB)", "Mittel (< 128 MB)", "Mediano (< 128 MB)", "Moyen (< 128 Mo)", "Médio (< 128 MB)"),
+            ("Group_Large", "Large (< 1 GB)", "큼 (< 1 GB)", "大 (< 1 GB)", "大 (< 1 GB)", "大 (< 1 GB)", "Groß (< 1 GB)", "Grande (< 1 GB)", "Grand (< 1 Go)", "Grande (< 1 GB)"),
+            ("Group_Huge", "Huge (> 1 GB)", "매우 큼 (> 1 GB)", "巨大 (> 1 GB)", "超大 (> 1 GB)", "超大 (> 1 GB)", "Riesig (> 1 GB)", "Enorme (> 1 GB)", "Énorme (> 1 Go)", "Enorme (> 1 GB)"),
+            ("Group_Folder", "Folder", "폴더", "フォルダー", "文件夹", "資料夾", "Ordner", "Carpeta", "Dossier", "Pasta"),
         };
     }
 }

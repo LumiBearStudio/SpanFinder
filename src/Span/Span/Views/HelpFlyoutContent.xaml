@@ -97,7 +97,13 @@
                             <TextBlock x:Name="DescAddressBar" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="주소 표시줄 포커스"/></Grid>
                         <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Border Style="{StaticResource ShortcutBadge}"><TextBlock x:Name="Key_Search" Style="{StaticResource ShortcutKeyText}" Text="Ctrl+F"/></Border>
-                            <TextBlock x:Name="DescSearch" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="검색"/></Grid>
+                            <TextBlock x:Name="DescSearch" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="검색 포커스"/></Grid>
+                        <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <Border Style="{StaticResource ShortcutBadge}"><TextBlock x:Name="Key_SearchEnter" Style="{StaticResource ShortcutKeyText}" Text="Enter"/></Border>
+                            <TextBlock x:Name="DescSearchEnter" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="현재 폴더 검색"/></Grid>
+                        <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <Border Style="{StaticResource ShortcutBadge}"><TextBlock x:Name="Key_SearchGlobal" Style="{StaticResource ShortcutKeyText}" Text="Ctrl+Enter"/></Border>
+                            <TextBlock x:Name="DescSearchGlobal" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="전역 검색 (루트부터)"/></Grid>
                         <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Border Style="{StaticResource ShortcutBadge}"><TextBlock x:Name="Key_QuickLook" Style="{StaticResource ShortcutKeyText}" Text="Space"/></Border>
                             <TextBlock x:Name="DescQuickLook" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="Quick Look 미리보기"/></Grid>

@@ -37,6 +37,11 @@ namespace Span.ViewModels
         private bool _isGitFolder;
         private GitStatusService? _gitSvc;
 
+        /// <summary>
+        /// 다운로드 폴더 여부. 뷰에서 자동 그룹핑 적용 판단용.
+        /// </summary>
+        public bool IsDownloadsFolder => Helpers.KnownFolderHelper.IsDownloadsFolder(Path);
+
         [ObservableProperty]
         private ObservableCollection<FileSystemViewModel> _children = new();
 
@@ -483,7 +488,17 @@ namespace Span.ViewModels
 
                 // Sort on background thread
                 EnsureSortSettingsLoaded();
-                return ApplySort(result, _sortBy, _sortAscending);
+
+                // Downloads folder override: always sort by DateModified descending
+                bool isDownloads = Helpers.KnownFolderHelper.IsDownloadsFolder(_folderModel.Path);
+                Helpers.DebugLogger.Log($"[LoadFromCacheAsync] path='{_folderModel.Path}', isDownloads={isDownloads}, sortBy={_sortBy}");
+                if (isDownloads)
+                {
+                    _sortBy = "DateModified";
+                    _sortAscending = false;
+                }
+
+                return ApplySort(result, _sortBy, _sortAscending, mixFoldersAndFiles: isDownloads);
             }, token);
 
             if (!token.IsCancellationRequested)
@@ -654,12 +669,21 @@ namespace Span.ViewModels
 
                 // Pre-sort in background thread to avoid UI thread blocking for large folders (10K+)
                 EnsureSortSettingsLoaded();
-                if (_sortBy == "Name" && s_defaultSortBy != "Name")
+
+                // Downloads folder override: always sort by DateModified descending
+                bool isDl = Helpers.KnownFolderHelper.IsDownloadsFolder(folderPath);
+                Helpers.DebugLogger.Log($"[LoadFromDiskAsync] path='{folderPath}', isDownloads={isDl}, sortBy={_sortBy}");
+                if (isDl)
+                {
+                    _sortBy = "DateModified";
+                    _sortAscending = false;
+                }
+                else if (_sortBy == "Name" && s_defaultSortBy != "Name")
                 {
                     _sortBy = s_defaultSortBy;
                     _sortAscending = s_defaultSortAscending;
                 }
-                var sorted = ApplySort(result, _sortBy, _sortAscending);
+                var sorted = ApplySort(result, _sortBy, _sortAscending, mixFoldersAndFiles: isDl);
 
                 return (sorted, folders, files, (string?)null, (string?)null);
             }, token);
@@ -728,7 +752,7 @@ namespace Span.ViewModels
 
             try
             {
-                var sorted = ApplySort(source, sortBy, ascending);
+                var sorted = ApplySort(source, sortBy, ascending, mixFoldersAndFiles: IsDownloadsFolder);
                 _allChildren = sorted;
 
                 // 필터 활성 시 → 필터 재적용
@@ -765,19 +789,8 @@ namespace Span.ViewModels
         }
 
         private static List<FileSystemViewModel> ApplySort(
-            List<FileSystemViewModel> items, string sortBy, bool ascending)
+            List<FileSystemViewModel> items, string sortBy, bool ascending, bool mixFoldersAndFiles = false)
         {
-            // 폴더/파일 1회 분할 — 비교마다 `x is FileViewModel` 타입 체크 제거 (14K+ 성능 최적화)
-            var folders = new List<FileSystemViewModel>(items.Count);
-            var files = new List<FileSystemViewModel>(items.Count);
-            foreach (var item in items)
-            {
-                if (item is FileViewModel)
-                    files.Add(item);
-                else
-                    folders.Add(item);
-            }
-
             // In-place sort — no LINQ buffer/ToList allocation (saves ~30% for 10K items)
             Comparison<FileSystemViewModel> cmp;
             switch (sortBy)
@@ -803,6 +816,24 @@ namespace Span.ViewModels
                         ? (a, b) => nc.Compare(a.Name, b.Name)
                         : (a, b) => nc.Compare(b.Name, a.Name);
                     break;
+            }
+
+            // 다운로드 폴더 등: 폴더/파일 구분 없이 날짜순 혼합 정렬
+            if (mixFoldersAndFiles)
+            {
+                items.Sort(cmp);
+                return items;
+            }
+
+            // 기본: 폴더/파일 1회 분할 — 비교마다 `x is FileViewModel` 타입 체크 제거 (14K+ 성능 최적화)
+            var folders = new List<FileSystemViewModel>(items.Count);
+            var files = new List<FileSystemViewModel>(items.Count);
+            foreach (var item in items)
+            {
+                if (item is FileViewModel)
+                    files.Add(item);
+                else
+                    folders.Add(item);
             }
 
             folders.Sort(cmp);
