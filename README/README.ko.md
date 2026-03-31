@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <a href="https://apps.microsoft.com/detail/9P7NJ351X9TL"><img src="https://get.microsoft.com/images/ko-kr%20dark.svg" width="200" alt="Microsoft Store에서 다운로드"></a>
+  <a href="https://apps.microsoft.com/detail/9P7NJ351X9TL"><img src="https://get.microsoft.com/images/en-us%20dark.svg" width="200" alt="Microsoft Store에서 다운로드"></a>
 </p>
 
 <p align="center">
