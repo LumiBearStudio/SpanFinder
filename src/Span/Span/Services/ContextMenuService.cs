@@ -25,6 +25,9 @@ namespace Span.Services
         /// <summary>Current shell menu session (kept alive while menu is open)</summary>
         private ShellContextMenu.Session? _currentSession;
 
+        /// <summary>메뉴별 세션 매핑 — OnMenuClosed에서 다른 메뉴의 세션을 파괴하지 않도록 보호</summary>
+        private readonly Dictionary<MenuFlyout, ShellContextMenu.Session> _menuSessionMap = new();
+
         /// <summary>현재 열려 있는 MenuFlyout 추적 (단독 키 AccessKey 지원용)</summary>
         private MenuFlyout? _activeFlyout;
 
@@ -708,8 +711,12 @@ namespace Span.Services
                 _currentSession = null;
 
                 Helpers.DebugLogger.Log($"[ContextMenuService] Shell CreateSessionAsync START: {path}");
-                _currentSession = await ShellContextMenu.CreateSessionAsync(OwnerHwnd, path);
-                Helpers.DebugLogger.Log($"[ContextMenuService] Shell CreateSessionAsync END: items={_currentSession?.Items.Count ?? 0}");
+                var session = await ShellContextMenu.CreateSessionAsync(OwnerHwnd, path);
+                _currentSession = session;
+                // 이 메뉴가 닫힐 때 자기 세션만 정리하도록 매핑
+                if (session != null)
+                    _menuSessionMap[menu] = session;
+                Helpers.DebugLogger.Log($"[ContextMenuService] Shell CreateSessionAsync END: items={session?.Items.Count ?? 0}");
             }
             catch (Exception ex)
             {
@@ -1037,14 +1044,24 @@ namespace Span.Services
         {
             try
             {
-                _currentSession?.Dispose();
-                _currentSession = null;
+                if (sender is MenuFlyout flyout && _menuSessionMap.Remove(flyout, out var menuSession))
+                {
+                    // 이 메뉴에 바인딩된 세션만 정리 (다른 메뉴의 새 세션 보호)
+                    menuSession.Dispose();
+                    if (_currentSession == menuSession)
+                        _currentSession = null;
+                }
+                else
+                {
+                    // 매핑 없는 메뉴 (셸 확장 없이 열린 경우) — 기존 동작 유지
+                    _currentSession?.Dispose();
+                    _currentSession = null;
+                }
                 _openedSubItem = null;
             }
             catch (Exception ex)
             {
                 Helpers.DebugLogger.Log($"[ContextMenuService] Session dispose error: {ex.Message}");
-                _currentSession = null;
             }
             finally
             {
