@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Span.Models;
 
@@ -16,6 +17,7 @@ namespace Span.Services
     {
         // Windows Quick Access shell namespace CLSID
         private const string QuickAccessCLSID = "shell:::{679f85cb-0220-4080-b29b-5540cc05aab6}";
+        private const string FavoritesOrderKey = "FavoritesOrderJson";
 
         public List<FavoriteItem> LoadFavorites()
         {
@@ -24,6 +26,7 @@ namespace Span.Services
                 var favorites = ReadQuickAccess();
                 if (favorites.Count > 0)
                 {
+                    favorites = ApplySavedOrder(favorites);
                     Helpers.DebugLogger.Log($"[FavoritesService] Loaded {favorites.Count} items from Quick Access");
                     return favorites;
                 }
@@ -171,11 +174,82 @@ namespace Span.Services
         }
 
         /// <summary>
-        /// No-op: Windows Quick Access is the single source of truth.
+        /// 즐겨찾기 경로 순서를 LocalSettings에 JSON으로 저장.
+        /// Quick Access는 항목의 source of truth, 순서는 앱 로컬에서 관리.
         /// </summary>
         public void SaveFavorites(List<FavoriteItem> favorites)
         {
-            // Quick Access is managed by Windows Shell — nothing to persist.
+            try
+            {
+                var paths = favorites.Select(f => f.Path).ToList();
+                var json = JsonSerializer.Serialize(paths);
+                var settings = Windows.Storage.ApplicationData.Current.LocalSettings;
+                settings.Values[FavoritesOrderKey] = json;
+                Helpers.DebugLogger.Log($"[FavoritesService] Saved favorites order ({paths.Count} items)");
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[FavoritesService] SaveFavorites failed: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 저장된 순서가 있으면 Quick Access에서 로드한 목록을 재정렬.
+        /// 새로 추가된 항목은 끝에 배치, 삭제된 항목은 무시.
+        /// </summary>
+        private static List<FavoriteItem> ApplySavedOrder(List<FavoriteItem> favorites)
+        {
+            try
+            {
+                var settings = Windows.Storage.ApplicationData.Current.LocalSettings;
+                if (settings.Values.TryGetValue(FavoritesOrderKey, out var raw) && raw is string json)
+                {
+                    var savedPaths = JsonSerializer.Deserialize<List<string>>(json);
+                    if (savedPaths == null || savedPaths.Count == 0) return favorites;
+
+                    // 경로 → FavoriteItem 매핑 (정규화된 경로로 비교)
+                    var lookup = new Dictionary<string, FavoriteItem>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var fav in favorites)
+                    {
+                        var key = Path.GetFullPath(fav.Path).TrimEnd('\\');
+                        lookup.TryAdd(key, fav);
+                    }
+
+                    var ordered = new List<FavoriteItem>();
+                    var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                    // 저장된 순서대로 배치
+                    foreach (var savedPath in savedPaths)
+                    {
+                        var key = Path.GetFullPath(savedPath).TrimEnd('\\');
+                        if (lookup.TryGetValue(key, out var item) && used.Add(key))
+                        {
+                            ordered.Add(item);
+                        }
+                    }
+
+                    // Quick Access에 있지만 저장 순서에 없는 새 항목은 끝에 추가
+                    foreach (var fav in favorites)
+                    {
+                        var key = Path.GetFullPath(fav.Path).TrimEnd('\\');
+                        if (used.Add(key))
+                        {
+                            ordered.Add(fav);
+                        }
+                    }
+
+                    if (ordered.Count > 0)
+                    {
+                        Helpers.DebugLogger.Log($"[FavoritesService] Applied saved order ({ordered.Count} items)");
+                        return ordered;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[FavoritesService] ApplySavedOrder failed: {ex.Message}");
+            }
+            return favorites;
         }
 
         public List<FavoriteItem> AddFavorite(string path, List<FavoriteItem> existing)
@@ -184,7 +258,9 @@ namespace Span.Services
                 return existing.ToList();
 
             PinToQuickAccess(path);
-            return LoadFavorites();
+            var result = LoadFavorites();
+            SaveFavorites(result);
+            return result;
         }
 
         public List<FavoriteItem> RemoveFavorite(string path, List<FavoriteItem> existing)
@@ -205,6 +281,7 @@ namespace Span.Services
                     Path.GetFullPath(f.Path).TrimEnd('\\').Equals(normalizedPath, StringComparison.OrdinalIgnoreCase));
             }
 
+            SaveFavorites(reloaded);
             return reloaded;
         }
 
