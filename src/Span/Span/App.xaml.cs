@@ -295,15 +295,15 @@ namespace Span
                     Helpers.DebugLogger.Log($"[CRASH] Inner: {e.Exception.InnerException.GetType().FullName}: {e.Exception.InnerException.Message}\n{e.Exception.InnerException.StackTrace}");
             }
             _lastCrashTime = now;
-            // WinUI XAML 내부 렌더링 타이밍 이슈: 스택트레이스 없는 네이티브 예외
+            // WinUI XAML 내부 렌더링 타이밍 이슈 — Sentry 노이즈 필터링
             // - E_INVALIDARG (0x80070057): 빠른 스크롤/뷰모드 전환 시 BitmapImage 렌더링 경합
-            // - E_FAIL (0x80004005): 탐색 직후 ContainerFromIndex/썸네일 디코딩과 레이아웃 경합
-            // 두 경우 모두 Sentry 노이즈만 증가시키므로 필터링
-            bool isXamlRenderingNoise = string.IsNullOrEmpty(e.Exception?.StackTrace)
-                && (
-                    (e.Exception is ArgumentException && e.Exception.HResult == unchecked((int)0x80070057))
-                    || (e.Exception is System.Runtime.InteropServices.COMException && e.Exception.HResult == unchecked((int)0x80004005))
-                );
+            // - E_FAIL (0x80004005): ArrangeOverride/MeasureOverride 등 레이아웃 경합
+            //   → 스택트레이스 없거나, WinUI/WinRT 내부 프레임만 있는 경우 모두 포함
+            bool isXamlRenderingNoise =
+                (e.Exception is ArgumentException && e.Exception.HResult == unchecked((int)0x80070057)
+                    && string.IsNullOrEmpty(e.Exception.StackTrace))
+                || (e.Exception is System.Runtime.InteropServices.COMException && e.Exception.HResult == unchecked((int)0x80004005)
+                    && IsWinUIInternalOnly(e.Exception));
 
             // Sentry: 세션당 최대 N회만 전송 (반복 네이티브 예외 증폭 방지)
             // CaptureFatalException(동기 Flush)은 사용하지 않음 — UI 스레드 차단 위험
@@ -319,6 +319,34 @@ namespace Span
                 catch { }
             }
             e.Handled = true;
+        }
+
+        /// <summary>
+        /// 스택트레이스가 비어있거나 WinUI/WinRT 내부 프레임만 포함하는지 확인.
+        /// Sentry에서 in_app_frame_mix="system-only"로 분류되는 이벤트를 로컬에서 필터링.
+        /// </summary>
+        private static bool IsWinUIInternalOnly(Exception? ex)
+        {
+            if (ex == null) return false;
+            var trace = ex.StackTrace;
+            if (string.IsNullOrEmpty(trace)) return true;
+
+            // 각 프레임 라인을 검사 — 앱 코드(Span. 네임스페이스)가 하나라도 있으면 false
+            foreach (var line in trace.Split('\n'))
+            {
+                var trimmed = line.Trim();
+                if (trimmed.Length == 0 || !trimmed.StartsWith("at ", StringComparison.Ordinal))
+                    continue;
+                // WinUI(Microsoft.UI/Microsoft.WinUI), WinRT, System 네임스페이스는 내부 프레임
+                if (trimmed.StartsWith("at Microsoft.", StringComparison.Ordinal)
+                    || trimmed.StartsWith("at WinRT.", StringComparison.Ordinal)
+                    || trimmed.StartsWith("at System.", StringComparison.Ordinal)
+                    || trimmed.StartsWith("at Windows.", StringComparison.Ordinal))
+                    continue;
+                // 앱 코드 프레임 발견
+                return false;
+            }
+            return true;
         }
 
         private void OnDomainUnhandledException(object sender, System.UnhandledExceptionEventArgs e)
