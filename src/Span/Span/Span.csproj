@@ -45,6 +45,9 @@
     <Content Include="Assets\Fonts\tabler-icons.ttf">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="Assets\Fonts\PretendardVariable.ttf">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="icons.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>

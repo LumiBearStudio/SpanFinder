@@ -1217,6 +1217,7 @@
                                     <ComboBox x:Name="FontCombo" Grid.Column="2" SelectedIndex="0" MinWidth="160" VerticalAlignment="Center">
                                         <!-- Sans-serif -->
                                         <ComboBoxItem Content="Segoe UI Variable" />
+                                        <ComboBoxItem Content="Pretendard" />
                                         <ComboBoxItem Content="Arial" />
                                         <ComboBoxItem Content="Verdana" />
                                         <ComboBoxItem Content="Calibri" />
@@ -2067,7 +2068,7 @@
                                 <StackPanel Spacing="6">
                                     <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
                                         <Border Style="{StaticResource CardIconContainer}">
-                                            <FontIcon Glyph="&#xE185;" Style="{StaticResource CardIconStyle}" />
+                                            <FontIcon Glyph="&#xED63;" Style="{StaticResource CardIconStyle}" />
                                         </Border>
                                         <TextBlock x:Name="IconFontLabel" Text="아이콘 폰트" Style="{StaticResource SettingsCardLabel}" VerticalAlignment="Center" />
                                     </StackPanel>
@@ -2111,6 +2112,32 @@
                                                 <TextBlock Text="Tabler — MIT License" FontSize="11" Foreground="{ThemeResource SpanTextTertiaryBrush}" />
                                             </StackPanel>
                                             <TextBlock x:Name="AvailableText2" Grid.Column="1" Text="선택 가능" FontSize="11" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center" />
+                                        </Grid>
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Fonts -->
+                            <Border Style="{StaticResource SettingsCardBorder}">
+                                <StackPanel Spacing="6">
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                        <Border Style="{StaticResource CardIconContainer}">
+                                            <FontIcon Glyph="&#xE185;" Style="{StaticResource CardIconStyle}" />
+                                        </Border>
+                                        <TextBlock x:Name="FontsLabel" Text="폰트" Style="{StaticResource SettingsCardLabel}" VerticalAlignment="Center" />
+                                    </StackPanel>
+
+                                    <Border Background="{ThemeResource SpanBgLayer2Brush}" CornerRadius="6" Padding="12,8" Margin="48,0,0,0">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0" Spacing="2">
+                                                <TextBlock Text="Pretendard" FontSize="13" FontWeight="SemiBold" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
+                                                <TextBlock Text="Cactus (orioncactus) — SIL Open Font License 1.1" FontSize="11" Foreground="{ThemeResource SpanTextTertiaryBrush}" />
+                                            </StackPanel>
+                                            <TextBlock x:Name="BundledText" Grid.Column="1" Text="번들 포함" FontSize="11" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center" />
                                         </Grid>
                                     </Border>
                                 </StackPanel>

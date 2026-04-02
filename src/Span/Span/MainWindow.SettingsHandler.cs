@@ -513,15 +513,27 @@ namespace Span
 
         private const string CjkFallback = ", Malgun Gothic, Microsoft YaHei UI, Microsoft JhengHei UI, Yu Gothic UI";
 
+        // 번들 폰트 매핑: 설정 이름 → ms-appx 경로#패밀리명
+        private static readonly Dictionary<string, string> BundledFonts = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Pretendard"] = "/Assets/Fonts/PretendardVariable.ttf#Pretendard Variable"
+        };
+
         /// <summary>
         /// 폰트 패밀리를 모든 뷰에 적용한다.
+        /// 번들 폰트는 앱 내 경로로 참조, 그 외는 시스템 폰트명 사용.
         /// 사용자가 어떤 폰트를 선택하든 CJK fallback이 자동 추가됨.
+        /// 번들 폰트 경로와 시스템 폰트명은 혼합 불가 — 번들 폰트는 단독 사용.
         /// </summary>
         private void ApplyFontFamily(string fontFamily)
         {
             if (this.Content is FrameworkElement root && root.Resources != null)
             {
-                var font = new FontFamily(fontFamily + CjkFallback);
+                // 번들 폰트는 이미 CJK 글리프를 포함하므로 fallback 없이 단독 참조
+                var fontSpec = BundledFonts.TryGetValue(fontFamily, out var bundledPath)
+                    ? bundledPath
+                    : fontFamily + CjkFallback;
+                var font = new FontFamily(fontSpec);
                 root.Resources["ContentControlThemeFontFamily"] = font;
 
                 if (root is Microsoft.UI.Xaml.Controls.Control control)

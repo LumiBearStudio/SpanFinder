@@ -24,7 +24,7 @@ public sealed partial class SettingsModeView : UserControl
 {
     private static readonly string[] FontOptions =
     [
-        "Segoe UI Variable", "Arial", "Verdana", "Calibri",
+        "Segoe UI Variable", "Pretendard", "Arial", "Verdana", "Calibri",
         "Cascadia Code", "Consolas", "Courier New",
         "Malgun Gothic", "Microsoft YaHei UI", "Yu Gothic UI"
     ];
@@ -755,6 +755,8 @@ public sealed partial class SettingsModeView : UserControl
             DefaultIconPackText.Text = _loc.Get("OpenSource_DefaultPack");
             AvailableText1.Text = _loc.Get("OpenSource_Available");
             AvailableText2.Text = _loc.Get("OpenSource_Available");
+            FontsLabel.Text = _loc.Get("OpenSource_Fonts");
+            BundledText.Text = _loc.Get("OpenSource_Bundled");
         }
         catch (Exception ex)
         {

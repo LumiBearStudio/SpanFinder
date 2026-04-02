@@ -611,6 +611,8 @@ namespace Span.Services
             ("OpenSource_IconFonts", "Icon Fonts", "아이콘 폰트", "アイコンフォント", "图标字体", "圖示字型", "Symbol-Schriftarten", "Fuentes de iconos", "Polices d'icônes", "Fontes de ícones"),
             ("OpenSource_DefaultPack", "Default icon pack", "기본 아이콘 팩", "デフォルトアイコンパック", "默认图标包", "預設圖示包", "Standard-Symbolpaket", "Paquete de iconos predeterminado", "Pack d'icônes par défaut", "Pacote de ícones padrão"),
             ("OpenSource_Available", "Available", "선택 가능", "利用可能", "可用", "可使用", "Verfügbar", "Disponible", "Disponible", "Disponível"),
+            ("OpenSource_Fonts", "Fonts", "폰트", "フォント", "字体", "字型", "Schriftarten", "Fuentes", "Polices", "Fontes"),
+            ("OpenSource_Bundled", "Bundled", "번들 포함", "バンドル済み", "已捆绑", "已內建", "Mitgeliefert", "Incluida", "Incluse", "Incluída"),
 
             // ── Empty folder / status bar / errors ────────────────────────
             ("EmptyFolder", "Empty folder", "빈 폴더", "空のフォルダー", "空文件夹", "空資料夾", "Leerer Ordner", "Carpeta vacía", "Dossier vide", "Pasta vazia"),
