@@ -807,12 +807,17 @@ namespace Span
 
                         if (jumpArg != "--new-window")
                         {
-                            // 가상 폴더 처리 (휴지통 등)
+                            // 가상 폴더 처리 (휴지통, 내 PC 등)
                             if (IsRecycleBinArgument(jumpArg))
                             {
                                 Helpers.DebugLogger.Log($"[Startup] RecycleBin argument: {jumpArg}");
                                 ViewModel.SwitchViewMode(ViewMode.RecycleBin);
                                 UpdateViewModeVisibility();
+                            }
+                            else if (IsThisPCArgument(jumpArg))
+                            {
+                                // This PC → Span 홈 화면 (이미 기본값이므로 별도 처리 불필요)
+                                Helpers.DebugLogger.Log($"[Startup] This PC argument → Home: {jumpArg}");
                             }
                             else if (TryDelegateVirtualFolder(jumpArg))
                             {
@@ -1668,6 +1673,13 @@ namespace Span
             if (string.IsNullOrEmpty(arg)) return false;
             return arg.Equals("shell:RecycleBinFolder", StringComparison.OrdinalIgnoreCase)
                 || arg.Contains("{645FF040-5081-101B-9F08-00AA002F954E}", StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>This PC (내 PC) CLSID인지 판별. Span 홈 화면으로 매핑.</summary>
+        private static bool IsThisPCArgument(string? arg)
+        {
+            if (string.IsNullOrEmpty(arg)) return false;
+            return arg.Contains("{20D04FE0-3AEA-1069-A2D8-08002B30309D}", StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>

@@ -139,6 +139,50 @@ namespace Span
         }
 
         /// <summary>
+        /// CLSID 가상 폴더 경로인지 판별 (This PC 제외 — Span 홈으로 처리).
+        /// 제어판(::{26EE0668-...}), 네트워크, 프린터 등 Span이 탐색할 수 없는 가상 폴더.
+        /// </summary>
+        private static bool IsVirtualFolderArgument(string? arg)
+        {
+            if (string.IsNullOrEmpty(arg)) return false;
+            if (!arg.StartsWith("::{", StringComparison.OrdinalIgnoreCase))
+                return false;
+            // This PC → Span 홈에서 처리 (explorer 위임 불필요)
+            if (IsThisPCArgument(arg))
+                return false;
+            return true;
+        }
+
+        /// <summary>This PC (내 PC) CLSID인지 판별. Span 홈 화면으로 매핑.</summary>
+        private static bool IsThisPCArgument(string? arg)
+        {
+            if (string.IsNullOrEmpty(arg)) return false;
+            return arg.Contains("{20D04FE0-3AEA-1069-A2D8-08002B30309D}", StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// 가상 폴더를 explorer.exe에 위임.
+        /// </summary>
+        private static void DelegateToExplorer(string path)
+        {
+            try
+            {
+                // CLSID 끝의 \0 제거 (Windows가 null terminator를 붙이는 경우)
+                path = path.TrimEnd('\0');
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "explorer.exe",
+                    Arguments = path,
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[App] DelegateToExplorer failed: {ex.Message}");
+            }
+        }
+
+        /// <summary>
         /// MSIX/WindowsApps 패키지 경로 필터 — 기본 파일관리자로 등록 시
         /// 탐색기 아이콘 클릭 때 패키지 폴더가 인자로 전달되는 것을 방지
         /// </summary>
@@ -185,7 +229,8 @@ namespace Span
             {
                 var part = parts[j].Trim().Trim('"');
                 if (!string.IsNullOrEmpty(part)
-                    && (System.IO.Directory.Exists(part) || System.IO.File.Exists(part) || IsRecycleBinArgument(part))
+                    && (System.IO.Directory.Exists(part) || System.IO.File.Exists(part)
+                        || IsRecycleBinArgument(part) || IsVirtualFolderArgument(part))
                     && !IsSystemPackagePath(part))
                     return part;
             }
@@ -494,7 +539,8 @@ namespace Span
                             var folderArg = cmdArgs[1].Trim().Trim('"');
                             if ((System.IO.Directory.Exists(folderArg)
                                 || System.IO.File.Exists(folderArg)
-                                || IsRecycleBinArgument(folderArg))
+                                || IsRecycleBinArgument(folderArg)
+                                || IsVirtualFolderArgument(folderArg))
                                 && !IsSystemPackagePath(folderArg))
                                 StartupArguments = folderArg;
                         }
@@ -506,6 +552,15 @@ namespace Span
                 }
                 if (StartupArguments != null)
                     Helpers.DebugLogger.Log($"[App] Final StartupArguments: {StartupArguments}");
+
+                // 가상 폴더(제어판 등)는 창 생성 없이 explorer.exe로 위임 후 즉시 종료
+                if (!string.IsNullOrEmpty(StartupArguments) && IsVirtualFolderArgument(StartupArguments))
+                {
+                    Helpers.DebugLogger.Log($"[App] Virtual folder at launch → explorer.exe: {StartupArguments}");
+                    DelegateToExplorer(StartupArguments);
+                    Environment.Exit(0);
+                    return;
+                }
 
                 m_window = new MainWindow();
                 RegisterWindow(m_window);
@@ -547,6 +602,14 @@ namespace Span
                 var mainWindow = GetMainWindow();
                 if (mainWindow == null) return;
 
+                // 가상 폴더는 창 활성화 없이 explorer.exe로 바로 위임
+                if (!string.IsNullOrEmpty(folderPath) && IsVirtualFolderArgument(folderPath))
+                {
+                    DelegateToExplorer(folderPath);
+                    Helpers.DebugLogger.Log($"[App] Redirected: virtual folder → explorer.exe (no activation): {folderPath}");
+                    return;
+                }
+
                 mainWindow.DispatcherQueue?.TryEnqueue(() =>
                 {
                     try
@@ -570,6 +633,11 @@ namespace Span
                                 StartupArguments = folderPath;
                                 mainWindow.HandleRecycleBinActivation();
                                 Helpers.DebugLogger.Log("[App] Redirected: opened RecycleBin");
+                            }
+                            else if (IsThisPCArgument(folderPath))
+                            {
+                                // This PC → 홈 화면 활성화 (이미 포그라운드로 올라옴)
+                                Helpers.DebugLogger.Log("[App] Redirected: This PC → Home");
                             }
                             else if (System.IO.Directory.Exists(folderPath))
                             {
