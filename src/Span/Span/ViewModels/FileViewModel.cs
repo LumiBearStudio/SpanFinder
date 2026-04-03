@@ -75,7 +75,7 @@ namespace Span.ViewModels
 
             // 이전 로딩 취소 후 새 CTS 생성
             _thumbnailCts?.Cancel();
-            var cts = new CancellationTokenSource(millisecondsDelay: 10000);
+            var cts = new CancellationTokenSource();
             _thumbnailCts = cts;
 
             // 동시 로딩 제한 (Shell API 과부하 방지)
@@ -89,6 +89,9 @@ namespace Span.ViewModels
                 _thumbnailLoading = false;
                 return;
             }
+
+            // 세마포어 획득 후 I/O 타임아웃 시작 (대기 시간 제외)
+            cts.CancelAfter(10000);
             MemoryStream? memStream = null;
             try
             {

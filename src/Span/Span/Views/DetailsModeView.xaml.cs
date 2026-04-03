@@ -304,7 +304,13 @@ namespace Span.Views
         /// </summary>
         private void OnContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
         {
-            if (args.InRecycleQueue) return;
+            if (args.InRecycleQueue)
+            {
+                // 재활용 큐: 화면 밖 아이템의 썸네일 해제 (메모리 절약)
+                if (args.Item is ViewModels.FileViewModel recycledFile)
+                    recycledFile.UnloadThumbnail();
+                return;
+            }
 
             if (args.ItemContainer?.ContentTemplateRoot is Grid grid)
             {
@@ -349,6 +355,12 @@ namespace Span.Views
             if (args.Item is ViewModels.FolderViewModel folderVm)
             {
                 folderVm.RequestFolderSizeCalculation();
+            }
+
+            // On-demand 썸네일 로딩: 보이는 아이템만 로드
+            if (args.Item is ViewModels.FileViewModel fileVm && fileVm.IsThumbnailSupported && !fileVm.HasThumbnail)
+            {
+                _ = fileVm.LoadThumbnailAsync();
             }
 
             // Git/Cloud 상태 on-demand 주입 (캐시된 값만, I/O 없음)

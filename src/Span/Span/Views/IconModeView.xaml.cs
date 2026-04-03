@@ -666,7 +666,19 @@ namespace Span.Views
         /// </summary>
         private void OnContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
         {
-            if (args.InRecycleQueue) return;
+            // 재활용 큐: 화면 밖 아이템의 썸네일 해제 (메모리 절약)
+            if (args.InRecycleQueue)
+            {
+                if (args.Item is ViewModels.FileViewModel recycledFile)
+                    recycledFile.UnloadThumbnail();
+                return;
+            }
+
+            // On-demand 썸네일 로딩: 보이는 아이템만 로드
+            if (args.Item is ViewModels.FileViewModel fileVm && fileVm.IsThumbnailSupported && !fileVm.HasThumbnail)
+            {
+                _ = fileVm.LoadThumbnailAsync();
+            }
 
             if (args.Item is ViewModels.FileSystemViewModel fsVm)
             {
