@@ -7,6 +7,7 @@ using Span.Services;
 using Span.ViewModels;
 using System;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using System.Threading;
 using Windows.Media.Playback;
 
@@ -111,6 +112,11 @@ namespace Span.Views
             var ext = ViewModel?.TextFileExtension ?? "";
             _extToLanguage.TryGetValue(ext, out var language);
 
+            // 1차 방어: Markdown fenced code block은 ColorCode regex backtracking 유발 (Issue #36)
+            // UI 스레드 블로킹 방지를 위해 사전 차단 → 단색 표시
+            if (language == Languages.Markdown && (text.Contains("```") || text.Contains("~~~")))
+                language = null;
+
             if (language != null)
             {
                 try
@@ -155,6 +161,11 @@ namespace Span.Views
                 catch (OperationCanceledException)
                 {
                     return;
+                }
+                catch (RegexMatchTimeoutException)
+                {
+                    // ColorCode regex backtracking 타임아웃 — 단색 텍스트로 폴백
+                    try { CodePreviewBlock.Blocks.Clear(); } catch { }
                 }
                 catch (System.Runtime.InteropServices.COMException)
                 {

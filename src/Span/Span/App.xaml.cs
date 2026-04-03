@@ -33,6 +33,9 @@ namespace Span
             var crashService = Services.GetRequiredService<Services.CrashReportingService>();
             crashService.Initialize();
 
+            // ColorCode 등 라이브러리의 Regex catastrophic backtracking 방지 (Issue #36)
+            AppDomain.CurrentDomain.SetData("REGEX_DEFAULT_MATCH_TIMEOUT", TimeSpan.FromSeconds(3));
+
             // UI thread unhandled exceptions
             this.UnhandledException += OnUnhandledException;
 
