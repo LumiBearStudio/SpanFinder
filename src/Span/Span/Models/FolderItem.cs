@@ -9,8 +9,17 @@ namespace Span.Models
     /// </summary>
     public class FolderItem : IFileSystemItem
     {
-        /// <summary>폴더명.</summary>
-        public string Name { get; set; } = string.Empty;
+        private string _name = string.Empty;
+
+        /// <summary>
+        /// 폴더명.
+        /// setter에서 NFC 정규화를 자동 적용하여 NFD 폴더명의 표시 깨짐을 방지한다.
+        /// </summary>
+        public string Name
+        {
+            get => _name;
+            set => _name = FileItem.NfcNormalize(value);
+        }
 
         /// <summary>폴더 전체 경로.</summary>
         public string Path { get; set; } = string.Empty;

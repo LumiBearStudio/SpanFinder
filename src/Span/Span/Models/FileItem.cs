@@ -1,4 +1,5 @@
 using System;
+using System.Text;
 
 namespace Span.Models
 {
@@ -8,8 +9,17 @@ namespace Span.Models
     /// </summary>
     public class FileItem : IFileSystemItem
     {
-        /// <summary>파일명 (확장자 포함).</summary>
-        public string Name { get; set; } = string.Empty;
+        private string _name = string.Empty;
+
+        /// <summary>
+        /// 파일명 (확장자 포함).
+        /// setter에서 NFC 정규화를 자동 적용하여 NFD 파일명(macOS 유래 등)의 표시 깨짐을 방지한다.
+        /// </summary>
+        public string Name
+        {
+            get => _name;
+            set => _name = NfcNormalize(value);
+        }
 
         /// <summary>파일 전체 경로.</summary>
         public string Path { get; set; } = string.Empty;
@@ -28,5 +38,15 @@ namespace Span.Models
 
         /// <summary>숨김 파일 여부.</summary>
         public bool IsHidden { get; set; }
+
+        /// <summary>
+        /// NFD 문자열을 NFC로 정규화한다. 이미 NFC이면 원본 그대로 반환 (성능 최적화).
+        /// macOS/웹에서 다운로드한 파일명의 결합 문자(탁음, 자모 등) 표시 깨짐을 방지한다.
+        /// </summary>
+        internal static string NfcNormalize(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return value;
+            return value.IsNormalized(NormalizationForm.FormC) ? value : value.Normalize(NormalizationForm.FormC);
+        }
     }
 }

@@ -362,7 +362,7 @@ public class ArchiveReaderService
                     var isDir = !isLast || IsDirectoryEntry(entry);
                     child = new TreeNode
                     {
-                        Name = part,
+                        Name = Models.FileItem.NfcNormalize(part),
                         FullPath = partPath,
                         IsDirectory = isDir,
                         Depth = i,

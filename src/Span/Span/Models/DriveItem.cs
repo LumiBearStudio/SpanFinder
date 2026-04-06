@@ -9,7 +9,12 @@ namespace Span.Models
     /// </summary>
     public class DriveItem
     {
-        public string Name { get; set; } = string.Empty;
+        private string _name = string.Empty;
+        public string Name
+        {
+            get => _name;
+            set => _name = FileItem.NfcNormalize(value);
+        }
         public string Path { get; set; } = string.Empty;
         public string Label { get; set; } = string.Empty;
         public long TotalSize { get; set; }
