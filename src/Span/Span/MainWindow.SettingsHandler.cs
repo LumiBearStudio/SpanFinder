@@ -527,6 +527,8 @@ namespace Span
         /// </summary>
         private void ApplyFontFamily(string fontFamily)
         {
+            if (_isClosed) return;
+
             if (this.Content is FrameworkElement root && root.Resources != null)
             {
                 // 번들 폰트는 이미 CJK 글리프를 포함하므로 fallback 없이 단독 참조
@@ -621,6 +623,8 @@ namespace Span
         /// </summary>
         private void ApplyIconFontScale(string scale)
         {
+            if (_isClosed) return;
+
             _iconFontScaleLevel = int.TryParse(scale, out var n) ? Math.Clamp(n, 0, 5) : 0;
 
             double itemFont = 13.0 + _iconFontScaleLevel;
@@ -814,6 +818,8 @@ namespace Span
         /// </summary>
         private void ApplyIconFontScaleToGlobalUI(int level)
         {
+            if (_isClosed) return;
+
             // AppTitleBar (Tab bar, Row 0)
             if (AppTitleBar != null)
                 ApplyAbsoluteScaleToTree(AppTitleBar, level, 8, 20, 10, 16);
