@@ -8,6 +8,7 @@ using Span.Models;
 using Span.Services;
 using Span.ViewModels;
 using System;
+using System.Collections.Generic;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Threading.Tasks;
 using Windows.ApplicationModel.DataTransfer;
@@ -38,9 +39,18 @@ namespace Span.Views
         /// </summary>
         public event Action<string, string>? ActionForwarded;
 
+        /// <summary>
+        /// QuickLook 내 좌우 화살표/스페이스로 파일 이동 시 메인 윈도우에 선택 동기화 알림.
+        /// </summary>
+        public event Action<FileSystemViewModel>? SelectionSynced;
+
         // Compact info-only size
         private const int InfoWidth = 840;
         private const int InfoHeight = 400;
+
+        // --- 형제 파일 목록 네비게이션 ---
+        private IReadOnlyList<FileSystemViewModel>? _siblingItems;
+        private int _currentIndex = -1;
 
         public QuickLookWindow()
         {
@@ -94,8 +104,10 @@ namespace Span.Views
             titleBar.ButtonBackgroundColor = Colors.Transparent;
             titleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
 
-            // Default to content mode size (will be adjusted in UpdateContent)
-            appWindow.Resize(new SizeInt32(600, 500));
+            // 메인 창의 80% 크기로 열기 (이후 파일 이동 시에도 사이즈 유지, 닫았다 열면 다시 80%)
+            var (w, h) = GetContentModeSize();
+            appWindow.Resize(new SizeInt32(w, h));
+            CenterOnMainWindow(w, h);
 
             if (appWindow.Presenter is OverlappedPresenter presenter)
             {
@@ -125,6 +137,15 @@ namespace Span.Views
         public void SetMainWindow(AppWindow mainAppWindow)
         {
             _mainAppWindow = mainAppWindow;
+        }
+
+        /// <summary>
+        /// 형제 파일 목록과 현재 인덱스를 설정하여 QuickLook 내 좌우 네비게이션을 활성화.
+        /// </summary>
+        public void SetSiblingItems(IReadOnlyList<FileSystemViewModel> items, int currentIndex)
+        {
+            _siblingItems = items;
+            _currentIndex = currentIndex;
         }
 
         /// <summary>
@@ -235,7 +256,6 @@ namespace Span.Views
         private void SwitchMode(bool infoOnly, FileSystemViewModel item)
         {
             _isInfoOnlyMode = infoOnly;
-            var appWindow = this.AppWindow;
 
             if (infoOnly)
             {
@@ -246,10 +266,6 @@ namespace Span.Views
 
                 // Populate info texts
                 UpdateInfoOnlyTexts(item);
-
-                // Compact size
-                appWindow.Resize(new SizeInt32(InfoWidth, InfoHeight));
-                CenterOnMainWindow(InfoWidth, InfoHeight);
             }
             else
             {
@@ -257,12 +273,9 @@ namespace Span.Views
                 ContentPreviewArea.Visibility = Visibility.Visible;
                 BottomInfoBar.Visibility = Visibility.Visible;
                 InfoOnlyArea.Visibility = Visibility.Collapsed;
-
-                // 70% of main window
-                var (w, h) = GetContentModeSize();
-                appWindow.Resize(new SizeInt32(w, h));
-                CenterOnMainWindow(w, h);
             }
+            // 사이즈/위치는 ConfigureWindow()에서 1회만 설정.
+            // 파일 이동 시 Resize/Center 하지 않음 → 사용자가 조정한 크기 유지.
         }
 
         private void UpdateInfoOnlyTexts(FileSystemViewModel item)
@@ -390,11 +403,58 @@ namespace Span.Views
 
         private void OnContentKeyDown(object sender, KeyRoutedEventArgs e)
         {
-            if (e.Key == Windows.System.VirtualKey.Escape || e.Key == Windows.System.VirtualKey.Space)
+            switch (e.Key)
             {
-                e.Handled = true;
-                this.Close();
+                case Windows.System.VirtualKey.Escape:
+                    e.Handled = true;
+                    this.Close();
+                    break;
+
+                case Windows.System.VirtualKey.Space:
+                    // 미디어 재생 중이면 Space = 일시정지/재생 (기본 동작에 맡김)
+                    if (ViewModel.CurrentPreviewType == PreviewType.Media)
+                        return;
+                    // 그 외: 다음 파일로 이동
+                    e.Handled = true;
+                    NavigateSibling(+1);
+                    break;
+
+                case Windows.System.VirtualKey.Right:
+                case Windows.System.VirtualKey.Down:
+                    e.Handled = true;
+                    NavigateSibling(+1);
+                    break;
+
+                case Windows.System.VirtualKey.Left:
+                case Windows.System.VirtualKey.Up:
+                    e.Handled = true;
+                    NavigateSibling(-1);
+                    break;
             }
+        }
+
+        /// <summary>
+        /// 형제 파일 목록에서 다음/이전 항목으로 이동하여 미리보기를 갱신한다.
+        /// </summary>
+        private void NavigateSibling(int direction)
+        {
+            if (_siblingItems == null || _siblingItems.Count == 0) return;
+
+            int newIndex = _currentIndex + direction;
+            if (newIndex < 0 || newIndex >= _siblingItems.Count) return;
+
+            _currentIndex = newIndex;
+            var nextItem = _siblingItems[_currentIndex];
+
+            // 미디어 재생 중이면 먼저 정지
+            StopMedia();
+
+            UpdateContent(nextItem);
+
+            // 메인 윈도우에 선택 동기화
+            SelectionSynced?.Invoke(nextItem);
+
+            Helpers.DebugLogger.Log($"[QuickLook] Navigate {(direction > 0 ? "next" : "prev")}: {nextItem.Name} ({_currentIndex + 1}/{_siblingItems.Count})");
         }
 
         public void StopMedia()

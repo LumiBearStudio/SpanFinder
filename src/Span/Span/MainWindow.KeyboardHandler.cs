@@ -1310,10 +1310,99 @@ namespace Span
             _quickLookWindow.SyncTheme();
             _quickLookWindow.WindowClosed += OnQuickLookWindowClosed;
             _quickLookWindow.ActionForwarded += OnQuickLookActionForwarded;
+            _quickLookWindow.SelectionSynced += OnQuickLookSelectionSynced;
+
+            // 형제 파일 목록 전달 (좌우 화살표/스페이스 네비게이션용)
+            SetQuickLookSiblings(selectedItem);
+
             _quickLookWindow.UpdateContent(selectedItem);
             _quickLookWindow.Activate();
 
             Helpers.DebugLogger.Log($"[QuickLook] Opened for: {selectedItem.Name}");
+        }
+
+        /// <summary>
+        /// QuickLook에 현재 폴더의 형제 파일 목록과 선택 인덱스를 전달한다.
+        /// </summary>
+        private void SetQuickLookSiblings(FileSystemViewModel selectedItem)
+        {
+            if (_quickLookWindow == null) return;
+
+            try
+            {
+                var explorer = ViewModel.ActiveExplorer;
+                if (explorer == null) return;
+
+                // 뷰 모드에 따라 현재 폴더 결정
+                FolderViewModel? currentFolder = null;
+
+                if (ViewModel.CurrentViewMode == Models.ViewMode.MillerColumns)
+                {
+                    // Miller: 선택 항목이 속한 컬럼 찾기
+                    var columns = explorer.Columns;
+                    for (int i = columns.Count - 1; i >= 0; i--)
+                    {
+                        if (columns[i].SelectedChild == selectedItem || columns[i].Children.Contains(selectedItem))
+                        {
+                            currentFolder = columns[i];
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    // Details/List/Icon: CurrentFolder 사용
+                    currentFolder = explorer.CurrentFolder;
+                }
+
+                if (currentFolder == null) return;
+
+                var children = currentFolder.Children;
+                int index = children.IndexOf(selectedItem);
+                if (index < 0) index = 0;
+
+                _quickLookWindow.SetSiblingItems(children, index);
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[QuickLook] SetSiblingItems error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// QuickLook 내 좌우 네비게이션으로 파일 이동 시 메인 윈도우 선택 동기화.
+        /// </summary>
+        private void OnQuickLookSelectionSynced(FileSystemViewModel item)
+        {
+            try
+            {
+                var explorer = ViewModel.ActiveExplorer;
+                if (explorer == null) return;
+
+                if (ViewModel.CurrentViewMode == Models.ViewMode.MillerColumns)
+                {
+                    // Miller: 선택 항목이 속한 컬럼의 SelectedChild 업데이트
+                    var columns = explorer.Columns;
+                    for (int i = columns.Count - 1; i >= 0; i--)
+                    {
+                        if (columns[i].Children.Contains(item))
+                        {
+                            columns[i].SelectedChild = item;
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    // Details/List/Icon: CurrentFolder의 SelectedChild 업데이트
+                    if (explorer.CurrentFolder != null)
+                        explorer.CurrentFolder.SelectedChild = item;
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[QuickLook] SelectionSync error: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -1372,6 +1461,7 @@ namespace Span
             {
                 try
                 {
+                    _quickLookWindow.SelectionSynced -= OnQuickLookSelectionSynced;
                     _quickLookWindow.ActionForwarded -= OnQuickLookActionForwarded;
                     _quickLookWindow.WindowClosed -= OnQuickLookWindowClosed;
                     _quickLookWindow.Close();
@@ -1407,6 +1497,9 @@ namespace Span
                 CloseQuickLookWindow();
                 return;
             }
+
+            // 형제 목록도 갱신 (폴더 이동 등으로 목록이 변경되었을 수 있음)
+            SetQuickLookSiblings(selectedItem);
 
             // 파일/폴더 모두 미리보기 업데이트
             _quickLookWindow.UpdateContent(selectedItem);
