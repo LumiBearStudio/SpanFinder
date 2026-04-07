@@ -595,7 +595,7 @@ namespace Span.Views
                         var folderPath = ViewModel?.CurrentFolder?.Path;
                         if (!string.IsNullOrEmpty(folderPath))
                         {
-                            var emptyFlyout = ContextMenuService.BuildEmptyAreaMenu(folderPath, ContextMenuHost);
+                            var emptyFlyout = await ContextMenuService.BuildEmptyAreaMenuAsync(folderPath, ContextMenuHost);
                             emptyFlyout.ShowAt(grid, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
                             {
                                 Position = e.GetPosition(grid)
@@ -676,6 +676,18 @@ namespace Span.Views
             if (selected != null && !IsParentDotDot(selected) && selected.IsRenaming) return;
 
             if (Helpers.ViewItemHelper.HasModifierKey()) return;
+
+            // Shift+WASD 네비게이션
+            if (_settings?.EnableWasdNavigation == true &&
+                Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Shift)
+                    .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down) &&
+                e.Key is Windows.System.VirtualKey.W or Windows.System.VirtualKey.A or
+                         Windows.System.VirtualKey.S or Windows.System.VirtualKey.D)
+            {
+                if ((ContextMenuHost as MainWindow)?.HandleViewWasd(e.Key, ViewModel) == true)
+                    e.Handled = true;
+                return;
+            }
 
             switch (e.Key)
             {
@@ -995,7 +1007,7 @@ namespace Span.Views
             ListGridView?.Focus(FocusState.Programmatic);
         }
 
-        private void OnEmptyAreaRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
+        private async void OnEmptyAreaRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
         {
             if (e.Handled) return;
             if (_settings != null && !_settings.ShowContextMenu) return;
@@ -1004,7 +1016,7 @@ namespace Span.Views
             var folderPath = ViewModel?.CurrentFolder?.Path;
             if (string.IsNullOrEmpty(folderPath)) return;
 
-            var flyout = ContextMenuService.BuildEmptyAreaMenu(folderPath, ContextMenuHost);
+            var flyout = await ContextMenuService.BuildEmptyAreaMenuAsync(folderPath, ContextMenuHost);
             flyout.ShowAt(RootGrid, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
             {
                 Position = e.GetPosition(RootGrid)

@@ -3823,14 +3823,15 @@ namespace Span
         /// Miller Column ListView 빈 공간 우클릭 → 빈 영역 컨텍스트 메뉴.
         /// 아이템 위에서의 우클릭은 OnFolderRightTapped/OnFileRightTapped에서 e.Handled=true 처리됨.
         /// </summary>
-        private void OnMillerColumnEmptyAreaRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
+        private async void OnMillerColumnEmptyAreaRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
         {
             if (e.Handled) return; // 아이템 핸들러가 이미 처리함
             if (!_settings.ShowContextMenu) return;
 
             if (sender is ListView listView && listView.DataContext is FolderViewModel folderVm)
             {
-                var flyout = _contextMenuService.BuildEmptyAreaMenu(folderVm.Path, this);
+                _contextMenuService.SetLastEmptyAreaContext(folderVm.Path, this, listView, e.GetPosition(listView));
+                var flyout = await _contextMenuService.BuildEmptyAreaMenuAsync(folderVm.Path, this);
                 flyout.ShowAt(listView, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
                 {
                     Position = e.GetPosition(listView)

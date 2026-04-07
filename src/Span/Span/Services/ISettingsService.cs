@@ -24,6 +24,7 @@ namespace Span.Services
         string MillerClickBehavior { get; set; }
         bool ShowThumbnails { get; set; }
         bool EnableQuickLook { get; set; }
+        bool EnableWasdNavigation { get; set; }
         bool ConfirmDelete { get; set; }
         int UndoHistorySize { get; set; }
     }

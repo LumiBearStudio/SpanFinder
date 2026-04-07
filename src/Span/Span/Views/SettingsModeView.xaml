@@ -1344,6 +1344,25 @@
                                 </Grid>
                             </Border>
 
+                            <!-- WASD Navigation -->
+                            <Border Style="{StaticResource SettingsCardBorder}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Style="{StaticResource CardIconContainer}">
+                                        <FontIcon Glyph="&#xE7FC;" Style="{StaticResource CardIconStyle}" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock x:Name="WasdNavLabel" Text="WASD navigation (Shift+WASD)" Style="{StaticResource SettingsCardLabel}" />
+                                        <TextBlock x:Name="WasdNavDesc" Text="Navigate files with Shift+W/A/S/D keys" Style="{StaticResource SettingsCardDesc}" />
+                                    </StackPanel>
+                                    <ToggleSwitch x:Name="WasdNavToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="False" OnContent="" OffContent="" />
+                                </Grid>
+                            </Border>
+
                             <!-- Preview: Show Folder Info (숨김 — 향후 시나리오 안정화 후 공개) -->
                             <Border Style="{StaticResource SettingsCardBorder}" Visibility="Collapsed">
                                 <Grid>
@@ -1622,25 +1641,6 @@
                                         <ComboBoxItem Content="PowerShell" />
                                         <ComboBoxItem Content="CMD" />
                                     </ComboBox>
-                                </Grid>
-                            </Border>
-
-                            <!-- Developer Context Menu -->
-                            <Border Style="{StaticResource SettingsCardBorder}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <Border Grid.Column="0" Style="{StaticResource CardIconContainer}">
-                                        <FontIcon Glyph="&#xE943;" Style="{StaticResource CardIconStyle}" />
-                                    </Border>
-                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                                        <TextBlock x:Name="DevMenuLabel" Text="개발자 컨텍스트 메뉴" Style="{StaticResource SettingsCardLabel}" />
-                                        <TextBlock x:Name="DevMenuDesc" Text="우클릭 메뉴에 Git, Visual Studio, VS Code 등 개발 도구 항목 표시" Style="{StaticResource SettingsCardDesc}" />
-                                    </StackPanel>
-                                    <ToggleSwitch x:Name="DeveloperMenuToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="False" OnContent="" OffContent="" />
                                 </Grid>
                             </Border>
 

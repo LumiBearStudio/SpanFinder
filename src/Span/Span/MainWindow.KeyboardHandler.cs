@@ -948,6 +948,32 @@ namespace Span
             int activeIndex = GetActiveColumnIndex();
             if (activeIndex < 0) activeIndex = columns.Count - 1;
 
+            // ★ Shift+WASD 네비게이션 (설정 ON일 때)
+            var shift = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Shift)
+                        .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+            if (shift && _settings.EnableWasdNavigation)
+            {
+                switch (e.Key)
+                {
+                    case Windows.System.VirtualKey.W: // Shift+W: 위로 이동
+                        HandleUpArrow(activeIndex);
+                        e.Handled = true;
+                        return;
+                    case Windows.System.VirtualKey.S: // Shift+S: 아래로 이동
+                        HandleDownArrow(activeIndex);
+                        e.Handled = true;
+                        return;
+                    case Windows.System.VirtualKey.A: // Shift+A: 부모 폴더 (왼쪽)
+                        HandleLeftArrow(activeIndex);
+                        e.Handled = true;
+                        return;
+                    case Windows.System.VirtualKey.D: // Shift+D: 폴더 진입 (오른쪽)
+                        HandleRightArrow(activeIndex);
+                        e.Handled = true;
+                        return;
+                }
+            }
+
             switch (e.Key)
             {
                 case Windows.System.VirtualKey.Right:
@@ -1044,6 +1070,46 @@ namespace Span
             if (activeIndex > 0)
             {
                 FocusColumnAsync(activeIndex - 1);
+            }
+        }
+
+        /// <summary>
+        /// 위쪽 이동: 현재 컬럼에서 이전 항목을 선택한다 (WASD W키).
+        /// </summary>
+        private void HandleUpArrow(int activeIndex)
+        {
+            var columns = ViewModel.ActiveExplorer?.Columns;
+            if (columns == null || activeIndex < 0 || activeIndex >= columns.Count) return;
+
+            var column = columns[activeIndex];
+            if (column.Children.Count == 0) return;
+
+            int currentIdx = column.SelectedChild != null ? column.Children.IndexOf(column.SelectedChild) : 0;
+            if (currentIdx > 0)
+            {
+                column.SelectedChild = column.Children[currentIdx - 1];
+                var listView = GetListViewForColumn(activeIndex);
+                listView?.ScrollIntoView(column.SelectedChild);
+            }
+        }
+
+        /// <summary>
+        /// 아래쪽 이동: 현재 컬럼에서 다음 항목을 선택한다 (WASD S키).
+        /// </summary>
+        private void HandleDownArrow(int activeIndex)
+        {
+            var columns = ViewModel.ActiveExplorer?.Columns;
+            if (columns == null || activeIndex < 0 || activeIndex >= columns.Count) return;
+
+            var column = columns[activeIndex];
+            if (column.Children.Count == 0) return;
+
+            int currentIdx = column.SelectedChild != null ? column.Children.IndexOf(column.SelectedChild) : -1;
+            if (currentIdx < column.Children.Count - 1)
+            {
+                column.SelectedChild = column.Children[currentIdx + 1];
+                var listView = GetListViewForColumn(activeIndex);
+                listView?.ScrollIntoView(column.SelectedChild);
             }
         }
 
@@ -1531,6 +1597,45 @@ namespace Span
             {
                 explorer.CurrentFolder.SelectedChild = match;
             }
+        }
+
+        /// <summary>
+        /// Details/List/Icon 뷰에서 Shift+WASD 네비게이션을 처리한다.
+        /// W=위, S=아래, A=상위 폴더, D=폴더 진입/파일 열기.
+        /// </summary>
+        /// <returns>WASD가 처리되었으면 true</returns>
+        public bool HandleViewWasd(Windows.System.VirtualKey key, ViewModels.ExplorerViewModel? explorer)
+        {
+            if (explorer?.CurrentFolder == null) return false;
+            var children = explorer.CurrentFolder.Children;
+            if (children == null || children.Count == 0) return key == Windows.System.VirtualKey.A;
+
+            switch (key)
+            {
+                case Windows.System.VirtualKey.W: // 위
+                {
+                    int idx = explorer.CurrentFolder.SelectedChild != null
+                        ? children.IndexOf(explorer.CurrentFolder.SelectedChild) : 0;
+                    if (idx > 0)
+                        explorer.CurrentFolder.SelectedChild = children[idx - 1];
+                    return true;
+                }
+                case Windows.System.VirtualKey.S: // 아래
+                {
+                    int idx = explorer.CurrentFolder.SelectedChild != null
+                        ? children.IndexOf(explorer.CurrentFolder.SelectedChild) : -1;
+                    if (idx < children.Count - 1)
+                        explorer.CurrentFolder.SelectedChild = children[idx + 1];
+                    return true;
+                }
+                case Windows.System.VirtualKey.A: // 상위 폴더
+                    explorer.NavigateUp();
+                    return true;
+                case Windows.System.VirtualKey.D: // 폴더 진입 / 파일 열기
+                    Helpers.ViewItemHelper.OpenFileOrFolder(explorer, "WasdNav");
+                    return true;
+            }
+            return false;
         }
 
         /// <summary>

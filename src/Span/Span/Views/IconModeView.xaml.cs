@@ -294,7 +294,7 @@ namespace Span.Views
                     var folderPath = ViewModel?.CurrentFolder?.Path;
                     if (!string.IsNullOrEmpty(folderPath))
                     {
-                        flyout = ContextMenuService.BuildEmptyAreaMenu(folderPath, ContextMenuHost);
+                        flyout = await ContextMenuService.BuildEmptyAreaMenuAsync(folderPath, ContextMenuHost);
                         flyout.ShowAt(showAtTarget, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
                         {
                             Position = position
@@ -338,6 +338,18 @@ namespace Span.Views
             var selected = ViewModel?.CurrentFolder?.SelectedChild;
             if (selected != null && selected.IsRenaming) return;
             if (Helpers.ViewItemHelper.HasModifierKey()) return;
+
+            // Shift+WASD 네비게이션
+            if (_settings?.EnableWasdNavigation == true &&
+                Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Shift)
+                    .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down) &&
+                e.Key is Windows.System.VirtualKey.W or Windows.System.VirtualKey.A or
+                         Windows.System.VirtualKey.S or Windows.System.VirtualKey.D)
+            {
+                if ((ContextMenuHost as MainWindow)?.HandleViewWasd(e.Key, ViewModel) == true)
+                    e.Handled = true;
+                return;
+            }
 
             // _justFinishedRename 가드: rename 후 Enter가 파일 실행되지 않도록
             if (_justFinishedRename)

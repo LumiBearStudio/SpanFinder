@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -132,6 +133,10 @@ namespace Span.Services
         [DllImport("shell32.dll")]
         private static extern int SHBindToParent(IntPtr pidl, ref Guid riid,
             out IntPtr ppv, out IntPtr ppidlLast);
+
+        [DllImport("shell32.dll")]
+        private static extern int SHBindToObject(IntPtr psfParent, IntPtr pidl,
+            IntPtr pbc, ref Guid riid, out IntPtr ppv);
 
         [DllImport("user32.dll")]
         private static extern IntPtr CreatePopupMenu();
@@ -373,7 +378,7 @@ namespace Span.Services
         /// Non-standard shell extension items (Bandizip, 7-Zip, etc.) are extracted
         /// while standard items (open, copy, delete, etc.) are filtered out.
         /// </summary>
-        public static Session? CreateSession(IntPtr hwnd, string path)
+        public static Session? CreateSession(IntPtr hwnd, string path, BlockingCollection<Action>? staWorkQueue = null)
         {
             IntPtr pidl = IntPtr.Zero;
             IntPtr shellFolderPtr = IntPtr.Zero;
@@ -458,7 +463,7 @@ namespace Span.Services
                 var session = new Session(
                     contextMenu, contextMenuObj, shellFolderObj,
                     contextMenuPtr, shellFolderPtr, pidl,
-                    hMenu, hwnd, items);
+                    hMenu, hwnd, items, staWorkQueue);
 
                 // Ownership transferred to session — don't clean up here
                 pidl = IntPtr.Zero;
@@ -486,6 +491,178 @@ namespace Span.Services
         }
 
         /// <summary>
+        /// 폴더 배경(빈 영역) 컨텍스트 메뉴용 세션 생성.
+        /// IShellFolder::CreateViewObject로 폴더 자체의 IContextMenu를 가져온다.
+        /// TortoiseSVN, TortoiseGit 등 배경 메뉴에 등록된 셸 확장이 여기에 포함된다.
+        /// </summary>
+        public static Session? CreateBackgroundSession(IntPtr hwnd, string folderPath, BlockingCollection<Action>? staWorkQueue = null)
+        {
+            IntPtr pidl = IntPtr.Zero;
+            IntPtr shellFolderPtr = IntPtr.Zero;
+            IntPtr contextMenuPtr = IntPtr.Zero;
+            object? shellFolderObj = null;
+            object? contextMenuObj = null;
+
+            try
+            {
+                Helpers.DebugLogger.Log($"[ShellContextMenu] CreateBackgroundSession path={folderPath}");
+                int hr = SHParseDisplayName(folderPath, IntPtr.Zero, out pidl, 0, out _);
+                if (hr != 0 || pidl == IntPtr.Zero)
+                {
+                    Helpers.DebugLogger.Log($"[ShellContextMenu] CreateBackgroundSession SHParseDisplayName FAILED hr=0x{hr:X8}");
+                    return null;
+                }
+
+                // 폴더 pidl을 IShellFolder로 바인딩 (SHBindToObject with null parent = desktop)
+                var iidFolder = new Guid("000214E6-0000-0000-C000-000000000046");
+                hr = SHBindToObject(IntPtr.Zero, pidl, IntPtr.Zero, ref iidFolder, out shellFolderPtr);
+                if (hr != 0 || shellFolderPtr == IntPtr.Zero)
+                {
+                    Helpers.DebugLogger.Log($"[ShellContextMenu] CreateBackgroundSession SHBindToObject FAILED hr=0x{hr:X8}");
+                    return null;
+                }
+
+                shellFolderObj = Marshal.GetObjectForIUnknown(shellFolderPtr);
+                var shellFolder = (IShellFolder)shellFolderObj;
+
+                // CreateViewObject: 폴더 배경의 IContextMenu (아이템이 아닌 폴더 자체)
+                var iidCM = new Guid("000214e4-0000-0000-c000-000000000046");
+                hr = shellFolder.CreateViewObject(hwnd, ref iidCM, out contextMenuPtr);
+                if (hr != 0 || contextMenuPtr == IntPtr.Zero)
+                {
+                    Helpers.DebugLogger.Log($"[ShellContextMenu] CreateBackgroundSession CreateViewObject FAILED hr=0x{hr:X8}");
+                    return null;
+                }
+
+                contextMenuObj = Marshal.GetObjectForIUnknown(contextMenuPtr);
+                var contextMenu = (IContextMenu)contextMenuObj;
+
+                IContextMenu2? cm2 = null;
+                IContextMenu3? cm3 = null;
+                try { cm3 = (IContextMenu3)contextMenuObj; } catch { }
+                if (cm3 == null) { try { cm2 = (IContextMenu2)contextMenuObj; } catch { } }
+
+                IntPtr hMenu = CreatePopupMenu();
+                if (hMenu == IntPtr.Zero) return null;
+
+                Helpers.NativeMethods.SetThreadErrorMode(
+                    Helpers.NativeMethods.SEM_FAILCRITICALERRORS |
+                    Helpers.NativeMethods.SEM_NOGPFAULTERRORBOX |
+                    Helpers.NativeMethods.SEM_NOOPENFILEERRORBOX,
+                    out uint oldErrorMode);
+                List<ShellMenuItem> items;
+                try
+                {
+                    hr = contextMenu.QueryContextMenu(hMenu, 0, FIRST_CMD, LAST_CMD,
+                        CMF_NORMAL | CMF_EXPLORE);
+                    Helpers.DebugLogger.Log($"[ShellContextMenu] CreateBackgroundSession QueryContextMenu hr=0x{hr:X8} menuCount={GetMenuItemCount(hMenu)}");
+                    if (hr < 0)
+                    {
+                        DestroyMenu(hMenu);
+                        return null;
+                    }
+
+                    items = EnumerateMenuItems(hMenu, contextMenu, cm2, cm3, 0);
+                }
+                finally
+                {
+                    Helpers.NativeMethods.SetThreadErrorMode(oldErrorMode, out _);
+                }
+                Helpers.DebugLogger.Log($"[ShellContextMenu] CreateBackgroundSession done count={items.Count}");
+
+                var session = new Session(
+                    contextMenu, contextMenuObj, shellFolderObj,
+                    contextMenuPtr, shellFolderPtr, pidl,
+                    hMenu, hwnd, items, staWorkQueue);
+
+                pidl = IntPtr.Zero;
+                shellFolderPtr = IntPtr.Zero;
+                contextMenuPtr = IntPtr.Zero;
+                shellFolderObj = null;
+                contextMenuObj = null;
+
+                return session;
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[ShellContextMenu] CreateBackgroundSession EXCEPTION: {ex.GetType().Name}: {ex.Message}");
+                return null;
+            }
+            finally
+            {
+                if (pidl != IntPtr.Zero) CoTaskMemFree(pidl);
+                if (contextMenuObj != null) try { Marshal.ReleaseComObject(contextMenuObj); } catch { }
+                if (shellFolderObj != null) try { Marshal.ReleaseComObject(shellFolderObj); } catch { }
+            }
+        }
+
+        /// <summary>
+        /// Timeout-guarded version of CreateBackgroundSession.
+        /// </summary>
+        public static async Task<Session?> CreateBackgroundSessionAsync(IntPtr hwnd, string folderPath, int timeoutMs = 3000)
+        {
+            if (!await s_staThrottle.WaitAsync(Math.Min(timeoutMs, 500)))
+            {
+                Helpers.DebugLogger.Log($"[ShellContextMenu] Background STA throttle timeout for: {folderPath}");
+                return null;
+            }
+
+            try
+            {
+                Session? result = null;
+                Exception? caught = null;
+                var workQueue = new BlockingCollection<Action>();
+                var creationDone = new ManualResetEventSlim(false);
+
+                var staThread = new Thread(() =>
+                {
+                    try { result = CreateBackgroundSession(hwnd, folderPath, workQueue); }
+                    catch (Exception ex) { caught = ex; }
+                    finally { creationDone.Set(); }
+
+                    // STA 스레드 유지: InvokeCommand/Dispose 작업 처리
+                    if (result != null)
+                    {
+                        foreach (var action in workQueue.GetConsumingEnumerable())
+                        {
+                            try { action(); }
+                            catch (Exception ex)
+                            {
+                                Helpers.DebugLogger.Log($"[ShellContextMenu] STA work item error: {ex.Message}");
+                            }
+                        }
+                    }
+                });
+                staThread.SetApartmentState(ApartmentState.STA);
+                staThread.IsBackground = true;
+                staThread.Start();
+
+                var completed = await Task.Run(() => creationDone.Wait(timeoutMs));
+                if (!completed)
+                {
+                    Helpers.DebugLogger.Log($"[ShellContextMenu] CreateBackgroundSession timed out ({timeoutMs}ms) for: {folderPath}");
+                    workQueue.CompleteAdding();
+                    _ = Task.Run(() => { staThread.Join(5000); result?.Dispose(); });
+                    return null;
+                }
+
+                if (caught != null)
+                {
+                    Helpers.DebugLogger.Log($"[ShellContextMenu] CreateBackgroundSessionAsync EXCEPTION: {caught.GetType().Name}: {caught.Message}");
+                    try { App.Current.Services.GetService<CrashReportingService>()?.CaptureException(caught, "ShellContextMenu.CreateBackgroundSessionAsync"); } catch { }
+                    workQueue.CompleteAdding();
+                    return null;
+                }
+
+                return result;
+            }
+            finally
+            {
+                s_staThrottle.Release();
+            }
+        }
+
+        /// <summary>
         /// Timeout-guarded version of CreateSession.
         /// Runs CreateSession on a dedicated STA thread with a timeout.
         /// If the shell extension takes too long (e.g. unresponsive third-party),
@@ -504,17 +681,27 @@ namespace Span.Services
             {
                 Session? result = null;
                 Exception? caught = null;
+                var workQueue = new BlockingCollection<Action>();
+                var creationDone = new ManualResetEventSlim(false);
 
-                // Shell COM objects require STA — use a dedicated STA thread
+                // Shell COM objects require STA — use a dedicated STA thread that stays alive
                 var staThread = new Thread(() =>
                 {
-                    try
+                    try { result = CreateSession(hwnd, path, workQueue); }
+                    catch (Exception ex) { caught = ex; }
+                    finally { creationDone.Set(); }
+
+                    // STA 스레드 유지: InvokeCommand/Dispose 작업 처리
+                    if (result != null)
                     {
-                        result = CreateSession(hwnd, path);
-                    }
-                    catch (Exception ex)
-                    {
-                        caught = ex;
+                        foreach (var action in workQueue.GetConsumingEnumerable())
+                        {
+                            try { action(); }
+                            catch (Exception ex)
+                            {
+                                Helpers.DebugLogger.Log($"[ShellContextMenu] STA work item error: {ex.Message}");
+                            }
+                        }
                     }
                 });
                 staThread.SetApartmentState(ApartmentState.STA);
@@ -522,17 +709,13 @@ namespace Span.Services
                 staThread.Start();
 
                 // Wait with timeout
-                var completed = await Task.Run(() => staThread.Join(timeoutMs));
+                var completed = await Task.Run(() => creationDone.Wait(timeoutMs));
 
                 if (!completed)
                 {
                     Helpers.DebugLogger.Log($"[ShellContextMenu] CreateSession timed out ({timeoutMs}ms) for: {path}");
-                    // Clean up orphaned session when STA thread eventually completes
-                    _ = Task.Run(() =>
-                    {
-                        staThread.Join();
-                        result?.Dispose();
-                    });
+                    workQueue.CompleteAdding();
+                    _ = Task.Run(() => { staThread.Join(5000); result?.Dispose(); });
                     return null;
                 }
 
@@ -548,6 +731,7 @@ namespace Span.Services
                         App.Current.Services.GetService<CrashReportingService>()?.CaptureException(caught, "ShellContextMenu.CreateSessionAsync");
                     }
                     catch { }
+                    workQueue.CompleteAdding();
                     return null;
                 }
 
@@ -769,13 +953,20 @@ namespace Span.Services
             private readonly object _lock = new();
             private bool _disposed;
 
+            /// <summary>
+            /// STA 스레드 작업 큐 — COM 객체가 생성된 아파트먼트에서 InvokeCommand/Dispose를 실행.
+            /// null이면 호출자 스레드에서 직접 실행 (같은 아파트먼트일 때).
+            /// </summary>
+            private readonly BlockingCollection<Action>? _staWorkQueue;
+
             /// <summary>Shell extension menu items (standard verbs already filtered out)</summary>
             public List<ShellMenuItem> Items { get; }
 
             internal Session(
                 object contextMenuImpl, object contextMenuObj, object shellFolderObj,
                 IntPtr contextMenuPtr, IntPtr shellFolderPtr, IntPtr pidl,
-                IntPtr hMenu, IntPtr hwnd, List<ShellMenuItem> items)
+                IntPtr hMenu, IntPtr hwnd, List<ShellMenuItem> items,
+                BlockingCollection<Action>? staWorkQueue = null)
             {
                 _contextMenuImpl = contextMenuImpl;
                 _contextMenuObj = contextMenuObj;
@@ -786,6 +977,7 @@ namespace Span.Services
                 _hMenu = hMenu;
                 _hwnd = hwnd;
                 Items = items;
+                _staWorkQueue = staWorkQueue;
             }
 
             /// <summary>
@@ -797,54 +989,76 @@ namespace Span.Services
                 lock (_lock)
                 {
                     if (_disposed) return false;
-                    try { SentrySdk.AddBreadcrumb($"InvokeCommand id={commandId}", "shell.menu"); } catch { }
+                }
+
+                try { SentrySdk.AddBreadcrumb($"InvokeCommand id={commandId}", "shell.menu"); } catch { }
+
+                // STA 스레드가 있으면 원래 아파트먼트에서 실행 (RCW 분리 방지)
+                if (_staWorkQueue != null)
+                {
+                    bool success = false;
+                    using var done = new ManualResetEventSlim(false);
+                    _staWorkQueue.Add(() =>
+                    {
+                        success = InvokeCommandCore(commandId);
+                        done.Set();
+                    });
+                    // 셸 명령은 다이얼로그를 띄울 수 있으므로 충분한 타임아웃
+                    done.Wait(TimeSpan.FromMinutes(5));
+                    return success;
+                }
+
+                return InvokeCommandCore(commandId);
+            }
+
+            private bool InvokeCommandCore(int commandId)
+            {
+                try
+                {
+                    var invokeInfo = new CMINVOKECOMMANDINFO
+                    {
+                        cbSize = Marshal.SizeOf<CMINVOKECOMMANDINFO>(),
+                        fMask = CMIC_MASK_FLAG_NO_UI,
+                        hwnd = _hwnd,
+                        lpVerb = (IntPtr)(commandId - (int)FIRST_CMD),
+                        nShow = SW_SHOWNORMAL
+                    };
+                    // Suppress system error dialogs from misbehaving shell extensions (thread-scoped)
+                    Helpers.NativeMethods.SetThreadErrorMode(
+                        Helpers.NativeMethods.SEM_FAILCRITICALERRORS |
+                        Helpers.NativeMethods.SEM_NOGPFAULTERRORBOX |
+                        Helpers.NativeMethods.SEM_NOOPENFILEERRORBOX,
+                        out uint oldErrorMode);
                     try
                     {
-                        var invokeInfo = new CMINVOKECOMMANDINFO
-                        {
-                            cbSize = Marshal.SizeOf<CMINVOKECOMMANDINFO>(),
-                            fMask = CMIC_MASK_FLAG_NO_UI,
-                            hwnd = _hwnd,
-                            lpVerb = (IntPtr)(commandId - (int)FIRST_CMD),
-                            nShow = SW_SHOWNORMAL
-                        };
-                        // Suppress system error dialogs from misbehaving shell extensions (thread-scoped)
-                        Helpers.NativeMethods.SetThreadErrorMode(
-                            Helpers.NativeMethods.SEM_FAILCRITICALERRORS |
-                            Helpers.NativeMethods.SEM_NOGPFAULTERRORBOX |
-                            Helpers.NativeMethods.SEM_NOOPENFILEERRORBOX,
-                            out uint oldErrorMode);
-                        try
-                        {
-                            ((IContextMenu)_contextMenuImpl).InvokeCommand(ref invokeInfo);
-                        }
-                        finally
-                        {
-                            Helpers.NativeMethods.SetThreadErrorMode(oldErrorMode, out _);
-                        }
-                        Helpers.DebugLogger.Log($"[ShellContextMenu.Session] Command invoked: {commandId}");
-                        return true;
+                        ((IContextMenu)_contextMenuImpl).InvokeCommand(ref invokeInfo);
                     }
-                    catch (System.Runtime.InteropServices.InvalidComObjectException)
+                    finally
                     {
-                        // RCW detached — user right-clicked another item before command executed; safe to ignore
-                        Helpers.DebugLogger.Log($"[ShellContextMenu.Session] RCW detached, skipping command: {commandId}");
-                        _disposed = true;
-                        return false;
+                        Helpers.NativeMethods.SetThreadErrorMode(oldErrorMode, out _);
                     }
-                    catch (System.Runtime.InteropServices.COMException comEx)
-                        when (comEx.HResult == unchecked((int)0x80004004)   // E_ABORT
-                           || comEx.HResult == unchecked((int)0x800704C7)) // ERROR_CANCELLED
-                    {
-                        Helpers.DebugLogger.Log($"[ShellContextMenu.Session] Command cancelled by user: {commandId}");
-                        return true; // User cancelled — not a failure
-                    }
-                    catch (Exception ex)
-                    {
-                        Helpers.DebugLogger.Log($"[ShellContextMenu.Session] InvokeCommand error: {ex.Message}");
-                        try { App.Current.Services.GetService<CrashReportingService>()?.CaptureException(ex, "ShellContextMenu.InvokeCommand"); } catch { }
-                        return false;
-                    }
+                    Helpers.DebugLogger.Log($"[ShellContextMenu.Session] Command invoked: {commandId}");
+                    return true;
+                }
+                catch (System.Runtime.InteropServices.InvalidComObjectException)
+                {
+                    // RCW detached — user right-clicked another item before command executed; safe to ignore
+                    Helpers.DebugLogger.Log($"[ShellContextMenu.Session] RCW detached, skipping command: {commandId}");
+                    lock (_lock) { _disposed = true; }
+                    return false;
+                }
+                catch (System.Runtime.InteropServices.COMException comEx)
+                    when (comEx.HResult == unchecked((int)0x80004004)   // E_ABORT
+                       || comEx.HResult == unchecked((int)0x800704C7)) // ERROR_CANCELLED
+                {
+                    Helpers.DebugLogger.Log($"[ShellContextMenu.Session] Command cancelled by user: {commandId}");
+                    return true; // User cancelled — not a failure
+                }
+                catch (Exception ex)
+                {
+                    Helpers.DebugLogger.Log($"[ShellContextMenu.Session] InvokeCommand error: {ex.Message}");
+                    try { App.Current.Services.GetService<CrashReportingService>()?.CaptureException(ex, "ShellContextMenu.InvokeCommand"); } catch { }
+                    return false;
                 }
             }
 
@@ -854,24 +1068,47 @@ namespace Span.Services
                 {
                     if (_disposed) return;
                     _disposed = true;
+                }
 
+                if (_staWorkQueue != null)
+                {
+                    // STA 스레드에서 COM 정리 후 스레드 종료
+                    using var done = new ManualResetEventSlim(false);
                     try
                     {
-                        if (_hMenu != IntPtr.Zero) DestroyMenu(_hMenu);
-                        if (_pidl != IntPtr.Zero) CoTaskMemFree(_pidl);
-
-                        // RCW를 통해 Release — Marshal.Release와 이중 호출하면 참조 카운트 오류 발생
-                        try { Marshal.ReleaseComObject(_contextMenuObj); } catch { }
-                        try { Marshal.ReleaseComObject(_shellFolderObj); } catch { }
-
-                        // 원시 포인터 Release 제거: ReleaseComObject가 이미 IUnknown::Release() 호출
-                        // if (_contextMenuPtr != IntPtr.Zero) Marshal.Release(_contextMenuPtr);
-                        // if (_shellFolderPtr != IntPtr.Zero) Marshal.Release(_shellFolderPtr);
+                        _staWorkQueue.Add(() =>
+                        {
+                            DisposeCore();
+                            done.Set();
+                        });
+                        done.Wait(3000);
                     }
-                    catch (Exception ex)
+                    catch (InvalidOperationException) { /* queue already completed */ }
+                    finally
                     {
-                        Helpers.DebugLogger.Log($"[ShellContextMenu.Session] Dispose error: {ex.Message}");
+                        _staWorkQueue.CompleteAdding();
                     }
+                }
+                else
+                {
+                    DisposeCore();
+                }
+            }
+
+            private void DisposeCore()
+            {
+                try
+                {
+                    if (_hMenu != IntPtr.Zero) DestroyMenu(_hMenu);
+                    if (_pidl != IntPtr.Zero) CoTaskMemFree(_pidl);
+
+                    // RCW를 통해 Release — Marshal.Release와 이중 호출하면 참조 카운트 오류 발생
+                    try { Marshal.ReleaseComObject(_contextMenuObj); } catch { }
+                    try { Marshal.ReleaseComObject(_shellFolderObj); } catch { }
+                }
+                catch (Exception ex)
+                {
+                    Helpers.DebugLogger.Log($"[ShellContextMenu.Session] Dispose error: {ex.Message}");
                 }
             }
         }

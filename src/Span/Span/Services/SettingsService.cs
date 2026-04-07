@@ -142,6 +142,12 @@ public class SettingsService : ISettingsService
         set => Set("EnableQuickLook", value);
     }
 
+    public bool EnableWasdNavigation
+    {
+        get => Get("EnableWasdNavigation", false);
+        set => Set("EnableWasdNavigation", value);
+    }
+
     public bool ConfirmDelete
     {
         get => Get("ConfirmDelete", true);

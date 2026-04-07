@@ -48,6 +48,7 @@ namespace Span.Services
         private IContextMenuHost? _lastMenuHost;
         private Microsoft.UI.Xaml.FrameworkElement? _lastMenuElement;
         private Windows.Foundation.Point _lastMenuPosition;
+        private string? _lastEmptyAreaFolderPath; // 배경 메뉴 전용
 
         /// <summary>셸 확장 재표시를 위해 마지막 우클릭 컨텍스트를 저장한다.</summary>
         public void SetLastMenuContext(FileSystemViewModel target, IContextMenuHost host,
@@ -57,12 +58,24 @@ namespace Span.Services
             _lastMenuHost = host;
             _lastMenuElement = element;
             _lastMenuPosition = position;
+            _lastEmptyAreaFolderPath = null;
+        }
+
+        /// <summary>배경 메뉴용 마지막 우클릭 컨텍스트를 저장한다.</summary>
+        public void SetLastEmptyAreaContext(string folderPath, IContextMenuHost host,
+            Microsoft.UI.Xaml.FrameworkElement element, Windows.Foundation.Point position)
+        {
+            _lastMenuTarget = null;
+            _lastEmptyAreaFolderPath = folderPath;
+            _lastMenuHost = host;
+            _lastMenuElement = element;
+            _lastMenuPosition = position;
         }
 
         /// <summary>셸 확장 포함으로 메뉴를 재빌드하여 같은 위치에 다시 표시한다.</summary>
         public async Task RebuildMenuWithShellExtensionsAsync()
         {
-            if (_lastMenuTarget == null || _lastMenuHost == null || _lastMenuElement == null)
+            if (_lastMenuHost == null || _lastMenuElement == null)
                 return;
 
             // 현재 열린 메뉴 닫기
@@ -73,6 +86,8 @@ namespace Span.Services
                 flyout = await BuildFolderMenuAsync(folder, _lastMenuHost, forceShellExtensions: true);
             else if (_lastMenuTarget is FileViewModel file)
                 flyout = await BuildFileMenuAsync(file, _lastMenuHost, forceShellExtensions: true);
+            else if (!string.IsNullOrEmpty(_lastEmptyAreaFolderPath))
+                flyout = await BuildEmptyAreaMenuAsync(_lastEmptyAreaFolderPath, _lastMenuHost, forceShellExtensions: true);
             else
                 return;
 
@@ -583,7 +598,7 @@ namespace Span.Services
             return menu;
         }
 
-        public MenuFlyout BuildEmptyAreaMenu(string folderPath, IContextMenuHost host)
+        public async Task<MenuFlyout> BuildEmptyAreaMenuAsync(string folderPath, IContextMenuHost host, bool forceShellExtensions = false)
         {
             var menu = new MenuFlyout();
             bool isArchive = Helpers.ArchivePathHelper.IsArchivePath(folderPath);
@@ -661,8 +676,38 @@ namespace Span.Services
             menu.Items.Add(new MenuFlyoutSeparator());
             menu.Items.Add(CreateItem(_loc.Get("Properties") + "  Alt+Enter", "\uE946", () => host.PerformShowProperties(folderPath), "P"));
 
+            // 배경 셸 확장 (TortoiseSVN, TortoiseGit 등)
+            if (!isArchive && !FileSystemRouter.IsRemotePath(folderPath))
+            {
+                await AppendBackgroundShellExtensionItemsAsync(menu, folderPath, forceShellExtensions);
+            }
+
+            // Cleanup session when menu closes
+            menu.Closed += OnMenuClosed;
             TrackFlyout(menu);
             return menu;
+        }
+
+        /// <summary>
+        /// 배경(빈 영역) 셸 확장 항목을 메뉴에 추가.
+        /// TortoiseSVN, TortoiseGit 등 폴더 배경 컨텍스트 메뉴에 등록된 항목이 표시된다.
+        /// </summary>
+        private Task AppendBackgroundShellExtensionItemsAsync(MenuFlyout menu, string folderPath, bool forceLoad = false)
+        {
+            if (OwnerHwnd == IntPtr.Zero) return Task.CompletedTask;
+
+            if (!forceLoad && !_settings.ShowShellExtensions)
+            {
+                var showShellItem = CreateItem(_loc.Get("Shell_ShowExtensions"), "\uE8B7", async () =>
+                {
+                    await RebuildMenuWithShellExtensionsAsync();
+                });
+                menu.Items.Add(new MenuFlyoutSeparator());
+                menu.Items.Add(showShellItem);
+                return Task.CompletedTask;
+            }
+
+            return AppendShellExtensionItemsCoreAsync(menu, folderPath, background: true);
         }
 
         /// <summary>
@@ -687,7 +732,7 @@ namespace Span.Services
             return AppendShellExtensionItemsCoreAsync(menu, path);
         }
 
-        private async Task AppendShellExtensionItemsCoreAsync(MenuFlyout menu, string path)
+        private async Task AppendShellExtensionItemsCoreAsync(MenuFlyout menu, string path, bool background = false)
         {
             // Insert loading indicator before Properties (last 2 items = separator + Properties)
             int loadingIdx = Math.Max(0, menu.Items.Count - 2);
@@ -710,13 +755,16 @@ namespace Span.Services
                 _currentSession?.Dispose();
                 _currentSession = null;
 
-                Helpers.DebugLogger.Log($"[ContextMenuService] Shell CreateSessionAsync START: {path}");
-                var session = await ShellContextMenu.CreateSessionAsync(OwnerHwnd, path);
+                var label = background ? "BackgroundSession" : "CreateSession";
+                Helpers.DebugLogger.Log($"[ContextMenuService] Shell {label}Async START: {path}");
+                var session = background
+                    ? await ShellContextMenu.CreateBackgroundSessionAsync(OwnerHwnd, path)
+                    : await ShellContextMenu.CreateSessionAsync(OwnerHwnd, path);
                 _currentSession = session;
                 // 이 메뉴가 닫힐 때 자기 세션만 정리하도록 매핑
                 if (session != null)
                     _menuSessionMap[menu] = session;
-                Helpers.DebugLogger.Log($"[ContextMenuService] Shell CreateSessionAsync END: items={session?.Items.Count ?? 0}");
+                Helpers.DebugLogger.Log($"[ContextMenuService] Shell {label}Async END: items={session?.Items.Count ?? 0}");
             }
             catch (Exception ex)
             {
@@ -747,7 +795,8 @@ namespace Span.Services
         /// <summary>Shell 항목 목록을 필터링/그룹핑하여 메뉴에 삽입</summary>
         private void InsertShellItemsToMenu(MenuFlyout menu, IList<ShellMenuItem> shellItems)
         {
-            bool showDevMenu = _settings.ShowDeveloperMenu;
+            // 개발자 메뉴 필터 제거 — 셸 확장 ON이면 모든 항목 표시 (v1.2.13.0)
+            bool showDevMenu = true;
             bool showShellExtras = _settings.ShowWindowsShellExtras;
             bool showCopilot = _settings.ShowCopilotMenu;
 

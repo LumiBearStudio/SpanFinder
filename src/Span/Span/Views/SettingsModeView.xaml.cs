@@ -225,6 +225,7 @@ public sealed partial class SettingsModeView : UserControl
             MillerClickCombo.SelectedIndex = _settings.MillerClickBehavior == "double" ? 1 : 0;
             ThumbnailToggle.IsOn = _settings.ShowThumbnails;
             QuickLookToggle.IsOn = _settings.EnableQuickLook;
+            WasdNavToggle.IsOn = _settings.EnableWasdNavigation;
             ConfirmDeleteToggle.IsOn = _settings.ConfirmDelete;
 
             var undoSize = _settings.UndoHistorySize;
@@ -246,7 +247,7 @@ public sealed partial class SettingsModeView : UserControl
             };
             ShellExtrasToggle.IsOn = _settings.ShowWindowsShellExtras;
             ShellExtensionsToggle.IsOn = _settings.ShowShellExtensions;
-            DeveloperMenuToggle.IsOn = _settings.ShowDeveloperMenu;
+            // DeveloperMenuToggle removed — merged into ShellExtensions (v1.2.13.0)
             GitIntegrationToggle.IsOn = _settings.ShowGitIntegration;
             HexPreviewToggle.IsOn = _settings.ShowHexPreview;
             FileHashToggle.IsOn = _settings.ShowFileHash;
@@ -382,6 +383,7 @@ public sealed partial class SettingsModeView : UserControl
         CheckboxToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowCheckboxes = CheckboxToggle.IsOn; };
         ThumbnailToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowThumbnails = ThumbnailToggle.IsOn; };
         QuickLookToggle.Toggled += (s, e) => { if (!_isLoading) _settings.EnableQuickLook = QuickLookToggle.IsOn; };
+        WasdNavToggle.Toggled += (s, e) => { if (!_isLoading) _settings.EnableWasdNavigation = WasdNavToggle.IsOn; };
         ConfirmDeleteToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ConfirmDelete = ConfirmDeleteToggle.IsOn; };
 
         MillerClickCombo.SelectionChanged += (s, e) =>
@@ -414,7 +416,7 @@ public sealed partial class SettingsModeView : UserControl
         };
         ShellExtrasToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowWindowsShellExtras = ShellExtrasToggle.IsOn; };
         ShellExtensionsToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowShellExtensions = ShellExtensionsToggle.IsOn; };
-        DeveloperMenuToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowDeveloperMenu = DeveloperMenuToggle.IsOn; };
+        // DeveloperMenuToggle removed — merged into ShellExtensions (v1.2.13.0)
         GitIntegrationToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowGitIntegration = GitIntegrationToggle.IsOn; };
         HexPreviewToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowHexPreview = HexPreviewToggle.IsOn; };
         FileHashToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowFileHash = FileHashToggle.IsOn; };
@@ -436,8 +438,9 @@ public sealed partial class SettingsModeView : UserControl
 
         foreach (var toggle in new[] {
             FavoritesTreeToggle, SystemTrayToggle, WindowPositionToggle,
-            ShellExtrasToggle, ShellExtensionsToggle, DeveloperMenuToggle, GitIntegrationToggle,
+            ShellExtrasToggle, ShellExtensionsToggle, GitIntegrationToggle,
             HexPreviewToggle, FileHashToggle, CopilotMenuToggle, ContextMenuToggle, CrashReportToggle,
+            WasdNavToggle,
             DefaultFileManagerToggle, DefaultPreviewToggle, PreviewFolderInfoToggle })
             Helpers.CursorHelper.SetHandCursor(toggle);
 
@@ -665,6 +668,8 @@ public sealed partial class SettingsModeView : UserControl
             ThumbnailDesc.Text = _loc.Get("Settings_ThumbnailsDesc");
             QuickLookLabel.Text = _loc.Get("Settings_QuickLook");
             QuickLookDesc.Text = _loc.Get("Settings_QuickLookDesc");
+            WasdNavLabel.Text = _loc.Get("Settings_WasdNav");
+            WasdNavDesc.Text = _loc.Get("Settings_WasdNavDesc");
             DeleteConfirmLabel.Text = _loc.Get("Settings_DeleteConfirm");
             DeleteConfirmDesc.Text = _loc.Get("Settings_DeleteConfirmDesc");
             UndoLabel.Text = _loc.Get("Settings_UndoHistory");
@@ -708,8 +713,7 @@ public sealed partial class SettingsModeView : UserControl
             AdvancedTitle.Text = _loc.Get("Settings_Advanced");
             TerminalLabel.Text = _loc.Get("Settings_TerminalApp");
             TerminalDesc.Text = _loc.Get("Settings_TerminalAppDesc");
-            DevMenuLabel.Text = _loc.Get("Settings_DeveloperMenu");
-            DevMenuDesc.Text = _loc.Get("Settings_DeveloperMenuDesc");
+            // DevMenuLabel/Desc removed — merged into ShellExtensions (v1.2.13.0)
             CrashReportLabel.Text = _loc.Get("Settings_CrashReport");
             CrashReportDesc.Text = _loc.Get("Settings_CrashReportDesc");
             DefaultFMLabel.Text = _loc.Get("Settings_DefaultFileManager") ?? "기본 파일 관리자";
