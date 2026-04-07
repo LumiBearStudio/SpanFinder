@@ -60,12 +60,14 @@ namespace Span
                 if (Math.Abs(tabWidth - _calculatedTabWidth) < 0.5) return;
                 _calculatedTabWidth = tabWidth;
 
-                // 각 탭 아이템에 너비 적용
+                // 각 탭 아이템에 너비 적용 (per-element threshold로 불필요한 layout pass 방지)
                 for (int i = 0; i < tabCount; i++)
                 {
                     if (TabRepeater.TryGetElement(i) is FrameworkElement elem)
                     {
-                        // ItemsRepeater의 루트 요소는 DataTemplate의 Grid
+                        double currentWidth = elem is Grid g ? g.Width : elem.Width;
+                        if (!double.IsNaN(currentWidth) && Math.Abs(currentWidth - tabWidth) < 0.5) continue;
+
                         if (elem is Grid grid)
                             grid.Width = tabWidth;
                         else
