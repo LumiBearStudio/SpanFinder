@@ -188,9 +188,12 @@ namespace Span.Views
             var ext = ViewModel?.TextFileExtension ?? "";
             _extToLanguage.TryGetValue(ext, out var language);
 
-            // 1차 방어: Markdown fenced code block은 ColorCode regex backtracking 유발 (Issue #36)
-            // UI 스레드 블로킹 방지를 위해 사전 차단 → 단색 표시
+            // 1차 방어: ColorCode regex backtracking 유발 패턴 사전 차단 → 단색 표시
+            // - Markdown fenced code block (Issue #36)
+            // - CSS @-rules (@keyframes, @media 등) — 중첩 브레이스가 CSS regex의 exponential backtracking 유발
             if (language == Languages.Markdown && (text.Contains("```") || text.Contains("~~~")))
+                language = null;
+            if (language == Languages.Css && text.Contains('@'))
                 language = null;
 
             if (language != null)
