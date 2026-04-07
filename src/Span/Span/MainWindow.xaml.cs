@@ -1001,6 +1001,15 @@ namespace Span
             DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
             {
                 ApplyAbsoluteScaleToTree(args.Element, _iconFontScaleLevel, 8, 20);
+
+                // 재활용/신규 탭에 Chrome-style 고정 너비 적용 (auto-size 방지)
+                if (_calculatedTabWidth > 0 && args.Element is FrameworkElement elem)
+                {
+                    if (elem is Grid grid)
+                        grid.Width = _calculatedTabWidth;
+                    else
+                        elem.Width = _calculatedTabWidth;
+                }
             });
         }
 
