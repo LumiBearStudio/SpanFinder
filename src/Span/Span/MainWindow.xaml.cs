@@ -2840,7 +2840,7 @@ namespace Span
         /// 연결 다이얼로그 표시. existing이 null이면 새 연결, non-null이면 편집 모드.
         /// 반환: (result, connInfo, password, saveChecked)
         /// </summary>
-        private async Task<(ContentDialogResult result, Models.ConnectionInfo? connInfo, string? password, bool saveChecked)>
+        private async Task<(ContentDialogResult result, Models.ConnectionInfo? connInfo, string? password, bool saveChecked, IFileSystemProvider? provider)>
             ShowConnectionDialog(Models.ConnectionInfo? existing)
         {
             var isEdit = existing != null;
@@ -2859,6 +2859,11 @@ namespace Span
             TextBox? pathInput = null;
             TextBox? displayNameInput = null;
             CheckBox? saveCheckBox = null;
+            RadioButton? authPasswordRadio = null;
+            RadioButton? authSshKeyRadio = null;
+            StackPanel? sshKeyPanel = null;
+            TextBox? sshKeyPathInput = null;
+            PasswordBox? passphraseInput = null;
 
             if (isSmbEdit)
             {
@@ -2942,13 +2947,37 @@ namespace Span
                 };
                 dialogPanel.Children.Add(usernameInput);
 
+                // 인증 방식 (SFTP만 SSH 키 지원)
+                var isSftp = isEdit ? existing!.Protocol == Models.RemoteProtocol.SFTP : true; // 기본 SFTP
+                var useSshKey = isEdit && existing!.AuthMethod == Models.AuthMethod.SshKey;
+
+                // 인증 방식 라디오 버튼
+                var authLabel = new TextBlock
+                {
+                    Text = _loc.Get("AuthMethodLabel"),
+                    Margin = new Thickness(0, 4, 0, 0),
+                    FontSize = 14
+                };
+                var authRadioPanel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16 };
+                authPasswordRadio = new RadioButton { Content = _loc.Get("AuthPassword"), IsChecked = !useSshKey, GroupName = "AuthMethod" };
+                authSshKeyRadio = new RadioButton { Content = _loc.Get("AuthSshKey"), IsChecked = useSshKey, GroupName = "AuthMethod" };
+                authRadioPanel.Children.Add(authPasswordRadio);
+                authRadioPanel.Children.Add(authSshKeyRadio);
+
+                var authMethodPanel = new StackPanel { Spacing = 4 };
+                authMethodPanel.Children.Add(authLabel);
+                authMethodPanel.Children.Add(authRadioPanel);
+                authMethodPanel.Visibility = isSftp ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+                dialogPanel.Children.Add(authMethodPanel);
+
                 // 비밀번호
                 passwordInput = new PasswordBox
                 {
                     Header = _loc.Get("Password"),
-                    PlaceholderText = _loc.Get("Password")
+                    PlaceholderText = _loc.Get("Password"),
+                    Visibility = useSshKey ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible
                 };
-                if (isEdit)
+                if (isEdit && !useSshKey)
                 {
                     var connService = App.Current.Services.GetRequiredService<ConnectionManagerService>();
                     var savedPw = connService.LoadCredential(existing!.Id);
@@ -2956,6 +2985,84 @@ namespace Span
                         passwordInput.Password = savedPw;
                 }
                 dialogPanel.Children.Add(passwordInput);
+
+                // SSH 키 패널
+                sshKeyPanel = new StackPanel { Spacing = 8, Visibility = useSshKey ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed };
+
+                var keyPathRow = new Grid();
+                keyPathRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                keyPathRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+                sshKeyPathInput = new TextBox
+                {
+                    Header = _loc.Get("SshKeyPath"),
+                    PlaceholderText = @"C:\Users\...\.ssh\id_rsa",
+                    Text = isEdit && !string.IsNullOrEmpty(existing!.SshKeyPath) ? existing.SshKeyPath : ""
+                };
+                Grid.SetColumn(sshKeyPathInput, 0);
+                keyPathRow.Children.Add(sshKeyPathInput);
+
+                var browseBtn = new Button
+                {
+                    Content = _loc.Get("SshKeyBrowse"),
+                    VerticalAlignment = Microsoft.UI.Xaml.VerticalAlignment.Bottom,
+                    Margin = new Thickness(8, 0, 0, 0)
+                };
+                browseBtn.Click += async (s, args) =>
+                {
+                    var picker = new Windows.Storage.Pickers.FileOpenPicker();
+                    WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(this));
+                    picker.FileTypeFilter.Add("*");
+                    picker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.HomeGroup;
+                    var file = await picker.PickSingleFileAsync();
+                    if (file != null) sshKeyPathInput.Text = file.Path;
+                };
+                Grid.SetColumn(browseBtn, 1);
+                keyPathRow.Children.Add(browseBtn);
+
+                sshKeyPanel.Children.Add(keyPathRow);
+
+                passphraseInput = new PasswordBox
+                {
+                    Header = _loc.Get("Passphrase"),
+                    PlaceholderText = _loc.Get("Passphrase")
+                };
+                if (isEdit && useSshKey)
+                {
+                    var connService = App.Current.Services.GetRequiredService<ConnectionManagerService>();
+                    var savedPw = connService.LoadCredential(existing!.Id);
+                    if (!string.IsNullOrEmpty(savedPw))
+                        passphraseInput.Password = savedPw;
+                }
+                sshKeyPanel.Children.Add(passphraseInput);
+                dialogPanel.Children.Add(sshKeyPanel);
+
+                // 인증 방식 전환 이벤트
+                authPasswordRadio.Checked += (s, args) =>
+                {
+                    passwordInput.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
+                    sshKeyPanel.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
+                };
+                authSshKeyRadio.Checked += (s, args) =>
+                {
+                    passwordInput.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
+                    sshKeyPanel.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
+                };
+
+                // 프로토콜 변경 시 인증 방식 표시/숨김
+                if (!isEdit)
+                {
+                    protocolCombo.SelectionChanged += (s, args) =>
+                    {
+                        var isSftpNow = protocolCombo.SelectedIndex == 0;
+                        authMethodPanel.Visibility = isSftpNow ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+                        if (!isSftpNow)
+                        {
+                            // SFTP가 아니면 비밀번호 인증으로 강제 전환
+                            authPasswordRadio.IsChecked = true;
+                        }
+                    };
+                }
 
                 // 원격 경로
                 pathInput = new TextBox
@@ -2983,20 +3090,131 @@ namespace Span
                 }
             }
 
+            // 에러 메시지 + ProgressRing — ScrollViewer 바깥(하단 고정)
+            var errorText = new TextBlock
+            {
+                Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.OrangeRed),
+                TextWrapping = Microsoft.UI.Xaml.TextWrapping.Wrap,
+                Visibility = Microsoft.UI.Xaml.Visibility.Collapsed,
+                Margin = new Thickness(0, 8, 0, 0),
+                FontSize = 13
+            };
+
+            var connectingRing = new ProgressRing
+            {
+                IsActive = false,
+                Width = 20,
+                Height = 20,
+                Visibility = Microsoft.UI.Xaml.Visibility.Collapsed,
+                Margin = new Thickness(0, 4, 0, 0)
+            };
+
+            var scrollViewer = new ScrollViewer
+            {
+                Content = dialogPanel,
+                VerticalScrollBarVisibility = Microsoft.UI.Xaml.Controls.ScrollBarVisibility.Auto,
+                MaxHeight = 420
+            };
+
+            var outerPanel = new StackPanel { Spacing = 0 };
+            outerPanel.Children.Add(scrollViewer);
+            outerPanel.Children.Add(errorText);
+            outerPanel.Children.Add(connectingRing);
+
             var dialog = new ContentDialog
             {
                 Title = isEdit ? _loc.Get("EditConnection").TrimEnd('.') : _loc.Get("ConnectToServer"),
-                Content = dialogPanel,
+                Content = outerPanel,
                 PrimaryButtonText = isEdit ? _loc.Get("Save") : _loc.Get("Connect"),
                 CloseButtonText = _loc.Get("Cancel"),
                 DefaultButton = ContentDialogButton.Primary,
                 XamlRoot = this.Content.XamlRoot
             };
 
+            // 연결 결과를 저장할 변수 (Deferral 콜백에서 설정)
+            IFileSystemProvider? connectedProvider = null;
+            Models.ConnectionInfo? resultConnInfo = null;
+            string? resultPassword = null;
+            bool resultSaveChecked = false;
+
+            // 편집 모드가 아닐 때: "연결" 클릭 시 다이얼로그 안에서 연결 시도
+            if (!isEdit && !isSmbEdit)
+            {
+                dialog.PrimaryButtonClick += async (s, args) =>
+                {
+                    var deferral = args.GetDeferral();
+                    try
+                    {
+                        errorText.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
+
+                        if (string.IsNullOrWhiteSpace(hostInput!.Text))
+                        {
+                            errorText.Text = _loc.Get("Host");
+                            errorText.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
+                            args.Cancel = true;
+                            return;
+                        }
+
+                        var protocol = (Models.RemoteProtocol)protocolCombo!.SelectedIndex;
+                        var isSshKeyAuth = authSshKeyRadio?.IsChecked == true && protocol == Models.RemoteProtocol.SFTP;
+                        var connInfo = new Models.ConnectionInfo
+                        {
+                            Id = Guid.NewGuid().ToString("N"),
+                            DisplayName = !string.IsNullOrWhiteSpace(displayNameInput!.Text)
+                                ? displayNameInput.Text.Trim()
+                                : $"{hostInput.Text.Trim()}:{(int)portInput!.Value}",
+                            Protocol = protocol,
+                            Host = hostInput.Text.Trim(),
+                            Port = (int)portInput!.Value,
+                            Username = usernameInput!.Text.Trim(),
+                            AuthMethod = isSshKeyAuth ? Models.AuthMethod.SshKey : Models.AuthMethod.Password,
+                            SshKeyPath = isSshKeyAuth ? sshKeyPathInput?.Text.Trim() : null,
+                            RemotePath = string.IsNullOrWhiteSpace(pathInput!.Text) ? "/" : pathInput.Text.Trim(),
+                            LastConnected = DateTime.Now
+                        };
+                        var credential = isSshKeyAuth ? passphraseInput?.Password : passwordInput!.Password;
+
+                        // UI 상태: 연결 중
+                        connectingRing.IsActive = true;
+                        connectingRing.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
+                        dialog.IsPrimaryButtonEnabled = false;
+
+                        var (provider, error) = await TryConnectAsync(connInfo, credential);
+
+                        connectingRing.IsActive = false;
+                        connectingRing.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
+                        dialog.IsPrimaryButtonEnabled = true;
+
+                        if (error != null)
+                        {
+                            // 실패: 에러 표시 + 다이얼로그 유지
+                            errorText.Text = error;
+                            errorText.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
+                            args.Cancel = true;
+                            return;
+                        }
+
+                        // 성공: 결과 저장 → 다이얼로그 닫힘 허용
+                        connectedProvider = provider;
+                        resultConnInfo = connInfo;
+                        resultPassword = credential;
+                        resultSaveChecked = saveCheckBox?.IsChecked == true;
+                    }
+                    finally
+                    {
+                        deferral.Complete();
+                    }
+                };
+            }
+
             var result = await ShowContentDialogSafeAsync(dialog);
 
             if (result != ContentDialogResult.Primary)
-                return (result, null, null, false);
+                return (result, null, null, false, null);
+
+            // 편집 모드가 아닐 때: Deferral에서 이미 연결 완료됨
+            if (!isEdit && !isSmbEdit)
+                return (result, resultConnInfo, resultPassword, resultSaveChecked, connectedProvider);
 
             if (isSmbEdit)
             {
@@ -3014,28 +3232,33 @@ namespace Span
                     RemotePath = existing.RemotePath,
                     LastConnected = existing.LastConnected
                 };
-                return (result, updated, null, false);
+                return (result, updated, null, false, null);
             }
 
+            // 편집 모드: 연결 시도 없이 정보만 반환
             if (string.IsNullOrWhiteSpace(hostInput!.Text))
-                return (ContentDialogResult.None, null, null, false);
+                return (ContentDialogResult.None, null, null, false, null);
 
-            var protocol = (Models.RemoteProtocol)protocolCombo!.SelectedIndex;
+            var editProtocol = (Models.RemoteProtocol)protocolCombo!.SelectedIndex;
+            var editIsSshKey = authSshKeyRadio?.IsChecked == true && editProtocol == Models.RemoteProtocol.SFTP;
             var connInfoResult = new Models.ConnectionInfo
             {
-                Id = isEdit ? existing!.Id : Guid.NewGuid().ToString("N"),
+                Id = existing!.Id,
                 DisplayName = !string.IsNullOrWhiteSpace(displayNameInput!.Text)
                     ? displayNameInput.Text.Trim()
                     : $"{hostInput.Text.Trim()}:{(int)portInput!.Value}",
-                Protocol = protocol,
+                Protocol = editProtocol,
                 Host = hostInput.Text.Trim(),
                 Port = (int)portInput!.Value,
                 Username = usernameInput!.Text.Trim(),
+                AuthMethod = editIsSshKey ? Models.AuthMethod.SshKey : Models.AuthMethod.Password,
+                SshKeyPath = editIsSshKey ? sshKeyPathInput?.Text.Trim() : null,
                 RemotePath = string.IsNullOrWhiteSpace(pathInput!.Text) ? "/" : pathInput.Text.Trim(),
-                LastConnected = isEdit ? existing!.LastConnected : DateTime.Now
+                LastConnected = existing.LastConnected
             };
 
-            return (result, connInfoResult, passwordInput!.Password, saveCheckBox?.IsChecked == true);
+            var editCredential = editIsSshKey ? passphraseInput?.Password : passwordInput!.Password;
+            return (result, connInfoResult, editCredential, false, null);
         }
 
         /// <summary>
@@ -3076,11 +3299,11 @@ namespace Span
                     RemotePath = remotePath
                 };
 
-                var (result, connInfo, password, _) = await ShowConnectionDialog(prefilled);
-                if (result != ContentDialogResult.Primary || connInfo == null) return;
+                var (result, connInfo, password, _, provider) = await ShowConnectionDialog(prefilled);
+                if (result != ContentDialogResult.Primary || connInfo == null || provider == null) return;
 
                 // 네트워크 바로가기에서 온 연결은 항상 저장
-                await ConnectAndNavigate(connInfo, password, true);
+                await OnConnectionSuccess(connInfo, password, true, provider);
             }
             catch (Exception ex)
             {
@@ -3096,24 +3319,17 @@ namespace Span
         /// </summary>
         private async void OnConnectToServerTapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
         {
-            var (result, connInfo, password, saveChecked) = await ShowConnectionDialog(null);
-            if (result != ContentDialogResult.Primary || connInfo == null) return;
-            await ConnectAndNavigate(connInfo, password, saveChecked);
+            var (result, connInfo, password, saveChecked, provider) = await ShowConnectionDialog(null);
+            if (result != ContentDialogResult.Primary || connInfo == null || provider == null) return;
+            await OnConnectionSuccess(connInfo, password, saveChecked, provider);
         }
 
         /// <summary>
-        /// FTP/SFTP 연결 시도 → 성공 시 저장 + Router 등록 + 탐색.
-        /// OnConnectToServerTapped, OnNetworkShortcutFtpRequested에서 공유.
+        /// 원격 연결 시도. 성공 시 (provider, null) 반환, 실패 시 (null, 에러메시지) 반환.
         /// </summary>
-        private async Task ConnectAndNavigate(Models.ConnectionInfo connInfo, string? password, bool saveChecked)
+        private async Task<(IFileSystemProvider? provider, string? error)> TryConnectAsync(Models.ConnectionInfo connInfo, string? password)
         {
             Helpers.DebugLogger.Log($"[Network] 서버 연결 시도: {connInfo.ToUri()}");
-
-            var connService = App.Current.Services.GetRequiredService<ConnectionManagerService>();
-            var router = App.Current.Services.GetRequiredService<FileSystemRouter>();
-            var uriPrefix = FileSystemRouter.GetUriPrefix(connInfo.ToUri());
-
-            IFileSystemProvider provider;
             try
             {
                 if (connInfo.Protocol == Models.RemoteProtocol.SFTP)
@@ -3129,7 +3345,7 @@ namespace Span
                         try { sftp.Dispose(); } catch { }
                         throw;
                     }
-                    provider = sftp;
+                    return (sftp, null);
                 }
                 else
                 {
@@ -3144,31 +3360,36 @@ namespace Span
                         try { ftp.Dispose(); } catch { }
                         throw;
                     }
-                    provider = ftp;
+                    return (ftp, null);
                 }
             }
             catch (Renci.SshNet.Common.SshAuthenticationException ex)
             {
-                await ShowRemoteConnectionError(connInfo, string.Format(_loc.Get("Toast_AuthFailed"), ex.Message));
-                return;
+                return (null, string.Format(_loc.Get("Toast_AuthFailed"), ex.Message));
             }
             catch (System.Net.Sockets.SocketException ex)
             {
-                await ShowRemoteConnectionError(connInfo, string.Format(_loc.Get("Toast_SocketError"), connInfo.Host, connInfo.Port, ex.Message));
-                return;
+                return (null, string.Format(_loc.Get("Toast_SocketError"), connInfo.Host, connInfo.Port, ex.Message));
             }
             catch (TimeoutException ex)
             {
-                await ShowRemoteConnectionError(connInfo, string.Format(_loc.Get("Toast_TimeoutError"), ex.Message));
-                return;
+                return (null, string.Format(_loc.Get("Toast_TimeoutError"), ex.Message));
             }
             catch (Exception ex)
             {
-                await ShowRemoteConnectionError(connInfo, string.Format(_loc.Get("Toast_ConnectionError"), ex.Message));
-                return;
+                return (null, string.Format(_loc.Get("Toast_ConnectionError"), ex.Message));
             }
+        }
 
-            // 연결 성공 → 저장 + Router 등록 + 탐색
+        /// <summary>
+        /// 연결 성공 후 저장 + Router 등록 + 탐색.
+        /// </summary>
+        private async Task OnConnectionSuccess(Models.ConnectionInfo connInfo, string? password, bool saveChecked, IFileSystemProvider provider)
+        {
+            var connService = App.Current.Services.GetRequiredService<ConnectionManagerService>();
+            var router = App.Current.Services.GetRequiredService<FileSystemRouter>();
+            var uriPrefix = FileSystemRouter.GetUriPrefix(connInfo.ToUri());
+
             if (saveChecked)
             {
                 connService.AddConnection(connInfo);
@@ -3301,70 +3522,92 @@ namespace Span
             }
 
             var savedPassword = connService.LoadCredential(connInfo.Id);
+            IFileSystemProvider? provider = null;
 
             if (string.IsNullOrEmpty(savedPassword))
             {
-                // 비밀번호 입력 대화상자
+                // 비밀번호 입력 대화상자 (Deferral 패턴 — 실패 시 창 유지)
+                var dialogPanel = new StackPanel { Spacing = 8, MinWidth = 320 };
                 var passwordInput = new PasswordBox { PlaceholderText = _loc.Get("Password") };
+                dialogPanel.Children.Add(passwordInput);
+
+                var errorText = new TextBlock
+                {
+                    Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.OrangeRed),
+                    TextWrapping = Microsoft.UI.Xaml.TextWrapping.Wrap,
+                    Visibility = Microsoft.UI.Xaml.Visibility.Collapsed,
+                    FontSize = 13
+                };
+                dialogPanel.Children.Add(errorText);
+
+                var connectingRing = new ProgressRing
+                {
+                    IsActive = false, Width = 20, Height = 20,
+                    Visibility = Microsoft.UI.Xaml.Visibility.Collapsed
+                };
+                dialogPanel.Children.Add(connectingRing);
+
                 var dialog = new ContentDialog
                 {
                     Title = string.Format(_loc.Get("ConnectionTitle"), connInfo.DisplayName),
-                    Content = passwordInput,
+                    Content = dialogPanel,
                     PrimaryButtonText = _loc.Get("Connect"),
                     CloseButtonText = _loc.Get("Cancel"),
                     DefaultButton = ContentDialogButton.Primary,
                     XamlRoot = this.Content.XamlRoot
                 };
 
+                dialog.PrimaryButtonClick += async (s, args) =>
+                {
+                    var deferral = args.GetDeferral();
+                    try
+                    {
+                        errorText.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
+                        connectingRing.IsActive = true;
+                        connectingRing.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
+                        dialog.IsPrimaryButtonEnabled = false;
+
+                        var (p, error) = await TryConnectAsync(connInfo, passwordInput.Password);
+
+                        connectingRing.IsActive = false;
+                        connectingRing.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
+                        dialog.IsPrimaryButtonEnabled = true;
+
+                        if (error != null)
+                        {
+                            errorText.Text = error;
+                            errorText.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
+                            args.Cancel = true;
+                            return;
+                        }
+
+                        provider = p;
+                        savedPassword = passwordInput.Password;
+                    }
+                    finally
+                    {
+                        deferral.Complete();
+                    }
+                };
+
                 var result = await ShowContentDialogSafeAsync(dialog);
-                if (result != ContentDialogResult.Primary) return;
-                savedPassword = passwordInput.Password;
+                if (result != ContentDialogResult.Primary || provider == null) return;
             }
-
-            Helpers.DebugLogger.Log($"[Sidebar] 원격 연결 시도: {connInfo.DisplayName}");
-
-            // 연결 시도 (provider를 유지!)
-            IFileSystemProvider provider;
-            try
+            else
             {
-                if (connInfo.Protocol == Models.RemoteProtocol.SFTP)
+                // 저장된 비밀번호로 자동 연결 시도
+                Helpers.DebugLogger.Log($"[Sidebar] 원격 연결 시도: {connInfo.DisplayName}");
+                var (p, error) = await TryConnectAsync(connInfo, savedPassword);
+                if (error != null)
                 {
-                    var sftp = new SftpProvider();
-                    await sftp.ConnectAsync(connInfo, savedPassword);
-                    if (!sftp.IsConnected) throw new Exception(_loc.Get("Error_ConnectionFailed"));
-                    provider = sftp;
+                    await ShowRemoteConnectionError(connInfo, error);
+                    return;
                 }
-                else
-                {
-                    var ftp = new FtpProvider();
-                    await ftp.ConnectAsync(connInfo, savedPassword);
-                    if (!ftp.IsConnected) throw new Exception(_loc.Get("Error_ConnectionFailed"));
-                    provider = ftp;
-                }
-            }
-            catch (Renci.SshNet.Common.SshAuthenticationException ex)
-            {
-                await ShowRemoteConnectionError(connInfo, string.Format(_loc.Get("Toast_AuthFailed"), ex.Message));
-                return;
-            }
-            catch (System.Net.Sockets.SocketException ex)
-            {
-                await ShowRemoteConnectionError(connInfo, string.Format(_loc.Get("Toast_SocketError"), connInfo.Host, connInfo.Port, ex.Message));
-                return;
-            }
-            catch (TimeoutException ex)
-            {
-                await ShowRemoteConnectionError(connInfo, string.Format(_loc.Get("Toast_TimeoutError"), ex.Message));
-                return;
-            }
-            catch (Exception ex)
-            {
-                await ShowRemoteConnectionError(connInfo, string.Format(_loc.Get("Toast_ConnectionError"), ex.Message));
-                return;
+                provider = p;
             }
 
             // 연결 성공 → Router에 등록 + 네비게이션
-            router.RegisterConnection(uriPrefix, provider);
+            router.RegisterConnection(uriPrefix, provider!);
             connInfo.LastConnected = DateTime.Now;
             _ = connService.SaveConnectionsAsync();
 
@@ -5801,7 +6044,7 @@ namespace Span
             var existing = ViewModel.SavedConnections.FirstOrDefault(c => c.Id == connectionId);
             if (existing == null) return;
 
-            var (result, updated, password, _) = await ShowConnectionDialog(existing);
+            var (result, updated, password, _, _provider) = await ShowConnectionDialog(existing);
             if (result != ContentDialogResult.Primary || updated == null) return;
 
             // SMB: 표시 이름 + UNC 경로만 업데이트
