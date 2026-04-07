@@ -34,7 +34,8 @@ namespace Span
             crashService.Initialize();
 
             // ColorCode 등 라이브러리의 Regex catastrophic backtracking 방지 (Issue #36)
-            AppDomain.CurrentDomain.SetData("REGEX_DEFAULT_MATCH_TIMEOUT", TimeSpan.FromSeconds(3));
+            // 1초 이상 UI 스레드 블로킹 시 사용자 체감 "응답없음" → 타임아웃 1초로 제한
+            AppDomain.CurrentDomain.SetData("REGEX_DEFAULT_MATCH_TIMEOUT", TimeSpan.FromSeconds(1));
 
             // UI thread unhandled exceptions
             this.UnhandledException += OnUnhandledException;
