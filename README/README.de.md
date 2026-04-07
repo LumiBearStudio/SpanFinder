@@ -36,7 +36,7 @@
 | | Windows Explorer | SPAN Finder |
 |---|---|---|
 | **Miller Columns** | Nicht vorhanden | Hierarchische Mehrspalten-Navigation |
-| **Multi-Tab** | Nur Windows 11 (Basis) | Tab-Abreissen, Duplizieren, vollstaendige Sitzungswiederherstellung |
+| **Multi-Tab** | Nur Windows 11 (Basis) | Tab-Abreissen und Wiederandocken, Duplizieren, vollstaendige Sitzungswiederherstellung |
 | **Geteilte Ansicht** | Nicht vorhanden | Dual-Panel mit unabhaengigen Ansichtsmodi |
 | **Vorschau-Panel** | Basis | 10+ Typen — Bilder, Video, Audio, Code, Hex, Schriften, PDF |
 | **Tastaturnavigation** | Eingeschraenkt | 30+ Shortcuts, Autovervollstaendigung, Tastatur-First-Design |
@@ -73,7 +73,7 @@ Navigieren Sie tiefe Ordnerhierarchien, ohne den Kontext zu verlieren. Jede Spal
 ### Multi-Tab + Vollstaendige Sitzungswiederherstellung
 
 - Unbegrenzte Tabs — jeder mit eigenem Pfad, Ansichtsmodus und Navigationsverlauf
-- **Tab-Abreissen**: Tab in ein neues Fenster ziehen — Zustand bleibt vollstaendig erhalten
+- **Tab-Abreissen und Wiederandocken**: Tab in ein neues Fenster ziehen zum Abtrennen, zurueckziehen mit Chrome-artigem Geister-Tab und halbtransparentem Fenster als Andock-Vorschau — Zustand bleibt vollstaendig erhalten
 - **Tab-Duplizieren**: Tab mit exaktem Pfad und Einstellungen klonen
 - Automatische Sitzungssicherung: App schliessen und wieder oeffnen — alle Tabs sind noch da
 
@@ -91,6 +91,9 @@ Navigieren Sie tiefe Ordnerhierarchien, ohne den Kontext zu verlieren. Jede Spal
 ![Code-Vorschau + Git-Informationen](5.jpg)
 
 **Leertaste** fuer Quick Look (macOS Finder-Stil):
+
+- **Pfeiltasten- & Leertasten-Navigation**: Dateien im Quick-Look-Fenster mit Pfeiltasten und Leertaste wechseln
+- **Quick-Look-Fenstergroesse merken**: Letzte Fenstergroesse wird beim naechsten Oeffnen automatisch wiederhergestellt
 
 - **Bilder**: JPEG, PNG, GIF, BMP, WebP, TIFF — Aufloesung und Metadaten
 - **Video**: MP4, MKV, AVI, MOV, WEBM — Wiedergabesteuerung
@@ -123,6 +126,8 @@ Ueber 30 Shortcuts fuer Nutzer, die die Haende nicht von der Tastatur nehmen:
 | Strg+Umschalt+W | Arbeitsbereich-Palette oeffnen |
 | Strg+Umschalt+E | Geteilte Ansicht umschalten |
 | Entf | In den Papierkorb verschieben |
+| Strg+Tab / Strg+Umschalt+Tab | Tab wechseln (naechster/vorheriger) |
+| F6 | Panel in geteilter Ansicht wechseln |
 
 ### Themes & Anpassung
 
@@ -165,6 +170,15 @@ Ueber 30 Shortcuts fuer Nutzer, die die Haende nicht von der Tastatur nehmen:
 ### Erweiterte Funktionen
 
 - **Virtuelles Dateieinfuegen**: Dateien aus RDP-Remote-Sitzungen, Outlook-Anhaengen und anderen virtuellen Dateiquellen mit Strg+V einfuegen
+
+### Tab-Drag-&-Drop-UX *(v1.2.13.0)*
+
+![Tab-Abtrennung & Wiederandocken](tab-drag.gif)
+
+- Chrome-artiger Geister-Tab-Indikator zur visuellen Anzeige der Andockposition
+- Halbtransparentes Andock-Feedback zur Bestaetigung der Einfuegeposition
+- Visuelle Effekte beim Tab-Abreissen (bei einzelnem Tab deaktiviert)
+- Stabile Tabs mit fester Breite — kein Layoutspringen waehrend des Ziehens
 
 ---
 

@@ -36,7 +36,7 @@
 | | Explorateur Windows | SPAN Finder |
 |---|---|---|
 | **Colonnes Miller** | Absent | Navigation hiérarchique multi-colonnes |
-| **Multi-onglets** | Windows 11 uniquement (basique) | Détachement, duplication et restauration de session complète |
+| **Multi-onglets** | Windows 11 uniquement (basique) | Détachement, ré-ancrage, duplication et restauration de session complète |
 | **Vue scindée** | Absent | Double panneau avec modes de vue indépendants |
 | **Panneau d'aperçu** | Basique | 10+ types — images, vidéo, audio, code, Hex, polices, PDF |
 | **Navigation clavier** | Limitée | 30+ raccourcis, recherche avec auto-complétion, conception clavier d'abord |
@@ -73,7 +73,7 @@ Naviguez dans des hiérarchies profondes de dossiers sans jamais perdre le conte
 ### Multi-onglets + Restauration de session complète
 
 - Onglets illimités — chaque onglet possède son propre chemin, mode de vue et historique de navigation
-- **Détachement d'onglet** : glissez un onglet pour créer une nouvelle fenêtre — état entièrement préservé
+- **Détachement et ré-ancrage d'onglet** : glissez un onglet pour le détacher dans une nouvelle fenêtre ; ramenez-le avec un onglet fantôme style Chrome et une fenêtre semi-transparente pour prévisualiser la position d'ancrage — état entièrement préservé
 - **Duplication d'onglet** : dupliquez un onglet avec le chemin et les paramètres exacts
 - Sauvegarde automatique de session : fermez et rouvrez l'application — tous vos onglets sont restaurés
 
@@ -91,6 +91,9 @@ Naviguez dans des hiérarchies profondes de dossiers sans jamais perdre le conte
 ![Aperçu de code + Informations Git](5.jpg)
 
 Appuyez sur **Espace** pour Quick Look (style macOS Finder) :
+
+- **Navigation par flèches et Espace** : Changez de fichier dans Quick Look à l'aide des touches fléchées et de la barre d'espace
+- **Mémorisation de la taille Quick Look** : La taille de la fenêtre est automatiquement restaurée à la prochaine ouverture
 
 - **Images** : JPEG, PNG, GIF, BMP, WebP, TIFF — résolution et métadonnées
 - **Vidéo** : MP4, MKV, AVI, MOV, WEBM — contrôles de lecture
@@ -123,6 +126,8 @@ Plus de 30 raccourcis pour ceux qui ne quittent jamais le clavier :
 | Ctrl+Shift+W | Ouvrir la palette des espaces de travail |
 | Ctrl+Shift+E | Basculer la vue scindée |
 | Suppr | Envoyer à la corbeille |
+| Ctrl+Tab / Ctrl+Shift+Tab | Changer d'onglet (suivant/précédent) |
+| F6 | Changer de panneau en vue scindée |
 
 ### Thèmes & Personnalisation
 
@@ -165,6 +170,15 @@ Plus de 30 raccourcis pour ceux qui ne quittent jamais le clavier :
 ### Fonctionnalités avancées
 
 - **Collage de fichiers virtuels** : Collez avec Ctrl+V depuis des sessions distantes RDP, des pièces jointes Outlook et autres sources de fichiers virtuels
+
+### UX de glisser-déposer d'onglets *(v1.2.13.0)*
+
+![Détacher et ré-ancrer les onglets](tab-drag.gif)
+
+- Indicateur d'onglet fantôme style Chrome pour visualiser la position d'ancrage
+- Retour visuel semi-transparent pour confirmer la position d'insertion
+- Effets visuels lors du détachement d'onglet (désactivé pour un onglet unique)
+- Onglets à largeur fixe et stable — pas de saut de mise en page pendant le glissement
 
 ---
 

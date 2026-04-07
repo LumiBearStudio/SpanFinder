@@ -43,7 +43,7 @@
 | | Windows Explorer | SPAN Finder |
 |---|---|---|
 | **Miller Columns** | No | Yes — hierarchical multi-column navigation |
-| **Multi-Tab** | Windows 11 only (basic) | Full tabs with tear-off, duplication, session restore |
+| **Multi-Tab** | Windows 11 only (basic) | Full tabs with tear-off, re-docking, duplication, session restore |
 | **Split View** | No | Dual-pane with independent view modes |
 | **Preview Panel** | Basic | 10+ file types — images, video, audio, code, hex, fonts, PDF |
 | **Keyboard Navigation** | Limited | 150+ features, 30+ shortcuts, type-ahead search, full keyboard-first design |
@@ -80,7 +80,7 @@ Navigate deep folder hierarchies without losing context. Each column represents 
 ### Multi-Tab with Full Session Restore
 
 - Open unlimited tabs, each with its own path, view mode, and history
-- **Tab tear-off**: Drag a tab out to create a new window — full state preserved
+- **Tab tear-off & re-docking**: Drag a tab out to create a new window, drag it back to re-dock — Chrome-style ghost tab indicator and semi-transparent window feedback
 - **Tab duplication**: Clone a tab with its exact path and settings
 - Session auto-save: Close the app, reopen it — every tab exactly where you left it
 
@@ -99,6 +99,8 @@ Navigate deep folder hierarchies without losing context. Each column represents 
 
 Press **Space** for Quick Look (macOS Finder style):
 
+- **Arrow key & Space navigation**: Browse files without closing Quick Look
+- **Window size persistence**: Quick Look remembers its last size
 - **Images**: JPEG, PNG, GIF, BMP, WebP, TIFF with resolution and metadata
 - **Video**: MP4, MKV, AVI, MOV, WEBM with playback controls
 - **Audio**: MP3, AAC, M4A with artist, album, duration info
@@ -193,6 +195,15 @@ Press **Space** for Quick Look (macOS Finder style):
 - **Restore instantly**: Click the workspace button in the sidebar or press Ctrl+Shift+W
 - **Manage workspaces**: Restore, rename, or delete saved layouts from the workspace menu
 - Perfect for switching between work contexts — "Development", "Photo Editing", "Documents"
+
+### Tab Drag & Drop UX *(v1.2.13.0)*
+
+![Tab Tear-off & Re-docking](README/tab-drag.gif)
+
+- **Chrome-style ghost tab**: Visual indicator shows exactly where a dragged tab will land
+- **Semi-transparent dock feedback**: Target window becomes translucent during re-docking
+- **Tear-off visual effects**: Opacity and lift animation when dragging a tab out (disabled for single-tab windows)
+- **Stable tab widths**: Chrome-style fixed-width tabs that don't resize to folder name length
 
 ---
 

@@ -36,7 +36,7 @@
 | | Windows Explorer | SPAN Finder |
 |---|---|---|
 | **Miller Columns** | Nao | Navegacao hierarquica em multiplas colunas |
-| **Multiplas abas** | Apenas Windows 11 (basico) | Separacao, duplicacao e restauracao completa de abas |
+| **Multiplas abas** | Apenas Windows 11 (basico) | Separacao, re-ancoragem, duplicacao e restauracao completa de abas |
 | **Visualizacao dividida** | Nao | Painel duplo com modos de visualizacao independentes |
 | **Painel de pre-visualizacao** | Basico | Mais de 10 tipos — imagens, video, audio, codigo, Hex, fontes, PDF |
 | **Navegacao por teclado** | Limitada | Mais de 30 atalhos, busca com autocompletar, design keyboard-first |
@@ -73,7 +73,7 @@ Navegue por hierarquias profundas de pastas sem perder o contexto. Cada coluna r
 ### Multiplas abas + Restauracao completa de sessao
 
 - Abas ilimitadas — cada uma com caminho, modo de visualizacao e historico de navegacao independentes
-- **Separar aba**: arraste a aba para uma nova janela — estado totalmente preservado
+- **Separar e re-ancorar aba**: arraste a aba para uma nova janela para separa-la; ao arrasta-la de volta, uma aba fantasma estilo Chrome e uma janela semitransparente mostram a posicao de ancoragem — estado totalmente preservado
 - **Duplicar aba**: duplicacao exata com caminho e configuracoes
 - Salvamento automatico de sessao: feche e reabra o app — todas as abas permanecem intactas
 
@@ -91,6 +91,9 @@ Navegue por hierarquias profundas de pastas sem perder o contexto. Cada coluna r
 ![Pre-visualizacao de codigo + informacoes Git](5.jpg)
 
 Pressione **Espaco** para Quick Look (estilo macOS Finder):
+
+- **Navegacao por setas e Espaco**: Alterne entre arquivos no Quick Look usando as teclas de seta e Espaco
+- **Persistencia do tamanho do Quick Look**: O tamanho da janela e restaurado automaticamente na proxima abertura
 
 - **Imagens**: JPEG, PNG, GIF, BMP, WebP, TIFF — resolucao e metadados
 - **Video**: MP4, MKV, AVI, MOV, WEBM — controles de reproducao
@@ -123,6 +126,8 @@ Mais de 30 atalhos para quem nao tira as maos do teclado:
 | Ctrl+Shift+W | Abrir paleta de areas de trabalho |
 | Ctrl+Shift+E | Alternar visualizacao dividida |
 | Delete | Enviar para a lixeira |
+| Ctrl+Tab / Ctrl+Shift+Tab | Alternar aba (proxima/anterior) |
+| F6 | Alternar painel na visualizacao dividida |
 
 ### Temas e personalizacao
 
@@ -165,6 +170,15 @@ Mais de 30 atalhos para quem nao tira as maos do teclado:
 ### Recursos para usuarios avancados
 
 - **Colagem de arquivos virtuais**: Cole com Ctrl+V de sessoes remotas RDP, anexos do Outlook e outras fontes de arquivos virtuais
+
+### UX de arrastar e soltar abas *(v1.2.13.0)*
+
+![Separar e re-ancorar abas](tab-drag.gif)
+
+- Indicador de aba fantasma estilo Chrome para visualizar a posicao de ancoragem
+- Feedback de ancoragem semitransparente para confirmar a posicao de insercao
+- Efeitos visuais ao separar abas (desativado para aba unica)
+- Abas de largura fixa e estavel — sem saltos de layout durante o arraste
 
 ---
 

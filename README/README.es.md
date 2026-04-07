@@ -36,7 +36,7 @@
 | | Windows Explorer | SPAN Finder |
 |---|---|---|
 | **Miller Columns** | No disponible | Navegacion jerarquica multicolumna |
-| **Multi-pestana** | Solo Windows 11 (basico) | Separacion, duplicacion y restauracion completa de pestanas |
+| **Multi-pestana** | Solo Windows 11 (basico) | Separacion, re-acoplamiento, duplicacion y restauracion completa de pestanas |
 | **Vista dividida** | No disponible | Panel doble con modos de vista independientes |
 | **Panel de vista previa** | Basico | 10+ tipos — imagenes, video, audio, codigo, Hex, fuentes, PDF |
 | **Navegacion por teclado** | Limitada | 30+ atajos, busqueda con autocompletado, diseno keyboard-first |
@@ -73,7 +73,7 @@ Navegue jerarquias profundas de carpetas sin perder el contexto. Cada columna re
 ### Multi-pestana + Restauracion completa de sesion
 
 - Pestanas ilimitadas — cada una con ruta, modo de vista e historial de navegacion independientes
-- **Separar pestanas**: Arrastre una pestana a una nueva ventana — el estado se conserva completamente
+- **Separar y re-acoplar pestanas**: Arrastre una pestana a una nueva ventana para separarla; al arrastrarla de vuelta, una pestana fantasma estilo Chrome y una ventana semitransparente muestran la posicion de acoplamiento — el estado se conserva completamente
 - **Duplicar pestanas**: Duplicar con la ruta y configuracion exactas
 - Guardado automatico de sesion: cierre y reabra la app — todas las pestanas se mantienen
 
@@ -91,6 +91,9 @@ Navegue jerarquias profundas de carpetas sin perder el contexto. Cada columna re
 ![Vista previa de codigo + Informacion Git](5.jpg)
 
 Presione **Espacio** para Quick Look (estilo macOS Finder):
+
+- **Navegacion con flechas y Espacio**: Cambie de archivo dentro de Quick Look usando las teclas de flechas y Espacio
+- **Persistencia del tamano de Quick Look**: El tamano de la ventana se restaura automaticamente en la siguiente apertura
 
 - **Imagenes**: JPEG, PNG, GIF, BMP, WebP, TIFF — resolucion y metadatos
 - **Video**: MP4, MKV, AVI, MOV, WEBM — controles de reproduccion
@@ -123,6 +126,8 @@ Mas de 30 atajos de teclado para quienes no quieren soltar el teclado:
 | Ctrl+Shift+W | Abrir paleta de espacios de trabajo |
 | Ctrl+Shift+E | Alternar vista dividida |
 | Delete | Enviar a la papelera de reciclaje |
+| Ctrl+Tab / Ctrl+Shift+Tab | Cambiar de pestana (siguiente/anterior) |
+| F6 | Cambiar panel en vista dividida |
 
 ### Temas y personalizacion
 
@@ -165,6 +170,15 @@ Mas de 30 atajos de teclado para quienes no quieren soltar el teclado:
 ### Funciones avanzadas
 
 - **Pegado de archivos virtuales**: Pegue con Ctrl+V desde sesiones remotas RDP, archivos adjuntos de Outlook y otras fuentes de archivos virtuales
+
+### UX de arrastrar y soltar pestanas *(v1.2.13.0)*
+
+![Separar y re-acoplar pestanas](tab-drag.gif)
+
+- Indicador de pestana fantasma estilo Chrome para visualizar la posicion de acoplamiento
+- Retroalimentacion de acoplamiento semitransparente para confirmar la posicion de insercion
+- Efectos visuales al separar pestanas (desactivado para pestana unica)
+- Pestanas de ancho fijo y estable — sin saltos de diseno durante el arrastre
 
 ---
 
