@@ -711,7 +711,7 @@ namespace Span
 
                         // Set tab bar as passthrough so pointer events work for tear-off
                         UpdateTitleBarRegions();
-                        TabScrollViewer.SizeChanged += (_, __) => { UpdateTitleBarRegions(); RecalculateTabWidths(); };
+                        TabScrollViewer.SizeChanged += (_, __) => { UpdateTitleBarRegions(); DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, RecalculateTabWidths); };
                         TabBarContent.SizeChanged += (_, __) => UpdateTitleBarRegions();
                         this.SizeChanged += (_, __) => UpdateTitleBarRegions();
 
@@ -881,7 +881,7 @@ namespace Span
 
                     // Set tab bar as passthrough so pointer events work for tab tear-off
                     UpdateTitleBarRegions();
-                    TabScrollViewer.SizeChanged += (_, __) => { UpdateTitleBarRegions(); RecalculateTabWidths(); };
+                    TabScrollViewer.SizeChanged += (_, __) => { UpdateTitleBarRegions(); DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, RecalculateTabWidths); };
                     TabBarContent.SizeChanged += (_, __) => UpdateTitleBarRegions();
                     this.SizeChanged += (_, __) => UpdateTitleBarRegions();
 

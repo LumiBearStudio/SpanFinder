@@ -55,6 +55,9 @@ namespace Span
                 double available = availableWidth - newTabBtnWidth;
 
                 double tabWidth = Math.Max(MIN_TAB_WIDTH, Math.Min(MAX_TAB_WIDTH, available / tabCount));
+
+                // 너비가 거의 같으면 재설정 생략 → 레이아웃 순환 방지
+                if (Math.Abs(tabWidth - _calculatedTabWidth) < 0.5) return;
                 _calculatedTabWidth = tabWidth;
 
                 // 각 탭 아이템에 너비 적용
