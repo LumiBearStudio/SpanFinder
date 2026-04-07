@@ -572,12 +572,13 @@ namespace Span
                     return;
                 _isTabDragging = true;
 
-                // 드래그 시작 시각 피드백: 탭을 반투명 + 살짝 위로
-                ApplyDragVisual(sender as FrameworkElement, true);
-
-                // 드래그 중 타이틀바 전체를 Passthrough로 확장 → IXP 캡션 드래그 방지
+                // 멀티탭: 드래그 시각 피드백 + Passthrough 확장
+                // 싱글탭: 창 이동이므로 비주얼 효과 없음
                 if (ViewModel.Tabs.Count > 1)
+                {
+                    ApplyDragVisual(sender as FrameworkElement, true);
                     ExpandTitleBarPassthrough();
+                }
             }
 
             // 탭 1개일 때: 윈도우 전체를 드래그 이동 + 재도킹 감지
