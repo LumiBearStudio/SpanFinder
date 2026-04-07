@@ -37,7 +37,7 @@
                               Glyph="{Binding FileIconGlyph}"
                               Foreground="{Binding FileIconBrush}"
                               FontSize="48" HorizontalAlignment="Center"/>
-                    <TextBlock Text="{Binding FileName}"
+                    <TextBlock x:Name="ValFileName" Text="{Binding FileName}"
                                TextWrapping="Wrap" TextAlignment="Center"
                                FontWeight="SemiBold" FontSize="14"
                                MaxLines="3" TextTrimming="CharacterEllipsis"/>
@@ -87,10 +87,8 @@
                                         AutoPlay="False"
                                         MaxHeight="360"/>
 
-                    <!-- Hit-testable overlay: MediaPlayerElement의 SwapChainPanel이 XAML hit-test를 가로채므로
-                         거의 투명한 Background로 포인터 이벤트를 받을 수 있게 함 -->
+                    <!-- Hit-testable overlay -->
                     <Grid Grid.Row="0" Background="#01000000">
-                        <!-- 중앙 Play 버튼 (정지/일시정지 상태) -->
                         <Button x:Name="CenterPlayButton"
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
@@ -105,7 +103,6 @@
                                       Foreground="White"/>
                         </Button>
 
-                        <!-- 하단 컨트롤바 (재생 중에만 표시) -->
                         <Grid x:Name="BottomControlBar"
                               VerticalAlignment="Bottom"
                               Background="#B0000000"
@@ -151,13 +148,11 @@
                 <!-- Font Preview -->
                 <StackPanel Visibility="{Binding IsFontVisible, Converter={StaticResource VisConv}}"
                             Spacing="12">
-                    <!-- Font format badge -->
                     <Border Background="{ThemeResource SpanBgLayer1Brush}"
                             CornerRadius="4" Padding="6,3" HorizontalAlignment="Center">
                         <TextBlock Text="{Binding FontFormat}" FontSize="11" FontWeight="SemiBold"
                                    Foreground="{ThemeResource SpanAccentBrush}"/>
                     </Border>
-                    <!-- Sample text in the font itself -->
                     <StackPanel Background="{ThemeResource SpanBgLayer1Brush}"
                                 CornerRadius="4" Padding="12" Spacing="8">
                         <TextBlock Text="AaBbCcDdEeFfGgHhIiJjKk" FontSize="24"
@@ -178,7 +173,6 @@
                                    TextWrapping="Wrap" TextAlignment="Center"
                                    Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
                     </StackPanel>
-                    <!-- Size samples -->
                     <StackPanel Background="{ThemeResource SpanBgLayer1Brush}"
                                 CornerRadius="4" Padding="12" Spacing="4">
                         <TextBlock Text="12px - Preview" FontSize="12" FontFamily="{Binding FontFamilySource}"
@@ -195,21 +189,17 @@
                 <!-- Archive Contents -->
                 <StackPanel Visibility="{Binding IsArchiveVisible, Converter={StaticResource VisConv}}"
                             Spacing="8" Margin="0,4,0,0">
-
-                    <!-- Stats row -->
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="{Binding ArchiveStats}"
+                        <TextBlock x:Name="ValArchiveStats" Grid.Column="0" Text="{Binding ArchiveStats}"
                                    FontSize="13" FontWeight="SemiBold"/>
-                        <TextBlock Grid.Column="1" Text="{Binding ArchiveCompressionRatio}"
+                        <TextBlock x:Name="ValArchiveRatio" Grid.Column="1" Text="{Binding ArchiveCompressionRatio}"
                                    FontSize="12" Foreground="{ThemeResource SpanAccentBrush}"
                                    FontWeight="SemiBold"/>
                     </Grid>
-
-                    <!-- Size info -->
                     <Grid ColumnSpacing="12">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -218,21 +208,19 @@
                         <StackPanel Grid.Column="0" Spacing="2">
                             <TextBlock x:Name="LabelCompressed" Text="Compressed" FontSize="11"
                                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-                            <TextBlock Text="{Binding ArchiveCompressedSize}" FontSize="13"/>
+                            <TextBlock x:Name="ValCompressedSize" Text="{Binding ArchiveCompressedSize}" FontSize="13"/>
                         </StackPanel>
                         <StackPanel Grid.Column="1" Spacing="2">
                             <TextBlock x:Name="LabelOriginal" Text="Original" FontSize="11"
                                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-                            <TextBlock Text="{Binding ArchiveUncompressedSize}" FontSize="13"/>
+                            <TextBlock x:Name="ValOriginalSize" Text="{Binding ArchiveUncompressedSize}" FontSize="13"/>
                         </StackPanel>
                     </Grid>
-
-                    <!-- Content tree -->
                     <Border Background="{ThemeResource SpanBgLayer1Brush}"
                             CornerRadius="4" Padding="10" MaxHeight="300">
                         <ScrollViewer VerticalScrollBarVisibility="Auto"
                                       HorizontalScrollBarVisibility="Auto">
-                            <TextBlock Text="{Binding ArchiveContentTree}"
+                            <TextBlock x:Name="ValArchiveTree" Text="{Binding ArchiveContentTree}"
                                        FontSize="12" LineHeight="20"
                                        TextWrapping="NoWrap"
                                        IsTextSelectionEnabled="True"/>
@@ -248,7 +236,7 @@
                               FontSize="48"
                               Foreground="{ThemeResource SpanTextTertiaryBrush}"
                               HorizontalAlignment="Center"/>
-                    <TextBlock Text="{Binding FolderItemCount}"
+                    <TextBlock x:Name="ValFolderCount" Text="{Binding FolderItemCount}"
                                HorizontalAlignment="Center" FontSize="14"
                                Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
                 </StackPanel>
@@ -265,7 +253,7 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <TextBlock x:Name="LabelType" Text="종류" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center"/>
-                        <TextBlock Grid.Column="1" Text="{Binding FileType}" FontSize="12" IsTextSelectionEnabled="True" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="ValType" Grid.Column="1" Text="{Binding FileType}" FontSize="12" IsTextSelectionEnabled="True" VerticalAlignment="Center"/>
                     </Grid>
 
                     <!-- Size -->
@@ -275,7 +263,7 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <TextBlock x:Name="LabelSize" Text="크기" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center"/>
-                        <TextBlock Grid.Column="1" Text="{Binding FileSizeFormatted}" FontSize="12" IsTextSelectionEnabled="True" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="ValSize" Grid.Column="1" Text="{Binding FileSizeFormatted}" FontSize="12" IsTextSelectionEnabled="True" VerticalAlignment="Center"/>
                     </Grid>
 
                     <!-- Created -->
@@ -285,7 +273,7 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <TextBlock x:Name="LabelCreated" Text="생성일" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center"/>
-                        <TextBlock Grid.Column="1" Text="{Binding DateCreated}" FontSize="12" IsTextSelectionEnabled="True" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="ValCreated" Grid.Column="1" Text="{Binding DateCreated}" FontSize="12" IsTextSelectionEnabled="True" VerticalAlignment="Center"/>
                     </Grid>
 
                     <!-- Modified -->
@@ -295,7 +283,7 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <TextBlock x:Name="LabelModified" Text="수정일" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center"/>
-                        <TextBlock Grid.Column="1" Text="{Binding DateModified}" FontSize="12" IsTextSelectionEnabled="True" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="ValModified" Grid.Column="1" Text="{Binding DateModified}" FontSize="12" IsTextSelectionEnabled="True" VerticalAlignment="Center"/>
                     </Grid>
 
                     <!-- Dimensions (conditional) -->
@@ -305,7 +293,7 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <TextBlock x:Name="LabelResolution" Text="해상도" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center"/>
-                        <TextBlock Grid.Column="1" Text="{Binding Dimensions}" FontSize="12" IsTextSelectionEnabled="True" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="ValResolution" Grid.Column="1" Text="{Binding Dimensions}" FontSize="12" IsTextSelectionEnabled="True" VerticalAlignment="Center"/>
                     </Grid>
 
                     <!-- Duration (conditional) -->
@@ -315,7 +303,7 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <TextBlock x:Name="LabelDuration" Text="재생시간" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center"/>
-                        <TextBlock Grid.Column="1" Text="{Binding Duration}" FontSize="12" IsTextSelectionEnabled="True" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="ValDuration" Grid.Column="1" Text="{Binding Duration}" FontSize="12" IsTextSelectionEnabled="True" VerticalAlignment="Center"/>
                     </Grid>
 
                     <!-- Artist (conditional) -->
@@ -325,7 +313,7 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <TextBlock x:Name="LabelArtist" Text="아티스트" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center"/>
-                        <TextBlock Grid.Column="1" Text="{Binding Artist}" FontSize="12" IsTextSelectionEnabled="True" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="ValArtist" Grid.Column="1" Text="{Binding Artist}" FontSize="12" IsTextSelectionEnabled="True" VerticalAlignment="Center"/>
                     </Grid>
 
                     <!-- Album (conditional) -->
@@ -335,17 +323,17 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <TextBlock x:Name="LabelAlbum" Text="앨범" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center"/>
-                        <TextBlock Grid.Column="1" Text="{Binding Album}" FontSize="12" IsTextSelectionEnabled="True" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="ValAlbum" Grid.Column="1" Text="{Binding Album}" FontSize="12" IsTextSelectionEnabled="True" VerticalAlignment="Center"/>
                     </Grid>
                 </StackPanel>
 
-                <!-- Git: Tier 1 — 파일 마지막 커밋 정보 -->
+                <!-- Git: Tier 1 -->
                 <StackPanel Visibility="{Binding HasGitInfo, Converter={StaticResource VisConv}}"
                             Spacing="4">
                     <Rectangle Height="1" Fill="{ThemeResource SpanBorderSubtleBrush}"/>
                     <TextBlock x:Name="LabelGit" Text="Git" FontSize="11" FontWeight="SemiBold"
                                Foreground="{ThemeResource SpanTextTertiaryBrush}" Margin="0,2,0,0"/>
-                    <TextBlock Text="{Binding GitLastCommitInfo}"
+                    <TextBlock x:Name="ValGitInfo" Text="{Binding GitLastCommitInfo}"
                                FontSize="12" TextWrapping="Wrap" LineHeight="18"
                                IsTextSelectionEnabled="True"
                                Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
@@ -358,13 +346,9 @@
                     <Rectangle Height="1" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="0,4,0,0"/>
                     <TextBlock x:Name="LabelHash" Text="SHA256" FontSize="11" FontWeight="SemiBold"
                                Foreground="{ThemeResource SpanTextTertiaryBrush}" Margin="0,2,0,0"/>
-
-                    <!-- Calculating state -->
                     <TextBlock x:Name="HashCalcText" Text="계산 중..."
                                Visibility="{Binding IsHashCalculating, Converter={StaticResource VisConv}}"
                                FontSize="11" Foreground="{ThemeResource SpanTextTertiaryBrush}"/>
-
-                    <!-- Hash result + copy button -->
                     <Grid Visibility="{Binding FileHashText, Converter={StaticResource VisConv}}">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>

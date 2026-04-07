@@ -520,6 +520,18 @@ namespace Span
         };
 
         /// <summary>
+        /// 폰트 설정 이름에서 FontFamily 생성에 필요한 스펙 문자열을 반환한다.
+        /// 번들 폰트는 ms-appx 경로, 시스템 폰트는 이름 + CJK fallback.
+        /// QuickLookWindow 등 외부에서도 동일한 폰트 해석에 사용.
+        /// </summary>
+        internal static string ResolveFontSpec(string fontFamily)
+        {
+            return BundledFonts.TryGetValue(fontFamily, out var bundledPath)
+                ? bundledPath
+                : fontFamily + CjkFallback;
+        }
+
+        /// <summary>
         /// 폰트 패밀리를 모든 뷰에 적용한다.
         /// 번들 폰트는 앱 내 경로로 참조, 그 외는 시스템 폰트명 사용.
         /// 사용자가 어떤 폰트를 선택하든 CJK fallback이 자동 추가됨.
@@ -531,18 +543,60 @@ namespace Span
 
             if (this.Content is FrameworkElement root && root.Resources != null)
             {
-                // 번들 폰트는 이미 CJK 글리프를 포함하므로 fallback 없이 단독 참조
-                var fontSpec = BundledFonts.TryGetValue(fontFamily, out var bundledPath)
-                    ? bundledPath
-                    : fontFamily + CjkFallback;
+                var fontSpec = ResolveFontSpec(fontFamily);
                 var font = new FontFamily(fontSpec);
+
+                // (1) 테마 리소스 업데이트 — 이후 생성/재활용되는 컨트롤에 적용
                 root.Resources["ContentControlThemeFontFamily"] = font;
 
-                if (root is Microsoft.UI.Xaml.Controls.Control control)
-                {
-                    control.FontFamily = font;
-                }
+                // (2) 비주얼 트리 순회 — TextBlock/Control에 직접 FontFamily 적용
+                ApplyFontToVisualTree(root, font);
+
+                // (3) 프리뷰 패널 전파 — named TextBlock에 직접 설정
+                LeftPreviewPanel?.ApplyFont(font);
+                RightPreviewPanel?.ApplyFont(font);
+
+                // (4) QuickLook 윈도우 전파 (별도 Window)
+                _quickLookWindow?.SyncFont();
             }
+        }
+
+        /// <summary>
+        /// 비주얼 트리를 재귀 순회하며 TextBlock과 Control에 FontFamily를 적용한다.
+        /// 모노폰트(Cascadia/Consolas), 아이콘 폰트(remixicon/Segoe Fluent Icons)는 건너뛴다.
+        /// </summary>
+        private static void ApplyFontToVisualTree(DependencyObject parent, FontFamily font)
+        {
+            var count = VisualTreeHelper.GetChildrenCount(parent);
+            for (var i = 0; i < count; i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+
+                if (child is TextBlock tb && !IsExcludedFont(tb.FontFamily))
+                {
+                    tb.FontFamily = font;
+                }
+                else if (child is Microsoft.UI.Xaml.Controls.Control ctrl && !IsExcludedFont(ctrl.FontFamily))
+                {
+                    ctrl.FontFamily = font;
+                }
+
+                ApplyFontToVisualTree(child, font);
+            }
+        }
+
+        /// <summary>
+        /// 모노폰트, 아이콘 폰트 등 사용자 폰트로 대체하면 안 되는 폰트인지 확인.
+        /// </summary>
+        private static bool IsExcludedFont(FontFamily? ff)
+        {
+            var src = ff?.Source;
+            if (string.IsNullOrEmpty(src)) return false;
+            return src.Contains("Consolas", StringComparison.OrdinalIgnoreCase)
+                || src.Contains("Cascadia", StringComparison.OrdinalIgnoreCase)
+                || src.Contains("remixicon", StringComparison.OrdinalIgnoreCase)
+                || src.Contains("Segoe Fluent", StringComparison.OrdinalIgnoreCase)
+                || src.Contains("Segoe MDL2", StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>

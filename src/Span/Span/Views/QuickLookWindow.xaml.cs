@@ -23,8 +23,18 @@ namespace Span.Views
     ///   2. Info Only (Folder, Generic): Finder 스타일 컴팩트 카드
     /// ESC/Space로 닫기, 커스텀 타이틀바, Mica 배경.
     /// </summary>
-    public sealed partial class QuickLookWindow : Window
+    public sealed partial class QuickLookWindow : Window, System.ComponentModel.INotifyPropertyChanged
     {
+        public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+
+        private Microsoft.UI.Xaml.Media.FontFamily? _userFont;
+        /// <summary>사용자 폰트 (Issue #11). x:Bind OneWay로 TextBlock에 바인딩.</summary>
+        public Microsoft.UI.Xaml.Media.FontFamily? UserFont
+        {
+            get => _userFont;
+            set { if (_userFont != value) { _userFont = value; PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(UserFont))); } }
+        }
+
         public QuickLookViewModel ViewModel { get; private set; }
 
         public event Action? WindowClosed;
@@ -72,9 +82,12 @@ namespace Span.Views
 
             ConfigureWindow();
 
-            this.Content.KeyDown += OnContentKeyDown;
+            // PreviewKeyDown: 버튼에 포커스가 있어도 Space/Arrow를 먼저 가로채서 파일 네비게이션 처리
+            this.Content.PreviewKeyDown += OnContentPreviewKeyDown;
             this.Closed += OnWindowClosed;
             ContentPreviewArea.SizeChanged += OnContentPreviewAreaSizeChanged;
+
+            // 네비 버튼은 항상 반투명 표시, 호버 시 강조 (각 버튼의 PointerEntered/Exited에서 처리)
 
             _loc = App.Current.Services.GetService<LocalizationService>();
             if (_loc != null)
@@ -137,6 +150,12 @@ namespace Span.Views
         public void SetMainWindow(AppWindow mainAppWindow)
         {
             _mainAppWindow = mainAppWindow;
+
+            // 생성자 시점에는 _mainAppWindow가 null이라 800x600 폴백됨.
+            // 여기서 실제 메인 창 크기 기반으로 80% 크기 + 중앙 정렬 재적용.
+            var (w, h) = GetContentModeSize();
+            this.AppWindow.Resize(new SizeInt32(w, h));
+            CenterOnMainWindow(w, h);
         }
 
         /// <summary>
@@ -146,6 +165,7 @@ namespace Span.Views
         {
             _siblingItems = items;
             _currentIndex = currentIndex;
+            UpdateNavButtonStates();
         }
 
         /// <summary>
@@ -201,6 +221,51 @@ namespace Span.Views
         }
 
         /// <summary>
+        /// 사용자 폰트 설정을 QuickLook 윈도우에 적용한다 (Issue #11).
+        /// 별도 Window는 MainWindow의 리소스를 상속하지 않으므로 독립적으로 적용해야 한다.
+        /// XAML에서 {ThemeResource ContentControlThemeFontFamily}를 사용하므로
+        /// 리소스만 설정하고 테마 토글로 재평가하면 된다.
+        /// </summary>
+        public void SyncFont()
+        {
+            try
+            {
+                var settings = App.Current.Services.GetService<ISettingsService>();
+                if (settings == null) return;
+
+                var fontFamily = settings.FontFamily;
+                if (string.IsNullOrEmpty(fontFamily)) return;
+
+                var font = new Microsoft.UI.Xaml.Media.FontFamily(MainWindow.ResolveFontSpec(fontFamily));
+                UserFont = font;
+
+                // 직접 설정: x:Bind 대신 코드-비하인드에서 모든 TextBlock에 FontFamily 적용
+                // Info-only mode
+                InfoFileName.FontFamily = font;
+                InfoSizeText.FontFamily = font;
+                InfoSizeDot.FontFamily = font;
+                InfoItemCountText.FontFamily = font;
+                InfoTypeText.FontFamily = font;
+                InfoDateText.FontFamily = font;
+                // Bottom bar
+                BottomFileName.FontFamily = font;
+                BottomFileType.FontFamily = font;
+                BottomFileSize.FontFamily = font;
+                BottomDimensions.FontFamily = font;
+                BottomDuration.FontFamily = font;
+                BottomDateModified.FontFamily = font;
+                // Archive
+                QLArchiveStats.FontFamily = font;
+                QLArchiveRatio.FontFamily = font;
+                QLArchiveTree.FontFamily = font;
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[QuickLook] SyncFont error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
         /// 파일명 중간 말줄임표 처리.
         /// 확장자를 보존하고 파일명 중간을 "…"로 대체하여 앞뒤 컨텍스트를 유지.
         /// </summary>
@@ -237,6 +302,9 @@ namespace Span.Views
             }
 
             ViewModel.UpdateContent(item);
+
+            // 파일 카운터 업데이트
+            UpdateFileCounter();
 
             // Determine mode after ViewModel updates
             if (item != null)
@@ -401,7 +469,7 @@ namespace Span.Views
             }
         }
 
-        private void OnContentKeyDown(object sender, KeyRoutedEventArgs e)
+        private void OnContentPreviewKeyDown(object sender, KeyRoutedEventArgs e)
         {
             switch (e.Key)
             {
@@ -414,7 +482,7 @@ namespace Span.Views
                     // 미디어 재생 중이면 Space = 일시정지/재생 (기본 동작에 맡김)
                     if (ViewModel.CurrentPreviewType == PreviewType.Media)
                         return;
-                    // 그 외: 다음 파일로 이동
+                    // 그 외: 다음 파일로 이동 (버튼 포커스와 무관하게 동작)
                     e.Handled = true;
                     NavigateSibling(+1);
                     break;
@@ -431,6 +499,50 @@ namespace Span.Views
                     NavigateSibling(-1);
                     break;
             }
+        }
+
+        // ── 마우스 오버 좌우 네비게이션 버튼 ──────────────────────
+
+        private void OnNavPrevClick(object sender, RoutedEventArgs e) => NavigateSibling(-1);
+        private void OnNavNextClick(object sender, RoutedEventArgs e) => NavigateSibling(+1);
+
+        private void OnNavButtonPointerEntered(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            if (sender is Button btn)
+            {
+                btn.Opacity = 1.0;
+                btn.Background = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SpanBgLayer2Brush"];
+            }
+        }
+
+        private void OnNavButtonPointerExited(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            if (sender is Button btn)
+            {
+                btn.Opacity = 0.4;
+                btn.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
+            }
+        }
+
+        /// <summary>
+        /// 네비게이션 후 좌우 버튼 활성 상태 업데이트 (처음/끝 도달 시 비활성).
+        /// </summary>
+        private void UpdateNavButtonStates()
+        {
+            try
+            {
+                if (_siblingItems == null || _siblingItems.Count <= 1)
+                {
+                    NavPrevButton.Visibility = Visibility.Collapsed;
+                    NavNextButton.Visibility = Visibility.Collapsed;
+                    return;
+                }
+                NavPrevButton.Visibility = Visibility.Visible;
+                NavNextButton.Visibility = Visibility.Visible;
+                NavPrevButton.IsEnabled = _currentIndex > 0;
+                NavNextButton.IsEnabled = _currentIndex < _siblingItems.Count - 1;
+            }
+            catch { }
         }
 
         /// <summary>
@@ -454,6 +566,8 @@ namespace Span.Views
             // 메인 윈도우에 선택 동기화
             SelectionSynced?.Invoke(nextItem);
 
+            UpdateNavButtonStates();
+
             Helpers.DebugLogger.Log($"[QuickLook] Navigate {(direction > 0 ? "next" : "prev")}: {nextItem.Name} ({_currentIndex + 1}/{_siblingItems.Count})");
         }
 
@@ -468,6 +582,161 @@ namespace Span.Views
                 }
             }
             catch { }
+        }
+
+        // ── 파일 카운터 (3/25) ────────────────────────────────
+
+        private void UpdateFileCounter()
+        {
+            try
+            {
+                if (_siblingItems == null || _siblingItems.Count <= 1)
+                {
+                    FileCounterText.Text = "";
+                    return;
+                }
+                FileCounterText.Text = $"{_currentIndex + 1} / {_siblingItems.Count}";
+            }
+            catch { }
+        }
+
+        // ── Markdown 렌더링 (WebView2) ──────────────────────
+
+        private async Task RenderMarkdownAsync()
+        {
+            try
+            {
+                var html = ViewModel.MarkdownHtml;
+                if (string.IsNullOrEmpty(html))
+                {
+                    MarkdownWebView.Visibility = Visibility.Collapsed;
+                    return;
+                }
+
+                await MarkdownWebView.EnsureCoreWebView2Async();
+                var isDark = (this.Content as FrameworkElement)?.ActualTheme != ElementTheme.Light;
+                var fullHtml = Helpers.MarkdownHelper.WrapInHtmlDocument(html, isDark);
+                MarkdownWebView.NavigateToString(fullHtml);
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[QuickLook] Markdown render error: {ex.Message}");
+            }
+        }
+
+        // ── CSV 테이블 렌더링 ────────────────────────────────
+
+        private void RenderCsvTable()
+        {
+            try
+            {
+                var headers = ViewModel.CsvHeaders;
+                var rows = ViewModel.CsvRows;
+                if (headers == null || rows == null || headers.Length == 0)
+                {
+                    CsvTableRepeater.ItemsSource = null;
+                    return;
+                }
+
+                var colCount = headers.Length;
+
+                // Grid로 테이블 구성
+                var tablePanel = new StackPanel { Spacing = 0, Padding = new Thickness(12) };
+
+                // 헤더 행
+                var headerGrid = CreateTableRow(headers, colCount, isHeader: true);
+                tablePanel.Children.Add(headerGrid);
+
+                // 데이터 행 (최대 200개)
+                for (int i = 0; i < rows.Count; i++)
+                {
+                    var row = rows[i];
+                    // 열 수가 맞지 않으면 패딩
+                    var cells = new string[colCount];
+                    for (int c = 0; c < colCount; c++)
+                        cells[c] = c < row.Length ? row[c] : "";
+
+                    var rowGrid = CreateTableRow(cells, colCount, isHeader: false, isAlternate: i % 2 == 1);
+                    tablePanel.Children.Add(rowGrid);
+                }
+
+                // 행 카운터
+                if (rows.Count >= 200)
+                {
+                    var moreText = new TextBlock
+                    {
+                        Text = $"… {rows.Count}+ rows (showing first 200)",
+                        FontSize = 11,
+                        Margin = new Thickness(0, 8, 0, 0),
+                        Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SpanTextTertiaryBrush"]
+                    };
+                    tablePanel.Children.Add(moreText);
+                }
+                else
+                {
+                    var countText = new TextBlock
+                    {
+                        Text = $"{rows.Count} rows",
+                        FontSize = 11,
+                        Margin = new Thickness(0, 8, 0, 0),
+                        Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SpanTextTertiaryBrush"]
+                    };
+                    tablePanel.Children.Add(countText);
+                }
+
+                // ItemsRepeater 대신 직접 ScrollViewer 안의 Content로 설정
+                // CsvTableRepeater의 부모 ScrollViewer의 Content로 교체
+                var scrollViewer = CsvTableRepeater.Parent as ScrollViewer;
+                if (scrollViewer != null)
+                {
+                    scrollViewer.Content = tablePanel;
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[QuickLook] CSV render error: {ex.Message}");
+            }
+        }
+
+        private Grid CreateTableRow(string[] cells, int colCount, bool isHeader, bool isAlternate = false)
+        {
+            var grid = new Grid();
+            grid.Padding = new Thickness(0);
+
+            if (isHeader)
+                grid.Background = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SpanBgLayer2Brush"];
+            else if (isAlternate)
+                grid.Background = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SpanBgLayer1Brush"];
+
+            for (int c = 0; c < colCount; c++)
+            {
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 60 });
+            }
+
+            for (int c = 0; c < colCount; c++)
+            {
+                var border = new Border
+                {
+                    BorderBrush = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SpanBorderSubtleBrush"],
+                    BorderThickness = new Thickness(c == 0 ? 1 : 0, isHeader ? 1 : 0, 1, 1),
+                    Padding = new Thickness(8, 4, 8, 4)
+                };
+
+                var tb = new TextBlock
+                {
+                    Text = cells[c],
+                    FontSize = 12,
+                    TextTrimming = TextTrimming.CharacterEllipsis,
+                    MaxLines = 2,
+                    FontWeight = isHeader ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal
+                };
+
+                border.Child = tb;
+                Grid.SetColumn(border, c);
+                grid.Children.Add(border);
+            }
+
+            return grid;
         }
 
         /// <summary>
@@ -677,7 +946,7 @@ namespace Span.Views
             ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
             ViewModel.PropertyChanged -= OnInfoOnlyPropertyChanged;
             ContentPreviewArea.SizeChanged -= OnContentPreviewAreaSizeChanged;
-            this.Content.KeyDown -= OnContentKeyDown;
+            this.Content.PreviewKeyDown -= OnContentPreviewKeyDown;
             ViewModel?.Dispose();
             WindowClosed?.Invoke();
         }
@@ -687,6 +956,14 @@ namespace Span.Views
             if (e.PropertyName == nameof(QuickLookViewModel.RotationAngle))
             {
                 UpdateImageTransform();
+            }
+            else if (e.PropertyName == nameof(QuickLookViewModel.MarkdownHtml))
+            {
+                _ = RenderMarkdownAsync();
+            }
+            else if (e.PropertyName == nameof(QuickLookViewModel.CsvRows))
+            {
+                RenderCsvTable();
             }
         }
 

@@ -1199,7 +1199,10 @@ namespace Span.ViewModels
         public void ClearChildren()
         {
             UnloadAllThumbnails();
-            Children = new System.Collections.ObjectModel.ObservableCollection<FileSystemViewModel>();
+            // PropertyChanged를 발생시키지 않고 필드 직접 교체.
+            // Cleanup 중 x:Bind가 이미 visual tree에서 제거된 ListView의 ItemsSource를
+            // 업데이트하려다 COMException(0x80070490) 발생하는 것을 방지.
+            _children = new System.Collections.ObjectModel.ObservableCollection<FileSystemViewModel>();
             _allChildren = null;
             _currentFilterText = string.Empty;
             _isLoaded = false;

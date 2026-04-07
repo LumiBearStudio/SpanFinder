@@ -24,6 +24,10 @@ namespace Span.Models
         Font,
         /// <summary>아카이브 파일 (ZIP, 7z, RAR, TAR 등).</summary>
         Archive,
+        /// <summary>마크다운 파일 (.md, .markdown) — 렌더링된 미리보기.</summary>
+        Markdown,
+        /// <summary>CSV/TSV 파일 — 테이블 형태 미리보기.</summary>
+        Csv,
         /// <summary>기타 파일 (기본 정보만 표시).</summary>
         Generic
     }

@@ -311,9 +311,12 @@ namespace Span
                     var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(w);
                     if (Helpers.NativeMethods.GetWindowRect(hwnd, out var rect))
                     {
-                        // Check if point is within the window's tab bar area (top 50px)
+                        // Check if point is within the window's tab bar area
+                        // Tab bar = 40 DIPs; GetWindowRect returns physical pixels → scale by DPI
+                        uint dpi = Helpers.NativeMethods.GetDpiForWindow(hwnd);
+                        int tabBarHeight = (int)(48.0 * dpi / 96.0); // 40 DIPs + 8 DIP buffer
                         if (screenX >= rect.Left && screenX <= rect.Right &&
-                            screenY >= rect.Top && screenY <= rect.Top + 50)
+                            screenY >= rect.Top && screenY <= rect.Top + tabBarHeight)
                         {
                             return mw;
                         }
@@ -351,7 +354,9 @@ namespace Span
                 (e.Exception is ArgumentException && e.Exception.HResult == unchecked((int)0x80070057)
                     && string.IsNullOrEmpty(e.Exception.StackTrace))
                 || (e.Exception is System.Runtime.InteropServices.COMException && e.Exception.HResult == unchecked((int)0x80004005)
-                    && IsWinUIInternalOnly(e.Exception));
+                    && IsWinUIInternalOnly(e.Exception))
+                || (e.Exception is System.Runtime.InteropServices.COMException && e.Exception.HResult == unchecked((int)0x80070490)
+                    && IsWinUIInternalOnly(e.Exception)); // Element not found — visual tree 타이밍 이슈
 
             // Sentry: 세션당 최대 N회만 전송 (반복 네이티브 예외 증폭 방지)
             // CaptureFatalException(동기 Flush)은 사용하지 않음 — UI 스레드 차단 위험

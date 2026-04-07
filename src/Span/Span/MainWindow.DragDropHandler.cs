@@ -234,7 +234,11 @@ namespace Span
         /// </summary>
         private void OnFolderItemDragOver(object sender, DragEventArgs e)
         {
-            if (sender is not Grid grid || grid.DataContext is not FolderViewModel targetFolder) return;
+            if (sender is not Grid grid) return;
+            FolderViewModel? targetFolder;
+            try { targetFolder = grid.DataContext as FolderViewModel; }
+            catch (System.Runtime.InteropServices.COMException) { return; }
+            if (targetFolder == null) return;
 
             if (Helpers.ArchivePathHelper.IsArchivePath(targetFolder.Path))
             {
@@ -300,7 +304,11 @@ namespace Span
         /// </summary>
         private async void OnFolderItemDrop(object sender, DragEventArgs e)
         {
-            if (sender is not Grid grid || grid.DataContext is not FolderViewModel targetFolder) return;
+            if (sender is not Grid grid) return;
+            FolderViewModel? targetFolder;
+            try { targetFolder = grid.DataContext as FolderViewModel; }
+            catch (System.Runtime.InteropServices.COMException) { return; }
+            if (targetFolder == null) return;
             if (Helpers.ArchivePathHelper.IsArchivePath(targetFolder.Path))
                 return;
             e.Handled = true; // Prevent bubbling BEFORE await (avoid duplicate execution)
@@ -335,8 +343,10 @@ namespace Span
             }
 
             // Cancel spring-loaded timer when leaving the target folder
-            if (sender is Grid g && g.DataContext is FolderViewModel leavingFolder
-                && leavingFolder == _springLoadTarget)
+            FolderViewModel? leavingFolder = null;
+            try { if (sender is Grid g) leavingFolder = g.DataContext as FolderViewModel; }
+            catch (System.Runtime.InteropServices.COMException) { }
+            if (leavingFolder != null && leavingFolder == _springLoadTarget)
             {
                 StopSpringLoadTimer();
             }
@@ -411,7 +421,11 @@ namespace Span
         /// </summary>
         private void OnColumnDragOver(object sender, DragEventArgs e)
         {
-            if (sender is not ListView listView || listView.DataContext is not FolderViewModel folderVm) return;
+            if (sender is not ListView listView) return;
+            FolderViewModel? folderVm;
+            try { folderVm = listView.DataContext as FolderViewModel; }
+            catch (System.Runtime.InteropServices.COMException) { return; }
+            if (folderVm == null) return;
 
             if (Helpers.ArchivePathHelper.IsArchivePath(folderVm.Path))
             {
@@ -465,7 +479,11 @@ namespace Span
         /// </summary>
         private async void OnColumnDrop(object sender, DragEventArgs e)
         {
-            if (sender is not ListView listView || listView.DataContext is not FolderViewModel folderVm) return;
+            if (sender is not ListView listView) return;
+            FolderViewModel? folderVm;
+            try { folderVm = listView.DataContext as FolderViewModel; }
+            catch (System.Runtime.InteropServices.COMException) { return; }
+            if (folderVm == null) return;
             if (Helpers.ArchivePathHelper.IsArchivePath(folderVm.Path))
                 return;
             e.Handled = true; // Prevent bubbling to OnPaneDrop (duplicate execution)

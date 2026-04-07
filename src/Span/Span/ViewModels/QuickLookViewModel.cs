@@ -63,6 +63,8 @@ namespace Span.ViewModels
         [NotifyPropertyChangedFor(nameof(IsFontVisible))]
         [NotifyPropertyChangedFor(nameof(IsGenericVisible))]
         [NotifyPropertyChangedFor(nameof(IsArchiveVisible))]
+        [NotifyPropertyChangedFor(nameof(IsMarkdownVisible))]
+        [NotifyPropertyChangedFor(nameof(IsCsvVisible))]
         private PreviewType _currentPreviewType = PreviewType.None;
 
         // --- Image rotation (UI only, not saved until explicit save) ---
@@ -76,6 +78,13 @@ namespace Span.ViewModels
         [ObservableProperty] private string? _hexPreview;
         [ObservableProperty] private string _fontFamilySource = "";
         [ObservableProperty] private string _fontFormat = "";
+
+        // --- Markdown preview ---
+        [ObservableProperty] private string _markdownHtml = "";
+
+        // --- CSV preview ---
+        [ObservableProperty] private System.Collections.Generic.List<string[]>? _csvRows;
+        [ObservableProperty] private string[]? _csvHeaders;
 
         // --- Archive preview ---
         [ObservableProperty] private string _archiveContentTree = "";
@@ -98,6 +107,8 @@ namespace Span.ViewModels
         public bool IsFontVisible => CurrentPreviewType == PreviewType.Font;
         public bool IsGenericVisible => CurrentPreviewType == PreviewType.Generic;
         public bool IsArchiveVisible => CurrentPreviewType == PreviewType.Archive;
+        public bool IsMarkdownVisible => CurrentPreviewType == PreviewType.Markdown;
+        public bool IsCsvVisible => CurrentPreviewType == PreviewType.Csv;
 
         /// <summary>
         /// Quick Look 윈도우가 닫힐 때 호출될 콜백.
@@ -182,6 +193,19 @@ namespace Span.ViewModels
 
                     case PreviewType.Text:
                         TextPreview = await _previewService.LoadTextPreviewAsync(item.Path, ct);
+                        break;
+
+                    case PreviewType.Markdown:
+                        var mdText = await _previewService.LoadTextPreviewAsync(item.Path, ct);
+                        MarkdownHtml = Helpers.MarkdownHelper.ToHtml(mdText ?? "");
+                        break;
+
+                    case PreviewType.Csv:
+                        var csvText = await _previewService.LoadTextPreviewAsync(item.Path, ct);
+                        var isTsv = item.Path.EndsWith(".tsv", StringComparison.OrdinalIgnoreCase);
+                        var (headers, rows) = Helpers.CsvHelper.Parse(csvText ?? "", isTsv ? '\t' : ',');
+                        CsvHeaders = headers;
+                        CsvRows = rows;
                         break;
 
                     case PreviewType.Pdf:
@@ -413,6 +437,9 @@ namespace Span.ViewModels
                 try { old.Dispose(); } catch { }
             }
             HexPreview = null;
+            MarkdownHtml = "";
+            CsvHeaders = null;
+            CsvRows = null;
             FontFamilySource = "";
             FontFormat = "";
             Dimensions = "";

@@ -70,6 +70,82 @@ namespace Span.Views
             [".markdown"] = Languages.Markdown,
         };
 
+        /// <summary>사용자 폰트 (Issue #11). PropertyChangedCallback으로 모든 TextBlock에 직접 설정.</summary>
+        public static readonly DependencyProperty UserFontProperty =
+            DependencyProperty.Register(nameof(UserFont), typeof(Microsoft.UI.Xaml.Media.FontFamily),
+                typeof(PreviewPanelView), new PropertyMetadata(null, OnUserFontChanged));
+
+        public Microsoft.UI.Xaml.Media.FontFamily UserFont
+        {
+            get => (Microsoft.UI.Xaml.Media.FontFamily)GetValue(UserFontProperty);
+            set => SetValue(UserFontProperty, value);
+        }
+
+        private static void OnUserFontChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            if (d is PreviewPanelView view && e.NewValue is Microsoft.UI.Xaml.Media.FontFamily font)
+                view.SetFontOnAllTextBlocks(font);
+        }
+
+        private void SetFontOnAllTextBlocks(Microsoft.UI.Xaml.Media.FontFamily font)
+        {
+            Helpers.DebugLogger.Log($"[PreviewPanel] SetFontOnAllTextBlocks called: {font.Source}");
+            ApplyFontDirect(font);
+
+            // 테마 토글 등 deferred 업데이트가 폰트를 덮어쓸 수 있으므로 지연 재적용
+            DispatcherQueue?.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+            {
+                Helpers.DebugLogger.Log($"[PreviewPanel] Deferred check — LabelType font: {LabelType.FontFamily.Source}");
+                ApplyFontDirect(font);
+            });
+        }
+
+        private void ApplyFontDirect(Microsoft.UI.Xaml.Media.FontFamily font)
+        {
+            // Named TextBlocks — 직접 설정 (Collapsed 상태여도 항상 접근 가능)
+            EmptyStateText.FontFamily = font;
+            ValFileName.FontFamily = font;
+            // Archive
+            ValArchiveStats.FontFamily = font;
+            ValArchiveRatio.FontFamily = font;
+            LabelCompressed.FontFamily = font;
+            ValCompressedSize.FontFamily = font;
+            LabelOriginal.FontFamily = font;
+            ValOriginalSize.FontFamily = font;
+            ValArchiveTree.FontFamily = font;
+            // Folder
+            ValFolderCount.FontFamily = font;
+            // Metadata labels
+            LabelType.FontFamily = font;
+            LabelSize.FontFamily = font;
+            LabelCreated.FontFamily = font;
+            LabelModified.FontFamily = font;
+            LabelResolution.FontFamily = font;
+            LabelDuration.FontFamily = font;
+            LabelArtist.FontFamily = font;
+            LabelAlbum.FontFamily = font;
+            // Metadata values
+            ValType.FontFamily = font;
+            ValSize.FontFamily = font;
+            ValCreated.FontFamily = font;
+            ValModified.FontFamily = font;
+            ValResolution.FontFamily = font;
+            ValDuration.FontFamily = font;
+            ValArtist.FontFamily = font;
+            ValAlbum.FontFamily = font;
+            // Git & Hash
+            LabelGit.FontFamily = font;
+            ValGitInfo.FontFamily = font;
+            LabelHash.FontFamily = font;
+            HashCalcText.FontFamily = font;
+        }
+
+        /// <summary>사용자 폰트를 프리뷰 패널에 적용 (Issue #11).</summary>
+        public void ApplyFont(Microsoft.UI.Xaml.Media.FontFamily font)
+        {
+            if (font is not null) UserFont = font;
+        }
+
         public void Initialize(PreviewPanelViewModel viewModel)
         {
             ViewModel = viewModel;

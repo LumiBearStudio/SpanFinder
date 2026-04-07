@@ -100,7 +100,9 @@ namespace Span.ViewModels
         // --- Computed visibility ---
 
         public bool IsImageVisible => CurrentPreviewType == PreviewType.Image;
-        public bool IsTextVisible => CurrentPreviewType == PreviewType.Text;
+        public bool IsTextVisible => CurrentPreviewType == PreviewType.Text
+            || CurrentPreviewType == PreviewType.Markdown
+            || CurrentPreviewType == PreviewType.Csv;
         public bool IsPdfVisible => CurrentPreviewType == PreviewType.Pdf;
         public bool IsMediaVisible => CurrentPreviewType == PreviewType.Media;
         public bool IsFolderVisible => CurrentPreviewType == PreviewType.Folder;
@@ -278,6 +280,13 @@ namespace Span.ViewModels
 
                 case PreviewType.Archive:
                     await LoadArchiveInfoAsync(item.Path, ct);
+                    break;
+
+                case PreviewType.Markdown:
+                case PreviewType.Csv:
+                    // 사이드 패널에서는 텍스트로 폴백 표시
+                    TextFileExtension = System.IO.Path.GetExtension(item.Path)?.ToLowerInvariant() ?? "";
+                    TextPreview = await _previewService.LoadTextPreviewAsync(item.Path, ct);
                     break;
 
                 case PreviewType.Generic:

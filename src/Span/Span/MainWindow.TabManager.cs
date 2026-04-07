@@ -818,11 +818,7 @@ namespace Span
                     // 마우스 놓음 → 드래그 종료
                     dragTimer.Stop();
 
-                    // Check for re-docking: is the cursor over another Span window's tab bar?
-                    Helpers.NativeMethods.GetCursorPos(out var dropPos);
-                    var targetWindow = App.Current.FindWindowAtPoint(dropPos.X, dropPos.Y, this);
-
-                    // Find the new torn-off window by HWND
+                    // Find the new torn-off window by HWND (need it first to exclude from hit-test)
                     MainWindow? newWindow = null;
                     foreach (var w in ((App)App.Current).GetRegisteredWindows())
                     {
@@ -832,6 +828,16 @@ namespace Span
                             break;
                         }
                     }
+
+                    // Check for re-docking: is the cursor over another Span window's tab bar?
+                    // Exclude the dragged window (newWindow) from hit-test.
+                    // Require minimum 30 frames (~240ms) of dragging to prevent
+                    // accidental re-dock when cursor is still near the original window.
+                    Helpers.NativeMethods.GetCursorPos(out var dropPos);
+                    var targetWindow = frameCount >= 30
+                        ? App.Current.FindWindowAtPoint(
+                            dropPos.X, dropPos.Y, (Window?)newWindow ?? this)
+                        : null;
 
                     if (targetWindow != null && newWindow != null
                         && targetWindow != newWindow  // 자기 자신에게 재도킹 방지
@@ -852,9 +858,14 @@ namespace Span
                             App.Current.UnregisterWindow(newWindow);
                             newWindow.Close();
 
-                            // Dock the tab into the target window
-                            targetWindow.DockTab(dockDto);
-                            Helpers.DebugLogger.Log($"[ReDock] Tab '{dockDto.Header}' merged into target window");
+                            // Dock the tab into the target window.
+                            // Must run on the target window's DispatcherQueue since DockTab
+                            // creates UI elements (panels, views) owned by that window.
+                            targetWindow.DispatcherQueue.TryEnqueue(() =>
+                            {
+                                targetWindow.DockTab(dockDto);
+                                Helpers.DebugLogger.Log($"[ReDock] Tab '{dockDto.Header}' merged into target window");
+                            });
                             return;
                         }
                     }

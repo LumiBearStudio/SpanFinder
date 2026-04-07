@@ -621,7 +621,8 @@ namespace Span
             // Cloak the window so the user never sees the WinUI default size.
             // Activate() resets the size, but the Loaded handler re-applies
             // the saved placement and then uncloaks.
-            if (_settings.RememberWindowPosition)
+            // Skip for tear-off windows — TearOffTab manages cloak/position via drag timer.
+            if (_settings.RememberWindowPosition && _pendingTearOff == null)
             {
                 int cloakOn = 1;
                 Helpers.NativeMethods.DwmSetWindowAttribute(
@@ -719,7 +720,8 @@ namespace Span
                         ApplySidebarSectionVisibility();
 
                         // Uncloak if cloaked during constructor (RememberWindowPosition)
-                        if (_settings.RememberWindowPosition)
+                        // For tear-off windows, uncloak is managed by StartManualWindowDrag timer
+                        if (_settings.RememberWindowPosition && !_isTearOffWindow)
                         {
                             int cloakOff = 0;
                             Helpers.NativeMethods.DwmSetWindowAttribute(
@@ -4203,10 +4205,28 @@ namespace Span
         {
             if (_isSyncingSelection) return; // Prevent circular updates
 
+            // 탭 닫기/정리 중에는 이미 visual tree에서 제거된 ListView 접근 금지
+            if (_isClosed) return;
+
+            // DataContext 접근이 COMException 발생 가능 (visual tree에서 제거된 ListView)
+            ListView? listView;
+            FolderViewModel? folderVm;
+            try
+            {
+                listView = sender as ListView;
+                folderVm = listView?.DataContext as FolderViewModel;
+            }
+            catch (System.Runtime.InteropServices.COMException)
+            {
+                return; // 이미 visual tree에서 제거됨
+            }
+
+            if (listView == null || folderVm == null) return;
+
             // 다른 항목 선택 시 진행 중인 리네임 취소
             CancelAnyActiveRename();
 
-            if (sender is ListView listView && listView.DataContext is FolderViewModel folderVm)
+            if (folderVm != null)
             {
                 // Suppress selection sync during bulk Children updates (reload/refresh).
                 // SyncChildren may replace the collection, causing ListView to lose selection

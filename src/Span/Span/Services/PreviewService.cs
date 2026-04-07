@@ -25,11 +25,21 @@ namespace Span.Services
             ".jpg", ".jpeg", ".png", ".bmp", ".gif", ".tiff", ".tif", ".webp", ".ico"
         };
 
+        private static readonly HashSet<string> MarkdownExtensions = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".md", ".markdown"
+        };
+
+        private static readonly HashSet<string> CsvExtensions = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".csv", ".tsv"
+        };
+
         private static readonly HashSet<string> TextExtensions = new(StringComparer.OrdinalIgnoreCase)
         {
-            ".txt", ".cs", ".json", ".xml", ".md", ".log", ".ini", ".cfg", ".yaml", ".yml",
+            ".txt", ".cs", ".json", ".xml", ".log", ".ini", ".cfg", ".yaml", ".yml",
             ".toml", ".html", ".htm", ".css", ".js", ".ts", ".py", ".java", ".cpp", ".c",
-            ".h", ".go", ".rs", ".sh", ".bat", ".ps1", ".sql", ".csv", ".tsv", ".gitignore",
+            ".h", ".go", ".rs", ".sh", ".bat", ".ps1", ".sql", ".gitignore",
             ".editorconfig", ".env", ".dockerfile", ".xaml", ".csproj", ".sln"
         };
 
@@ -74,6 +84,8 @@ namespace Span.Services
             if (string.IsNullOrEmpty(ext)) return PreviewType.Generic;
 
             if (ImageExtensions.Contains(ext)) return PreviewType.Image;
+            if (MarkdownExtensions.Contains(ext)) return PreviewType.Markdown;
+            if (CsvExtensions.Contains(ext)) return PreviewType.Csv;
             if (TextExtensions.Contains(ext)) return PreviewType.Text;
             if (PdfExtensions.Contains(ext)) return PreviewType.Pdf;
             if (MediaExtensions.Contains(ext)) return PreviewType.Media;
