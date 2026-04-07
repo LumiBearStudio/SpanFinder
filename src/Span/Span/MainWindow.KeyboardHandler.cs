@@ -958,18 +958,22 @@ namespace Span
                     case Windows.System.VirtualKey.W: // Shift+W: 위로 이동
                         HandleUpArrow(activeIndex);
                         e.Handled = true;
+                        _typeAheadHandledInKeyDown = true;
                         return;
                     case Windows.System.VirtualKey.S: // Shift+S: 아래로 이동
                         HandleDownArrow(activeIndex);
                         e.Handled = true;
+                        _typeAheadHandledInKeyDown = true;
                         return;
                     case Windows.System.VirtualKey.A: // Shift+A: 부모 폴더 (왼쪽)
                         HandleLeftArrow(activeIndex);
                         e.Handled = true;
+                        _typeAheadHandledInKeyDown = true;
                         return;
                     case Windows.System.VirtualKey.D: // Shift+D: 폴더 진입 (오른쪽)
                         HandleRightArrow(activeIndex);
                         e.Handled = true;
+                        _typeAheadHandledInKeyDown = true;
                         return;
                 }
             }

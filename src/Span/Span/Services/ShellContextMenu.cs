@@ -1000,8 +1000,8 @@ namespace Span.Services
                     using var done = new ManualResetEventSlim(false);
                     _staWorkQueue.Add(() =>
                     {
-                        success = InvokeCommandCore(commandId);
-                        done.Set();
+                        try { success = InvokeCommandCore(commandId); }
+                        finally { done.Set(); }
                     });
                     // 셸 명령은 다이얼로그를 띄울 수 있으므로 충분한 타임아웃
                     done.Wait(TimeSpan.FromMinutes(5));
@@ -1074,19 +1074,25 @@ namespace Span.Services
                 {
                     // STA 스레드에서 COM 정리 후 스레드 종료
                     using var done = new ManualResetEventSlim(false);
+                    bool dispatched = false;
                     try
                     {
                         _staWorkQueue.Add(() =>
                         {
-                            DisposeCore();
-                            done.Set();
+                            try { DisposeCore(); }
+                            finally { done.Set(); }
                         });
+                        dispatched = true;
                         done.Wait(3000);
                     }
-                    catch (InvalidOperationException) { /* queue already completed */ }
+                    catch (InvalidOperationException)
+                    {
+                        // queue already completed (타임아웃 경로) — 직접 정리
+                        if (!dispatched) DisposeCore();
+                    }
                     finally
                     {
-                        _staWorkQueue.CompleteAdding();
+                        try { _staWorkQueue.CompleteAdding(); } catch { }
                     }
                 }
                 else
