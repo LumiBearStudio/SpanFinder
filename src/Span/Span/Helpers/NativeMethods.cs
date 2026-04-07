@@ -98,6 +98,20 @@ namespace Span.Helpers
         internal const uint MK_CONTROL = 0x0008;
         internal const uint MK_LBUTTON = 0x0001;
 
+        // Layered Window (반투명 윈도우)
+        [DllImport("user32.dll")]
+        internal static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+
+        [DllImport("user32.dll")]
+        internal static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
+
+        [DllImport("user32.dll")]
+        internal static extern bool SetLayeredWindowAttributes(IntPtr hWnd, uint crKey, byte bAlpha, uint dwFlags);
+
+        internal const int GWL_EXSTYLE = -20;
+        internal const int WS_EX_LAYERED = 0x00080000;
+        internal const uint LWA_ALPHA = 0x2;
+
         // DPI 확인용
         [DllImport("user32.dll")]
         internal static extern uint GetDpiForWindow(IntPtr hwnd);

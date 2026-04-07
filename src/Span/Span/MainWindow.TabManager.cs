@@ -524,8 +524,8 @@ namespace Span
                     _isTabDragging = false; // Will become true if threshold exceeded
 
                     // Capture pointer so PointerMoved fires even outside the tab element
-                    if (ViewModel.Tabs.Count > 1)
-                        fe.CapturePointer(e.Pointer);
+                    // 탭 1개: 윈도우 드래그용, 탭 2개+: 떼어내기/재정렬용
+                    fe.CapturePointer(e.Pointer);
 
                     // 특수 탭(Settings/ActionLog)은 Miller/Details/Icon 패널 없음
                     if (tab.ViewMode != ViewMode.Settings && tab.ViewMode != ViewMode.ActionLog)
@@ -571,17 +571,82 @@ namespace Span
                 if (Math.Sqrt(dx * dx + dy * dy) < TAB_DRAG_THRESHOLD)
                     return;
                 _isTabDragging = true;
+
+                // 드래그 시작 시각 피드백: 탭을 반투명 + 살짝 위로
+                ApplyDragVisual(sender as FrameworkElement, true);
+
+                // 드래그 중 타이틀바 전체를 Passthrough로 확장 → IXP 캡션 드래그 방지
+                if (ViewModel.Tabs.Count > 1)
+                    ExpandTitleBarPassthrough();
             }
+
+            // 탭 1개일 때: 윈도우 전체를 드래그 이동 + 재도킹 감지
+            if (ViewModel.Tabs.Count <= 1)
+            {
+                Helpers.NativeMethods.GetCursorPos(out var curPos);
+                if (!_isWindowDragging)
+                {
+                    _isWindowDragging = true;
+                    _windowDragFrameCount = 0;
+                    _windowDragGhostTarget = null;
+                    _windowDragStartCursor = curPos;
+                    Helpers.NativeMethods.GetWindowRect(_hwnd, out var wr);
+                    _windowDragStartRect = wr;
+                }
+                int newX = _windowDragStartRect.Left + (curPos.X - _windowDragStartCursor.X);
+                int newY = _windowDragStartRect.Top + (curPos.Y - _windowDragStartCursor.Y);
+                Helpers.NativeMethods.SetWindowPos(_hwnd, IntPtr.Zero,
+                    newX, newY, 0, 0,
+                    Helpers.NativeMethods.SWP_NOSIZE | Helpers.NativeMethods.SWP_NOZORDER | Helpers.NativeMethods.SWP_NOACTIVATE);
+
+                // 고스트 탭 호버 감지 (4프레임마다, 30프레임 이후부터)
+                _windowDragFrameCount++;
+                if (_windowDragFrameCount >= 30 && _windowDragFrameCount % 4 == 0)
+                {
+                    var hoverTarget = App.Current.FindWindowAtPoint(curPos.X, curPos.Y, this);
+
+                    if (hoverTarget != _windowDragGhostTarget)
+                    {
+                        if (_windowDragGhostTarget != null && !_windowDragGhostTarget._isClosed)
+                        {
+                            var prev = _windowDragGhostTarget;
+                            prev.DispatcherQueue.TryEnqueue(() => prev.HideGhostTab());
+                        }
+                        _windowDragGhostTarget = hoverTarget;
+
+                        // 드래그 윈도우 반투명/불투명 전환
+                        SetWindowOpacity(_hwnd, hoverTarget != null ? (byte)180 : (byte)255);
+
+                        if (hoverTarget != null && !hoverTarget._isClosed)
+                        {
+                            hoverTarget.DispatcherQueue.TryEnqueue(
+                                () => hoverTarget.ShowGhostTab(curPos.X, curPos.Y));
+                        }
+                    }
+                    else if (hoverTarget != null && !hoverTarget._isClosed)
+                    {
+                        hoverTarget.DispatcherQueue.TryEnqueue(
+                            () => hoverTarget.ShowGhostTab(curPos.X, curPos.Y));
+                    }
+                }
+                return;
+            }
+
+            // 경계 근접도에 따른 시각 피드백 (분리 임박 힌트)
+            UpdateTearOffProximityVisual(sender as FrameworkElement);
 
             // Check if cursor is outside the window → tear off
             if (IsCursorOutsideWindow())
             {
-                // Don't tear off the last tab
-                if (ViewModel.Tabs.Count <= 1) return;
-
                 var tabToTearOff = _draggingTab;
                 _draggingTab = null;
                 _isTabDragging = false;
+
+                // 드래그 비주얼 해제
+                ApplyDragVisual(sender as FrameworkElement, false);
+
+                // Passthrough 영역 복원
+                DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, UpdateTitleBarRegions);
 
                 // Release pointer capture so the new window can take over
                 if (sender is UIElement element)
@@ -604,6 +669,17 @@ namespace Span
                     // Update active tab index to follow the moved tab
                     ViewModel.ActiveTabIndex = tabIndex;
                     Helpers.DebugLogger.Log($"[TabReorder] Moved tab from {currentIndex} to {tabIndex}");
+
+                    // Tabs.Move로 ItemsRepeater가 요소를 재배치하면 포인터 캡처가 풀릴 수 있음.
+                    // 새 위치의 요소에 캡처를 재설정하여 타이틀바 시스템 드래그 방지.
+                    try
+                    {
+                        if (TabRepeater.TryGetElement(tabIndex) is UIElement newElem)
+                        {
+                            newElem.CapturePointer(e.Pointer);
+                        }
+                    }
+                    catch { }
                 }
             }
         }
@@ -613,8 +689,76 @@ namespace Span
         /// </summary>
         private void OnTabItemPointerReleased(object sender, PointerRoutedEventArgs e)
         {
+            // 드래그 비주얼 해제
+            ApplyDragVisual(sender as FrameworkElement, false);
+
+            // 싱글-탭 윈도우 드래그 중 재도킹 처리
+            if (_isWindowDragging && ViewModel.Tabs.Count <= 1)
+            {
+                Helpers.NativeMethods.GetCursorPos(out var dropPos);
+
+                // 고스트 탭 정리
+                if (_windowDragGhostTarget != null)
+                {
+                    var gt = _windowDragGhostTarget;
+                    _windowDragGhostTarget = null;
+                    gt.DispatcherQueue.TryEnqueue(() => gt.HideGhostTab());
+                }
+
+                // 30프레임 이상 드래그했을 때만 재도킹 시도
+                var targetWindow = _windowDragFrameCount >= 30
+                    ? App.Current.FindWindowAtPoint(dropPos.X, dropPos.Y, this)
+                    : null;
+
+                if (targetWindow != null && targetWindow != this)
+                {
+                    var tab = ViewModel.ActiveTab;
+                    if (tab != null)
+                    {
+                        ViewModel.SaveActiveTabState();
+                        var dockDto = new Models.TabStateDto(
+                            tab.Id, tab.Header, tab.Path,
+                            (int)tab.ViewMode, (int)tab.IconSize);
+
+                        int ghostIdx = targetWindow._ghostTabIndex;
+
+                        // 포인터 캡처 먼저 해제
+                        if (sender is UIElement el)
+                        {
+                            try { el.ReleasePointerCaptures(); } catch { }
+                        }
+                        _draggingTab = null;
+                        _isTabDragging = false;
+                        _isWindowDragging = false;
+
+                        // 타겟 창에 탭 도킹
+                        targetWindow.DispatcherQueue.TryEnqueue(() =>
+                        {
+                            targetWindow.DockTab(dockDto, ghostIdx);
+                            Helpers.DebugLogger.Log($"[ReDock] Single-tab '{dockDto.Header}' merged into target at index {ghostIdx}");
+                        });
+
+                        // 현재 창 닫기를 다음 프레임으로 지연 (이벤트 핸들러 완료 후)
+                        DispatcherQueue.TryEnqueue(() =>
+                        {
+                            _forceClose = true;
+                            _isClosed = true;
+                            App.Current.UnregisterWindow(this);
+                            Close();
+                        });
+                        return;
+                    }
+                }
+            }
+
+            // 반투명 해제 (도킹 안 했을 경우)
+            if (_isWindowDragging)
+                SetWindowOpacity(_hwnd, 255);
+
             _draggingTab = null;
             _isTabDragging = false;
+            _isWindowDragging = false;
+            _windowDragGhostTarget = null;
             if (sender is UIElement element)
             {
                 try { element.ReleasePointerCaptures(); } catch { }
@@ -663,6 +807,71 @@ namespace Span
                    cursorPos.X > windowRect.Right ||
                    cursorPos.Y < windowRect.Top ||
                    cursorPos.Y > windowRect.Bottom;
+        }
+
+        /// <summary>
+        /// 드래그 시작/종료 시 탭에 시각 피드백 적용.
+        /// 시작: 반투명 + 위로 살짝 이동, 종료: 원래 상태 복원.
+        /// </summary>
+        private void ApplyDragVisual(FrameworkElement? tabElement, bool isDragging)
+        {
+            if (tabElement == null) return;
+            try
+            {
+                if (isDragging)
+                {
+                    tabElement.Opacity = 0.6;
+                    tabElement.Translation = new System.Numerics.Vector3(0, -3, 0);
+                }
+                else
+                {
+                    tabElement.Opacity = 1.0;
+                    tabElement.Translation = new System.Numerics.Vector3(0, 0, 0);
+                }
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// 커서가 윈도우 경계에 가까울수록 탭 투명도를 높여
+        /// 분리(tear-off) 임박을 시각적으로 알린다.
+        /// 경계 30px 이내에서 0.6 → 0.3으로 페이드.
+        /// </summary>
+        private void UpdateTearOffProximityVisual(FrameworkElement? tabElement)
+        {
+            if (tabElement == null || ViewModel.Tabs.Count <= 1) return;
+            try
+            {
+                if (!Helpers.NativeMethods.GetCursorPos(out var cursorPos)) return;
+                if (!Helpers.NativeMethods.GetWindowRect(_hwnd, out var rect)) return;
+
+                double scale = AppTitleBar?.XamlRoot?.RasterizationScale ?? 1.0;
+                int edgeThreshold = (int)(30 * scale); // 30 DIP
+
+                // 경계까지의 최소 거리 (물리 픽셀)
+                int distLeft = cursorPos.X - rect.Left;
+                int distRight = rect.Right - cursorPos.X;
+                int distTop = cursorPos.Y - rect.Top;
+                int distBottom = rect.Bottom - cursorPos.Y;
+                int minDist = Math.Min(Math.Min(distLeft, distRight), Math.Min(distTop, distBottom));
+
+                if (minDist < edgeThreshold)
+                {
+                    // 경계에 가까울수록 투명 (0.6 → 0.3)
+                    double ratio = Math.Max(0, (double)minDist / edgeThreshold);
+                    tabElement.Opacity = 0.3 + 0.3 * ratio;
+                    // 위로 더 올라가는 느낌 (-3 → -6)
+                    float lift = -3f - 3f * (1f - (float)ratio);
+                    tabElement.Translation = new System.Numerics.Vector3(0, lift, 0);
+                }
+                else
+                {
+                    // 기본 드래그 상태 유지
+                    tabElement.Opacity = 0.6;
+                    tabElement.Translation = new System.Numerics.Vector3(0, -3, 0);
+                }
+            }
+            catch { }
         }
 
         #endregion
@@ -800,12 +1009,20 @@ namespace Span
             bool uncloaked = false;
             bool sizeApplied = false;
             int frameCount = 0;
+            MainWindow? lastGhostTarget = null; // 고스트 탭이 표시된 타깃 창 추적
 
             dragTimer.Tick += (s, e) =>
             {
                 if (_isClosed)
                 {
                     dragTimer.Stop();
+                    // 고스트 정리
+                    if (lastGhostTarget != null)
+                    {
+                        var gt = lastGhostTarget;
+                        lastGhostTarget = null;
+                        gt.DispatcherQueue.TryEnqueue(() => gt.HideGhostTab());
+                    }
                     return;
                 }
 
@@ -839,6 +1056,17 @@ namespace Span
                             dropPos.X, dropPos.Y, (Window?)newWindow ?? this)
                         : null;
 
+                    // 고스트 탭 정리 (재도킹 여부와 무관하게 항상)
+                    if (lastGhostTarget != null)
+                    {
+                        var gt = lastGhostTarget;
+                        lastGhostTarget = null;
+                        gt.DispatcherQueue.TryEnqueue(() => gt.HideGhostTab());
+                    }
+
+                    // 반투명 해제 (재도킹하든 안 하든)
+                    SetWindowOpacity(targetHwnd, 255);
+
                     if (targetWindow != null && newWindow != null
                         && targetWindow != newWindow  // 자기 자신에게 재도킹 방지
                         && newWindow.ViewModel.Tabs.Count > 0)
@@ -852,6 +1080,9 @@ namespace Span
                                 tab.Id, tab.Header, tab.Path,
                                 (int)tab.ViewMode, (int)tab.IconSize);
 
+                            // 고스트 인덱스를 캡처 (DockTab에서 사용)
+                            int ghostIdx = targetWindow._ghostTabIndex;
+
                             // Close the new (torn-off) window
                             newWindow._forceClose = true;
                             newWindow._isClosed = true;
@@ -859,13 +1090,21 @@ namespace Span
                             newWindow.Close();
 
                             // Dock the tab into the target window.
-                            // Must run on the target window's DispatcherQueue since DockTab
-                            // creates UI elements (panels, views) owned by that window.
-                            targetWindow.DispatcherQueue.TryEnqueue(() =>
+                            if (targetWindow == this)
                             {
-                                targetWindow.DockTab(dockDto);
-                                Helpers.DebugLogger.Log($"[ReDock] Tab '{dockDto.Header}' merged into target window");
-                            });
+                                // Same window — call directly (same thread)
+                                targetWindow.DockTab(dockDto, ghostIdx);
+                                Helpers.DebugLogger.Log($"[ReDock] Tab '{dockDto.Header}' merged into same window at index {ghostIdx}");
+                            }
+                            else
+                            {
+                                // Different window — must dispatch to its UI thread
+                                targetWindow.DispatcherQueue.TryEnqueue(() =>
+                                {
+                                    targetWindow.DockTab(dockDto, ghostIdx);
+                                    Helpers.DebugLogger.Log($"[ReDock] Tab '{dockDto.Header}' merged into other window at index {ghostIdx}");
+                                });
+                            }
                             return;
                         }
                     }
@@ -927,6 +1166,55 @@ namespace Span
                     Helpers.NativeMethods.DwmSetWindowAttribute(targetHwnd,
                         Helpers.NativeMethods.DWMWA_CLOAK, ref cloakOff, sizeof(int));
                     Helpers.NativeMethods.SetForegroundWindow(targetHwnd);
+                }
+
+                // 5. 고스트 탭 호버 감지 — 4프레임(~32ms)마다 체크, 30프레임 이후부터
+                if (uncloaked && frameCount >= 30 && frameCount % 4 == 0)
+                {
+                    // Find the new torn-off window to exclude from hit-test
+                    MainWindow? draggedWindow = null;
+                    foreach (var w in ((App)App.Current).GetRegisteredWindows())
+                    {
+                        if (w is MainWindow mw && WinRT.Interop.WindowNative.GetWindowHandle(mw) == targetHwnd)
+                        {
+                            draggedWindow = mw;
+                            break;
+                        }
+                    }
+
+                    var hoverTarget = App.Current.FindWindowAtPoint(
+                        pos.X, pos.Y, (Window?)draggedWindow ?? this);
+
+                    if (hoverTarget != lastGhostTarget)
+                    {
+                        // 이전 타깃의 고스트 숨기기
+                        if (lastGhostTarget != null && !lastGhostTarget._isClosed)
+                        {
+                            var prevTarget = lastGhostTarget;
+                            prevTarget.DispatcherQueue.TryEnqueue(() => prevTarget.HideGhostTab());
+                        }
+
+                        lastGhostTarget = hoverTarget;
+
+                        // 드래그 윈도우 반투명/불투명 전환
+                        if (hoverTarget != null)
+                            SetWindowOpacity(targetHwnd, 180); // 도킹 가능 → 반투명
+                        else
+                            SetWindowOpacity(targetHwnd, 255); // 도킹 불가 → 불투명
+
+                        // 새 타깃에 고스트 표시
+                        if (hoverTarget != null && !hoverTarget._isClosed)
+                        {
+                            hoverTarget.DispatcherQueue.TryEnqueue(
+                                () => hoverTarget.ShowGhostTab(pos.X, pos.Y));
+                        }
+                    }
+                    else if (hoverTarget != null && !hoverTarget._isClosed)
+                    {
+                        // 같은 타깃 — 위치만 업데이트
+                        hoverTarget.DispatcherQueue.TryEnqueue(
+                            () => hoverTarget.ShowGhostTab(pos.X, pos.Y));
+                    }
                 }
             };
 
@@ -1000,6 +1288,43 @@ namespace Span
                 nonClientInputSrc.SetRegionRects(NonClientRegionKind.Passthrough, rects.ToArray());
             }
             catch { /* Layout not ready yet */ }
+        }
+
+        /// <summary>
+        /// 탭 드래그 중 타이틀바 전체(캡션 버튼 제외)를 Passthrough로 확장.
+        /// IXP 레이어가 드래그를 캡션 드래그(창 이동)로 인식하는 것을 방지한다.
+        /// 드래그 종료 시 UpdateTitleBarRegions()로 원래 영역을 복원해야 한다.
+        /// </summary>
+        private void ExpandTitleBarPassthrough()
+        {
+            try
+            {
+                if (_isClosed || AppTitleBar?.XamlRoot == null) return;
+                if (!ExtendsContentIntoTitleBar) return;
+
+                double scale = AppTitleBar.XamlRoot.RasterizationScale;
+
+                // AppTitleBar 전체 영역을 Passthrough로 (캡션 버튼 영역은 RightInset으로 제외)
+                GeneralTransform transform = AppTitleBar.TransformToVisual(null);
+                var bounds = transform.TransformBounds(
+                    new Windows.Foundation.Rect(0, 0,
+                        AppTitleBar.ActualWidth, AppTitleBar.ActualHeight));
+
+                // 캡션 버튼 영역(최소화/최대화/닫기) 폭을 제외
+                double rightInset = this.AppWindow.TitleBar.RightInset / scale;
+                double passthroughWidth = bounds.Width - rightInset;
+                if (passthroughWidth <= 0) return;
+
+                var rect = new Windows.Graphics.RectInt32(
+                    (int)Math.Round(bounds.X * scale),
+                    (int)Math.Round(bounds.Y * scale),
+                    (int)Math.Round(passthroughWidth * scale),
+                    (int)Math.Round(bounds.Height * scale));
+
+                var nonClientInputSrc = InputNonClientPointerSource.GetForWindowId(this.AppWindow.Id);
+                nonClientInputSrc.SetRegionRects(NonClientRegionKind.Passthrough, new[] { rect });
+            }
+            catch { }
         }
 
         /// <summary>
@@ -1285,13 +1610,183 @@ namespace Span
         #region Tab Docking
 
         /// <summary>
-        /// Accept a tab from another window and add it to this window's tab bar.
-        /// Called by the drag timer when a torn-off window is dropped onto this window's tab bar.
+        /// Ghost tab state: tracks which tab index has a gap for the dock preview.
+        /// -1 means no ghost is active.
         /// </summary>
-        public void DockTab(Models.TabStateDto dto)
+        private int _ghostTabIndex = -1;
+
+        /// <summary>
+        /// Show a ghost tab indicator at the given screen position.
+        /// Opens a gap between existing tabs and displays a translucent placeholder.
+        /// Called from the drag timer on the source window via DispatcherQueue.TryEnqueue.
+        /// </summary>
+        public void ShowGhostTab(int screenX, int screenY)
         {
             try
             {
+                if (_isClosed || TabRepeater == null || GhostTabIndicator == null) return;
+
+                // Convert screen coords to position relative to TabRepeater
+                int insertIndex = GetInsertIndexFromScreen(screenX);
+
+                if (insertIndex == _ghostTabIndex) return; // no change
+
+                // Remove margin from previous ghost position
+                ClearTabMargins();
+
+                _ghostTabIndex = insertIndex;
+                int tabCount = ViewModel?.Tabs?.Count ?? 0;
+
+                // 고스트 탭 너비 = 도킹 후 예상 탭 너비 (탭 1개 추가 시뮬레이션)
+                double ghostWidth = CalculateTabWidthForCount(tabCount + 1);
+
+                // Add left margin to the tab at insertIndex to create the gap
+                if (insertIndex < tabCount && TabRepeater.TryGetElement(insertIndex) is FrameworkElement elem)
+                {
+                    elem.Margin = new Thickness(ghostWidth, 0, 0, 0);
+                }
+
+                // Position the ghost indicator overlay
+                double xPos = 0;
+                if (insertIndex > 0 && insertIndex <= tabCount)
+                {
+                    xPos = insertIndex * _calculatedTabWidth;
+                }
+                if (insertIndex >= tabCount)
+                {
+                    xPos = tabCount * _calculatedTabWidth;
+                }
+
+                GhostTabIndicator.Width = ghostWidth;
+                GhostTabIndicator.Margin = new Thickness(xPos, 0, 0, 0);
+                GhostTabIndicator.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
+
+                Helpers.DebugLogger.Log($"[GhostTab] Show at index={insertIndex}, x={xPos:F0}, w={ghostWidth:F0}");
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[GhostTab] ShowGhostTab error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 탭이 N개일 때의 예상 탭 너비를 계산한다 (도킹 후 크기 시뮬레이션).
+        /// </summary>
+        private double CalculateTabWidthForCount(int tabCount)
+        {
+            if (tabCount <= 0) return MAX_TAB_WIDTH;
+            double availableWidth = TabScrollViewer?.ActualWidth ?? 800;
+            double newTabBtnWidth = 38;
+            double available = availableWidth - newTabBtnWidth;
+            return Math.Max(MIN_TAB_WIDTH, Math.Min(MAX_TAB_WIDTH, available / tabCount));
+        }
+
+        /// <summary>
+        /// Hide the ghost tab indicator and restore normal tab layout.
+        /// </summary>
+        public void HideGhostTab()
+        {
+            try
+            {
+                if (GhostTabIndicator != null)
+                    GhostTabIndicator.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
+
+                ClearTabMargins();
+                _ghostTabIndex = -1;
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// 윈도우를 반투명으로 만든다 (도킹 가능 시각 피드백).
+        /// WS_EX_LAYERED + SetLayeredWindowAttributes 사용.
+        /// </summary>
+        internal static void SetWindowOpacity(IntPtr hwnd, byte alpha)
+        {
+            int exStyle = Helpers.NativeMethods.GetWindowLong(hwnd, Helpers.NativeMethods.GWL_EXSTYLE);
+            if (alpha < 255)
+            {
+                // Add WS_EX_LAYERED if not already set
+                if ((exStyle & Helpers.NativeMethods.WS_EX_LAYERED) == 0)
+                    Helpers.NativeMethods.SetWindowLong(hwnd, Helpers.NativeMethods.GWL_EXSTYLE,
+                        exStyle | Helpers.NativeMethods.WS_EX_LAYERED);
+                Helpers.NativeMethods.SetLayeredWindowAttributes(hwnd, 0, alpha, Helpers.NativeMethods.LWA_ALPHA);
+            }
+            else
+            {
+                // Remove WS_EX_LAYERED to restore full opacity (avoids compositing overhead)
+                if ((exStyle & Helpers.NativeMethods.WS_EX_LAYERED) != 0)
+                    Helpers.NativeMethods.SetWindowLong(hwnd, Helpers.NativeMethods.GWL_EXSTYLE,
+                        exStyle & ~Helpers.NativeMethods.WS_EX_LAYERED);
+            }
+        }
+
+        /// <summary>
+        /// Remove any ghost-related margins from tab elements.
+        /// </summary>
+        private void ClearTabMargins()
+        {
+            try
+            {
+                int tabCount = ViewModel?.Tabs?.Count ?? 0;
+                for (int i = 0; i < tabCount; i++)
+                {
+                    if (TabRepeater?.TryGetElement(i) is FrameworkElement elem && elem.Margin.Left > 0)
+                    {
+                        elem.Margin = new Thickness(0);
+                    }
+                }
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// Convert screen X coordinate to a tab insertion index for this window.
+        /// </summary>
+        private int GetInsertIndexFromScreen(int screenX)
+        {
+            try
+            {
+                var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+                if (!Helpers.NativeMethods.GetWindowRect(hwnd, out var windowRect))
+                    return ViewModel?.Tabs?.Count ?? 0;
+
+                // Convert screen X to client-relative X (physical pixels)
+                int clientX = screenX - windowRect.Left;
+
+                // Convert to DIPs
+                double scale = AppTitleBar?.XamlRoot?.RasterizationScale ?? 1.0;
+                double dipX = clientX / scale;
+
+                // Get TabRepeater origin in the window
+                if (TabRepeater == null) return 0;
+                var transform = TabRepeater.TransformToVisual(null);
+                var origin = transform.TransformPoint(new Windows.Foundation.Point(0, 0));
+
+                double relativeX = dipX - origin.X;
+                if (relativeX < 0) return 0;
+
+                int tabCount = ViewModel?.Tabs?.Count ?? 0;
+                int index = (int)(relativeX / _calculatedTabWidth);
+                return Math.Clamp(index, 0, tabCount);
+            }
+            catch
+            {
+                return ViewModel?.Tabs?.Count ?? 0;
+            }
+        }
+
+        /// <summary>
+        /// Accept a tab from another window and add it to this window's tab bar.
+        /// Called by the drag timer when a torn-off window is dropped onto this window's tab bar.
+        /// </summary>
+        public void DockTab(Models.TabStateDto dto, int insertIndex = -1)
+        {
+            try
+            {
+                // Clear ghost indicator before docking
+                HideGhostTab();
+
                 // Create a new tab from the DTO
                 var root = new FolderItem { Name = "PC", Path = "PC" };
                 var fileService = App.Current.Services.GetRequiredService<Services.FileSystemService>();
@@ -1314,21 +1809,31 @@ namespace Span
                     _ = explorer.NavigateToPath(dto.Path);
                 }
 
-                // Add the tab and switch to it
-                ViewModel.Tabs.Add(newTab);
+                // Insert at specific position or append
+                int tabCount = ViewModel.Tabs.Count;
+                if (insertIndex >= 0 && insertIndex < tabCount)
+                {
+                    ViewModel.Tabs.Insert(insertIndex, newTab);
+                }
+                else
+                {
+                    ViewModel.Tabs.Add(newTab);
+                    insertIndex = ViewModel.Tabs.Count - 1;
+                }
+
                 CreateMillerPanelForTab(newTab);
                 SwitchMillerPanel(newTab.Id);
                 SwitchDetailsPanel(newTab.Id, newTab.ViewMode == ViewMode.Details);
                 SwitchListPanel(newTab.Id, newTab.ViewMode == ViewMode.List);
                 SwitchIconPanel(newTab.Id, Helpers.ViewModeExtensions.IsIconMode(newTab.ViewMode));
-                ViewModel.SwitchToTab(ViewModel.Tabs.Count - 1);
+                ViewModel.SwitchToTab(insertIndex);
                 ResubscribeLeftExplorer();
                 UpdateViewModeVisibility();
                 FocusActiveView();
 
                 DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, UpdateTitleBarRegions);
 
-                Helpers.DebugLogger.Log($"[ReDock] Tab '{dto.Header}' docked into window (total: {ViewModel.Tabs.Count})");
+                Helpers.DebugLogger.Log($"[ReDock] Tab '{dto.Header}' docked at index {insertIndex} (total: {ViewModel.Tabs.Count})");
             }
             catch (Exception ex)
             {

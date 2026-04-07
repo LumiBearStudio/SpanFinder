@@ -56,6 +56,7 @@
             <!-- Dynamic Tabs -->
             <ScrollViewer x:Name="TabScrollViewer" Grid.Column="1" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled"
                           HorizontalScrollMode="Auto" VerticalScrollMode="Disabled">
+                <Grid>
                 <StackPanel x:Name="TabBarContent" Orientation="Horizontal" Spacing="1">
                     <ItemsRepeater x:Name="TabRepeater" AutomationProperties.AutomationId="TabRepeater" ItemsSource="{x:Bind ViewModel.Tabs, Mode=OneWay}">
                         <ItemsRepeater.Layout>
@@ -129,6 +130,14 @@
                         <FontIcon Glyph="&#xE710;" FontSize="12"/>
                     </Button>
                 </StackPanel>
+                <!-- Ghost tab indicator for re-docking (overlaid on tab bar) -->
+                <Border x:Name="GhostTabIndicator" Visibility="Collapsed"
+                        Height="34" VerticalAlignment="Bottom"
+                        HorizontalAlignment="Left"
+                        Background="{ThemeResource SpanAccentBrush}" Opacity="0.15"
+                        BorderBrush="{ThemeResource SpanAccentBrush}" BorderThickness="1.5"
+                        CornerRadius="6,6,0,0" IsHitTestVisible="False"/>
+                </Grid>
             </ScrollViewer>
         </Grid>
 

@@ -323,6 +323,13 @@ namespace Span
         private Models.TabItem? _draggingTab;
         private const double TAB_DRAG_THRESHOLD = 8;
 
+        // Single-tab window drag state (탭 1개일 때 탭 드래그 → 윈도우 이동)
+        private bool _isWindowDragging;
+        private Helpers.NativeMethods.POINT _windowDragStartCursor;
+        private Helpers.NativeMethods.RECT _windowDragStartRect;
+        private MainWindow? _windowDragGhostTarget;
+        private int _windowDragFrameCount;
+
         // Dynamic tab width (Chrome-style)
         private const double MIN_TAB_WIDTH = 60;
         private const double MAX_TAB_WIDTH = 200;
