@@ -330,6 +330,9 @@ namespace Span
         private MainWindow? _windowDragGhostTarget;
         private int _windowDragFrameCount;
 
+        // Tear-off 드래그 타이머 (OnClosed에서 중지용)
+        private DispatcherTimer? _tearOffDragTimer;
+
         // Dynamic tab width (Chrome-style)
         private const double MIN_TAB_WIDTH = 60;
         private const double MAX_TAB_WIDTH = 200;
@@ -1142,9 +1145,27 @@ namespace Span
             try
             {
                 Helpers.DebugLogger.Log("[MainWindow.OnClosed] Starting cleanup...");
+                try { Sentry.SentrySdk.AddBreadcrumb($"Window closing: tearOff={_isTearOffWindow}, tabs={ViewModel?.Tabs?.Count ?? 0}, forceClose={_forceClose}", "window.close"); } catch { }
 
                 // STEP 0: Block all queued DispatcherQueue callbacks and async continuations
                 _isClosed = true;
+
+                // STEP 0.1: 드래그 타이머 즉시 중지 (타이머 콜백이 teardown 중 UI 접근 방지)
+                try { _tearOffDragTimer?.Stop(); _tearOffDragTimer = null; } catch { }
+
+                // STEP 0.2: NonClientInputSource 영역 즉시 초기화 (WinUI teardown 중 stowed exception 방지)
+                try
+                {
+                    if (ExtendsContentIntoTitleBar)
+                    {
+                        var nonClientInputSrc = InputNonClientPointerSource.GetForWindowId(this.AppWindow.Id);
+                        nonClientInputSrc.SetRegionRects(NonClientRegionKind.Passthrough, Array.Empty<Windows.Graphics.RectInt32>());
+                    }
+                }
+                catch { }
+
+                // STEP 0.3: WS_EX_LAYERED 즉시 해제 (DirectComposition 충돌 방지)
+                try { SetWindowOpacity(_hwnd, 255); } catch { }
 
                 // Quick Look 윈도우 닫기
                 CloseQuickLookWindow();
@@ -1320,6 +1341,8 @@ namespace Span
                 {
                     Helpers.DebugLogger.Log($"[MainWindow.OnClosed] STEP 6 error: {ex.Message}");
                 }
+
+                // (NonClientInputSource, WS_EX_LAYERED은 STEP 0.2/0.3에서 이미 정리됨)
 
                 Helpers.DebugLogger.Log("[MainWindow.OnClosed] Cleanup complete");
             }

@@ -614,7 +614,7 @@ namespace Span
                         if (_windowDragGhostTarget != null && !_windowDragGhostTarget._isClosed)
                         {
                             var prev = _windowDragGhostTarget;
-                            prev.DispatcherQueue.TryEnqueue(() => prev.HideGhostTab());
+                            prev.DispatcherQueue.TryEnqueue(() => { if (!prev._isClosed) prev.HideGhostTab(); });
                         }
                         _windowDragGhostTarget = hoverTarget;
 
@@ -706,7 +706,7 @@ namespace Span
                 {
                     var gt = _windowDragGhostTarget;
                     _windowDragGhostTarget = null;
-                    gt.DispatcherQueue.TryEnqueue(() => gt.HideGhostTab());
+                    gt.DispatcherQueue.TryEnqueue(() => { if (!gt._isClosed) gt.HideGhostTab(); });
                 }
 
                 // 30프레임 이상 드래그했을 때만 재도킹 시도
@@ -725,6 +725,7 @@ namespace Span
                             (int)tab.ViewMode, (int)tab.IconSize);
 
                         int ghostIdx = targetWindow._ghostTabIndex;
+                        try { Sentry.SentrySdk.AddBreadcrumb($"ReDock(single-tab): '{tab.Header}' → idx={ghostIdx}", "tab.redock"); } catch { }
 
                         // 포인터 캡처 먼저 해제
                         if (sender is UIElement el)
@@ -924,6 +925,8 @@ namespace Span
         {
             try
             {
+                try { Sentry.SentrySdk.AddBreadcrumb($"TearOff start: '{tab.Header}', tabs={ViewModel.Tabs.Count}", "tab.tearoff"); } catch { }
+
                 // 1. Save tab state as DTO
                 ViewModel.SaveActiveTabState();
                 var dto = new Models.TabStateDto(
@@ -1007,7 +1010,10 @@ namespace Span
         private void StartManualWindowDrag(IntPtr targetHwnd, int dragOffsetX, int dragOffsetY,
             int targetWidth, int targetHeight)
         {
+            // 이전 타이머가 있으면 중지
+            _tearOffDragTimer?.Stop();
             var dragTimer = new DispatcherTimer();
+            _tearOffDragTimer = dragTimer;
             dragTimer.Interval = TimeSpan.FromMilliseconds(8); // ~120Hz 부드러운 추적
 
             bool uncloaked = false;
@@ -1020,13 +1026,16 @@ namespace Span
                 if (_isClosed)
                 {
                     dragTimer.Stop();
-                    // 고스트 정리
-                    if (lastGhostTarget != null)
+                    _tearOffDragTimer = null;
+                    // 고스트 정리 (대상 창이 아직 살아있을 때만)
+                    if (lastGhostTarget != null && !lastGhostTarget._isClosed)
                     {
                         var gt = lastGhostTarget;
                         lastGhostTarget = null;
-                        gt.DispatcherQueue.TryEnqueue(() => gt.HideGhostTab());
+                        gt.DispatcherQueue.TryEnqueue(() => { if (!gt._isClosed) gt.HideGhostTab(); });
                     }
+                    // 반투명 해제
+                    SetWindowOpacity(targetHwnd, 255);
                     return;
                 }
 
@@ -1038,6 +1047,7 @@ namespace Span
                 {
                     // 마우스 놓음 → 드래그 종료
                     dragTimer.Stop();
+                    _tearOffDragTimer = null;
 
                     // Find the new torn-off window by HWND (need it first to exclude from hit-test)
                     MainWindow? newWindow = null;
@@ -1065,7 +1075,7 @@ namespace Span
                     {
                         var gt = lastGhostTarget;
                         lastGhostTarget = null;
-                        gt.DispatcherQueue.TryEnqueue(() => gt.HideGhostTab());
+                        gt.DispatcherQueue.TryEnqueue(() => { if (!gt._isClosed) gt.HideGhostTab(); });
                     }
 
                     // 반투명 해제 (재도킹하든 안 하든)
@@ -1086,6 +1096,7 @@ namespace Span
 
                             // 고스트 인덱스를 캡처 (DockTab에서 사용)
                             int ghostIdx = targetWindow._ghostTabIndex;
+                            try { Sentry.SentrySdk.AddBreadcrumb($"ReDock: '{tab.Header}' → idx={ghostIdx}, sameWindow={targetWindow == this}", "tab.redock"); } catch { }
 
                             // Close the new (torn-off) window
                             newWindow._forceClose = true;
@@ -1195,7 +1206,7 @@ namespace Span
                         if (lastGhostTarget != null && !lastGhostTarget._isClosed)
                         {
                             var prevTarget = lastGhostTarget;
-                            prevTarget.DispatcherQueue.TryEnqueue(() => prevTarget.HideGhostTab());
+                            prevTarget.DispatcherQueue.TryEnqueue(() => { if (!prevTarget._isClosed) prevTarget.HideGhostTab(); });
                         }
 
                         lastGhostTarget = hoverTarget;
@@ -1788,6 +1799,9 @@ namespace Span
         {
             try
             {
+                // 창이 닫히는 중이면 도킹 중단
+                if (_isClosed) return;
+
                 // Clear ghost indicator before docking
                 HideGhostTab();
 
