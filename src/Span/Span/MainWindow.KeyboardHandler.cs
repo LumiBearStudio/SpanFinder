@@ -1376,7 +1376,7 @@ namespace Span
         private void OpenQuickLookWindow(FileSystemViewModel selectedItem)
         {
             _quickLookWindow = new Views.QuickLookWindow();
-            _quickLookWindow.SetMainWindow(this.AppWindow);
+            _quickLookWindow.SetMainWindow(this.AppWindow, _hwnd);
             _quickLookWindow.SyncTheme();
             _quickLookWindow.SyncFont();
             _quickLookWindow.WindowClosed += OnQuickLookWindowClosed;

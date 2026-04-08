@@ -147,13 +147,22 @@ namespace Span.Views
         /// <summary>
         /// 메인 윈도우의 AppWindow를 설정하여 중앙 위치 계산에 사용.
         /// </summary>
-        public void SetMainWindow(AppWindow mainAppWindow)
+        public void SetMainWindow(AppWindow mainAppWindow, IntPtr mainHwnd)
         {
             _mainAppWindow = mainAppWindow;
 
-            // 생성자 시점에는 _mainAppWindow가 null이라 800x600 폴백됨.
-            // 여기서 실제 메인 창 크기 기반으로 80% 크기 + 중앙 정렬 재적용.
-            var (w, h) = GetContentModeSize();
+            // DPI 비율 보정: QuickLook이 메인 창과 다른 모니터에 생성될 수 있음
+            var qlHwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+            uint qlDpi = Helpers.NativeMethods.GetDpiForWindow(qlHwnd);
+            uint mainDpi = Helpers.NativeMethods.GetDpiForWindow(mainHwnd);
+            double dpiRatio = (mainDpi > 0 && qlDpi > 0) ? (double)qlDpi / mainDpi : 1.0;
+
+            var mainSize = mainAppWindow.Size;
+            int w = (int)(mainSize.Width * 0.8 * dpiRatio);
+            int h = (int)(mainSize.Height * 0.8 * dpiRatio);
+            w = Math.Max(500, w);
+            h = Math.Max(400, h);
+
             this.AppWindow.Resize(new SizeInt32(w, h));
             CenterOnMainWindow(w, h);
         }
@@ -488,13 +497,26 @@ namespace Span.Views
                     break;
 
                 case Windows.System.VirtualKey.Right:
+                    e.Handled = true;
+                    NavigateSibling(+1);
+                    break;
+
                 case Windows.System.VirtualKey.Down:
+                    // 스크롤 가능한 콘텐츠(텍스트, 코드 등)에서는 Down = 스크롤
+                    if (ViewModel.IsScrollableContent)
+                        return; // 기본 스크롤 동작에 맡김
                     e.Handled = true;
                     NavigateSibling(+1);
                     break;
 
                 case Windows.System.VirtualKey.Left:
+                    e.Handled = true;
+                    NavigateSibling(-1);
+                    break;
+
                 case Windows.System.VirtualKey.Up:
+                    if (ViewModel.IsScrollableContent)
+                        return;
                     e.Handled = true;
                     NavigateSibling(-1);
                     break;
