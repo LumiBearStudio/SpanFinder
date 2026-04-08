@@ -108,6 +108,12 @@ namespace Span.Helpers
         [DllImport("user32.dll")]
         internal static extern bool SetLayeredWindowAttributes(IntPtr hWnd, uint crKey, byte bAlpha, uint dwFlags);
 
+        // Owner window 설정용 (64비트 안전)
+        [DllImport("user32.dll", EntryPoint = "SetWindowLongPtr")]
+        internal static extern IntPtr SetWindowLongPtr64(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
+
+        internal const int GWLP_HWNDPARENT = -8;
+
         internal const int GWL_EXSTYLE = -20;
         internal const int WS_EX_LAYERED = 0x00080000;
         internal const uint LWA_ALPHA = 0x2;

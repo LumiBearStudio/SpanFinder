@@ -42,6 +42,7 @@ namespace Span.Views
         private LocalizationService? _loc;
         private bool _isInfoOnlyMode;
         private AppWindow? _mainAppWindow;
+        private IntPtr _mainHwnd;
         private ShellService? _shellService;
 
         /// <summary>
@@ -126,7 +127,6 @@ namespace Span.Views
             {
                 presenter.IsMinimizable = false;
                 presenter.IsMaximizable = false;
-                presenter.IsAlwaysOnTop = true;
             }
 
             // Update right padding for caption buttons
@@ -150,9 +150,13 @@ namespace Span.Views
         public void SetMainWindow(AppWindow mainAppWindow, IntPtr mainHwnd)
         {
             _mainAppWindow = mainAppWindow;
+            _mainHwnd = mainHwnd;
+
+            // Owner 설정: QuickLook이 메인 창 위에만 표시 (모든 창 위가 아님)
+            var qlHwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+            Helpers.NativeMethods.SetWindowLongPtr64(qlHwnd, Helpers.NativeMethods.GWLP_HWNDPARENT, mainHwnd);
 
             // DPI 비율 보정: QuickLook이 메인 창과 다른 모니터에 생성될 수 있음
-            var qlHwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
             uint qlDpi = Helpers.NativeMethods.GetDpiForWindow(qlHwnd);
             uint mainDpi = Helpers.NativeMethods.GetDpiForWindow(mainHwnd);
             double dpiRatio = (mainDpi > 0 && qlDpi > 0) ? (double)qlDpi / mainDpi : 1.0;
@@ -164,7 +168,11 @@ namespace Span.Views
             h = Math.Max(400, h);
 
             this.AppWindow.Resize(new SizeInt32(w, h));
-            CenterOnMainWindow(w, h);
+
+            // 중앙 정렬: 메인 창 물리 좌표 기준으로 계산 (메인 모니터 80% 크기 기준)
+            int effectiveW = (int)(mainSize.Width * 0.8);
+            int effectiveH = (int)(mainSize.Height * 0.8);
+            CenterOnMainWindow(effectiveW, effectiveH);
         }
 
         /// <summary>
