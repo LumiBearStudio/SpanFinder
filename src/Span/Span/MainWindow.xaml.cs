@@ -2846,7 +2846,27 @@ namespace Span
             var isEdit = existing != null;
             var isSmbEdit = isEdit && existing!.Protocol == Models.RemoteProtocol.SMB;
 
-            var dialogPanel = new StackPanel { Spacing = 12, MinWidth = 380 };
+            var dialogPanel = new StackPanel { Spacing = 8 };
+            const double labelW = 140;
+
+            // 인라인 라벨 행 헬퍼
+            Grid MakeRow(string labelKey, FrameworkElement input)
+            {
+                var row = new Grid();
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(labelW) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                var label = new TextBlock
+                {
+                    Text = _loc.Get(labelKey),
+                    VerticalAlignment = Microsoft.UI.Xaml.VerticalAlignment.Center,
+                    FontSize = 14
+                };
+                Grid.SetColumn(label, 0);
+                Grid.SetColumn(input, 1);
+                row.Children.Add(label);
+                row.Children.Add(input);
+                return row;
+            }
 
             // SMB 편집: 표시 이름 + UNC 경로만
             TextBox? smbDisplayNameInput = null;
@@ -2869,59 +2889,66 @@ namespace Span
             {
                 smbDisplayNameInput = new TextBox
                 {
-                    Header = _loc.Get("DisplayNameOptional"),
                     Text = existing!.DisplayName,
                     PlaceholderText = existing.UncPath ?? ""
                 };
-                dialogPanel.Children.Add(smbDisplayNameInput);
+                dialogPanel.Children.Add(MakeRow("DisplayNameOptional", smbDisplayNameInput));
 
                 smbUncPathInput = new TextBox
                 {
-                    Header = "UNC",
                     Text = existing.UncPath ?? "",
                     PlaceholderText = @"\\server\share"
                 };
-                dialogPanel.Children.Add(smbUncPathInput);
+                dialogPanel.Children.Add(MakeRow("Host", smbUncPathInput));
             }
             else
             {
-                // 프로토콜 선택
+                // 1행: 프로토콜 + 호스트 + 포트
+                var firstRow = new Grid();
+                firstRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(labelW) });
+                firstRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) }); // 프로토콜
+                firstRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // 호스트
+                firstRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) }); // 포트
+
+                var protocolLabel = new TextBlock
+                {
+                    Text = _loc.Get("Protocol"),
+                    VerticalAlignment = Microsoft.UI.Xaml.VerticalAlignment.Center,
+                    FontSize = 14
+                };
+                Grid.SetColumn(protocolLabel, 0);
+                firstRow.Children.Add(protocolLabel);
+
                 protocolCombo = new ComboBox
                 {
-                    Header = _loc.Get("Protocol"),
                     ItemsSource = new[] { "SFTP", "FTP", "FTPS" },
                     SelectedIndex = isEdit ? (int)existing!.Protocol : 0,
                     HorizontalAlignment = Microsoft.UI.Xaml.HorizontalAlignment.Stretch
                 };
-                dialogPanel.Children.Add(protocolCombo);
-
-                // 호스트 + 포트
-                var hostPortPanel = new Grid();
-                hostPortPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                hostPortPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
+                Grid.SetColumn(protocolCombo, 1);
+                firstRow.Children.Add(protocolCombo);
 
                 hostInput = new TextBox
                 {
-                    Header = _loc.Get("Host"),
                     PlaceholderText = "example.com",
-                    Text = isEdit ? existing!.Host : ""
+                    Text = isEdit ? existing!.Host : "",
+                    Margin = new Thickness(8, 0, 0, 0)
                 };
-                Grid.SetColumn(hostInput, 0);
-                hostPortPanel.Children.Add(hostInput);
+                Grid.SetColumn(hostInput, 2);
+                firstRow.Children.Add(hostInput);
 
                 portInput = new NumberBox
                 {
-                    Header = _loc.Get("Port"),
                     Value = isEdit ? existing!.Port : 22,
                     Minimum = 1,
                     Maximum = 65535,
-                    SpinButtonPlacementMode = Microsoft.UI.Xaml.Controls.NumberBoxSpinButtonPlacementMode.Compact,
+                    SpinButtonPlacementMode = Microsoft.UI.Xaml.Controls.NumberBoxSpinButtonPlacementMode.Hidden,
                     Margin = new Thickness(8, 0, 0, 0)
                 };
-                Grid.SetColumn(portInput, 1);
-                hostPortPanel.Children.Add(portInput);
+                Grid.SetColumn(portInput, 3);
+                firstRow.Children.Add(portInput);
 
-                dialogPanel.Children.Add(hostPortPanel);
+                dialogPanel.Children.Add(firstRow);
 
                 // 포트 자동 변경 (새 연결 모드에서만)
                 if (!isEdit)
@@ -2941,41 +2968,30 @@ namespace Span
                 // 사용자명
                 usernameInput = new TextBox
                 {
-                    Header = _loc.Get("Username"),
                     PlaceholderText = "user",
                     Text = isEdit ? existing!.Username : ""
                 };
-                dialogPanel.Children.Add(usernameInput);
+                dialogPanel.Children.Add(MakeRow("Username", usernameInput));
 
                 // 인증 방식 (SFTP만 SSH 키 지원)
-                var isSftp = isEdit ? existing!.Protocol == Models.RemoteProtocol.SFTP : true; // 기본 SFTP
+                var isSftp = isEdit ? existing!.Protocol == Models.RemoteProtocol.SFTP : true;
                 var useSshKey = isEdit && existing!.AuthMethod == Models.AuthMethod.SshKey;
 
-                // 인증 방식 라디오 버튼
-                var authLabel = new TextBlock
-                {
-                    Text = _loc.Get("AuthMethodLabel"),
-                    Margin = new Thickness(0, 4, 0, 0),
-                    FontSize = 14
-                };
-                var authRadioPanel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16 };
-                authPasswordRadio = new RadioButton { Content = _loc.Get("AuthPassword"), IsChecked = !useSshKey, GroupName = "AuthMethod" };
-                authSshKeyRadio = new RadioButton { Content = _loc.Get("AuthSshKey"), IsChecked = useSshKey, GroupName = "AuthMethod" };
-                authRadioPanel.Children.Add(authPasswordRadio);
-                authRadioPanel.Children.Add(authSshKeyRadio);
+                // 인증 방식 라디오 (인라인)
+                var authInline = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+                authPasswordRadio = new RadioButton { Content = _loc.Get("AuthPassword"), IsChecked = !useSshKey, GroupName = "AuthMethod", MinWidth = 0, Padding = new Thickness(4, 0, 0, 0) };
+                authSshKeyRadio = new RadioButton { Content = _loc.Get("AuthSshKey"), IsChecked = useSshKey, GroupName = "AuthMethod", MinWidth = 0, Padding = new Thickness(4, 0, 0, 0) };
+                authInline.Children.Add(authPasswordRadio);
+                authInline.Children.Add(authSshKeyRadio);
 
-                var authMethodPanel = new StackPanel { Spacing = 4 };
-                authMethodPanel.Children.Add(authLabel);
-                authMethodPanel.Children.Add(authRadioPanel);
-                authMethodPanel.Visibility = isSftp ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
-                dialogPanel.Children.Add(authMethodPanel);
+                var authMethodRow = MakeRow("AuthMethodLabel", authInline);
+                authMethodRow.Visibility = isSftp ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+                dialogPanel.Children.Add(authMethodRow);
 
-                // 비밀번호
+                // 비밀번호 행
                 passwordInput = new PasswordBox
                 {
-                    Header = _loc.Get("Password"),
-                    PlaceholderText = _loc.Get("Password"),
-                    Visibility = useSshKey ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible
+                    PlaceholderText = _loc.Get("Password")
                 };
                 if (isEdit && !useSshKey)
                 {
@@ -2984,23 +3000,25 @@ namespace Span
                     if (!string.IsNullOrEmpty(savedPw))
                         passwordInput.Password = savedPw;
                 }
-                dialogPanel.Children.Add(passwordInput);
+                var passwordRow = MakeRow("Password", passwordInput);
+                passwordRow.Visibility = useSshKey ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible;
+                dialogPanel.Children.Add(passwordRow);
 
                 // SSH 키 패널
                 sshKeyPanel = new StackPanel { Spacing = 8, Visibility = useSshKey ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed };
 
-                var keyPathRow = new Grid();
-                keyPathRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                keyPathRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                // SSH 키 파일 행
+                var keyInputRow = new Grid();
+                keyInputRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                keyInputRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
                 sshKeyPathInput = new TextBox
                 {
-                    Header = _loc.Get("SshKeyPath"),
                     PlaceholderText = @"C:\Users\...\.ssh\id_rsa",
                     Text = isEdit && !string.IsNullOrEmpty(existing!.SshKeyPath) ? existing.SshKeyPath : ""
                 };
                 Grid.SetColumn(sshKeyPathInput, 0);
-                keyPathRow.Children.Add(sshKeyPathInput);
+                keyInputRow.Children.Add(sshKeyPathInput);
 
                 var browseBtn = new Button
                 {
@@ -3018,14 +3036,14 @@ namespace Span
                     if (file != null) sshKeyPathInput.Text = file.Path;
                 };
                 Grid.SetColumn(browseBtn, 1);
-                keyPathRow.Children.Add(browseBtn);
+                keyInputRow.Children.Add(browseBtn);
 
-                sshKeyPanel.Children.Add(keyPathRow);
+                sshKeyPanel.Children.Add(MakeRow("SshKeyPath", keyInputRow));
 
+                // 패스프레이즈 행
                 passphraseInput = new PasswordBox
                 {
-                    Header = _loc.Get("Passphrase"),
-                    PlaceholderText = _loc.Get("Passphrase")
+                    PlaceholderText = _loc.Get("Optional")
                 };
                 if (isEdit && useSshKey)
                 {
@@ -3034,18 +3052,18 @@ namespace Span
                     if (!string.IsNullOrEmpty(savedPw))
                         passphraseInput.Password = savedPw;
                 }
-                sshKeyPanel.Children.Add(passphraseInput);
+                sshKeyPanel.Children.Add(MakeRow("Passphrase", passphraseInput));
                 dialogPanel.Children.Add(sshKeyPanel);
 
                 // 인증 방식 전환 이벤트
                 authPasswordRadio.Checked += (s, args) =>
                 {
-                    passwordInput.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
+                    passwordRow.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
                     sshKeyPanel.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
                 };
                 authSshKeyRadio.Checked += (s, args) =>
                 {
-                    passwordInput.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
+                    passwordRow.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
                     sshKeyPanel.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
                 };
 
@@ -3055,10 +3073,9 @@ namespace Span
                     protocolCombo.SelectionChanged += (s, args) =>
                     {
                         var isSftpNow = protocolCombo.SelectedIndex == 0;
-                        authMethodPanel.Visibility = isSftpNow ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+                        authMethodRow.Visibility = isSftpNow ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
                         if (!isSftpNow)
                         {
-                            // SFTP가 아니면 비밀번호 인증으로 강제 전환
                             authPasswordRadio.IsChecked = true;
                         }
                     };
@@ -3067,20 +3084,18 @@ namespace Span
                 // 원격 경로
                 pathInput = new TextBox
                 {
-                    Header = _loc.Get("RemotePath"),
                     PlaceholderText = "/",
                     Text = isEdit ? existing!.RemotePath : "/"
                 };
-                dialogPanel.Children.Add(pathInput);
+                dialogPanel.Children.Add(MakeRow("RemotePath", pathInput));
 
                 // 표시 이름
                 displayNameInput = new TextBox
                 {
-                    Header = _loc.Get("DisplayNameOptional"),
-                    PlaceholderText = isEdit ? existing!.DisplayName : "",
+                    PlaceholderText = _loc.Get("Optional"),
                     Text = isEdit ? existing!.DisplayName : ""
                 };
-                dialogPanel.Children.Add(displayNameInput);
+                dialogPanel.Children.Add(MakeRow("DisplayNameOptional", displayNameInput));
 
                 // 연결 저장 체크박스 (새 연결 모드에서만)
                 if (!isEdit)
@@ -3090,7 +3105,7 @@ namespace Span
                 }
             }
 
-            // 에러 메시지 + ProgressRing — ScrollViewer 바깥(하단 고정)
+            // 에러 메시지 + ProgressRing
             var errorText = new TextBlock
             {
                 Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.OrangeRed),
@@ -3109,15 +3124,8 @@ namespace Span
                 Margin = new Thickness(0, 4, 0, 0)
             };
 
-            var scrollViewer = new ScrollViewer
-            {
-                Content = dialogPanel,
-                VerticalScrollBarVisibility = Microsoft.UI.Xaml.Controls.ScrollBarVisibility.Auto,
-                MaxHeight = 420
-            };
-
             var outerPanel = new StackPanel { Spacing = 0 };
-            outerPanel.Children.Add(scrollViewer);
+            outerPanel.Children.Add(dialogPanel);
             outerPanel.Children.Add(errorText);
             outerPanel.Children.Add(connectingRing);
 
@@ -3130,6 +3138,8 @@ namespace Span
                 DefaultButton = ContentDialogButton.Primary,
                 XamlRoot = this.Content.XamlRoot
             };
+            dialog.Resources["ContentDialogMinWidth"] = 600.0;
+            dialog.Resources["ContentDialogMaxWidth"] = 600.0;
 
             // 연결 결과를 저장할 변수 (Deferral 콜백에서 설정)
             IFileSystemProvider? connectedProvider = null;
@@ -3329,6 +3339,15 @@ namespace Span
         /// </summary>
         private async Task<(IFileSystemProvider? provider, string? error)> TryConnectAsync(Models.ConnectionInfo connInfo, string? password)
         {
+            // SSH 키 파일 사전 검증
+            if (connInfo.AuthMethod == Models.AuthMethod.SshKey)
+            {
+                if (string.IsNullOrWhiteSpace(connInfo.SshKeyPath))
+                    return (null, _loc.Get("Error_SshKeyNotSpecified"));
+                if (!System.IO.File.Exists(connInfo.SshKeyPath))
+                    return (null, string.Format(_loc.Get("Error_SshKeyNotFound"), connInfo.SshKeyPath));
+            }
+
             Helpers.DebugLogger.Log($"[Network] 서버 연결 시도: {connInfo.ToUri()}");
             try
             {
@@ -3362,6 +3381,14 @@ namespace Span
                     }
                     return (ftp, null);
                 }
+            }
+            catch (Renci.SshNet.Common.SshPassPhraseNullOrEmptyException)
+            {
+                return (null, _loc.Get("Error_SshPassphraseRequired"));
+            }
+            catch (InvalidDataException)
+            {
+                return (null, _loc.Get("Error_SshKeyInvalid"));
             }
             catch (Renci.SshNet.Common.SshAuthenticationException ex)
             {
