@@ -30,6 +30,18 @@ namespace Span.Models
         /// <summary>Accelerator character extracted from &amp; marker in original menu text (e.g. "&amp;Open" → "O")</summary>
         public string? Accelerator { get; set; }
 
+        /// <summary>BGRA8 pixel data extracted from hbmpItem (16x16 etc.). null if no icon.</summary>
+        public byte[]? IconPixels { get; set; }
+
+        /// <summary>Icon width in pixels</summary>
+        public int IconWidth { get; set; }
+
+        /// <summary>Icon height in pixels</summary>
+        public int IconHeight { get; set; }
+
+        /// <summary>True if this item has icon data</summary>
+        public bool HasIcon => IconPixels != null && IconPixels.Length > 0 && IconWidth > 0 && IconHeight > 0;
+
         /// <summary>Child items for submenus</summary>
         public List<ShellMenuItem>? Children { get; set; }
 

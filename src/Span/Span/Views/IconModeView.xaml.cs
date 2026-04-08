@@ -269,6 +269,10 @@ namespace Span.Views
                 var showAtTarget = FindShowAtTarget(fe) ?? fe;
                 var position = e.GetPosition(showAtTarget);
 
+                // Shift+우클릭 → 셸 확장 즉시 표시
+                bool shiftHeld = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(
+                    Windows.System.VirtualKey.Shift).HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+
                 // Check if this is actually a file/folder item (not empty area)
                 bool isItem = fe.DataContext is FolderViewModel || fe.DataContext is FileViewModel;
                 if (isItem)
@@ -277,9 +281,9 @@ namespace Span.Views
                 Microsoft.UI.Xaml.Controls.MenuFlyout? flyout = null;
 
                 if (fe.DataContext is FolderViewModel folder)
-                    flyout = await ContextMenuService.BuildFolderMenuAsync(folder, ContextMenuHost);
+                    flyout = await ContextMenuService.BuildFolderMenuAsync(folder, ContextMenuHost, forceShellExtensions: shiftHeld);
                 else if (fe.DataContext is FileViewModel file)
-                    flyout = await ContextMenuService.BuildFileMenuAsync(file, ContextMenuHost);
+                    flyout = await ContextMenuService.BuildFileMenuAsync(file, ContextMenuHost, forceShellExtensions: shiftHeld);
 
                 if (flyout != null)
                 {
@@ -294,7 +298,7 @@ namespace Span.Views
                     var folderPath = ViewModel?.CurrentFolder?.Path;
                     if (!string.IsNullOrEmpty(folderPath))
                     {
-                        flyout = await ContextMenuService.BuildEmptyAreaMenuAsync(folderPath, ContextMenuHost);
+                        flyout = await ContextMenuService.BuildEmptyAreaMenuAsync(folderPath, ContextMenuHost, forceShellExtensions: shiftHeld);
                         flyout.ShowAt(showAtTarget, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
                         {
                             Position = position

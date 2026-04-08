@@ -4100,8 +4100,11 @@ namespace Span
 
             if (sender is ListView listView && listView.DataContext is FolderViewModel folderVm)
             {
+                bool shiftHeld = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(
+                    Windows.System.VirtualKey.Shift).HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+
                 _contextMenuService.SetLastEmptyAreaContext(folderVm.Path, this, listView, e.GetPosition(listView));
-                var flyout = await _contextMenuService.BuildEmptyAreaMenuAsync(folderVm.Path, this);
+                var flyout = await _contextMenuService.BuildEmptyAreaMenuAsync(folderVm.Path, this, forceShellExtensions: shiftHeld);
                 flyout.ShowAt(listView, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
                 {
                     Position = e.GetPosition(listView)
@@ -4274,8 +4277,11 @@ namespace Span
                 if (sender is Grid grid && grid.DataContext is FolderViewModel folder)
                 {
                     e.Handled = true; // Prevent bubbling to empty area handler during await
+                    bool shiftHeld = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(
+                        Windows.System.VirtualKey.Shift).HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+
                     _contextMenuService.SetLastMenuContext(folder, this, grid, e.GetPosition(grid));
-                    var flyout = await _contextMenuService.BuildFolderMenuAsync(folder, this);
+                    var flyout = await _contextMenuService.BuildFolderMenuAsync(folder, this, forceShellExtensions: shiftHeld);
                     flyout.ShowAt(grid, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
                     {
                         Position = e.GetPosition(grid)
@@ -4300,9 +4306,12 @@ namespace Span
                 if (sender is Grid grid && grid.DataContext is FileViewModel file)
                 {
                     e.Handled = true; // Prevent bubbling to empty area handler during await
+                    bool shiftHeld = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(
+                        Windows.System.VirtualKey.Shift).HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+
                     _contextMenuService.SetLastMenuContext(file, this, grid, e.GetPosition(grid));
                     Helpers.DebugLogger.Log($"[ContextMenu] OnFileRightTapped START: {file.Name} hasThumbnail={file.HasThumbnail}");
-                    var flyout = await _contextMenuService.BuildFileMenuAsync(file, this);
+                    var flyout = await _contextMenuService.BuildFileMenuAsync(file, this, forceShellExtensions: shiftHeld);
                     Helpers.DebugLogger.Log($"[ContextMenu] OnFileRightTapped BUILT: {file.Name} items={flyout.Items.Count}");
                     flyout.ShowAt(grid, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
                     {

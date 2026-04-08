@@ -784,12 +784,16 @@ namespace Span.Views
                 {
                     e.Handled = true; // Prevent bubbling to empty area handler during await
 
+                    // Shift+우클릭 → 셸 확장 즉시 표시 (Windows 탐색기 동작과 동일)
+                    bool shiftHeld = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(
+                        Windows.System.VirtualKey.Shift).HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+
                     Microsoft.UI.Xaml.Controls.MenuFlyout? flyout = null;
 
                     if (grid.DataContext is FolderViewModel folder)
-                        flyout = await ContextMenuService.BuildFolderMenuAsync(folder, ContextMenuHost);
+                        flyout = await ContextMenuService.BuildFolderMenuAsync(folder, ContextMenuHost, forceShellExtensions: shiftHeld);
                     else if (grid.DataContext is FileViewModel file)
-                        flyout = await ContextMenuService.BuildFileMenuAsync(file, ContextMenuHost);
+                        flyout = await ContextMenuService.BuildFileMenuAsync(file, ContextMenuHost, forceShellExtensions: shiftHeld);
 
                     if (flyout != null)
                     {
@@ -1286,7 +1290,10 @@ namespace Span.Views
             var folderPath = ViewModel?.CurrentFolder?.Path;
             if (string.IsNullOrEmpty(folderPath)) return;
 
-            var flyout = await ContextMenuService.BuildEmptyAreaMenuAsync(folderPath, ContextMenuHost);
+            bool shiftHeld = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(
+                Windows.System.VirtualKey.Shift).HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+
+            var flyout = await ContextMenuService.BuildEmptyAreaMenuAsync(folderPath, ContextMenuHost, forceShellExtensions: shiftHeld);
             flyout.ShowAt(RootGrid, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
             {
                 Position = e.GetPosition(RootGrid)

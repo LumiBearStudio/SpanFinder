@@ -239,6 +239,7 @@ namespace Span.Services
         private const uint MIIM_STATE = 0x00000001;
         private const uint MIIM_STRING = 0x00000040;
         private const uint MIIM_SUBMENU = 0x00000004;
+        private const uint MIIM_BITMAP = 0x00000080;
 
         // MENUITEMINFO types
         private const uint MFT_SEPARATOR = 0x00000800;
@@ -760,11 +761,11 @@ namespace Span.Services
 
             for (uint i = 0; i < (uint)count; i++)
             {
-                // First pass: get type and ID
+                // First pass: get type, ID, and bitmap
                 var mii = new MENUITEMINFOW
                 {
                     cbSize = (uint)Marshal.SizeOf<MENUITEMINFOW>(),
-                    fMask = MIIM_FTYPE | MIIM_ID | MIIM_STATE | MIIM_SUBMENU
+                    fMask = MIIM_FTYPE | MIIM_ID | MIIM_STATE | MIIM_SUBMENU | MIIM_BITMAP
                 };
 
                 if (!GetMenuItemInfoW(hMenu, i, true, ref mii))
@@ -863,6 +864,26 @@ namespace Span.Services
                     Accelerator = accelerator
                 };
 
+                // Extract icon from hbmpItem if available
+                // HBMMENU_CALLBACK = -1, system bitmaps = 1~11 → skip these
+                if (mii.hbmpItem != IntPtr.Zero && (long)mii.hbmpItem > 11)
+                {
+                    try
+                    {
+                        var (pixels, w, h) = ExtractBitmapPixels(mii.hbmpItem);
+                        if (pixels != null)
+                        {
+                            item.IconPixels = pixels;
+                            item.IconWidth = w;
+                            item.IconHeight = h;
+                        }
+                    }
+                    catch
+                    {
+                        // 셸 확장 비트맵 추출 실패는 무시 — 아이콘 없이 표시
+                    }
+                }
+
                 // Handle submenus recursively
                 if (mii.hSubMenu != IntPtr.Zero)
                 {
@@ -903,6 +924,127 @@ namespace Span.Services
 
             return result;
         }
+
+        #region HBITMAP → BGRA8 pixel extraction
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct BITMAP
+        {
+            public int bmType;
+            public int bmWidth;
+            public int bmHeight;
+            public int bmWidthBytes;
+            public ushort bmPlanes;
+            public ushort bmBitsPixel;
+            public IntPtr bmBits;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct BITMAPINFOHEADER
+        {
+            public uint biSize;
+            public int biWidth;
+            public int biHeight;
+            public ushort biPlanes;
+            public ushort biBitCount;
+            public uint biCompression;
+            public uint biSizeImage;
+            public int biXPelsPerMeter;
+            public int biYPelsPerMeter;
+            public uint biClrUsed;
+            public uint biClrImportant;
+        }
+
+        private const uint BI_RGB = 0;
+
+        [DllImport("gdi32.dll")]
+        private static extern int GetObjectW(IntPtr hObject, int nCount, ref BITMAP lpObject);
+
+        [DllImport("gdi32.dll")]
+        private static extern IntPtr CreateCompatibleDC(IntPtr hdc);
+
+        [DllImport("gdi32.dll")]
+        private static extern IntPtr SelectObject(IntPtr hdc, IntPtr hObject);
+
+        [DllImport("gdi32.dll")]
+        private static extern int GetDIBits(IntPtr hdc, IntPtr hbmp, uint uStartScan, uint cScanLines,
+            byte[] lpvBits, ref BITMAPINFOHEADER lpbi, uint uUsage);
+
+        [DllImport("gdi32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool DeleteDC(IntPtr hdc);
+
+        /// <summary>
+        /// HBITMAP에서 BGRA8 픽셀 데이터를 추출한다.
+        /// Pre-multiplied alpha HBITMAP과 24비트(알파 없음) 비트맵 모두 처리.
+        /// </summary>
+        /// <returns>(pixels, width, height) 또는 실패 시 (null, 0, 0)</returns>
+        private static (byte[]? pixels, int width, int height) ExtractBitmapPixels(IntPtr hBitmap)
+        {
+            // 비트맵 정보 조회
+            var bmp = new BITMAP();
+            int bmpSize = Marshal.SizeOf<BITMAP>();
+            if (GetObjectW(hBitmap, bmpSize, ref bmp) == 0)
+                return (null, 0, 0);
+
+            int w = bmp.bmWidth;
+            int h = bmp.bmHeight;
+
+            // 비정상적 크기 방어 (0이거나 너무 큰 경우)
+            if (w <= 0 || h <= 0 || w > 256 || h > 256)
+                return (null, 0, 0);
+
+            // DIB로 BGRA8 픽셀 추출
+            var bih = new BITMAPINFOHEADER
+            {
+                biSize = (uint)Marshal.SizeOf<BITMAPINFOHEADER>(),
+                biWidth = w,
+                biHeight = -h, // top-down DIB (위에서 아래로)
+                biPlanes = 1,
+                biBitCount = 32, // 항상 32비트로 요청
+                biCompression = BI_RGB
+            };
+
+            byte[] pixels = new byte[w * h * 4];
+            IntPtr hdc = IntPtr.Zero;
+            IntPtr oldBmp = IntPtr.Zero;
+
+            try
+            {
+                hdc = CreateCompatibleDC(IntPtr.Zero);
+                if (hdc == IntPtr.Zero)
+                    return (null, 0, 0);
+
+                // GetDIBits는 선택된 비트맵이 아닌 다른 비트맵을 읽을 수 있지만,
+                // 일부 드라이버에서 DC에 비트맵이 선택되어야 안정적이므로 SelectObject 사용
+                int scanLines = GetDIBits(hdc, hBitmap, 0, (uint)h, pixels, ref bih, 0);
+                if (scanLines == 0)
+                    return (null, 0, 0);
+
+                // 24비트 원본 비트맵의 경우 알파 채널이 모두 0으로 올 수 있음.
+                // 전체 알파가 0이면 불투명(0xFF)으로 채워준다.
+                bool allAlphaZero = true;
+                for (int i = 3; i < pixels.Length; i += 4)
+                {
+                    if (pixels[i] != 0) { allAlphaZero = false; break; }
+                }
+
+                if (allAlphaZero)
+                {
+                    for (int i = 3; i < pixels.Length; i += 4)
+                        pixels[i] = 0xFF;
+                }
+
+                return (pixels, w, h);
+            }
+            finally
+            {
+                if (hdc != IntPtr.Zero)
+                    DeleteDC(hdc);
+            }
+        }
+
+        #endregion
 
         private static IntPtr MenuSubclassProc(IntPtr hWnd, uint uMsg,
             IntPtr wParam, IntPtr lParam, IntPtr uIdSubclass, IntPtr dwRefData)

@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices.WindowsRuntime;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml.Controls;
@@ -931,6 +933,8 @@ namespace Span.Services
                     translatedText = shellItem.Verb ?? "...";
                 Helpers.DebugLogger.Log($"[ConvertShell] Creating SubItem text='{translatedText}'");
                 var subItem = new MenuFlyoutSubItem { Text = translatedText };
+                if (shellItem.HasIcon)
+                    subItem.Icon = CreateIconFromPixels(shellItem);
                 ApplyCompact(subItem);
                 // Shell SubItem: WinUI AccessKey 대신 Tag에 accelerator 저장
                 // (WinUI AccessKey는 일부 Shell accelerator 값에서 E_INVALIDARG 발생)
@@ -972,6 +976,9 @@ namespace Span.Services
                 Tag = invokeAction // TryInvokeAccessKey에서 사용
             };
 
+            if (shellItem.HasIcon)
+                item.Icon = CreateIconFromPixels(shellItem);
+
             item.Click += (s, e) =>
             {
                 try { invokeAction(); }
@@ -980,6 +987,69 @@ namespace Span.Services
             Helpers.DebugLogger.Log($"[ConvertShell] MenuFlyoutItem created OK");
 
             return item;
+        }
+
+        /// <summary>
+        /// ShellMenuItem의 BGRA8 픽셀 데이터를 SoftwareBitmapSource로 변환하여 ImageIcon을 생성한다.
+        /// SoftwareBitmapSource는 WriteableBitmap과 달리 렌더링 중 버퍼 해제 문제가 없다.
+        /// </summary>
+        private static IconElement? CreateIconFromPixels(ShellMenuItem shellItem)
+        {
+            try
+            {
+                if (shellItem.IconPixels == null || shellItem.IconWidth <= 0 || shellItem.IconHeight <= 0)
+                    return null;
+
+                int w = shellItem.IconWidth;
+                int h = shellItem.IconHeight;
+                byte[] pixels = shellItem.IconPixels;
+
+                if (pixels.Length != w * h * 4)
+                    return null;
+
+                var imageIcon = new Microsoft.UI.Xaml.Controls.ImageIcon
+                {
+                    Width = 16,
+                    Height = 16
+                };
+
+                // SoftwareBitmapSource.SetBitmapAsync는 UI 스레드에서 await 필요 → fire-and-forget
+                _ = SetIconSourceAsync(imageIcon, pixels, w, h);
+
+                return imageIcon;
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[ConvertShell] CreateIconFromPixels failed: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// BGRA8 픽셀 → SoftwareBitmap → SoftwareBitmapSource 변환 (비동기).
+        /// 16x16 아이콘이므로 거의 즉시 완료된다.
+        /// </summary>
+        private static async Task SetIconSourceAsync(
+            Microsoft.UI.Xaml.Controls.ImageIcon icon, byte[] pixels, int w, int h)
+        {
+            try
+            {
+                var softwareBitmap = new Windows.Graphics.Imaging.SoftwareBitmap(
+                    Windows.Graphics.Imaging.BitmapPixelFormat.Bgra8,
+                    w, h,
+                    Windows.Graphics.Imaging.BitmapAlphaMode.Premultiplied);
+                softwareBitmap.CopyFromBuffer(pixels.AsBuffer());
+
+                var source = new Microsoft.UI.Xaml.Media.Imaging.SoftwareBitmapSource();
+                await source.SetBitmapAsync(softwareBitmap);
+
+                icon.Source = source;
+            }
+            catch (Exception ex)
+            {
+                // 메뉴가 닫힌 후 icon이 detach된 경우 등 — 무시
+                Helpers.DebugLogger.Log($"[ConvertShell] SetIconSourceAsync failed: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -1130,6 +1200,29 @@ namespace Span.Services
         {
             _activeFlyout = flyout;
             _openedSubItem = null;
+
+            // MenuFlyout 열릴 때 커서를 Arrow로 강제 리셋.
+            // GridSplitter/리사이즈 그립 등 하위 요소의 ProtectedCursor가
+            // Popup 위에서도 유지되어 리사이즈 커서가 보이는 현상 방지.
+            flyout.Opened += (s, e) =>
+            {
+                try
+                {
+                    var root = XamlRootProvider?.Invoke();
+                    if (root == null) return;
+                    var popups = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetOpenPopupsForXamlRoot(root);
+                    foreach (var popup in popups)
+                    {
+                        if (popup.Child is MenuFlyoutPresenter presenter)
+                        {
+                            Helpers.CursorHelper.SetCursor(presenter, Microsoft.UI.Input.InputSystemCursorShape.Arrow);
+                            break;
+                        }
+                    }
+                }
+                catch { }
+            };
+
             flyout.Closed += (s, e) =>
             {
                 if (_activeFlyout == flyout)

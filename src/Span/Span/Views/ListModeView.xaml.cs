@@ -589,13 +589,16 @@ namespace Span.Views
                 if (_settings != null && !_settings.ShowContextMenu) return;
                 if (sender is Grid grid && ContextMenuService != null && ContextMenuHost != null)
                 {
+                    bool shiftHeld = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(
+                        Windows.System.VirtualKey.Shift).HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+
                     // ".." → show empty area menu (same as right-clicking background)
                     if (grid.DataContext is FolderViewModel folder && IsParentDotDot(folder))
                     {
                         var folderPath = ViewModel?.CurrentFolder?.Path;
                         if (!string.IsNullOrEmpty(folderPath))
                         {
-                            var emptyFlyout = await ContextMenuService.BuildEmptyAreaMenuAsync(folderPath, ContextMenuHost);
+                            var emptyFlyout = await ContextMenuService.BuildEmptyAreaMenuAsync(folderPath, ContextMenuHost, forceShellExtensions: shiftHeld);
                             emptyFlyout.ShowAt(grid, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
                             {
                                 Position = e.GetPosition(grid)
@@ -610,9 +613,9 @@ namespace Span.Views
                     MenuFlyout? flyout = null;
 
                     if (grid.DataContext is FolderViewModel realFolder)
-                        flyout = await ContextMenuService.BuildFolderMenuAsync(realFolder, ContextMenuHost);
+                        flyout = await ContextMenuService.BuildFolderMenuAsync(realFolder, ContextMenuHost, forceShellExtensions: shiftHeld);
                     else if (grid.DataContext is FileViewModel file)
-                        flyout = await ContextMenuService.BuildFileMenuAsync(file, ContextMenuHost);
+                        flyout = await ContextMenuService.BuildFileMenuAsync(file, ContextMenuHost, forceShellExtensions: shiftHeld);
 
                     if (flyout != null)
                     {
@@ -1016,7 +1019,10 @@ namespace Span.Views
             var folderPath = ViewModel?.CurrentFolder?.Path;
             if (string.IsNullOrEmpty(folderPath)) return;
 
-            var flyout = await ContextMenuService.BuildEmptyAreaMenuAsync(folderPath, ContextMenuHost);
+            bool shiftHeld = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(
+                Windows.System.VirtualKey.Shift).HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+
+            var flyout = await ContextMenuService.BuildEmptyAreaMenuAsync(folderPath, ContextMenuHost, forceShellExtensions: shiftHeld);
             flyout.ShowAt(RootGrid, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
             {
                 Position = e.GetPosition(RootGrid)
