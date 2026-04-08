@@ -110,6 +110,11 @@ namespace Span.ViewModels
         public bool IsMarkdownVisible => CurrentPreviewType == PreviewType.Markdown;
         public bool IsCsvVisible => CurrentPreviewType == PreviewType.Csv;
 
+        /// <summary>스크롤이 필요한 콘텐츠인지 (Up/Down 키를 스크롤에 사용).</summary>
+        public bool IsScrollableContent => CurrentPreviewType is PreviewType.Text
+            or PreviewType.HexBinary or PreviewType.Markdown or PreviewType.Csv
+            or PreviewType.Archive or PreviewType.Pdf;
+
         /// <summary>
         /// Quick Look 윈도우가 닫힐 때 호출될 콜백.
         /// </summary>
