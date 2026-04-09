@@ -3709,6 +3709,9 @@ namespace Span
                 return ContentDialogResult.None;
             }
 
+            // WinUI 3 XYFocusNavigation 버그 방지: 화살표 키로 다이얼로그 밖으로 포커스 탈출 차단
+            dialog.KeyDown += Dialog_SuppressArrowKeys;
+
             _isContentDialogOpen = true;
             try
             {
@@ -3717,6 +3720,19 @@ namespace Span
             finally
             {
                 _isContentDialogOpen = false;
+                dialog.KeyDown -= Dialog_SuppressArrowKeys;
+            }
+        }
+
+        private static void Dialog_SuppressArrowKeys(object sender, KeyRoutedEventArgs e)
+        {
+            // TextBox/PasswordBox 내 화살표 키는 커서 이동에 필요 → 허용
+            if (e.OriginalSource is TextBox or PasswordBox) return;
+
+            if (e.Key is Windows.System.VirtualKey.Left or Windows.System.VirtualKey.Right
+                     or Windows.System.VirtualKey.Up or Windows.System.VirtualKey.Down)
+            {
+                e.Handled = true;
             }
         }
 

@@ -86,7 +86,8 @@ namespace Span
             if (_isRecordingShortcut) return;
 
             // ContentDialog 열려 있으면 글로벌 단축키 억제 (삭제 확인 등 다이얼로그 내 키보드 동작 보장)
-            if (IsContentDialogOpen()) return;
+            // handledEventsToo=true로 등록되어 다이얼로그가 Handled한 이벤트도 도달하므로 플래그로 차단
+            if (_isContentDialogOpen) return;
 
             _keyBindingService ??= App.Current.Services.GetService<Services.KeyBindingService>();
 
@@ -944,7 +945,7 @@ namespace Span
         private void OnMillerKeyDown(object sender, KeyRoutedEventArgs e)
         {
             // ★ ContentDialog(삭제 확인 등) 열려 있으면 다이얼로그에 키보드 이벤트 위임
-            if (IsContentDialogOpen()) return;
+            if (_isContentDialogOpen) return;
 
             // ★ 컨텍스트 메뉴 열려 있으면 AccessKey 처리에 맡김
             if (IsContextMenuOpen()) return;
