@@ -897,6 +897,25 @@ namespace Span.Services
             ("Workspace_NameRequired", "Please enter a name.", "이름을 입력하세요.", "名前を入力してください。", "请输入名称。", "請輸入名稱。", "Bitte einen Namen eingeben.", "Ingrese un nombre.", "Veuillez entrer un nom.", "Digite um nome."),
             ("Workspace_Tooltip", "Workspaces", "워크스페이스", "ワークスペース", "工作区", "工作區", "Arbeitsbereiche", "Espacios de trabajo", "Espaces de travail", "Áreas de trabalho"),
 
+            // ── Shelf ───────────────────────────────────────────────────────
+            ("ShelfMoveHere", "Move here", "여기로 이동", "ここに移動", "移动到这里", "移動到此處", "Hierher verschieben", "Mover aquí", "Déplacer ici", "Mover para cá"),
+            ("ShelfCopyHere", "Copy here", "여기에 복사", "ここにコピー", "复制到这里", "複製到此處", "Hierher kopieren", "Copiar aquí", "Copier ici", "Copiar para cá"),
+            ("ShelfDragHint", "Drop to add to Shelf", "놓으면 Shelf에 추가", "ドロップしてシェルフに追加", "拖放添加到收集架", "拖放新增到收集架", "Ablegen, um zum Regal hinzuzufügen", "Soltar para añadir al estante", "Déposer pour ajouter à l'étagère", "Soltar para adicionar à prateleira"),
+            ("ShelfFull", "Shelf is full (max 50 items)", "Shelf가 가득 찼습니다 (최대 50개)", "シェルフが一杯です（最大50個）", "收集架已满（最多50项）", "收集架已滿（最多50項）", "Regal ist voll (max. 50 Elemente)", "Estante lleno (máx. 50 elementos)", "Étagère pleine (max 50 éléments)", "Prateleira cheia (máx. 50 itens)"),
+            ("Shortcut_ShelfAdd", "Add to Shelf", "Shelf에 추가", "シェルフに追加", "添加到收集架", "新增到收集架", "Zum Regal hinzufügen", "Añadir al estante", "Ajouter à l'étagère", "Adicionar à prateleira"),
+            ("Shortcut_ShelfToggle", "Toggle Shelf", "Shelf 표시/숨김", "シェルフ表示切替", "切换收集架", "切換收集架", "Regal umschalten", "Alternar estante", "Basculer l'étagère", "Alternar prateleira"),
+            ("Shortcut_ShelfMoveHere", "Move Shelf items here", "Shelf 항목 여기로 이동", "シェルフ項目をここに移動", "将收集架项移到这里", "將收集架項移到此處", "Regal-Elemente hierher verschieben", "Mover elementos del estante aquí", "Déplacer les éléments ici", "Mover itens da prateleira para cá"),
+            ("Shortcut_ShelfCopyHere", "Copy Shelf items here", "Shelf 항목 여기에 복사", "シェルフ項目をここにコピー", "将收集架项复制到这里", "將收集架項複製到此處", "Regal-Elemente hierher kopieren", "Copiar elementos del estante aquí", "Copier les éléments ici", "Copiar itens da prateleira para cá"),
+            ("Shortcut_ShelfClear", "Clear Shelf", "Shelf 비우기", "シェルフをクリア", "清空收集架", "清空收集架", "Regal leeren", "Vaciar estante", "Vider l'étagère", "Limpar prateleira"),
+
+            // ── Command Palette ─────────────────────────────────────────────
+            ("Shortcut_OpenCommandPalette", "Command Palette", "커맨드 팔레트", "コマンドパレット", "命令面板", "命令面板", "Befehlspalette", "Paleta de comandos", "Palette de commandes", "Paleta de comandos"),
+            ("CommandPalette_Placeholder", "Type a command or search...", "명령 입력 또는 검색...", "コマンドを入力または検索...", "输入命令或搜索...", "輸入命令或搜尋...", "Befehl eingeben oder suchen...", "Escribir un comando o buscar...", "Saisir une commande ou rechercher...", "Digite um comando ou pesquise..."),
+            ("CommandPalette_NoResults", "No results found", "결과 없음", "結果が見つかりません", "未找到结果", "找不到結果", "Keine Ergebnisse gefunden", "Sin resultados", "Aucun résultat trouvé", "Nenhum resultado encontrado"),
+            ("CommandPalette_Actions", "Actions", "동작", "アクション", "操作", "動作", "Aktionen", "Acciones", "Actions", "Ações"),
+            ("CommandPalette_Tabs", "Tabs", "탭", "タブ", "标签页", "索引標籤", "Tabs", "Pestañas", "Onglets", "Guias"),
+            ("CommandPalette_GoToFolder", "Go to folder", "폴더로 이동", "フォルダーに移動", "转到文件夹", "前往資料夾", "Zum Ordner gehen", "Ir a la carpeta", "Aller au dossier", "Ir para a pasta"),
+
             // ── Group labels ───────────────────────────────────────────────
             ("Group_Today", "Today", "오늘", "今日", "今天", "今天", "Heute", "Hoy", "Aujourd'hui", "Hoje"),
             ("Group_Yesterday", "Yesterday", "어제", "昨日", "昨天", "昨天", "Gestern", "Ayer", "Hier", "Ontem"),

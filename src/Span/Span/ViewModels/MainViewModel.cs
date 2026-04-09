@@ -42,6 +42,21 @@ namespace Span.ViewModels
         /// </summary>
         public ObservableCollection<DriveItem> NetworkAndRemoteDrives { get; } = new();
 
+        // ── File Shelf ──────────────────────────────────────────
+        public ObservableCollection<ShelfItem> ShelfItems { get; } = new();
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(IsShelfPanelVisible))]
+        private bool _isShelfVisible;
+
+        public Microsoft.UI.Xaml.Visibility IsShelfPanelVisible
+            => _isShelfVisible || ShelfItems.Count > 0
+                ? Microsoft.UI.Xaml.Visibility.Visible
+                : Microsoft.UI.Xaml.Visibility.Collapsed;
+
+        public void NotifyShelfVisibilityChanged()
+            => OnPropertyChanged(nameof(IsShelfPanelVisible));
+
         // 사이드바 섹션 접기/펴기 상태
         [ObservableProperty]
         private bool _isLocalDrivesExpanded = true;

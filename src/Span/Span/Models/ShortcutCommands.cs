@@ -70,6 +70,16 @@ namespace Span.Models
         public const string SaveWorkspace = "span.workspace.save";
         public const string OpenWorkspacePalette = "span.workspace.open";
 
+        // ── Shelf ───────────────────────────────────────────────
+        public const string ShelfAdd = "span.shelf.add";
+        public const string ShelfToggle = "span.shelf.toggle";
+        public const string ShelfMoveHere = "span.shelf.moveHere";
+        public const string ShelfCopyHere = "span.shelf.copyHere";
+        public const string ShelfClear = "span.shelf.clear";
+
+        // ── Command Palette ─────────────────────────────────────
+        public const string OpenCommandPalette = "span.commandPalette.open";
+
         // ── 내부 레지스트리 ─────────────────────────────────────
 
         private static readonly Dictionary<string, string> _categories = new()
@@ -128,6 +138,14 @@ namespace Span.Models
             // Workspace
             { SaveWorkspace, "Workspace" },
             { OpenWorkspacePalette, "Workspace" },
+            // Shelf
+            { ShelfAdd, "Shelf" },
+            { ShelfToggle, "Shelf" },
+            { ShelfMoveHere, "Shelf" },
+            { ShelfCopyHere, "Shelf" },
+            { ShelfClear, "Shelf" },
+            // Command Palette
+            { OpenCommandPalette, "CommandPalette" },
         };
 
         /// <summary>
@@ -188,6 +206,14 @@ namespace Span.Models
             // Workspace
             { SaveWorkspace, "Shortcut_SaveWorkspace" },
             { OpenWorkspacePalette, "Shortcut_OpenWorkspacePalette" },
+            // Shelf
+            { ShelfAdd, "Shortcut_ShelfAdd" },
+            { ShelfToggle, "Shortcut_ShelfToggle" },
+            { ShelfMoveHere, "Shortcut_ShelfMoveHere" },
+            { ShelfCopyHere, "Shortcut_ShelfCopyHere" },
+            { ShelfClear, "Shortcut_ShelfClear" },
+            // Command Palette
+            { OpenCommandPalette, "Shortcut_OpenCommandPalette" },
         };
 
         /// <summary>

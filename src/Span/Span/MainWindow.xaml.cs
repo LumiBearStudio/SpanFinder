@@ -406,6 +406,9 @@ namespace Span
             var fileOpManager = App.Current.Services.GetRequiredService<Services.FileOperationManager>();
             FileOpProgressControl.SetOperationManager(fileOpManager);
 
+            // File Shelf initialization
+            InitializeShelf();
+
             // Mica
             SystemBackdrop = new Microsoft.UI.Xaml.Media.MicaBackdrop();
 

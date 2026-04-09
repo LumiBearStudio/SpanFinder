@@ -32,6 +32,7 @@
             <RowDefinition Height="Auto"/> <!-- TitleBar -->
             <RowDefinition Height="Auto"/> <!-- Unified Bar -->
             <RowDefinition Height="*"/>    <!-- Main Area -->
+            <RowDefinition Height="Auto"/> <!-- File Shelf -->
             <RowDefinition Height="Auto"/> <!-- Status Bar -->
         </Grid.RowDefinitions>
 
@@ -1596,8 +1597,95 @@
             <!-- Sidebar edge shadow removed: splitter alone provides sufficient separation -->
         </Grid>
 
-        <!-- 4. Status Bar -->
-        <Grid Grid.Row="3" AutomationProperties.AutomationId="StatusBar" Height="{StaticResource StatusBarHeight}" Background="{ThemeResource SpanBgMicaBrush}" BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="0,1,0,0">
+        <!-- 4. File Shelf (임시 수집함) -->
+        <Border x:Name="ShelfPanel" Grid.Row="3"
+                Background="{ThemeResource SpanBgLayer2Brush}"
+                BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="0,1,0,0"
+                Visibility="{x:Bind ViewModel.IsShelfPanelVisible, Mode=OneWay}"
+                AllowDrop="True"
+                DragOver="OnShelfDragOver" Drop="OnShelfDrop" DragLeave="OnShelfDragLeave"
+                Padding="8,6">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Label -->
+                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="4,0,12,0">
+                    <FontIcon Glyph="&#xE8F1;" FontSize="14" Foreground="{ThemeResource SpanAccentBrush}"/>
+                    <TextBlock x:Name="ShelfCountText" Text="Shelf (0)" FontSize="12" FontWeight="SemiBold"
+                               Foreground="{ThemeResource SpanTextPrimaryBrush}" VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- Items ScrollViewer -->
+                <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
+                              HorizontalScrollMode="Enabled" VerticalScrollMode="Disabled">
+                    <ItemsRepeater ItemsSource="{x:Bind ViewModel.ShelfItems, Mode=OneWay}">
+                        <ItemsRepeater.Layout>
+                            <StackLayout Orientation="Horizontal" Spacing="4"/>
+                        </ItemsRepeater.Layout>
+                        <ItemsRepeater.ItemTemplate>
+                            <DataTemplate x:DataType="models:ShelfItem">
+                                <Grid Background="{ThemeResource SpanBgLayer1Brush}" CornerRadius="4"
+                                      Padding="8,4" Height="32"
+                                      PointerEntered="OnShelfItemPointerEntered"
+                                      PointerExited="OnShelfItemPointerExited"
+                                      RightTapped="OnShelfItemRightTapped">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <FontIcon Glyph="{x:Bind IconGlyph}" FontSize="14"
+                                                  Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
+                                        <TextBlock Text="{x:Bind Name}" FontSize="11" VerticalAlignment="Center"
+                                                   MaxWidth="120" TextTrimming="CharacterEllipsis"
+                                                   Foreground="{ThemeResource SpanTextPrimaryBrush}"/>
+                                        <Button Tag="{x:Bind Id}" Click="OnShelfItemRemoveClick"
+                                                Background="Transparent" BorderThickness="0"
+                                                Padding="2" Width="20" Height="20" MinWidth="0" MinHeight="0"
+                                                VerticalAlignment="Center">
+                                            <FontIcon Glyph="&#xE711;" FontSize="10"
+                                                      Foreground="{ThemeResource SpanTextTertiaryBrush}"/>
+                                        </Button>
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsRepeater.ItemTemplate>
+                    </ItemsRepeater>
+                </ScrollViewer>
+
+                <!-- Action Buttons -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Margin="12,0,4,0">
+                    <Button x:Name="ShelfMoveHereButton" Click="OnShelfMoveHereClick"
+                            Background="{ThemeResource SpanAccentBrush}"
+                            Foreground="White" CornerRadius="4"
+                            Padding="10,4" Height="28" MinWidth="0" MinHeight="0">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <FontIcon Glyph="&#xE8DE;" FontSize="12" Foreground="White"/>
+                            <TextBlock x:Name="ShelfMoveText" Text="Move here" FontSize="11"/>
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="ShelfCopyHereButton" Click="OnShelfCopyHereClick"
+                            Background="{ThemeResource SpanBgLayer1Brush}"
+                            CornerRadius="4"
+                            Padding="10,4" Height="28" MinWidth="0" MinHeight="0">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <FontIcon Glyph="&#xE8C8;" FontSize="12" Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
+                            <TextBlock x:Name="ShelfCopyText" Text="Copy here" FontSize="11"
+                                       Foreground="{ThemeResource SpanTextPrimaryBrush}"/>
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="ShelfClearButton" Click="OnShelfClearClick"
+                            Background="Transparent" BorderThickness="0"
+                            Padding="6,4" Height="28" MinWidth="0" MinHeight="0"
+                            ToolTipService.ToolTip="Clear shelf">
+                        <FontIcon Glyph="&#xE74D;" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}"/>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- 5. Status Bar -->
+        <Grid Grid.Row="4" AutomationProperties.AutomationId="StatusBar" Height="{StaticResource StatusBarHeight}" Background="{ThemeResource SpanBgMicaBrush}" BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="0,1,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
@@ -1636,8 +1724,85 @@
                                                     Canvas.ZIndex="100"
                                                     Margin="0,0,16,8"/>
 
+        <!-- Command Palette Overlay (Ctrl+K) -->
+        <Grid x:Name="CommandPaletteOverlay" Grid.RowSpan="5" Visibility="Collapsed"
+              Canvas.ZIndex="250"
+              Background="#40000000"
+              PointerPressed="OnCommandPaletteOverlayPointerPressed">
+            <Border HorizontalAlignment="Center" VerticalAlignment="Top"
+                    Margin="0,80,0,0" Width="560"
+                    Background="{ThemeResource SpanBgLayer1Brush}"
+                    BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="1"
+                    CornerRadius="12" Padding="0">
+                <Border.Shadow>
+                    <ThemeShadow/>
+                </Border.Shadow>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Search Input -->
+                    <TextBox x:Name="CommandPaletteInput"
+                             PlaceholderText="Type a command or search..."
+                             FontSize="14" Padding="12,10"
+                             Background="Transparent" BorderThickness="0"
+                             TextChanged="OnCommandPaletteInputTextChanged"
+                             KeyDown="OnCommandPaletteInputKeyDown"/>
+
+                    <Rectangle Grid.Row="1" Height="1" Fill="{ThemeResource SpanBorderSubtleBrush}"/>
+
+                    <!-- Results List -->
+                    <ListView x:Name="CommandPaletteList" Grid.Row="2"
+                              MaxHeight="380"
+                              SelectionMode="Single"
+                              IsItemClickEnabled="True"
+                              ItemClick="OnCommandPaletteItemClick">
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="models:CommandPaletteItem">
+                                <Grid Padding="12,8" ColumnSpacing="10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Glyph="{x:Bind IconGlyph}" FontSize="14"
+                                              Foreground="{ThemeResource SpanTextSecondaryBrush}"
+                                              VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1" Text="{x:Bind Title}" FontSize="13"
+                                               VerticalAlignment="Center"
+                                               Foreground="{ThemeResource SpanTextPrimaryBrush}"
+                                               TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Grid.Column="2" Text="{x:Bind Category}" FontSize="11"
+                                               Foreground="{ThemeResource SpanTextTertiaryBrush}"
+                                               VerticalAlignment="Center" Opacity="0.7"/>
+                                    <Border Grid.Column="3" Background="{ThemeResource SpanBgLayer2Brush}"
+                                            CornerRadius="4" Padding="6,2"
+                                            Visibility="{x:Bind helpers:StatusBarHelper.ShowIfNotEmpty(Shortcut)}">
+                                        <TextBlock Text="{x:Bind Shortcut}" FontSize="11"
+                                                   Foreground="{ThemeResource SpanTextSecondaryBrush}"
+                                                   FontFamily="Consolas"/>
+                                    </Border>
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+
+                    <!-- No Results -->
+                    <TextBlock x:Name="CommandPaletteNoResults" Grid.Row="2"
+                               Text="No results found" FontSize="13"
+                               Foreground="{ThemeResource SpanTextTertiaryBrush}"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               Margin="0,20" Visibility="Collapsed"/>
+                </Grid>
+            </Border>
+        </Grid>
+
         <!-- Help Overlay (Shift+? / F1) -->
-        <Grid x:Name="HelpOverlay" AutomationProperties.AutomationId="HelpOverlay" Grid.RowSpan="4" Visibility="Collapsed"
+        <Grid x:Name="HelpOverlay" AutomationProperties.AutomationId="HelpOverlay" Grid.RowSpan="5" Visibility="Collapsed"
               Canvas.ZIndex="200"
               Background="#80000000"
               PointerPressed="HelpOverlay_PointerPressed">

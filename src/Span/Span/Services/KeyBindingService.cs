@@ -282,6 +282,13 @@ public class KeyBindingService
             // Workspace
             [ShortcutCommands.SaveWorkspace] = ["Ctrl+Shift+S"],
             [ShortcutCommands.OpenWorkspacePalette] = ["Ctrl+Shift+W"],
+
+            // Shelf
+            [ShortcutCommands.ShelfAdd] = ["Ctrl+Shift+B"],
+            [ShortcutCommands.ShelfToggle] = ["Ctrl+B"],
+
+            // Command Palette
+            [ShortcutCommands.OpenCommandPalette] = ["Ctrl+K"],
         };
     }
 

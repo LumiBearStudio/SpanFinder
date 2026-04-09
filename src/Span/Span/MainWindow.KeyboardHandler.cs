@@ -837,6 +837,16 @@ namespace Span
                     _ = ShowWorkspacePaletteAsync();
                     return true;
 
+                // Shelf
+                case ShortcutCommands.ShelfAdd: ExecuteShelfAdd(); return true;
+                case ShortcutCommands.ShelfToggle: ExecuteShelfToggle(); return true;
+                case ShortcutCommands.ShelfMoveHere: ExecuteShelfMoveHere(); return true;
+                case ShortcutCommands.ShelfCopyHere: ExecuteShelfCopyHere(); return true;
+                case ShortcutCommands.ShelfClear: ExecuteShelfClear(); return true;
+
+                // Command Palette
+                case ShortcutCommands.OpenCommandPalette: ToggleCommandPalette(); return true;
+
                 // Quick Look — 뷰별 핸들러에서 처리
                 case ShortcutCommands.QuickLook: return false;
 
