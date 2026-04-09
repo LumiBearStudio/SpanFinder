@@ -56,9 +56,11 @@ namespace Span
 
                 double tabWidth = Math.Max(MIN_TAB_WIDTH, Math.Min(MAX_TAB_WIDTH, available / tabCount));
 
-                // 너비가 거의 같으면 재설정 생략 → 레이아웃 순환 방지
-                if (Math.Abs(tabWidth - _calculatedTabWidth) < 0.5) return;
-                _calculatedTabWidth = tabWidth;
+                // 캐시된 너비와 같으면 재설정 생략 → 레이아웃 순환 방지
+                // 단, 개별 탭 요소가 실제로 다른 너비를 가지면 per-element 보정은 계속 진행
+                bool widthChanged = Math.Abs(tabWidth - _calculatedTabWidth) >= 0.5;
+                if (widthChanged)
+                    _calculatedTabWidth = tabWidth;
 
                 // 각 탭 아이템에 너비 적용 (per-element threshold로 불필요한 layout pass 방지)
                 for (int i = 0; i < tabCount; i++)
@@ -1900,15 +1902,42 @@ namespace Span
             var workspaceService = App.Current.Services.GetService<Services.WorkspaceService>();
             if (workspaceService == null) return;
 
+            // 동일 이름 워크스페이스 존재 시 덮어쓰기 확인
+            var existingList = await workspaceService.GetWorkspacesAsync();
+            var existing = existingList.FirstOrDefault(w => string.Equals(w.Name, name, StringComparison.OrdinalIgnoreCase));
+            string id;
+            DateTime createdAt;
+            if (existing != null)
+            {
+                var overwriteDialog = new ContentDialog
+                {
+                    Title = _loc?.Get("Workspace_OverwriteTitle") ?? "Overwrite Workspace",
+                    Content = string.Format(_loc?.Get("Workspace_OverwriteMessage") ?? "'{0}' already exists. Overwrite?", name),
+                    PrimaryButtonText = _loc?.Get("Overwrite") ?? "Overwrite",
+                    CloseButtonText = _loc?.Get("Cancel") ?? "Cancel",
+                    XamlRoot = Content.XamlRoot,
+                    DefaultButton = ContentDialogButton.Primary
+                };
+                var overwriteResult = await overwriteDialog.ShowAsync();
+                if (overwriteResult != ContentDialogResult.Primary) return;
+                id = existing.Id;
+                createdAt = existing.CreatedAt;
+            }
+            else
+            {
+                id = Guid.NewGuid().ToString();
+                createdAt = DateTime.UtcNow;
+            }
+
             var tabs = ViewModel.CollectCurrentTabStates();
             var activeIndex = ViewModel.Tabs.IndexOf(ViewModel.ActiveTab);
 
             var workspace = new WorkspaceDto(
-                Id: Guid.NewGuid().ToString(),
+                Id: id,
                 Name: name,
                 Tabs: tabs,
                 ActiveTabIndex: Math.Max(0, activeIndex),
-                CreatedAt: DateTime.UtcNow,
+                CreatedAt: createdAt,
                 LastUsedAt: DateTime.UtcNow
             );
 
@@ -2121,6 +2150,7 @@ namespace Span
                         SwitchIconPanel(finalTab.Id, Helpers.ViewModeExtensions.IsIconMode(finalTab.ViewMode));
                     }
                     ResubscribeLeftExplorer();
+                    _previousViewMode = (ViewMode)(-1); // 강제 리프레시 — SetViewModeVisibility가 반드시 실행되도록
                     UpdateViewModeVisibility();
                     FocusActiveView();
                 }

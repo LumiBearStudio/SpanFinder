@@ -869,6 +869,25 @@ public sealed partial class SettingsModeView : UserControl
         // Settings: TextBlock 8~24, FontIcon 10~24 범위의 baseline만 스케일
         // (40px 앱 아이콘은 자동 제외)
         MainWindow.ApplyAbsoluteScaleToTree(this, level, 8, 24);
+
+        // 사이드바 네비게이션 항목 — VisualTree 순회 누락 방지용 직접 적용
+        double navText = 13.0 + level;
+        double navIcon = 16.0 + level;
+        Grid[] navItems = { NavGeneral, NavAppearance, NavBrowsing, NavSidebar,
+                            NavTools, NavShortcuts, NavAdvanced, NavAbout, NavSupport, NavOpenSource };
+        foreach (var nav in navItems)
+        {
+            foreach (var child in nav.Children)
+            {
+                if (child is TextBlock tb) tb.FontSize = navText;
+                else if (child is FontIcon fi) fi.FontSize = navIcon;
+            }
+        }
+
+        // ComboBox — 선택 변경 시 내부 TextBlock 재생성으로 baseline 유실 방지
+        double comboFont = 14.0 + level;
+        IconPackCombo.FontSize = comboFont;
+        FontCombo.FontSize = comboFont;
     }
 
     // ── Shortcuts Section ──

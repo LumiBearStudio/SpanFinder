@@ -265,61 +265,9 @@ namespace Span.ViewModels
         }
 
         /// <summary>
-        /// Display name with middle truncation for files.
-        /// For files with extensions longer than MaxTruncateChars: "VeryLong...name.txt"
-        /// For folders or short names: returns DisplayName as-is.
+        /// Display name — XAML TextTrimming handles truncation based on column width.
         /// </summary>
-        public virtual string TruncatedDisplayName
-        {
-            get
-            {
-                var name = DisplayName;
-
-                // Only truncate file names (not folders)
-                if (this is FolderViewModel)
-                    return name;
-
-                return MiddleTruncate(name, 28);
-            }
-        }
-
-        /// <summary>
-        /// Middle-truncates a filename preserving extension.
-        /// "VeryLongFileName.txt" -> "VeryLo...ame.txt"
-        /// </summary>
-        private static string MiddleTruncate(string name, int maxChars)
-        {
-            if (string.IsNullOrEmpty(name) || name.Length <= maxChars)
-                return name;
-
-            var ext = System.IO.Path.GetExtension(name);
-            var nameWithoutExt = System.IO.Path.GetFileNameWithoutExtension(name);
-
-            // If no extension, use simple end truncation
-            if (string.IsNullOrEmpty(ext))
-                return name;
-
-            // Keep at least 3 chars of the ellipsis
-            const string ellipsis = "\u2026"; // Unicode horizontal ellipsis
-            int extLen = ext.Length;
-
-            // Reserve space for extension + ellipsis + at least a few chars on each side
-            int availableChars = maxChars - extLen - 1; // -1 for ellipsis character
-            if (availableChars < 6)
-                return name; // Too short to truncate meaningfully
-
-            // Split available chars: more at the beginning, some at the end (before extension)
-            int prefixLen = (int)(availableChars * 0.6);
-            int suffixLen = availableChars - prefixLen;
-
-            if (prefixLen >= nameWithoutExt.Length)
-                return name; // No truncation needed
-
-            string prefix = nameWithoutExt.Substring(0, prefixLen);
-            string suffix = nameWithoutExt.Substring(nameWithoutExt.Length - suffixLen);
-
-            return prefix + ellipsis + suffix + ext;
-        }
+        public virtual string TruncatedDisplayName => DisplayName;
 
         public virtual string IconGlyph => _model.IconGlyph;
         private static readonly Microsoft.UI.Xaml.Media.SolidColorBrush _whiteIconBrush = new(Microsoft.UI.Colors.White);

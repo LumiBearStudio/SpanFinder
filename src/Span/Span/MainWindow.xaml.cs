@@ -721,7 +721,8 @@ namespace Span
                         // Chrome-style dynamic tab width: recalculate on tab add/remove
                         ViewModel.Tabs.CollectionChanged += (_, __) =>
                             DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, RecalculateTabWidths);
-                        RecalculateTabWidths();
+                        // Loaded 시점에는 레이아웃 미완료 → 지연 호출로 정확한 ActualWidth 사용
+                        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, RecalculateTabWidths);
 
                         // Populate favorites tree for tear-off window
                         ApplyFavoritesTreeMode(_settings.ShowFavoritesTree);
@@ -1008,11 +1009,11 @@ namespace Span
 
         private void OnTabElementPrepared(ItemsRepeater sender, ItemsRepeaterElementPreparedEventArgs args)
         {
-            // 리사이클/신규 탭 요소에 ConditionalWeakTable 기반 절대값 스케일 적용
-            // level 0에서도 실행: 리사이클된 요소의 폰트를 XAML 기본값으로 복원
+            // 리사이클/신규 탭 요소: baseline 고정값 기반 직접 스케일 적용
+            // ConditionalWeakTable 의존 제거 — DataTemplate 재활용 시 baseline 오염 방지
             DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
             {
-                ApplyAbsoluteScaleToTree(args.Element, _iconFontScaleLevel, 8, 20);
+                ApplyScaleToTabElement(args.Element, _iconFontScaleLevel);
 
                 // 재활용/신규 탭에 Chrome-style 고정 너비 적용 (auto-size 방지)
                 if (_calculatedTabWidth > 0 && args.Element is FrameworkElement elem)
@@ -1023,6 +1024,36 @@ namespace Span
                         elem.Width = _calculatedTabWidth;
                 }
             });
+        }
+
+        /// <summary>
+        /// 탭 요소에 baseline 고정값 기반 스케일 적용.
+        /// DataTemplate: 탭 아이콘 FontIcon=14, 탭 이름 TextBlock=12, 닫기 버튼 FontIcon=9.
+        /// ConditionalWeakTable 미사용 → 리사이클 시에도 항상 정확.
+        /// </summary>
+        private static void ApplyScaleToTabElement(UIElement element, int level)
+        {
+            // DataTemplate 구조:
+            // Grid[Col0: Grid[StackPanel(FontIcon×4, baseline=14), TextBlock(baseline=12)],
+            //      Col1: Button > FontIcon(baseline=9)]
+            void Traverse(DependencyObject parent, bool insideButton)
+            {
+                int count = VisualTreeHelper.GetChildrenCount(parent);
+                for (int i = 0; i < count; i++)
+                {
+                    var child = VisualTreeHelper.GetChild(parent, i);
+                    if (child is FontIcon fi)
+                    {
+                        double baseline = insideButton ? 9.0 : 14.0;
+                        fi.FontSize = baseline + level;
+                    }
+                    else if (child is TextBlock tb)
+                        tb.FontSize = 12.0 + level;
+                    else
+                        Traverse(child, insideButton || child is Button);
+                }
+            }
+            Traverse(element, false);
         }
 
         #endregion Sidebar Resize
@@ -4120,7 +4151,7 @@ namespace Span
         /// </summary>
         private void OnSidebarContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
         {
-            if (args.InRecycleQueue || _iconFontScaleLevel <= 0) return;
+            if (_isClosed || args.InRecycleQueue) return;
             if (args.ItemContainer?.ContentTemplateRoot is Grid grid)
             {
                 double itemFont = 13.0 + _iconFontScaleLevel;
@@ -4129,12 +4160,9 @@ namespace Span
                 {
                     if (child is TextBlock tb)
                     {
-                        // RemixIcons → 아이콘 폰트, 그 외 → 텍스트 폰트
-                        bool isIcon = tb.FontFamily?.Source?.Contains("Remix") == true;
-                        if (isIcon && tb.FontSize >= 16 && tb.FontSize <= 21)
-                            tb.FontSize = iconFont;
-                        else if (!isIcon && tb.FontSize >= 13 && tb.FontSize <= 18)
-                            tb.FontSize = itemFont;
+                        // Column 0 = 아이콘, Column 1+ = 텍스트 (range/FontFamily 의존 제거)
+                        int col = Grid.GetColumn(tb);
+                        tb.FontSize = col == 0 ? iconFont : itemFont;
                     }
                 }
             }

@@ -151,11 +151,12 @@ namespace Span.ViewModels
                 catch (Exception ex)
                 {
                     Helpers.DebugLogger.Log($"[FileViewModel] SetSourceAsync failed for {Name}: {ex.Message}");
-                    // WIC 네트워크/클라우드 에러 (0x88982F50 등)는 Sentry 필터링
-                    bool isNetworkWicError = ex.HResult == unchecked((int)0x88982F50)
+                    // WIC 디코딩 에러 (0x8898xxxx) 및 네트워크 에러는 Sentry 필터링
+                    // 0x88982F50=WINCODEC_ERR_WIN32ERROR, 0x88982F8B=COMPONENTNOTFOUND 등
+                    bool isWicOrNetworkError = (ex.HResult & unchecked((int)0xFFFF0000)) == unchecked((int)0x88980000)
                         || ex.HResult == unchecked((int)0x80072EE7)
                         || ex.Message.Contains("NETWORK");
-                    if (!isNetworkWicError)
+                    if (!isWicOrNetworkError)
                     {
                         try { (App.Current.Services.GetService(typeof(Services.CrashReportingService)) as Services.CrashReportingService)?.CaptureException(ex, $"SetSourceAsync({Name})"); } catch { }
                     }

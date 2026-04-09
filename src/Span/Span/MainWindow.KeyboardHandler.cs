@@ -51,6 +51,28 @@ namespace Span
             return false;
         }
 
+        /// <summary>
+        /// ContentDialog(삭제 확인, 워크스페이스 저장 등)가 열려 있는지 확인.
+        /// 열려 있으면 화살표/Enter 등 키보드 이벤트를 가로채지 않아야 다이얼로그 내 포커스가 정상 동작함.
+        /// WinUI 3 ContentDialog Popup 구조: Popup.Child → 내부에 ContentDialog를 포함하는 패널.
+        /// </summary>
+        private bool IsContentDialogOpen()
+        {
+            try
+            {
+                var popups = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetOpenPopupsForXamlRoot(Content.XamlRoot);
+                foreach (var popup in popups)
+                {
+                    // ContentDialog는 Popup 내에 "SmokeFill" Background를 가진 Grid로 표시됨
+                    // VisualTree에서 ContentDialog를 직접 찾음
+                    if (Helpers.VisualTreeHelpers.FindChild<ContentDialog>(popup) != null)
+                        return true;
+                }
+            }
+            catch { }
+            return false;
+        }
+
         #region Global Keyboard Shortcuts (OnGlobalKeyDown)
 
         /// <summary>
@@ -62,6 +84,9 @@ namespace Span
         {
             // 키 녹화 모드에서는 글로벌 핸들러 억제 (단축키 설정 UI에서 새 바인딩 녹화 중)
             if (_isRecordingShortcut) return;
+
+            // ContentDialog 열려 있으면 글로벌 단축키 억제 (삭제 확인 등 다이얼로그 내 키보드 동작 보장)
+            if (IsContentDialogOpen()) return;
 
             _keyBindingService ??= App.Current.Services.GetService<Services.KeyBindingService>();
 
@@ -918,6 +943,9 @@ namespace Span
         /// </summary>
         private void OnMillerKeyDown(object sender, KeyRoutedEventArgs e)
         {
+            // ★ ContentDialog(삭제 확인 등) 열려 있으면 다이얼로그에 키보드 이벤트 위임
+            if (IsContentDialogOpen()) return;
+
             // ★ 컨텍스트 메뉴 열려 있으면 AccessKey 처리에 맡김
             if (IsContextMenuOpen()) return;
 

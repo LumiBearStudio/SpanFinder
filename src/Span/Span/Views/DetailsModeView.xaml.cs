@@ -318,36 +318,11 @@ namespace Span.Views
                 grid.Height = _densityRowHeight;
 
                 // Apply icon/font scale to newly materialized containers
-                if (_iconFontScaleLevel > 0)
                 {
                     double itemFont = 13.0 + _iconFontScaleLevel;
                     double iconFont = 16.0 + _iconFontScaleLevel;
                     double secondaryFont = 12.0 + _iconFontScaleLevel;
-                    foreach (var child in grid.Children)
-                    {
-                        if (child is TextBlock tb)
-                        {
-                            if (tb.FontSize >= 13 && tb.FontSize <= 18)
-                                tb.FontSize = itemFont;
-                            else if (tb.FontSize >= 12 && tb.FontSize < 13)
-                                tb.FontSize = secondaryFont;
-                        }
-                        else if (child is Border b && b.Child is TextBlock btb)
-                        {
-                            if (btb.FontSize >= 12 && btb.FontSize <= 17)
-                                btb.FontSize = secondaryFont;
-                        }
-                        else if (child is Grid iconGrid && iconGrid.Width <= 24)
-                        {
-                            var fi = VisualTreeHelpers.FindChild<FontIcon>(iconGrid);
-                            if (fi != null && fi.FontSize >= 16 && fi.FontSize <= 21)
-                                fi.FontSize = iconFont;
-                            if (iconGrid.Width >= 16 && iconGrid.Width <= 21)
-                                iconGrid.Width = iconFont;
-                            if (iconGrid.Height >= 16 && iconGrid.Height <= 21)
-                                iconGrid.Height = iconFont;
-                        }
-                    }
+                    ApplyFontScaleToGrid(grid, itemFont, iconFont, secondaryFont);
                 }
             }
 
@@ -579,22 +554,31 @@ namespace Span.Views
                 if (VisualTreeHelper.GetChild(scalePanel, i) is ListViewItem container &&
                     container.ContentTemplateRoot is Grid grid)
                 {
-                    foreach (var child in grid.Children)
-                    {
-                        if (child is TextBlock tb)
-                        {
-                            if (tb.FontSize >= 13 && tb.FontSize <= 18)
-                                tb.FontSize = itemFont;
-                            else if (tb.FontSize >= 12 && tb.FontSize < 13)
-                                tb.FontSize = secondaryFont;
-                        }
-                        else if (child is Grid iconGrid && iconGrid.Width <= 24)
-                        {
-                            var fi = VisualTreeHelpers.FindChild<FontIcon>(iconGrid);
-                            if (fi != null && fi.FontSize >= 16 && fi.FontSize <= 21)
-                                fi.FontSize = iconFont;
-                        }
-                    }
+                    ApplyFontScaleToGrid(grid, itemFont, iconFont, secondaryFont);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Column 기반 폰트 스케일 적용 — 범위 판별 대신 요소 타입으로 결정.
+        /// TextBlock 직접 자식 = Name (Column 1) → itemFont,
+        /// Border > TextBlock = Column 2~6 → secondaryFont,
+        /// Grid (icon) → iconFont + Width/Height.
+        /// </summary>
+        private static void ApplyFontScaleToGrid(Grid grid, double itemFont, double iconFont, double secondaryFont)
+        {
+            foreach (var child in grid.Children)
+            {
+                if (child is TextBlock tb)
+                    tb.FontSize = itemFont;
+                else if (child is Border b && b.Child is TextBlock btb)
+                    btb.FontSize = secondaryFont;
+                else if (child is Grid iconGrid && iconGrid.Width <= 24)
+                {
+                    var fi = VisualTreeHelpers.FindChild<FontIcon>(iconGrid);
+                    if (fi != null) fi.FontSize = iconFont;
+                    iconGrid.Width = iconFont;
+                    iconGrid.Height = iconFont;
                 }
             }
         }

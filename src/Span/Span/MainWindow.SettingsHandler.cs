@@ -665,9 +665,15 @@ namespace Span
         private int _iconFontScaleLevel = 0;
 
         /// <summary>
+        /// 직전 스케일 레벨. ConditionalWeakTable baseline이 GC로 유실되었을 때
+        /// 현재 FontSize에서 역산(currentSize - previousLevel)으로 baseline을 복원하기 위해 사용.
+        /// </summary>
+        internal static int PreviousScaleLevel { get; set; } = 0;
+
+        /// <summary>
         /// 각 UI 요소의 원래(XAML 기본) FontSize를 저장하는 약한 참조 테이블.
         /// 절대값 기반 스케일링의 핵심: baseline + level = target FontSize.
-        /// 요소가 GC되면 자동 정리됨.
+        /// 요소가 GC되면 자동 정리됨 → PreviousScaleLevel로 역산 복원.
         /// </summary>
         internal static readonly ConditionalWeakTable<DependencyObject, double[]> BaselineFontSizes = new();
 
@@ -679,6 +685,7 @@ namespace Span
         {
             if (_isClosed) return;
 
+            PreviousScaleLevel = _iconFontScaleLevel;
             _iconFontScaleLevel = int.TryParse(scale, out var n) ? Math.Clamp(n, 0, 5) : 0;
 
             double itemFont = 13.0 + _iconFontScaleLevel;
@@ -810,9 +817,9 @@ namespace Span
         }
 
         /// <summary>
-        /// DataTemplate의 루트 Grid에서 텍스트(13~18px)와 아이콘(16~21px) 크기를 조정한다.
-        /// RemixIcons 폰트를 사용하는 TextBlock은 아이콘으로 취급하여 iconFont를 적용한다.
-        /// ContentPresenter를 통해 찾은 Grid에만 적용하여 WinUI 내부 Grid와 혼동 방지.
+        /// DataTemplate의 루트 Grid에서 Column 기반으로 아이콘/텍스트 크기를 조정한다.
+        /// Column 0 TextBlock = 아이콘(iconFont), Column 1+ TextBlock = 텍스트(itemFont).
+        /// FontFamily/FontSize 범위 체크 대신 Grid.Column 위치로 판별 → 스케일 변경 후에도 안정적.
         /// </summary>
         private static void ApplyScaleToTemplateGrid(Grid grid, double itemFont, double iconFont)
         {
@@ -821,26 +828,20 @@ namespace Span
                 var child = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(grid, i);
                 if (child is TextBlock tb)
                 {
-                    // RemixIcons 폰트 사용 TextBlock은 아이콘 → iconFont 적용
-                    bool isIcon = tb.FontFamily?.Source?.Contains("Remix") == true;
-                    if (isIcon && tb.FontSize >= 13 && tb.FontSize <= 21)
-                        tb.FontSize = iconFont;
-                    else if (!isIcon && tb.FontSize >= 13 && tb.FontSize <= 18)
-                        tb.FontSize = itemFont;
+                    // Column 0 = 아이콘 (RemixIcons/Segoe), Column 1+ = 텍스트
+                    int col = Grid.GetColumn(tb);
+                    tb.FontSize = col == 0 ? iconFont : itemFont;
                 }
-                else if (child is FontIcon fi && fi.FontSize >= 16 && fi.FontSize <= 21)
+                else if (child is FontIcon fi)
                     fi.FontSize = iconFont;
                 // Icon inside a nested Grid (e.g., file icon container Grid wrapping FontIcon)
                 else if (child is Grid iconGrid)
                 {
                     var nestedIcon = VisualTreeHelpers.FindChild<FontIcon>(iconGrid);
-                    if (nestedIcon != null && nestedIcon.FontSize >= 16 && nestedIcon.FontSize <= 21)
+                    if (nestedIcon != null)
                         nestedIcon.FontSize = iconFont;
-                    // 아이콘 Grid 크기도 스케일에 맞춰 조정 (기본 16x16)
-                    if (iconGrid.Width >= 16 && iconGrid.Width <= 21)
-                        iconGrid.Width = iconFont;
-                    if (iconGrid.Height >= 16 && iconGrid.Height <= 21)
-                        iconGrid.Height = iconFont;
+                    iconGrid.Width = iconFont;
+                    iconGrid.Height = iconFont;
                 }
             }
         }
@@ -874,16 +875,30 @@ namespace Span
         {
             if (_isClosed) return;
 
-            // AppTitleBar (Tab bar, Row 0)
+            // ── Tab bar (Row 0) ──
+            // ConditionalWeakTable 의존 제거: WinUI 3에서 managed wrapper GC로 baseline 유실됨.
+            // 탭 아이템은 고정 baseline 기반 직접 스케일만 사용.
             if (AppTitleBar != null)
-                ApplyAbsoluteScaleToTree(AppTitleBar, level, 8, 20, 10, 16);
+            {
+                // 탭 아이템: TryGetElement로 실제 realized 요소만 순회
+                int tabItemCount = ViewModel?.Tabs?.Count ?? 0;
+                for (int ti = 0; ti < tabItemCount; ti++)
+                {
+                    if (TabRepeater.TryGetElement(ti) is UIElement tabUi)
+                        ApplyScaleToTabElement(tabUi, level);
+                }
+                // NewTab 버튼 안의 FontIcon (baseline=12)
+                var newTabIcon = Helpers.VisualTreeHelpers.FindChild<FontIcon>(NewTabButton);
+                if (newTabIcon != null) newTabIcon.FontSize = 12.0 + level;
+            }
 
-            // "SPAN Finder" 타이틀 TextBlock: ConditionalWeakTable 순회에서 누락될 수 있으므로
-            // baseline(12) 기준으로 직접 설정하여 스케일 전환 시 크기가 남아있는 버그 방지
+            // "SPAN Finder" 타이틀 TextBlock (baseline=12)
             if (AppTitleText != null)
                 AppTitleText.FontSize = Math.Max(7, 12.0 + level);
 
-            // Row 1 (Toolbar) and Row 3 (StatusBar) — find from root Grid
+            // ── Toolbar (Row 1) & StatusBar (Row 3) ──
+            // 이 영역은 고정 요소이므로 ConditionalWeakTable이 비교적 안정적이나
+            // 안전을 위해 유지. 탭과 달리 재활용되지 않음.
             if (this.Content is Grid rootGrid)
             {
                 foreach (var child in rootGrid.Children)
@@ -928,7 +943,8 @@ namespace Span
                 {
                     if (!BaselineFontSizes.TryGetValue(tb, out var stored))
                     {
-                        stored = new[] { tb.FontSize };
+                        // GC로 유실된 baseline 역산: 현재값 - 이전 레벨 = 원래 baseline
+                        stored = new[] { tb.FontSize - PreviousScaleLevel };
                         BaselineFontSizes.Add(tb, stored);
                     }
                     if (stored[0] >= tbMin && stored[0] <= tbMax)
@@ -938,7 +954,7 @@ namespace Span
                 {
                     if (!BaselineFontSizes.TryGetValue(fi, out var stored))
                     {
-                        stored = new[] { fi.FontSize };
+                        stored = new[] { fi.FontSize - PreviousScaleLevel };
                         BaselineFontSizes.Add(fi, stored);
                     }
                     if (stored[0] >= tbMin && stored[0] <= tbMax)
@@ -948,7 +964,7 @@ namespace Span
                 {
                     if (!BaselineFontSizes.TryGetValue(tbox, out var stored))
                     {
-                        stored = new[] { tbox.FontSize };
+                        stored = new[] { tbox.FontSize - PreviousScaleLevel };
                         BaselineFontSizes.Add(tbox, stored);
                     }
                     if (stored[0] >= tboxMin && stored[0] <= tboxMax)
@@ -956,6 +972,20 @@ namespace Span
                     // TextBox 내부로 재귀하지 않음: 내부 PlaceholderText TextBlock이
                     // 이미 스케일된 FontSize를 상속받아 baseline 오염 발생 방지.
                     // TextBox.FontSize 설정만으로 내부 요소에 자동 전파됨.
+                    continue;
+                }
+                else if (child is ComboBox combo)
+                {
+                    // ComboBox도 TextBox와 동일하게 FontSize 속성만 설정하고 내부 재귀 금지.
+                    // 내부 ContentPresenter TextBlock에 local value를 직접 설정하면
+                    // ComboBox.FontSize 상속이 무시되어 스케일 복귀가 불가능해짐.
+                    if (!BaselineFontSizes.TryGetValue(combo, out var stored))
+                    {
+                        stored = new[] { combo.FontSize - PreviousScaleLevel };
+                        BaselineFontSizes.Add(combo, stored);
+                    }
+                    if (stored[0] >= tbMin && stored[0] <= tbMax)
+                        combo.FontSize = Math.Max(9, stored[0] + level);
                     continue;
                 }
 
