@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Span.Models;
 using Span.Services;
@@ -54,7 +55,7 @@ namespace Span.ViewModels
         private string _locationPath = string.Empty;
 
         [ObservableProperty]
-        private BitmapImage? _thumbnailSource;
+        private ImageSource? _thumbnailSource;
 
         /// <summary>
         /// ContainerContentChanging에서 Cloud/Git 상태 주입 완료 플래그.
@@ -308,12 +309,8 @@ namespace Span.ViewModels
         /// </summary>
         public virtual bool IsThumbnailSupported => false;
 
-        partial void OnThumbnailSourceChanged(BitmapImage? value)
+        partial void OnThumbnailSourceChanged(ImageSource? value)
         {
-            if (value != null)
-                Helpers.DebugLogger.Log($"[ThumbnailSource] SET: {Name} pixel={value.PixelWidth}x{value.PixelHeight} uri={value.UriSource}");
-            else
-                Helpers.DebugLogger.Log($"[ThumbnailSource] CLEAR: {Name}");
             OnPropertyChanged(nameof(HasThumbnail));
         }
 

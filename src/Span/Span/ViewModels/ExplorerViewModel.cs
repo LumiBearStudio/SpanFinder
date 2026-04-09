@@ -533,12 +533,13 @@ namespace Span.ViewModels
             // Push current path to history before navigating
             PushToHistory(folder.Path);
 
-            // 경량 정리 — Children 유지 (캐시 효과), 구독만 해제
+            // 경량 정리 — 구독 해제 + 진행 중 썸네일 태스크 취소
             foreach (var col in Columns)
             {
                 col.PropertyChanged -= FolderVm_PropertyChanged;
                 col.LoadError -= OnColumnLoadError;
                 col.CancelLoading();
+                col.UnloadAllThumbnails();   // 좀비 썸네일 태스크 방지
                 col.SelectedChild = null;
             }
             Columns.Clear();

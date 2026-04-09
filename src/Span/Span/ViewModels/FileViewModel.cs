@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Windows.Graphics.Imaging;
 using Windows.Storage;
 using Windows.Storage.FileProperties;
 
@@ -28,10 +29,11 @@ namespace Span.ViewModels
         };
 
         /// <summary>
-        /// 동시 썸네일 로딩 제한 (Shell API 과부하 방지).
-        /// 전역 제한: 최대 10개 동시 썸네일 로드.
+        /// 동시 썸네일 로딩 제한 (디스크 I/O + 메모리 과부하 방지).
+        /// SoftwareBitmapSource 사용으로 UI 스레드 부하는 극소 (~0.5ms).
+        /// 백그라운드 디코딩 병렬도를 6으로 설정.
         /// </summary>
-        private static readonly SemaphoreSlim _thumbnailThrottle = new(10, 10);
+        private static readonly SemaphoreSlim _thumbnailThrottle = new(6, 6);
 
         private bool _thumbnailLoaded;
         private bool _thumbnailLoading;
@@ -78,8 +80,21 @@ namespace Span.ViewModels
             var cts = new CancellationTokenSource();
             _thumbnailCts = cts;
 
-            // 동시 로딩 제한 (Shell API 과부하 방지)
-            // CancellationToken 전달: 재활용(스크롤 밖) 시 즉시 대기 포기 → 슬롯 낭비 방지
+            // 스크롤 디바운스: 빠른 스크롤 시 컨테이너 재활용 → CTS 취소 → 딜레이 중 리턴
+            // 실제 I/O가 시작되기 전에 취소되므로 스크롤 성능에 영향 없음
+            try
+            {
+                await Task.Delay(150, cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                _thumbnailLoading = false;
+                return;
+            }
+
+            // 동시 로딩 제한 (디스크 I/O 과부하 방지)
+            // 세마포어 대기 전 취소 확인 → 이미 취소된 토큰으로 WaitAsync 시 예외 방지
+            if (cts.IsCancellationRequested) { _thumbnailLoading = false; return; }
             try
             {
                 await _thumbnailThrottle.WaitAsync(cts.Token);
@@ -92,7 +107,7 @@ namespace Span.ViewModels
 
             // 세마포어 획득 후 I/O 타임아웃 시작 (대기 시간 제외)
             cts.CancelAfter(10000);
-            MemoryStream? memStream = null;
+            SoftwareBitmap? softwareBitmap = null;
             try
             {
                 // SemaphoreSlim 대기 중 이미 로드/취소되었을 수 있음
@@ -113,73 +128,129 @@ namespace Span.ViewModels
                     return;
                 }
 
-                // 파일 읽기를 백그라운드 스레드에서 수행하여 UI 스레드 차단 방지
-                byte[]? fileBytes = await Task.Run(() =>
+                // Animated GIF: BitmapDecoder는 첫 프레임만 디코딩 → BitmapImage fallback (애니메이션 유지)
+                var ext = System.IO.Path.GetExtension(filePath);
+                if (string.Equals(ext, ".gif", StringComparison.OrdinalIgnoreCase))
                 {
-                    var fi = new FileInfo(filePath);
-                    if (fi.Length > 20 * 1024 * 1024) return null; // Skip files > 20MB
-                    return File.ReadAllBytes(filePath);
-                });
-                if (fileBytes == null || !_thumbnailLoading || cts.IsCancellationRequested) return;
-
-                var bitmap = new BitmapImage();
-                bitmap.DecodePixelWidth = decodePixelWidth;
-                bitmap.DecodePixelType = DecodePixelType.Logical;
-                // 이미지 디코딩 실패 감지 — 클라우드/네트워크 에러는 Sentry 필터링
-                bitmap.ImageFailed += (s, args) =>
-                {
-                    var msg = args.ErrorMessage;
-                    Helpers.DebugLogger.Log($"[Thumbnail] ImageFailed({Name}): {msg}");
-                    // E_NETWORK_ERROR 등 네트워크/클라우드 에러는 Sentry 노이즈 → 로그만
-                    if (msg != null && (msg.Contains("NETWORK") || msg.Contains("0x80072") || msg.Contains("0x80070005")))
-                        return;
-                    var ex = msg != null ? new InvalidOperationException(msg) : null;
-                    if (ex != null)
-                    {
-                        try { (App.Current.Services.GetService(typeof(Services.CrashReportingService)) as Services.CrashReportingService)?.CaptureException(ex, $"BitmapImage.ImageFailed({Name})"); } catch { }
-                    }
-                };
-
-                Helpers.DebugLogger.Log($"[Thumbnail] SetSourceAsync START: {Name} ({fileBytes.Length} bytes)");
-                // MemoryStream을 using 없이 생성 — SetSourceAsync 후 BitmapImage가 내부 참조할 수 있음
-                memStream = new MemoryStream(fileBytes);
-                var ras = memStream.AsRandomAccessStream();
-                try
-                {
-                    await bitmap.SetSourceAsync(ras);
-                }
-                catch (Exception ex)
-                {
-                    Helpers.DebugLogger.Log($"[FileViewModel] SetSourceAsync failed for {Name}: {ex.Message}");
-                    // WIC 디코딩 에러 (0x8898xxxx) 및 네트워크 에러는 Sentry 필터링
-                    // 0x88982F50=WINCODEC_ERR_WIN32ERROR, 0x88982F8B=COMPONENTNOTFOUND 등
-                    bool isWicOrNetworkError = (ex.HResult & unchecked((int)0xFFFF0000)) == unchecked((int)0x88980000)
-                        || ex.HResult == unchecked((int)0x80072EE7)
-                        || ex.Message.Contains("NETWORK");
-                    if (!isWicOrNetworkError)
-                    {
-                        try { (App.Current.Services.GetService(typeof(Services.CrashReportingService)) as Services.CrashReportingService)?.CaptureException(ex, $"SetSourceAsync({Name})"); } catch { }
-                    }
+                    await LoadBitmapImageFallbackAsync(filePath, decodePixelWidth, cts);
                     return;
                 }
-                Helpers.DebugLogger.Log($"[Thumbnail] SetSourceAsync OK: {Name} (pixel={bitmap.PixelWidth}x{bitmap.PixelHeight})");
+
+                // 백그라운드 스레드에서 이미지 디코딩 완료 (UI 스레드 부하 최소화)
+                // FileStream → BitmapDecoder → SoftwareBitmap: byte[] 할당 없이 스트림 직접 디코딩
+                // 주의: Task.Run에 CancellationToken 전달하지 않음 — 이미 취소된 토큰으로 Task 시작 시
+                // OperationCanceledException이 대량 발생하여 성능 저하 (14000+ 파일 시나리오)
+                softwareBitmap = await Task.Run(async () =>
+                {
+                    if (cts.IsCancellationRequested) return null;
+
+                    var fi = new FileInfo(filePath);
+                    if (fi.Length > 10 * 1024 * 1024) return null; // Skip files > 10MB
+
+                    using var fileStream = File.OpenRead(filePath);
+                    using var ras = fileStream.AsRandomAccessStream();
+
+                    var decoder = await BitmapDecoder.CreateAsync(ras);
+                    if (cts.IsCancellationRequested) return null;
+
+                    // 손상된 파일: 픽셀 크기 0이면 디코딩 불가
+                    if (decoder.PixelWidth == 0 || decoder.PixelHeight == 0) return null;
+
+                    // 스케일 다운: 원본 비율 유지하며 decodePixelWidth에 맞춤
+                    uint scaledWidth = (uint)decodePixelWidth;
+                    uint scaledHeight = Math.Max(1,
+                        (uint)(decodePixelWidth * decoder.PixelHeight / decoder.PixelWidth));
+
+                    var transform = new BitmapTransform
+                    {
+                        ScaledWidth = scaledWidth,
+                        ScaledHeight = scaledHeight,
+                        InterpolationMode = BitmapInterpolationMode.Linear
+                    };
+
+                    var bmp = await decoder.GetSoftwareBitmapAsync(
+                        BitmapPixelFormat.Bgra8,
+                        BitmapAlphaMode.Premultiplied,
+                        transform,
+                        ExifOrientationMode.RespectExifOrientation,
+                        ColorManagementMode.DoNotColorManage);
+
+                    // SetBitmapAsync는 Bgra8+Premultiplied 필수 — 혹시 다른 포맷이면 변환
+                    if (bmp.BitmapPixelFormat != BitmapPixelFormat.Bgra8
+                        || bmp.BitmapAlphaMode != BitmapAlphaMode.Premultiplied)
+                    {
+                        var converted = SoftwareBitmap.Convert(bmp, BitmapPixelFormat.Bgra8, BitmapAlphaMode.Premultiplied);
+                        bmp.Dispose();
+                        return converted;
+                    }
+                    return bmp;
+                });
+
+                if (softwareBitmap == null || !_thumbnailLoading || cts.IsCancellationRequested) return;
+
+                // UI 스레드: SetBitmapAsync는 사전 디코딩된 버퍼 복사만 수행 (~0.5ms)
+                var source = new SoftwareBitmapSource();
+                await source.SetBitmapAsync(softwareBitmap);
+                softwareBitmap.Dispose();
+                softwareBitmap = null;
 
                 // Guard: 비동기 디코드 중 컨테이너 재활용/취소되었을 수 있음
                 if (!_thumbnailLoading || cts.IsCancellationRequested) return;
 
-                ThumbnailSource = bitmap;
+                ThumbnailSource = source;
                 _thumbnailLoaded = true;
-                memStream = null; // bitmap이 소유 — dispose 하지 않음
             }
+            catch (OperationCanceledException) { }
             catch (Exception ex)
             {
                 Helpers.DebugLogger.Log($"[FileViewModel] Thumbnail load failed for {Name}: {ex.Message}");
+                // WIC 디코딩 에러 (0x8898xxxx) 및 네트워크 에러는 Sentry 필터링
+                bool isWicOrNetworkError = (ex.HResult & unchecked((int)0xFFFF0000)) == unchecked((int)0x88980000)
+                    || ex.HResult == unchecked((int)0x80072EE7);
+                if (!isWicOrNetworkError)
+                {
+                    try { (App.Current.Services.GetService(typeof(Services.CrashReportingService)) as Services.CrashReportingService)?.CaptureException(ex, $"Thumbnail({Name})"); } catch { }
+                }
             }
             finally
             {
-                memStream?.Dispose();
+                softwareBitmap?.Dispose();
                 _thumbnailThrottle.Release();
                 _thumbnailLoading = false;
+            }
+        }
+
+        /// <summary>
+        /// Animated GIF용 BitmapImage fallback.
+        /// BitmapDecoder는 첫 프레임만 디코딩하므로, GIF는 BitmapImage로 애니메이션 유지.
+        /// </summary>
+        private async Task LoadBitmapImageFallbackAsync(string filePath, int decodePixelWidth, CancellationTokenSource cts)
+        {
+            try
+            {
+                byte[]? fileBytes = await Task.Run(() =>
+                {
+                    var fi = new FileInfo(filePath);
+                    if (fi.Length > 10 * 1024 * 1024) return null;
+                    return File.ReadAllBytes(filePath);
+                });
+                if (fileBytes == null || !_thumbnailLoading || cts.IsCancellationRequested) return;
+
+                await Task.Yield(); // UI 스레드 양보
+                if (!_thumbnailLoading || cts.IsCancellationRequested) return;
+
+                var bitmap = new BitmapImage { DecodePixelWidth = decodePixelWidth, DecodePixelType = DecodePixelType.Logical };
+                using var memStream = new MemoryStream(fileBytes);
+                await bitmap.SetSourceAsync(memStream.AsRandomAccessStream()).AsTask(cts.Token);
+
+                if (!_thumbnailLoading || cts.IsCancellationRequested) return;
+                ThumbnailSource = bitmap;
+                _thumbnailLoaded = true;
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[FileViewModel] GIF fallback failed for {Name}: {ex.Message}");
             }
         }
 
@@ -211,6 +282,10 @@ namespace Span.ViewModels
                     // Guard: column may have been removed during async I/O
                     if (!_thumbnailLoading) return;
 
+                    // UI 스레드 양보
+                    await Task.Yield();
+                    if (!_thumbnailLoading || ct.IsCancellationRequested) return;
+
                     var bitmap = new BitmapImage();
                     bitmap.DecodePixelWidth = decodePixelWidth;
                     bitmap.DecodePixelType = DecodePixelType.Logical;
@@ -228,7 +303,7 @@ namespace Span.ViewModels
                     };
 
                     Helpers.DebugLogger.Log($"[Thumbnail] Shell SetSourceAsync START: {Name}");
-                    await bitmap.SetSourceAsync(thumbnail);
+                    await bitmap.SetSourceAsync(thumbnail).AsTask(ct);
                     Helpers.DebugLogger.Log($"[Thumbnail] Shell SetSourceAsync OK: {Name}");
 
                     // 비동기 디코드 후 취소 여부 재확인
@@ -254,7 +329,10 @@ namespace Span.ViewModels
             _thumbnailCts?.Cancel();
             _thumbnailLoading = false;
             _thumbnailLoaded = false;
+            // 이전 소스를 먼저 캡처, null 대입으로 XAML 바인딩 해제 후 dispose
+            var old = ThumbnailSource;
             ThumbnailSource = null;
+            (old as IDisposable)?.Dispose();
         }
     }
 }
