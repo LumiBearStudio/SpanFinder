@@ -13,6 +13,12 @@ public class IconService
     public string FolderGlyph { get; } = "\uED53";
     public string NetworkGlyph { get; } = "\uEDD4";
     public string ServerGlyph { get; } = "\uEE71";
+
+    /// <summary>
+    /// 확장자 → glyph 매핑(테스트 stub). 실제 IconService.GetIcon은 매핑 테이블을 사용하지만,
+    /// 테스트에서는 비어있지 않은 문자열만 보장하면 충분하다.
+    /// </summary>
+    public string GetIcon(string extension) => string.IsNullOrEmpty(extension) ? FileDefaultGlyph : "\uECA5";
 }
 
 /// <summary>

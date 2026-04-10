@@ -1,7 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <!-- Windows10.0 TFM은 Windows.System.VirtualKey 등 WinRT 프로젝션 접근에 필요 (KeyBindingService 테스트용) -->
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <Platforms>x86;x64;ARM64</Platforms>
@@ -13,10 +16,10 @@
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.2" />
     <PackageReference Include="coverlet.collector" Version="6.0.0" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
     <PackageReference Include="Moq" Version="4.20.72" />
-    <PackageReference Include="MSTest.TestAdapter" Version="3.1.1" />
-    <PackageReference Include="MSTest.TestFramework" Version="3.1.1" />
+    <PackageReference Include="MSTest.TestAdapter" Version="3.6.4" />
+    <PackageReference Include="MSTest.TestFramework" Version="3.6.4" />
   </ItemGroup>
 
   <!--
@@ -34,6 +37,10 @@
     <Compile Include="..\Span\Models\FolderItem.cs" Link="Sources\Models\FolderItem.cs" />
     <Compile Include="..\Span\Models\DriveItem.cs" Link="Sources\Models\DriveItem.cs" />
     <Compile Include="..\Span\Models\ShellMenuItem.cs" Link="Sources\Models\ShellMenuItem.cs" />
+    <Compile Include="..\Span\Models\ShelfItem.cs" Link="Sources\Models\ShelfItem.cs" />
+    <Compile Include="..\Span\Models\CommandPaletteItem.cs" Link="Sources\Models\CommandPaletteItem.cs" />
+    <Compile Include="..\Span\Models\TabStateDto.cs" Link="Sources\Models\TabStateDto.cs" />
+    <Compile Include="..\Span\Models\ShortcutCommands.cs" Link="Sources\Models\ShortcutCommands.cs" />
     <Compile Include="..\Span\Models\ConnectionInfo.cs" Link="Sources\Models\ConnectionInfo.cs" />
     <Compile Include="..\Span\Models\CloudState.cs" Link="Sources\Models\CloudState.cs" />
     <Compile Include="..\Span\Models\SearchQuery.cs" Link="Sources\Models\SearchQuery.cs" />
@@ -42,6 +49,7 @@
     <Compile Include="..\Span\Helpers\NaturalStringComparer.cs" Link="Sources\Helpers\NaturalStringComparer.cs" />
     <Compile Include="..\Span\Helpers\ViewModeExtensions.cs" Link="Sources\Helpers\ViewModeExtensions.cs" />
     <Compile Include="..\Span\Helpers\SearchQueryParser.cs" Link="Sources\Helpers\SearchQueryParser.cs" />
+    <Compile Include="..\Span\Helpers\HangulSearchHelper.cs" Link="Sources\Helpers\HangulSearchHelper.cs" />
     <Compile Include="..\Span\Helpers\DebugLogger.cs" Link="Sources\Helpers\DebugLogger.cs" />
     <!-- Services - file operations (pure C#) -->
     <Compile Include="..\Span\Services\FileOperations\OperationResult.cs" Link="Sources\Services\OperationResult.cs" />
@@ -73,6 +81,11 @@
     <!-- Services - action log (pure C#) -->
     <Compile Include="..\Span\Services\IActionLogService.cs" Link="Sources\Services\IActionLogService.cs" />
     <Compile Include="..\Span\Services\ActionLogService.cs" Link="Sources\Services\ActionLogService.cs" />
+    <!-- Services - settings interface + Shelf (Shelf는 partial로 WinUI 의존 분리) -->
+    <Compile Include="..\Span\Services\ISettingsService.cs" Link="Sources\Services\ISettingsService.cs" />
+    <Compile Include="..\Span\Services\ShelfService.cs" Link="Sources\Services\ShelfService.cs" />
+    <!-- Services - key bindings (Windows.System.VirtualKey 사용 — Windows SDK만 필요) -->
+    <Compile Include="..\Span\Services\KeyBindingService.cs" Link="Sources\Services\KeyBindingService.cs" />
     <!-- Views - pure logic helpers (no WinUI) -->
     <Compile Include="..\Span\Views\LogEntryDisplayHelper.cs" Link="Sources\Views\LogEntryDisplayHelper.cs" />
     <!-- Localization data (partial class, provides Entries tuple for L() fallback) -->

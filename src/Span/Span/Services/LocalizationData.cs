@@ -960,6 +960,7 @@ namespace Span.Services
             ("Cmd_Cat_Shelf", "Shelf", "선반", "シェルフ", "搁架", "擱架", "Ablage", "Estante", "Étagère", "Prateleira"),
             ("Cmd_Cat_QuickLook", "Quick Look", "빠른 보기", "クイックルック", "快速预览", "快速預覽", "Quick Look", "Vista rápida", "Aperçu rapide", "Visualização rápida"),
             ("Cmd_Cat_CommandPalette", "Command Palette", "커맨드 팔레트", "コマンドパレット", "命令面板", "命令面板", "Befehlspalette", "Paleta de comandos", "Palette de commandes", "Paleta de comandos"),
+            ("Cmd_Cat_Settings", "Settings", "설정", "設定", "设置", "設定", "Einstellungen", "Configuración", "Paramètres", "Configurações"),
 
             // Group labels
             ("Cmd_Group_Settings", "Settings", "설정", "設定", "设置", "設定", "Einstellungen", "Configuración", "Paramètres", "Configurações"),
@@ -1020,10 +1021,8 @@ namespace Span.Services
             ("Settings_EnableWasdNavigation", "WASD navigation", "WASD 탐색", "WASDナビゲーション", "WASD 导航", "WASD 導覽", "WASD-Navigation", "Navegación WASD", "Navigation WASD", "Navegação WASD"),
             ("Settings_ConfirmDelete", "Confirm before delete", "삭제 전 확인", "削除前に確認", "删除前确认", "刪除前確認", "Vor dem Löschen bestätigen", "Confirmar antes de eliminar", "Confirmer avant suppression", "Confirmar antes de excluir"),
             ("Settings_PreviewFolderInfo", "Show folder info in preview", "미리보기에 폴더 정보 표시", "プレビューにフォルダー情報を表示", "在预览中显示文件夹信息", "在預覽中顯示資料夾資訊", "Ordnerinfo in Vorschau anzeigen", "Mostrar info de carpeta en vista previa", "Afficher infos dossier dans l'aperçu", "Mostrar info da pasta na visualização"),
-            ("Settings_DefaultPreview", "Show preview by default", "기본 미리보기 표시", "既定でプレビューを表示", "默认显示预览", "預設顯示預覽", "Vorschau standardmäßig anzeigen", "Mostrar vista previa por defecto", "Aperçu par défaut", "Mostrar visualização por padrão"),
+            // Settings_DefaultPreview / Settings_ShelfEnabled / Settings_ShelfSave 는 위쪽 블록(라인 ~307~)에 이미 정의되어 있어 중복 제거됨 (2026-04-10)
             ("Settings_ShowFavoritesTree", "Show favorites tree", "즐겨찾기 트리 표시", "お気に入りツリーを表示", "显示收藏树", "顯示我的最愛樹狀檢視", "Favoritenbaum anzeigen", "Mostrar árbol de favoritos", "Afficher arbre des favoris", "Mostrar árvore de favoritos"),
-            ("Settings_ShelfEnabled", "Shelf enabled", "선반 사용", "シェルフを有効化", "启用搁架", "啟用擱架", "Ablage aktivieren", "Estante habilitada", "Étagère activée", "Prateleira ativada"),
-            ("Settings_ShelfSave", "Save shelf between sessions", "세션 간 선반 저장", "セッション間でシェルフを保存", "在会话之间保存搁架", "在工作階段間儲存擱架", "Ablage zwischen Sitzungen speichern", "Guardar estante entre sesiones", "Sauvegarder l'étagère entre sessions", "Salvar prateleira entre sessões"),
             ("Settings_ShowContextMenu", "Show context menu", "컨텍스트 메뉴 표시", "コンテキストメニューを表示", "显示上下文菜单", "顯示快顯功能表", "Kontextmenü anzeigen", "Mostrar menú contextual", "Afficher le menu contextuel", "Mostrar menu de contexto"),
             ("Settings_MinimizeToTray", "Minimize to tray", "트레이로 최소화", "トレイに最小化", "最小化到托盘", "最小化到工作列", "In Infobereich minimieren", "Minimizar a la bandeja", "Réduire dans la barre d'état", "Minimizar para a bandeja"),
             ("Settings_RememberWindowPosition", "Remember window position", "창 위치 기억", "ウィンドウ位置を記憶", "记住窗口位置", "記住視窗位置", "Fensterposition merken", "Recordar posición de ventana", "Mémoriser la position de fenêtre", "Lembrar posição da janela"),

@@ -7,7 +7,7 @@ namespace Span.Models
     /// <see cref="Services.FileSystemService"/>가 시스템 드라이브를 열거하고,
     /// <see cref="ConnectionInfo.FromConnection"/>으로 원격 연결도 DriveItem으로 변환된다.
     /// </summary>
-    public class DriveItem
+    public partial class DriveItem
     {
         private string _name = string.Empty;
         public string Name
@@ -55,9 +55,8 @@ namespace Span.Models
         /// </summary>
         public bool NeedsAuth { get; set; }
 
-        /// <summary>잠금 뱃지 Visibility (x:Bind용)</summary>
-        public Microsoft.UI.Xaml.Visibility AuthBadgeVisibility =>
-            NeedsAuth ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+        // AuthBadgeVisibility는 WinUI 의존성이 있어 DriveItem.WinUI.cs(partial)에 분리되어 있음.
+        // 단위 테스트 프로젝트(Span.Tests)는 이 파일만 링크하므로 여기에는 WinUI 타입을 두지 않는다.
 
         public bool IsNetworkDrive => IsRemoteConnection || DriveType == "Network";
 

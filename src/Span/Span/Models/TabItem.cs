@@ -79,8 +79,6 @@ namespace Span.Models
             => IsActive ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible;
     }
 
-    /// <summary>
-    /// Lightweight DTO for JSON serialization of tab state.
-    /// </summary>
-    public record TabStateDto(string Id, string Header, string Path, int ViewMode, int IconSize);
+    // TabStateDto는 WinUI 의존이 없는 순수 record라서 단위 테스트 프로젝트에서 링크 가능하도록
+    // Models/TabStateDto.cs로 분리되었다 (2026-04-10).
 }

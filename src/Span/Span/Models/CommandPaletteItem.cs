@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using Microsoft.UI.Xaml;
 
 namespace Span.Models
 {
@@ -15,8 +14,10 @@ namespace Span.Models
 
     /// <summary>
     /// Command Palette에 표시되는 개별 항목.
+    /// WinUI 의존(Visibility) 멤버는 CommandPaletteItem.WinUI.cs(partial)에 분리되어 있어
+    /// 단위 테스트 프로젝트(Span.Tests)는 이 파일만 링크한다.
     /// </summary>
-    public class CommandPaletteItem
+    public partial class CommandPaletteItem
     {
         public string Title { get; set; } = string.Empty;
         public string Category { get; set; } = string.Empty;
@@ -38,7 +39,6 @@ namespace Span.Models
 
         // 컨텍스트 활성화
         public bool IsEnabled { get; set; } = true;
-        public Visibility ItemOpacity => IsEnabled ? Visibility.Visible : Visibility.Visible; // x:Bind용 (실제 opacity는 별도)
         public double Opacity => IsEnabled ? 1.0 : 0.4;
     }
 

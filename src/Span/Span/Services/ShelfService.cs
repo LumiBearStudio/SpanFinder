@@ -10,8 +10,10 @@ namespace Span.Services
 {
     /// <summary>
     /// File Shelf 비즈니스 로직: 항목 생성, 검증, 경로 추출, 영속성.
+    /// WinUI(Brush) 의존 코드는 ShelfService.WinUI.cs(partial)에 격리되어 있다.
+    /// 단위 테스트 프로젝트(Span.Tests)는 이 파일만 링크한다.
     /// </summary>
-    public class ShelfService
+    public partial class ShelfService
     {
         public const int MaxShelfItems = 50;
         private const string ShelfItemsSettingKey = "ShelfItemsJson";
@@ -24,6 +26,11 @@ namespace Span.Services
             _iconService = iconService;
             _settings = settings;
         }
+
+        /// <summary>
+        /// WinUI Brush 등 시각 자원 부착(Production 빌드에서만 구현). 단위 테스트에서는 no-op.
+        /// </summary>
+        partial void ApplyVisualBrush(ShelfItem item, bool isDir, string ext);
 
         /// <summary>
         /// 경로 목록 → ShelfItem 생성. 기존 항목과 중복되는 경로는 제외.
@@ -46,7 +53,6 @@ namespace Span.Services
 
                 var ext = System.IO.Path.GetExtension(path);
                 var icon = isDir ? _iconService.FolderGlyph : _iconService.GetIcon(ext);
-                var brush = isDir ? _iconService.FolderBrush : _iconService.GetBrush(ext);
 
                 long size = 0;
                 if (isFile)
@@ -54,16 +60,18 @@ namespace Span.Services
                     try { size = new FileInfo(path).Length; } catch { }
                 }
 
-                result.Add(new ShelfItem
+                var item = new ShelfItem
                 {
                     Path = path,
                     Name = name,
                     IconGlyph = icon,
-                    IconBrush = brush,
                     SourceFolder = System.IO.Path.GetDirectoryName(path) ?? string.Empty,
                     IsDirectory = isDir,
                     FileSize = size,
-                });
+                };
+
+                ApplyVisualBrush(item, isDir, ext);
+                result.Add(item);
 
                 existingPaths.Add(path);
             }
