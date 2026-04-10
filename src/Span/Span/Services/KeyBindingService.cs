@@ -282,6 +282,17 @@ public class KeyBindingService
             // Workspace
             [ShortcutCommands.SaveWorkspace] = ["Ctrl+Shift+S"],
             [ShortcutCommands.OpenWorkspacePalette] = ["Ctrl+Shift+W"],
+
+            // Shelf
+            [ShortcutCommands.ShelfAdd] = ["Ctrl+Shift+B"],
+            [ShortcutCommands.ShelfToggle] = ["Ctrl+B"],
+
+            // ── Command Palette (HIDDEN) ──────────────────────────────────────
+            // 2026-04-10: Command Palette는 파일 탐색기 워크플로우와 부합하지 않아 숨김 처리됨.
+            // 자세한 사유는 MainWindow.CommandPaletteHandler.cs 상단 주석 참조.
+            // 코드는 모두 유지되어 있으며, 사용자가 Settings → Shortcuts에서 직접
+            // 단축키를 다시 할당하면 활성화됩니다. 또는 아래 줄의 주석을 풀면 됩니다.
+            // [ShortcutCommands.OpenCommandPalette] = ["Ctrl+K"],
         };
     }
 

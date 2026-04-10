@@ -635,6 +635,25 @@
                                 </Grid>
                             </Border>
 
+                            <!-- Shelf Remember Items -->
+                            <Border Style="{StaticResource SettingsCardBorder}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Style="{StaticResource CardIconContainer}">
+                                        <FontIcon Glyph="&#xE8F1;" Style="{StaticResource CardIconStyle}" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock x:Name="ShelfSaveLabel" Text="Shelf 항목 저장" Style="{StaticResource SettingsCardLabel}" />
+                                        <TextBlock x:Name="ShelfSaveDesc" Text="앱 종료 시 Shelf 항목을 저장하여 다음 실행 시 복원" Style="{StaticResource SettingsCardDesc}" />
+                                    </StackPanel>
+                                    <ToggleSwitch x:Name="ShelfSaveToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="True" OnContent="" OffContent="" />
+                                </Grid>
+                            </Border>
+
                             <!-- System Tray -->
                             <Border Style="{StaticResource SettingsCardBorder}">
                                 <Grid>
@@ -1512,6 +1531,25 @@
                     <ScrollViewer x:Name="ToolsSection" Visibility="Collapsed">
                         <StackPanel Padding="20" Spacing="0">
                             <TextBlock x:Name="ToolsTitle" Text="도구" Style="{StaticResource SettingsSectionTitle}" />
+
+                            <!-- File Shelf -->
+                            <Border Style="{StaticResource SettingsCardBorder}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Style="{StaticResource CardIconContainer}">
+                                        <FontIcon Glyph="&#xE8F1;" Style="{StaticResource CardIconStyle}" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock x:Name="ShelfEnabledLabel" Text="File Shelf" Style="{StaticResource SettingsCardLabel}" />
+                                        <TextBlock x:Name="ShelfEnabledDesc" Text="파일을 임시로 모아두는 Shelf 기능 사용" Style="{StaticResource SettingsCardDesc}" />
+                                    </StackPanel>
+                                    <ToggleSwitch x:Name="ShelfEnabledToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="True" OnContent="" OffContent="" />
+                                </Grid>
+                            </Border>
 
                             <!-- Windows Shell Extras -->
                             <Border Style="{StaticResource SettingsCardBorder}">

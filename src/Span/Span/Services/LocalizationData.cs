@@ -306,6 +306,10 @@ namespace Span.Services
             ("Settings_StartupViewModeDesc", "Default view mode for each explorer in split view", "분할뷰 각 탐색기의 기본 보기 방식", "分割ビュー各エクスプローラーのデフォルト表示モード", "分割视图各资源管理器的默认视图模式", "分割檢視各檔案總管的預設檢視模式", "Standardansichtsmodus jedes Explorers im Split-View", "Modo de vista predeterminado de cada explorador", "Mode d'affichage par défaut de chaque explorateur", "Modo de visualização padrão de cada explorador"),
             ("Settings_DefaultPreview", "Preview panel", "미리보기 패널", "プレビューパネル", "预览面板", "預覽面板", "Vorschaubereich", "Panel de vista previa", "Panneau d'aperçu", "Painel de visualização"),
             ("Settings_DefaultPreviewDesc", "Enable preview panel on startup", "앱 시작 시 미리보기 패널 활성화 여부", "起動時にプレビューパネルを有効にする", "启动时启用预览面板", "啟動時啟用預覽面板", "Vorschaubereich beim Start aktivieren", "Habilitar panel de vista previa al iniciar", "Activer le panneau d'aperçu au démarrage", "Habilitar painel de visualização ao iniciar"),
+            ("Settings_ShelfEnabled", "File Shelf", "File Shelf", "File Shelf", "File Shelf", "File Shelf", "File Shelf", "File Shelf", "File Shelf", "File Shelf"),
+            ("Settings_ShelfEnabledDesc", "Use Shelf to temporarily collect files", "파일을 임시로 모아두는 Shelf 기능 사용", "ファイルを一時的に集めるShelf機能を使用", "使用Shelf临时收集文件", "使用Shelf暫時收集檔案", "Shelf zum temporären Sammeln von Dateien verwenden", "Usar Shelf para recopilar archivos temporalmente", "Utiliser Shelf pour collecter temporairement des fichiers", "Usar Shelf para coletar arquivos temporariamente"),
+            ("Settings_ShelfSave", "Remember Shelf items", "Shelf 항목 저장", "Shelfアイテムを保存", "记住Shelf项目", "記住Shelf項目", "Shelf-Elemente merken", "Recordar elementos del Shelf", "Mémoriser les éléments du Shelf", "Lembrar itens do Shelf"),
+            ("Settings_ShelfSaveDesc", "Save Shelf items on exit and restore on next launch", "앱 종료 시 Shelf 항목을 저장하여 다음 실행 시 복원", "終了時にShelfアイテムを保存し次回起動時に復元", "退出时保存Shelf项目并在下次启动时恢复", "結束時儲存Shelf項目並在下次啟動時還原", "Shelf-Elemente beim Beenden speichern und beim nächsten Start wiederherstellen", "Guardar elementos del Shelf al salir y restaurar al iniciar", "Sauvegarder les éléments du Shelf à la fermeture et restaurer au lancement", "Salvar itens do Shelf ao sair e restaurar ao iniciar"),
             ("Settings_ViewMiller", "Miller Columns", "밀러 컬럼", "ミラーカラム", "分栏视图", "分欄檢視", "Miller-Spalten", "Columnas Miller", "Colonnes Miller", "Colunas Miller"),
             ("Settings_ViewDetails", "Details", "상세 정보", "詳細", "详细信息", "詳細資訊", "Details", "Detalles", "Détails", "Detalhes"),
             ("Settings_ViewList", "List", "리스트", "リスト", "列表", "清單", "Liste", "Lista", "Liste", "Lista"),
@@ -897,6 +901,31 @@ namespace Span.Services
             ("Workspace_NameRequired", "Please enter a name.", "이름을 입력하세요.", "名前を入力してください。", "请输入名称。", "請輸入名稱。", "Bitte einen Namen eingeben.", "Ingrese un nombre.", "Veuillez entrer un nom.", "Digite um nome."),
             ("Workspace_Tooltip", "Workspaces", "워크스페이스", "ワークスペース", "工作区", "工作區", "Arbeitsbereiche", "Espacios de trabajo", "Espaces de travail", "Áreas de trabalho"),
 
+            // ── Shelf ───────────────────────────────────────────────────────
+            ("ShelfMoveHere", "Move here", "여기로 이동", "ここに移動", "移动到这里", "移動到此處", "Hierher verschieben", "Mover aquí", "Déplacer ici", "Mover para cá"),
+            ("ShelfCopyHere", "Copy here", "여기에 복사", "ここにコピー", "复制到这里", "複製到此處", "Hierher kopieren", "Copiar aquí", "Copier ici", "Copiar para cá"),
+            ("ShelfDragHint", "Drop to add to Shelf", "놓으면 Shelf에 추가", "ドロップしてシェルフに追加", "拖放添加到收集架", "拖放新增到收集架", "Ablegen, um zum Regal hinzuzufügen", "Soltar para añadir al estante", "Déposer pour ajouter à l'étagère", "Soltar para adicionar à prateleira"),
+            ("ShelfFull", "Shelf is full (max 50 items)", "Shelf가 가득 찼습니다 (최대 50개)", "シェルフが一杯です（最大50個）", "收集架已满（最多50项）", "收集架已滿（最多50項）", "Regal ist voll (max. 50 Elemente)", "Estante lleno (máx. 50 elementos)", "Étagère pleine (max 50 éléments)", "Prateleira cheia (máx. 50 itens)"),
+            ("ShelfOpen", "Open", "열기", "開く", "打开", "開啟", "Öffnen", "Abrir", "Ouvrir", "Abrir"),
+            ("ShelfGoToSource", "Go to source folder", "출처 폴더로 이동", "元のフォルダへ移動", "转到源文件夹", "前往來源資料夾", "Zum Quellordner wechseln", "Ir a carpeta de origen", "Aller au dossier source", "Ir para pasta de origem"),
+            ("ShelfRemove", "Remove", "제거", "削除", "移除", "移除", "Entfernen", "Eliminar", "Supprimer", "Remover"),
+            ("ShelfPinItem", "Pin item", "항목 잠금", "項目をピン留め", "固定项目", "釘選項目", "Element anheften", "Fijar elemento", "Épingler l'élément", "Fixar item"),
+            ("ShelfUnpinItem", "Unpin item", "항목 잠금 해제", "ピン留め解除", "取消固定", "取消釘選", "Lösen", "Desfijar", "Détacher", "Desafixar"),
+            ("ShelfPinnedKept", "Pinned items kept", "잠금 항목이 유지되었습니다", "ピン留め項目を保持しました", "已保留固定项目", "已保留釘選項目", "Angeheftete Elemente beibehalten", "Elementos fijados conservados", "Éléments épinglés conservés", "Itens fixados mantidos"),
+            ("Shortcut_ShelfAdd", "Add to Shelf", "Shelf에 추가", "シェルフに追加", "添加到收集架", "新增到收集架", "Zum Regal hinzufügen", "Añadir al estante", "Ajouter à l'étagère", "Adicionar à prateleira"),
+            ("Shortcut_ShelfToggle", "Toggle Shelf", "Shelf 표시/숨김", "シェルフ表示切替", "切换收集架", "切換收集架", "Regal umschalten", "Alternar estante", "Basculer l'étagère", "Alternar prateleira"),
+            ("Shortcut_ShelfMoveHere", "Move Shelf items here", "Shelf 항목 여기로 이동", "シェルフ項目をここに移動", "将收集架项移到这里", "將收集架項移到此處", "Regal-Elemente hierher verschieben", "Mover elementos del estante aquí", "Déplacer les éléments ici", "Mover itens da prateleira para cá"),
+            ("Shortcut_ShelfCopyHere", "Copy Shelf items here", "Shelf 항목 여기에 복사", "シェルフ項目をここにコピー", "将收集架项复制到这里", "將收集架項複製到此處", "Regal-Elemente hierher kopieren", "Copiar elementos del estante aquí", "Copier les éléments ici", "Copiar itens da prateleira para cá"),
+            ("Shortcut_ShelfClear", "Clear Shelf", "Shelf 비우기", "シェルフをクリア", "清空收集架", "清空收集架", "Regal leeren", "Vaciar estante", "Vider l'étagère", "Limpar prateleira"),
+
+            // ── Command Palette ─────────────────────────────────────────────
+            ("Shortcut_OpenCommandPalette", "Command Palette", "커맨드 팔레트", "コマンドパレット", "命令面板", "命令面板", "Befehlspalette", "Paleta de comandos", "Palette de commandes", "Paleta de comandos"),
+            ("CommandPalette_Placeholder", "Type a command or search...", "명령 입력 또는 검색...", "コマンドを入力または検索...", "输入命令或搜索...", "輸入命令或搜尋...", "Befehl eingeben oder suchen...", "Escribir un comando o buscar...", "Saisir une commande ou rechercher...", "Digite um comando ou pesquise..."),
+            ("CommandPalette_NoResults", "No results found", "결과 없음", "結果が見つかりません", "未找到结果", "找不到結果", "Keine Ergebnisse gefunden", "Sin resultados", "Aucun résultat trouvé", "Nenhum resultado encontrado"),
+            ("CommandPalette_Actions", "Actions", "동작", "アクション", "操作", "動作", "Aktionen", "Acciones", "Actions", "Ações"),
+            ("CommandPalette_Tabs", "Tabs", "탭", "タブ", "标签页", "索引標籤", "Tabs", "Pestañas", "Onglets", "Guias"),
+            ("CommandPalette_GoToFolder", "Go to folder", "폴더로 이동", "フォルダーに移動", "转到文件夹", "前往資料夾", "Zum Ordner gehen", "Ir a la carpeta", "Aller au dossier", "Ir para a pasta"),
+
             // ── Group labels ───────────────────────────────────────────────
             ("Group_Today", "Today", "오늘", "今日", "今天", "今天", "Heute", "Hoy", "Aujourd'hui", "Hoje"),
             ("Group_Yesterday", "Yesterday", "어제", "昨日", "昨天", "昨天", "Gestern", "Ayer", "Hier", "Ontem"),
@@ -914,6 +943,104 @@ namespace Span.Services
             ("Group_Large", "Large (< 1 GB)", "큼 (< 1 GB)", "大 (< 1 GB)", "大 (< 1 GB)", "大 (< 1 GB)", "Groß (< 1 GB)", "Grande (< 1 GB)", "Grand (< 1 Go)", "Grande (< 1 GB)"),
             ("Group_Huge", "Huge (> 1 GB)", "매우 큼 (> 1 GB)", "巨大 (> 1 GB)", "超大 (> 1 GB)", "超大 (> 1 GB)", "Riesig (> 1 GB)", "Enorme (> 1 GB)", "Énorme (> 1 Go)", "Enorme (> 1 GB)"),
             ("Group_Folder", "Folder", "폴더", "フォルダー", "文件夹", "資料夾", "Ordner", "Carpeta", "Dossier", "Pasta"),
+
+            // ── Command Palette: states & categories ────────────────────────
+            ("Cmd_StateOn", "ON", "켜짐", "ON", "开", "開", "EIN", "ENC", "ON", "LIG"),
+            ("Cmd_StateOff", "OFF", "꺼짐", "OFF", "关", "關", "AUS", "APAG", "OFF", "DESL"),
+            ("CommandPalette_NotAvailable", "Command not available in current context", "현재 컨텍스트에서 사용할 수 없는 명령입니다", "現在のコンテキストでは使用できません", "当前上下文中无法使用此命令", "目前內容中無法使用此命令", "Befehl im aktuellen Kontext nicht verfügbar", "Comando no disponible en el contexto actual", "Commande non disponible dans le contexte actuel", "Comando não disponível no contexto atual"),
+
+            // Categories
+            ("Cmd_Cat_Navigation", "Navigation", "탐색", "ナビゲーション", "导航", "導覽", "Navigation", "Navegación", "Navigation", "Navegação"),
+            ("Cmd_Cat_Edit", "Edit", "편집", "編集", "编辑", "編輯", "Bearbeiten", "Editar", "Édition", "Editar"),
+            ("Cmd_Cat_Selection", "Selection", "선택", "選択", "选择", "選取", "Auswahl", "Selección", "Sélection", "Seleção"),
+            ("Cmd_Cat_View", "View", "보기", "表示", "查看", "檢視", "Ansicht", "Ver", "Affichage", "Exibir"),
+            ("Cmd_Cat_Tab", "Tab", "탭", "タブ", "标签页", "索引標籤", "Tab", "Pestaña", "Onglet", "Guia"),
+            ("Cmd_Cat_Window", "Window", "창", "ウィンドウ", "窗口", "視窗", "Fenster", "Ventana", "Fenêtre", "Janela"),
+            ("Cmd_Cat_Workspace", "Workspace", "작업 공간", "ワークスペース", "工作区", "工作區", "Arbeitsbereich", "Espacio de trabajo", "Espace de travail", "Área de trabalho"),
+            ("Cmd_Cat_Shelf", "Shelf", "선반", "シェルフ", "搁架", "擱架", "Ablage", "Estante", "Étagère", "Prateleira"),
+            ("Cmd_Cat_QuickLook", "Quick Look", "빠른 보기", "クイックルック", "快速预览", "快速預覽", "Quick Look", "Vista rápida", "Aperçu rapide", "Visualização rápida"),
+            ("Cmd_Cat_CommandPalette", "Command Palette", "커맨드 팔레트", "コマンドパレット", "命令面板", "命令面板", "Befehlspalette", "Paleta de comandos", "Palette de commandes", "Paleta de comandos"),
+
+            // Group labels
+            ("Cmd_Group_Settings", "Settings", "설정", "設定", "设置", "設定", "Einstellungen", "Configuración", "Paramètres", "Configurações"),
+            ("Cmd_Group_Theme", "Theme", "테마", "テーマ", "主题", "佈景主題", "Design", "Tema", "Thème", "Tema"),
+            ("Cmd_Group_Density", "Density", "밀도", "密度", "密度", "密度", "Dichte", "Densidad", "Densité", "Densidade"),
+            ("Cmd_Group_Language", "Language", "언어", "言語", "语言", "語言", "Sprache", "Idioma", "Langue", "Idioma"),
+            ("Cmd_Group_IconPack", "Icon Pack", "아이콘 팩", "アイコンパック", "图标包", "圖示包", "Symbolpaket", "Paquete de iconos", "Pack d'icônes", "Pacote de ícones"),
+            ("Cmd_Group_GoToSettings", "Go to Settings", "설정으로 이동", "設定に移動", "转到设置", "前往設定", "Zu Einstellungen", "Ir a configuración", "Aller aux paramètres", "Ir para configurações"),
+
+            // Theme select
+            ("Cmd_ThemeSystem", "Theme: System", "테마: 시스템", "テーマ: システム", "主题: 系统", "佈景主題: 系統", "Design: System", "Tema: Sistema", "Thème : Système", "Tema: Sistema"),
+            ("Cmd_ThemeLight", "Theme: Light", "테마: 라이트", "テーマ: ライト", "主题: 浅色", "佈景主題: 淺色", "Design: Hell", "Tema: Claro", "Thème : Clair", "Tema: Claro"),
+            ("Cmd_ThemeDark", "Theme: Dark", "테마: 다크", "テーマ: ダーク", "主题: 深色", "佈景主題: 深色", "Design: Dunkel", "Tema: Oscuro", "Thème : Sombre", "Tema: Escuro"),
+            ("Cmd_ThemeChangedSystem", "Theme set to System", "테마가 시스템으로 변경되었습니다", "テーマをシステムに設定しました", "主题已设为系统", "佈景主題已設為系統", "Design auf System gesetzt", "Tema cambiado a Sistema", "Thème défini sur Système", "Tema definido como Sistema"),
+            ("Cmd_ThemeChangedLight", "Theme set to Light", "테마가 라이트로 변경되었습니다", "テーマをライトに設定しました", "主题已设为浅色", "佈景主題已設為淺色", "Design auf Hell gesetzt", "Tema cambiado a Claro", "Thème défini sur Clair", "Tema definido como Claro"),
+            ("Cmd_ThemeChangedDark", "Theme set to Dark", "테마가 다크로 변경되었습니다", "テーマをダークに設定しました", "主题已设为深色", "佈景主題已設為深色", "Design auf Dunkel gesetzt", "Tema cambiado a Oscuro", "Thème défini sur Sombre", "Tema definido como Escuro"),
+
+            // Density
+            ("Cmd_DensityCompact", "Density: Compact", "밀도: 조밀", "密度: コンパクト", "密度: 紧凑", "密度: 緊密", "Dichte: Kompakt", "Densidad: Compacta", "Densité : Compacte", "Densidade: Compacta"),
+            ("Cmd_DensityComfortable", "Density: Comfortable", "밀도: 기본", "密度: 標準", "密度: 舒适", "密度: 舒適", "Dichte: Komfortabel", "Densidad: Cómoda", "Densité : Confortable", "Densidade: Confortável"),
+            ("Cmd_DensitySpacious", "Density: Spacious", "밀도: 넓음", "密度: ゆったり", "密度: 宽松", "密度: 寬鬆", "Dichte: Geräumig", "Densidad: Espaciosa", "Densité : Spacieuse", "Densidade: Espaçosa"),
+            ("Cmd_DensityChanged", "Density updated", "밀도가 변경되었습니다", "密度を更新しました", "密度已更新", "密度已更新", "Dichte aktualisiert", "Densidad actualizada", "Densité mise à jour", "Densidade atualizada"),
+
+            // Language
+            ("Cmd_LangSystem", "Language: System", "언어: 시스템", "言語: システム", "语言: 系统", "語言: 系統", "Sprache: System", "Idioma: Sistema", "Langue : Système", "Idioma: Sistema"),
+            ("Cmd_LangEn", "Language: English", "언어: English", "言語: English", "语言: English", "語言: English", "Sprache: English", "Idioma: English", "Langue : English", "Idioma: English"),
+            ("Cmd_LangKo", "Language: 한국어", "언어: 한국어", "言語: 한국어", "语言: 한국어", "語言: 한국어", "Sprache: 한국어", "Idioma: 한국어", "Langue : 한국어", "Idioma: 한국어"),
+            ("Cmd_LangJa", "Language: 日本語", "언어: 日本語", "言語: 日本語", "语言: 日本語", "語言: 日本語", "Sprache: 日本語", "Idioma: 日本語", "Langue : 日本語", "Idioma: 日本語"),
+            ("Cmd_LangZhHans", "Language: 简体中文", "언어: 简体中文", "言語: 简体中文", "语言: 简体中文", "語言: 简体中文", "Sprache: 简体中文", "Idioma: 简体中文", "Langue : 简体中文", "Idioma: 简体中文"),
+            ("Cmd_LangZhHant", "Language: 繁體中文", "언어: 繁體中文", "言語: 繁體中文", "语言: 繁體中文", "語言: 繁體中文", "Sprache: 繁體中文", "Idioma: 繁體中文", "Langue : 繁體中文", "Idioma: 繁體中文"),
+            ("Cmd_LangDe", "Language: Deutsch", "언어: Deutsch", "言語: Deutsch", "语言: Deutsch", "語言: Deutsch", "Sprache: Deutsch", "Idioma: Deutsch", "Langue : Deutsch", "Idioma: Deutsch"),
+            ("Cmd_LangEs", "Language: Español", "언어: Español", "言語: Español", "语言: Español", "語言: Español", "Sprache: Español", "Idioma: Español", "Langue : Español", "Idioma: Español"),
+            ("Cmd_LangFr", "Language: Français", "언어: Français", "言語: Français", "语言: Français", "語言: Français", "Sprache: Français", "Idioma: Français", "Langue : Français", "Idioma: Français"),
+            ("Cmd_LangPtBr", "Language: Português (BR)", "언어: Português (BR)", "言語: Português (BR)", "语言: Português (BR)", "語言: Português (BR)", "Sprache: Português (BR)", "Idioma: Português (BR)", "Langue : Português (BR)", "Idioma: Português (BR)"),
+            ("Cmd_LanguageChanged", "Language updated", "언어가 변경되었습니다", "言語を更新しました", "语言已更新", "語言已更新", "Sprache aktualisiert", "Idioma actualizado", "Langue mise à jour", "Idioma atualizado"),
+
+            // Icon Pack
+            ("Cmd_IconRemix", "Icons: Remix", "아이콘: Remix", "アイコン: Remix", "图标: Remix", "圖示: Remix", "Symbole: Remix", "Iconos: Remix", "Icônes : Remix", "Ícones: Remix"),
+            ("Cmd_IconPhosphor", "Icons: Phosphor", "아이콘: Phosphor", "アイコン: Phosphor", "图标: Phosphor", "圖示: Phosphor", "Symbole: Phosphor", "Iconos: Phosphor", "Icônes : Phosphor", "Ícones: Phosphor"),
+            ("Cmd_IconTabler", "Icons: Tabler", "아이콘: Tabler", "アイコン: Tabler", "图标: Tabler", "圖示: Tabler", "Symbole: Tabler", "Iconos: Tabler", "Icônes : Tabler", "Ícones: Tabler"),
+            ("Cmd_IconPackChanged", "Icon pack updated", "아이콘 팩이 변경되었습니다", "アイコンパックを更新しました", "图标包已更新", "圖示包已更新", "Symbolpaket aktualisiert", "Paquete de iconos actualizado", "Pack d'icônes mis à jour", "Pacote de ícones atualizado"),
+
+            // Settings sections jump
+            ("Cmd_OpenGeneral", "Open Settings: General", "설정 열기: 일반", "設定を開く: 一般", "打开设置: 常规", "開啟設定: 一般", "Einstellungen öffnen: Allgemein", "Abrir configuración: General", "Ouvrir paramètres : Général", "Abrir configurações: Geral"),
+            ("Cmd_OpenAppearance", "Open Settings: Appearance", "설정 열기: 모양", "設定を開く: 外観", "打开设置: 外观", "開啟設定: 外觀", "Einstellungen öffnen: Aussehen", "Abrir configuración: Apariencia", "Ouvrir paramètres : Apparence", "Abrir configurações: Aparência"),
+            ("Cmd_OpenBrowsing", "Open Settings: Browsing", "설정 열기: 탐색", "設定を開く: ブラウズ", "打开设置: 浏览", "開啟設定: 瀏覽", "Einstellungen öffnen: Browsen", "Abrir configuración: Navegación", "Ouvrir paramètres : Navigation", "Abrir configurações: Navegação"),
+            ("Cmd_OpenSidebar", "Open Settings: Sidebar", "설정 열기: 사이드바", "設定を開く: サイドバー", "打开设置: 侧边栏", "開啟設定: 側邊欄", "Einstellungen öffnen: Seitenleiste", "Abrir configuración: Barra lateral", "Ouvrir paramètres : Barre latérale", "Abrir configurações: Barra lateral"),
+            ("Cmd_OpenTools", "Open Settings: Tools", "설정 열기: 도구", "設定を開く: ツール", "打开设置: 工具", "開啟設定: 工具", "Einstellungen öffnen: Werkzeuge", "Abrir configuración: Herramientas", "Ouvrir paramètres : Outils", "Abrir configurações: Ferramentas"),
+            ("Cmd_OpenShortcuts", "Open Settings: Shortcuts", "설정 열기: 단축키", "設定を開く: ショートカット", "打开设置: 快捷键", "開啟設定: 快速鍵", "Einstellungen öffnen: Tastenkürzel", "Abrir configuración: Atajos", "Ouvrir paramètres : Raccourcis", "Abrir configurações: Atalhos"),
+            ("Cmd_OpenAdvanced", "Open Settings: Advanced", "설정 열기: 고급", "設定を開く: 詳細", "打开设置: 高级", "開啟設定: 進階", "Einstellungen öffnen: Erweitert", "Abrir configuración: Avanzado", "Ouvrir paramètres : Avancé", "Abrir configurações: Avançado"),
+
+            // Settings labels (used by toggle commands)
+            ("Settings_ShowHiddenFiles", "Show hidden files", "숨김 파일 표시", "隠しファイルを表示", "显示隐藏文件", "顯示隱藏檔案", "Versteckte Dateien anzeigen", "Mostrar archivos ocultos", "Afficher les fichiers cachés", "Mostrar arquivos ocultos"),
+            ("Settings_ShowFileExtensions", "Show file extensions", "파일 확장자 표시", "ファイル拡張子を表示", "显示文件扩展名", "顯示副檔名", "Dateierweiterungen anzeigen", "Mostrar extensiones de archivo", "Afficher les extensions de fichier", "Mostrar extensões de arquivo"),
+            ("Settings_ShowCheckboxes", "Show checkboxes", "체크박스 표시", "チェックボックスを表示", "显示复选框", "顯示核取方塊", "Kontrollkästchen anzeigen", "Mostrar casillas", "Afficher les cases à cocher", "Mostrar caixas de seleção"),
+            ("Settings_ShowThumbnails", "Show thumbnails", "썸네일 표시", "サムネイルを表示", "显示缩略图", "顯示縮圖", "Miniaturansichten anzeigen", "Mostrar miniaturas", "Afficher les miniatures", "Mostrar miniaturas"),
+            ("Settings_EnableQuickLook", "Enable Quick Look", "Quick Look 활성화", "Quick Lookを有効化", "启用快速预览", "啟用快速預覽", "Quick Look aktivieren", "Habilitar Vista rápida", "Activer Aperçu rapide", "Ativar Visualização rápida"),
+            ("Settings_EnableWasdNavigation", "WASD navigation", "WASD 탐색", "WASDナビゲーション", "WASD 导航", "WASD 導覽", "WASD-Navigation", "Navegación WASD", "Navigation WASD", "Navegação WASD"),
+            ("Settings_ConfirmDelete", "Confirm before delete", "삭제 전 확인", "削除前に確認", "删除前确认", "刪除前確認", "Vor dem Löschen bestätigen", "Confirmar antes de eliminar", "Confirmer avant suppression", "Confirmar antes de excluir"),
+            ("Settings_PreviewFolderInfo", "Show folder info in preview", "미리보기에 폴더 정보 표시", "プレビューにフォルダー情報を表示", "在预览中显示文件夹信息", "在預覽中顯示資料夾資訊", "Ordnerinfo in Vorschau anzeigen", "Mostrar info de carpeta en vista previa", "Afficher infos dossier dans l'aperçu", "Mostrar info da pasta na visualização"),
+            ("Settings_DefaultPreview", "Show preview by default", "기본 미리보기 표시", "既定でプレビューを表示", "默认显示预览", "預設顯示預覽", "Vorschau standardmäßig anzeigen", "Mostrar vista previa por defecto", "Aperçu par défaut", "Mostrar visualização por padrão"),
+            ("Settings_ShowFavoritesTree", "Show favorites tree", "즐겨찾기 트리 표시", "お気に入りツリーを表示", "显示收藏树", "顯示我的最愛樹狀檢視", "Favoritenbaum anzeigen", "Mostrar árbol de favoritos", "Afficher arbre des favoris", "Mostrar árvore de favoritos"),
+            ("Settings_ShelfEnabled", "Shelf enabled", "선반 사용", "シェルフを有効化", "启用搁架", "啟用擱架", "Ablage aktivieren", "Estante habilitada", "Étagère activée", "Prateleira ativada"),
+            ("Settings_ShelfSave", "Save shelf between sessions", "세션 간 선반 저장", "セッション間でシェルフを保存", "在会话之间保存搁架", "在工作階段間儲存擱架", "Ablage zwischen Sitzungen speichern", "Guardar estante entre sesiones", "Sauvegarder l'étagère entre sessions", "Salvar prateleira entre sessões"),
+            ("Settings_ShowContextMenu", "Show context menu", "컨텍스트 메뉴 표시", "コンテキストメニューを表示", "显示上下文菜单", "顯示快顯功能表", "Kontextmenü anzeigen", "Mostrar menú contextual", "Afficher le menu contextuel", "Mostrar menu de contexto"),
+            ("Settings_MinimizeToTray", "Minimize to tray", "트레이로 최소화", "トレイに最小化", "最小化到托盘", "最小化到工作列", "In Infobereich minimieren", "Minimizar a la bandeja", "Réduire dans la barre d'état", "Minimizar para a bandeja"),
+            ("Settings_RememberWindowPosition", "Remember window position", "창 위치 기억", "ウィンドウ位置を記憶", "记住窗口位置", "記住視窗位置", "Fensterposition merken", "Recordar posición de ventana", "Mémoriser la position de fenêtre", "Lembrar posição da janela"),
+            ("Settings_ShowGitIntegration", "Show Git integration", "Git 통합 표시", "Git統合を表示", "显示 Git 集成", "顯示 Git 整合", "Git-Integration anzeigen", "Mostrar integración Git", "Afficher l'intégration Git", "Mostrar integração Git"),
+            ("Settings_ShowHexPreview", "Show hex preview", "헥스 미리보기 표시", "16進プレビューを表示", "显示十六进制预览", "顯示十六進位預覽", "Hex-Vorschau anzeigen", "Mostrar vista previa hex", "Afficher l'aperçu hex", "Mostrar visualização hex"),
+            ("Settings_ShowFileHash", "Show file hash", "파일 해시 표시", "ファイルハッシュを表示", "显示文件哈希", "顯示檔案雜湊", "Datei-Hash anzeigen", "Mostrar hash de archivo", "Afficher le hash du fichier", "Mostrar hash do arquivo"),
+            ("Settings_ShowShellExtensions", "Show shell extensions", "셸 확장 표시", "シェル拡張を表示", "显示Shell扩展", "顯示Shell擴充", "Shell-Erweiterungen anzeigen", "Mostrar extensiones shell", "Afficher les extensions shell", "Mostrar extensões shell"),
+            ("Settings_ShowWindowsShellExtras", "Show Windows shell extras", "윈도우 셸 확장 표시", "Windowsシェル拡張を表示", "显示Windows Shell扩展", "顯示Windows Shell擴充", "Windows-Shell-Extras anzeigen", "Mostrar extras de shell de Windows", "Afficher les extras shell Windows", "Mostrar extras do shell do Windows"),
+            ("Settings_ShowCopilotMenu", "Show Copilot menu", "Copilot 메뉴 표시", "Copilotメニューを表示", "显示 Copilot 菜单", "顯示 Copilot 選單", "Copilot-Menü anzeigen", "Mostrar menú Copilot", "Afficher le menu Copilot", "Mostrar menu Copilot"),
+
+            // Sidebar visibility
+            ("Settings_SidebarShowHome", "Sidebar: Home", "사이드바: 홈", "サイドバー: ホーム", "侧边栏: 主页", "側邊欄: 首頁", "Seitenleiste: Start", "Barra lateral: Inicio", "Barre latérale : Accueil", "Barra lateral: Início"),
+            ("Settings_SidebarShowFavorites", "Sidebar: Favorites", "사이드바: 즐겨찾기", "サイドバー: お気に入り", "侧边栏: 收藏", "側邊欄: 我的最愛", "Seitenleiste: Favoriten", "Barra lateral: Favoritos", "Barre latérale : Favoris", "Barra lateral: Favoritos"),
+            ("Settings_SidebarShowDrives", "Sidebar: Drives", "사이드바: 드라이브", "サイドバー: ドライブ", "侧边栏: 驱动器", "側邊欄: 磁碟機", "Seitenleiste: Laufwerke", "Barra lateral: Unidades", "Barre latérale : Lecteurs", "Barra lateral: Unidades"),
+            ("Settings_SidebarShowCloud", "Sidebar: Cloud", "사이드바: 클라우드", "サイドバー: クラウド", "侧边栏: 云", "側邊欄: 雲端", "Seitenleiste: Cloud", "Barra lateral: Nube", "Barre latérale : Cloud", "Barra lateral: Nuvem"),
+            ("Settings_SidebarShowNetwork", "Sidebar: Network", "사이드바: 네트워크", "サイドバー: ネットワーク", "侧边栏: 网络", "側邊欄: 網路", "Seitenleiste: Netzwerk", "Barra lateral: Red", "Barre latérale : Réseau", "Barra lateral: Rede"),
+            ("Settings_SidebarShowRecycleBin", "Sidebar: Recycle Bin", "사이드바: 휴지통", "サイドバー: ごみ箱", "侧边栏: 回收站", "側邊欄: 資源回收筒", "Seitenleiste: Papierkorb", "Barra lateral: Papelera", "Barre latérale : Corbeille", "Barra lateral: Lixeira"),
         };
     }
 }

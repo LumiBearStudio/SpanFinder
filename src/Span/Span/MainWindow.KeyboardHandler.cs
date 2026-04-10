@@ -837,11 +837,249 @@ namespace Span
                     _ = ShowWorkspacePaletteAsync();
                     return true;
 
-                // Quick Look — 뷰별 핸들러에서 처리
-                case ShortcutCommands.QuickLook: return false;
+                // Shelf
+                case ShortcutCommands.ShelfAdd: ExecuteShelfAdd(); return true;
+                case ShortcutCommands.ShelfToggle: ExecuteShelfToggle(); return true;
+                case ShortcutCommands.ShelfMoveHere: ExecuteShelfMoveHere(); return true;
+                case ShortcutCommands.ShelfCopyHere: ExecuteShelfCopyHere(); return true;
+                case ShortcutCommands.ShelfClear: ExecuteShelfClear(); return true;
 
-                default: return false;
+                // Command Palette (HIDDEN — KeyBindingService에서 기본 단축키 비활성화됨)
+                // case 분기는 유지: 사용자가 수동으로 키를 다시 할당하면 즉시 작동.
+                // 자세한 사유는 MainWindow.CommandPaletteHandler.cs 상단 주석 참조.
+                case ShortcutCommands.OpenCommandPalette: ToggleCommandPalette(); return true;
+
+                // Quick Look — 뷰별 핸들러에서 처리
+                case ShortcutCommands.QuickLook:
+                    HandleQuickLookCommand();
+                    return true;
+
+                default:
+                    // Settings 명령 처리는 별도 메서드로 위임
+                    return TryExecuteSettingsCommand(commandId);
             }
+        }
+
+        /// <summary>
+        /// Settings 관련 명령 (toggle/select/section open) 실행. 매칭되면 true.
+        /// </summary>
+        private bool TryExecuteSettingsCommand(string commandId)
+        {
+            var settings = App.Current.Services.GetRequiredService<Services.ISettingsService>();
+            switch (commandId)
+            {
+                // Toggle commands (즉시 OnSettingChanged 트리거)
+                case ShortcutCommands.SettingsToggleHidden:
+                    settings.ShowHiddenFiles = !settings.ShowHiddenFiles;
+                    ShowSettingToast("Settings_ShowHiddenFiles", settings.ShowHiddenFiles);
+                    return true;
+                case ShortcutCommands.SettingsToggleExtensions:
+                    settings.ShowFileExtensions = !settings.ShowFileExtensions;
+                    ShowSettingToast("Settings_ShowFileExtensions", settings.ShowFileExtensions);
+                    return true;
+                case ShortcutCommands.SettingsToggleCheckboxes:
+                    settings.ShowCheckboxes = !settings.ShowCheckboxes;
+                    ShowSettingToast("Settings_ShowCheckboxes", settings.ShowCheckboxes);
+                    return true;
+                case ShortcutCommands.SettingsToggleThumbnails:
+                    settings.ShowThumbnails = !settings.ShowThumbnails;
+                    ShowSettingToast("Settings_ShowThumbnails", settings.ShowThumbnails);
+                    return true;
+                case ShortcutCommands.SettingsToggleQuickLook:
+                    settings.EnableQuickLook = !settings.EnableQuickLook;
+                    ShowSettingToast("Settings_EnableQuickLook", settings.EnableQuickLook);
+                    return true;
+                case ShortcutCommands.SettingsToggleWasd:
+                    settings.EnableWasdNavigation = !settings.EnableWasdNavigation;
+                    ShowSettingToast("Settings_EnableWasdNavigation", settings.EnableWasdNavigation);
+                    return true;
+                case ShortcutCommands.SettingsToggleConfirmDelete:
+                    settings.ConfirmDelete = !settings.ConfirmDelete;
+                    ShowSettingToast("Settings_ConfirmDelete", settings.ConfirmDelete);
+                    return true;
+                case ShortcutCommands.SettingsTogglePreviewFolderInfo:
+                    settings.PreviewShowFolderInfo = !settings.PreviewShowFolderInfo;
+                    ShowSettingToast("Settings_PreviewFolderInfo", settings.PreviewShowFolderInfo);
+                    return true;
+                case ShortcutCommands.SettingsToggleDefaultPreview:
+                    settings.DefaultPreviewEnabled = !settings.DefaultPreviewEnabled;
+                    ShowSettingToast("Settings_DefaultPreview", settings.DefaultPreviewEnabled);
+                    return true;
+                case ShortcutCommands.SettingsToggleFavoritesTree:
+                    settings.ShowFavoritesTree = !settings.ShowFavoritesTree;
+                    ShowSettingToast("Settings_ShowFavoritesTree", settings.ShowFavoritesTree);
+                    return true;
+                case ShortcutCommands.SettingsToggleShelf:
+                    settings.ShelfEnabled = !settings.ShelfEnabled;
+                    ApplyShelfEnabledSetting(settings.ShelfEnabled);
+                    ShowSettingToast("Settings_ShelfEnabled", settings.ShelfEnabled);
+                    return true;
+                case ShortcutCommands.SettingsToggleShelfSave:
+                    settings.ShelfSaveEnabled = !settings.ShelfSaveEnabled;
+                    ShowSettingToast("Settings_ShelfSave", settings.ShelfSaveEnabled);
+                    return true;
+                case ShortcutCommands.SettingsToggleContextMenu:
+                    settings.ShowContextMenu = !settings.ShowContextMenu;
+                    ShowSettingToast("Settings_ShowContextMenu", settings.ShowContextMenu);
+                    return true;
+                case ShortcutCommands.SettingsToggleTray:
+                    settings.MinimizeToTray = !settings.MinimizeToTray;
+                    ShowSettingToast("Settings_MinimizeToTray", settings.MinimizeToTray);
+                    return true;
+                case ShortcutCommands.SettingsToggleWindowPosition:
+                    settings.RememberWindowPosition = !settings.RememberWindowPosition;
+                    ShowSettingToast("Settings_RememberWindowPosition", settings.RememberWindowPosition);
+                    return true;
+                case ShortcutCommands.SettingsToggleGitIntegration:
+                    settings.ShowGitIntegration = !settings.ShowGitIntegration;
+                    ShowSettingToast("Settings_ShowGitIntegration", settings.ShowGitIntegration);
+                    return true;
+                case ShortcutCommands.SettingsToggleHexPreview:
+                    settings.ShowHexPreview = !settings.ShowHexPreview;
+                    ShowSettingToast("Settings_ShowHexPreview", settings.ShowHexPreview);
+                    return true;
+                case ShortcutCommands.SettingsToggleFileHash:
+                    settings.ShowFileHash = !settings.ShowFileHash;
+                    ShowSettingToast("Settings_ShowFileHash", settings.ShowFileHash);
+                    return true;
+                case ShortcutCommands.SettingsToggleShellExtensions:
+                    settings.ShowShellExtensions = !settings.ShowShellExtensions;
+                    ShowSettingToast("Settings_ShowShellExtensions", settings.ShowShellExtensions);
+                    return true;
+                case ShortcutCommands.SettingsToggleWindowsShellExtras:
+                    settings.ShowWindowsShellExtras = !settings.ShowWindowsShellExtras;
+                    ShowSettingToast("Settings_ShowWindowsShellExtras", settings.ShowWindowsShellExtras);
+                    return true;
+                case ShortcutCommands.SettingsToggleCopilotMenu:
+                    settings.ShowCopilotMenu = !settings.ShowCopilotMenu;
+                    ShowSettingToast("Settings_ShowCopilotMenu", settings.ShowCopilotMenu);
+                    return true;
+
+                // Sidebar sections
+                case ShortcutCommands.SettingsSidebarHome:
+                    settings.SidebarShowHome = !settings.SidebarShowHome;
+                    ShowSettingToast("Settings_SidebarShowHome", settings.SidebarShowHome);
+                    return true;
+                case ShortcutCommands.SettingsSidebarFavorites:
+                    settings.SidebarShowFavorites = !settings.SidebarShowFavorites;
+                    ShowSettingToast("Settings_SidebarShowFavorites", settings.SidebarShowFavorites);
+                    return true;
+                case ShortcutCommands.SettingsSidebarDrives:
+                    settings.SidebarShowLocalDrives = !settings.SidebarShowLocalDrives;
+                    ShowSettingToast("Settings_SidebarShowDrives", settings.SidebarShowLocalDrives);
+                    return true;
+                case ShortcutCommands.SettingsSidebarCloud:
+                    settings.SidebarShowCloud = !settings.SidebarShowCloud;
+                    ShowSettingToast("Settings_SidebarShowCloud", settings.SidebarShowCloud);
+                    return true;
+                case ShortcutCommands.SettingsSidebarNetwork:
+                    settings.SidebarShowNetwork = !settings.SidebarShowNetwork;
+                    ShowSettingToast("Settings_SidebarShowNetwork", settings.SidebarShowNetwork);
+                    return true;
+                case ShortcutCommands.SettingsSidebarRecycleBin:
+                    settings.SidebarShowRecycleBin = !settings.SidebarShowRecycleBin;
+                    ShowSettingToast("Settings_SidebarShowRecycleBin", settings.SidebarShowRecycleBin);
+                    return true;
+
+                // Theme select
+                case ShortcutCommands.SettingsThemeSystem:
+                    settings.Theme = "system";
+                    ViewModel.ShowToast(_loc.Get("Cmd_ThemeChangedSystem"));
+                    return true;
+                case ShortcutCommands.SettingsThemeLight:
+                    settings.Theme = "light";
+                    ViewModel.ShowToast(_loc.Get("Cmd_ThemeChangedLight"));
+                    return true;
+                case ShortcutCommands.SettingsThemeDark:
+                    settings.Theme = "dark";
+                    ViewModel.ShowToast(_loc.Get("Cmd_ThemeChangedDark"));
+                    return true;
+
+                // Density
+                case ShortcutCommands.SettingsDensityCompact:
+                    settings.Density = "compact";
+                    ViewModel.ShowToast(_loc.Get("Cmd_DensityChanged"));
+                    return true;
+                case ShortcutCommands.SettingsDensityComfortable:
+                    settings.Density = "comfortable";
+                    ViewModel.ShowToast(_loc.Get("Cmd_DensityChanged"));
+                    return true;
+                case ShortcutCommands.SettingsDensitySpacious:
+                    settings.Density = "spacious";
+                    ViewModel.ShowToast(_loc.Get("Cmd_DensityChanged"));
+                    return true;
+
+                // Language
+                case ShortcutCommands.SettingsLanguageSystem: settings.Language = "system"; ShowLanguageToast(); return true;
+                case ShortcutCommands.SettingsLanguageEn: settings.Language = "en"; ShowLanguageToast(); return true;
+                case ShortcutCommands.SettingsLanguageKo: settings.Language = "ko"; ShowLanguageToast(); return true;
+                case ShortcutCommands.SettingsLanguageJa: settings.Language = "ja"; ShowLanguageToast(); return true;
+                case ShortcutCommands.SettingsLanguageZhHans: settings.Language = "zh-Hans"; ShowLanguageToast(); return true;
+                case ShortcutCommands.SettingsLanguageZhHant: settings.Language = "zh-Hant"; ShowLanguageToast(); return true;
+                case ShortcutCommands.SettingsLanguageDe: settings.Language = "de"; ShowLanguageToast(); return true;
+                case ShortcutCommands.SettingsLanguageEs: settings.Language = "es"; ShowLanguageToast(); return true;
+                case ShortcutCommands.SettingsLanguageFr: settings.Language = "fr"; ShowLanguageToast(); return true;
+                case ShortcutCommands.SettingsLanguagePtBr: settings.Language = "pt-BR"; ShowLanguageToast(); return true;
+
+                // Icon Pack
+                case ShortcutCommands.SettingsIconPackRemix:
+                    settings.IconPack = "remix";
+                    ViewModel.ShowToast(_loc.Get("Cmd_IconPackChanged"));
+                    return true;
+                case ShortcutCommands.SettingsIconPackPhosphor:
+                    settings.IconPack = "phosphor";
+                    ViewModel.ShowToast(_loc.Get("Cmd_IconPackChanged"));
+                    return true;
+                case ShortcutCommands.SettingsIconPackTabler:
+                    settings.IconPack = "tabler";
+                    ViewModel.ShowToast(_loc.Get("Cmd_IconPackChanged"));
+                    return true;
+
+                // Settings section open
+                case ShortcutCommands.SettingsOpenGeneral:
+                case ShortcutCommands.SettingsOpenAppearance:
+                case ShortcutCommands.SettingsOpenBrowsing:
+                case ShortcutCommands.SettingsOpenSidebar:
+                case ShortcutCommands.SettingsOpenTools:
+                case ShortcutCommands.SettingsOpenShortcuts:
+                case ShortcutCommands.SettingsOpenAdvanced:
+                    OpenSettingsTab();
+                    // (섹션 직접 점프는 SettingsModeView 측에서 별도 구현 필요 — 현재는 Settings 탭 열기만)
+                    return true;
+            }
+            return false;
+        }
+
+        /// <summary>토글 결과를 토스트로 표시.</summary>
+        private void ShowSettingToast(string locKey, bool newValue)
+        {
+            var name = _loc.Get(locKey);
+            var state = newValue ? _loc.Get("Cmd_StateOn") : _loc.Get("Cmd_StateOff");
+            ViewModel.ShowToast($"{name}: {state}");
+        }
+
+        private void ShowLanguageToast()
+        {
+            ViewModel.ShowToast(_loc.Get("Cmd_LanguageChanged"));
+        }
+
+        /// <summary>Quick Look 토글 (Command Palette 등에서 호출).</summary>
+        private void HandleQuickLookCommand()
+        {
+            try
+            {
+                if (_quickLookWindow != null) { CloseQuickLookWindow(); return; }
+                var explorer = ViewModel.ActiveExplorer;
+                var columns = explorer?.Columns;
+                if (columns == null || columns.Count == 0) return;
+                int idx = columns.Count - 1;
+                for (int i = columns.Count - 1; i >= 0; i--)
+                {
+                    if (columns[i].SelectedChild != null) { idx = i; break; }
+                }
+                HandleQuickLook(idx);
+            }
+            catch (Exception ex) { Helpers.DebugLogger.Log($"[QuickLook] Toggle failed: {ex.Message}"); }
         }
 
         #endregion

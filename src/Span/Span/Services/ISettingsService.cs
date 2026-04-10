@@ -26,6 +26,7 @@ namespace Span.Services
         bool EnableQuickLook { get; set; }
         bool EnableWasdNavigation { get; set; }
         bool ConfirmDelete { get; set; }
+        bool PreviewShowFolderInfo { get; set; }
         int UndoHistorySize { get; set; }
     }
 
@@ -37,10 +38,19 @@ namespace Span.Services
         string DefaultTerminal { get; set; }
         bool ShowContextMenu { get; set; }
         bool MinimizeToTray { get; set; }
+        bool RememberWindowPosition { get; set; }
         bool ShowFavoritesTree { get; set; }
         bool ShowWindowsShellExtras { get; set; }
         bool ShowShellExtensions { get; set; }
         bool ShowCopilotMenu { get; set; }
+
+        // Sidebar section visibility
+        bool SidebarShowHome { get; set; }
+        bool SidebarShowFavorites { get; set; }
+        bool SidebarShowLocalDrives { get; set; }
+        bool SidebarShowCloud { get; set; }
+        bool SidebarShowNetwork { get; set; }
+        bool SidebarShowRecycleBin { get; set; }
     }
 
     /// <summary>
@@ -83,5 +93,10 @@ namespace Span.Services
         int Tab1StartupViewMode { get; set; }
         int Tab2StartupViewMode { get; set; }
         bool DefaultPreviewEnabled { get; set; }
+        bool ShelfSaveEnabled { get; set; }
+        bool ShelfEnabled { get; set; }
+
+        // Command Palette: 최근 실행한 커맨드 ID 목록 ("|" 구분)
+        string RecentCommandIds { get; set; }
     }
 }

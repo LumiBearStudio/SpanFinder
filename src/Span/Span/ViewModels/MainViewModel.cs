@@ -42,6 +42,28 @@ namespace Span.ViewModels
         /// </summary>
         public ObservableCollection<DriveItem> NetworkAndRemoteDrives { get; } = new();
 
+        // ── File Shelf ──────────────────────────────────────────
+        public ObservableCollection<ShelfItem> ShelfItems { get; } = new();
+
+        /// <summary>사용자가 단축키(Ctrl+B)로 수동 열었는지 여부</summary>
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(IsShelfPanelVisible))]
+        private bool _isShelfVisible;
+
+        /// <summary>드래그 중 자동 표시 (드래그 끝나면 아이템 없으면 자동 숨김)</summary>
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(IsShelfPanelVisible))]
+        private bool _isShelfDragHover;
+
+        /// <summary>패널 보이기: 수동 토글 OR 드래그 호버 OR 아이템 있음</summary>
+        public Microsoft.UI.Xaml.Visibility IsShelfPanelVisible
+            => _isShelfVisible || _isShelfDragHover || ShelfItems.Count > 0
+                ? Microsoft.UI.Xaml.Visibility.Visible
+                : Microsoft.UI.Xaml.Visibility.Collapsed;
+
+        public void NotifyShelfVisibilityChanged()
+            => OnPropertyChanged(nameof(IsShelfPanelVisible));
+
         // 사이드바 섹션 접기/펴기 상태
         [ObservableProperty]
         private bool _isLocalDrivesExpanded = true;
