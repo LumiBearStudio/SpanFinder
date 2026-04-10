@@ -1960,6 +1960,13 @@
                                         </Border>
                                         <TextBlock x:Name="LinksLabel" Text="관련 링크" Style="{StaticResource SettingsCardLabel}" VerticalAlignment="Center" />
                                     </StackPanel>
+                                    <HyperlinkButton Style="{StaticResource LinkButtonStyle}" Margin="48,0,0,0" NavigateUri="https://lumibearstudio.github.io/docs">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <FontIcon Glyph="&#xE897;" FontSize="14" />
+                                            <TextBlock x:Name="UserGuideText" Text="사용 가이드" />
+                                            <FontIcon Glyph="&#xE8A7;" FontSize="10" Foreground="{ThemeResource SpanTextSecondaryBrush}" />
+                                        </StackPanel>
+                                    </HyperlinkButton>
                                     <HyperlinkButton Style="{StaticResource LinkButtonStyle}" Margin="48,0,0,0" NavigateUri="https://github.com/LumiBearStudio/SpanFinder">
                                         <StackPanel Orientation="Horizontal" Spacing="8">
                                             <FontIcon Glyph="&#xE774;" FontSize="14" />

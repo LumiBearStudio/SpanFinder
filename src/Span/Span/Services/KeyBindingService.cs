@@ -274,7 +274,8 @@ public class KeyBindingService
             ["span.window.terminal"]   = ["Ctrl+`", "Ctrl+'"],
             ["span.window.settings"]   = ["Ctrl+,"],
             ["span.window.properties"] = ["Alt+Enter"],
-            ["span.window.help"]       = ["F1", "Shift+/"],
+            ["span.window.help"]       = ["Shift+/"],
+            [ShortcutCommands.OpenHelp] = ["F1"],
 
             // Quick Look
             ["span.quickLook.toggle"] = ["Space"],

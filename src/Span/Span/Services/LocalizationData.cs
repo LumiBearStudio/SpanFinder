@@ -388,6 +388,8 @@ namespace Span.Services
             ("Settings_BuyMeCoffee", "Buy me a coffee", "Buy me a coffee", "Buy me a coffee", "Buy me a coffee", "Buy me a coffee", "Buy me a coffee", "Buy me a coffee", "Buy me a coffee", "Buy me a coffee"),
             ("Settings_BuyMeCoffeeDesc", "If you enjoy SPAN, support with a coffee!", "SPAN이 마음에 드셨다면, 커피 한 잔으로 응원해 주세요!", "SPANを気に入っていただけたら、コーヒー1杯で応援してください！", "如果您喜欢 SPAN，请请我喝杯咖啡！", "如果您喜歡 SPAN，請請我喝杯咖啡！", "Wenn Ihnen SPAN gefällt, unterstützen Sie uns mit einem Kaffee!", "Si disfrutas de SPAN, ¡apoya con un café!", "Si vous aimez SPAN, offrez un café en soutien !", "Se você gosta do SPAN, apoie com um café!"),
             ("Settings_Links", "Links", "관련 링크", "関連リンク", "链接", "連結", "Links", "Enlaces", "Liens", "Links"),
+            ("Help_OpenGuide", "User Guide", "사용 가이드", "ユーザーガイド", "用户指南", "使用者指南", "Benutzerhandbuch", "Guía del usuario", "Guide d'utilisation", "Guia do usuário"),
+            ("Shortcut_OpenHelp", "User Guide", "사용 가이드", "ユーザーガイド", "用户指南", "使用者指南", "Benutzerhandbuch", "Guía del usuario", "Guide d'utilisation", "Guia do usuário"),
             ("Settings_GitHub", "GitHub Repository", "GitHub 저장소", "GitHubリポジトリ", "GitHub 仓库", "GitHub 存放庫", "GitHub-Repository", "Repositorio de GitHub", "Dépôt GitHub", "Repositório do GitHub"),
             ("Settings_BugReport", "Report a Bug", "버그 제보", "バグ報告", "报告错误", "回報錯誤", "Fehler melden", "Reportar un error", "Signaler un bug", "Relatar um bug"),
             ("Settings_Privacy", "Privacy Policy", "개인정보 처리방침", "プライバシーポリシー", "隐私政策", "隱私權原則", "Datenschutzrichtlinie", "Política de privacidad", "Politique de confidentialité", "Política de privacidade"),

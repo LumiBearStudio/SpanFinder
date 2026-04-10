@@ -140,9 +140,9 @@ namespace Span
                 return;
             }
 
-            // F1 또는 Shift+? (OEM_2 = /) — Help 오버레이 토글 (어디서든 동작)
-            if (e.Key == Windows.System.VirtualKey.F1 ||
-                (shift && !ctrl && !alt && e.Key == (Windows.System.VirtualKey)191)) // VK_OEM_2 = /? key
+            // Shift+? (OEM_2 = /) — Help 오버레이 토글 (어디서든 동작)
+            // F1은 KeyBindingService를 통해 OpenHelp(docs 사이트)로 dispatch됨
+            if (shift && !ctrl && !alt && e.Key == (Windows.System.VirtualKey)191) // VK_OEM_2 = /? key
             {
                 ToggleHelpOverlay();
                 e.Handled = true;
@@ -274,8 +274,19 @@ namespace Span
             if (_keyBindingService != null)
             {
                 // TextBox 포커스 시 Ctrl+C/X/V/A는 네이티브 텍스트 편집으로 위임
+                // 또한 수식키 없는 단독 기능키(F1 등)는 텍스트 입력 중이면 차단
                 bool isTextBoxFocused = false;
-                if (ctrl && !shift && !alt)
+                if (!ctrl && !shift && !alt)
+                {
+                    // 단독 키(F1 등)는 이름 변경/주소창/검색창 입력 중이면 차단
+                    if (e.Key == Windows.System.VirtualKey.F1)
+                    {
+                        var focused = FocusManager.GetFocusedElement(this.Content.XamlRoot);
+                        if (focused is TextBox or RichEditBox or PasswordBox or AutoSuggestBox)
+                            isTextBoxFocused = true;
+                    }
+                }
+                else if (ctrl && !shift && !alt)
                 {
                     var focused = FocusManager.GetFocusedElement(this.Content.XamlRoot);
                     if (focused is TextBox || focused is RichEditBox || focused is PasswordBox)
@@ -828,6 +839,10 @@ namespace Span
                 case ShortcutCommands.OpenSettings: OpenSettingsTab(); return true;
                 case ShortcutCommands.ShowProperties: HandleShowProperties(); return true;
                 case ShortcutCommands.ShowHelp: ToggleHelpOverlay(); return true;
+                case ShortcutCommands.OpenHelp:
+                    // Span Finder 온라인 가이드 사이트 열기 (기본 브라우저)
+                    _ = Windows.System.Launcher.LaunchUriAsync(new Uri("https://lumibearstudio.github.io/docs"));
+                    return true;
 
                 // Workspace
                 case ShortcutCommands.SaveWorkspace:

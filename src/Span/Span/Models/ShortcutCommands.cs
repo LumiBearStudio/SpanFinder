@@ -64,6 +64,7 @@ namespace Span.Models
         public const string OpenSettings = "span.window.settings";
         public const string ShowProperties = "span.window.properties";
         public const string ShowHelp = "span.window.help";
+        public const string OpenHelp = "span.help.open";
         public const string QuickLook = "span.quickLook.toggle";
 
         // ── Workspace ──────────────────────────────────────────
@@ -200,6 +201,7 @@ namespace Span.Models
             { OpenSettings, "Window" },
             { ShowProperties, "Window" },
             { ShowHelp, "Window" },
+            { OpenHelp, "Help" },
             // Quick Look
             { QuickLook, "QuickLook" },
             // Workspace
@@ -328,6 +330,7 @@ namespace Span.Models
             { OpenSettings, "Shortcut_OpenSettings" },
             { ShowProperties, "Shortcut_ShowProperties" },
             { ShowHelp, "Shortcut_ShowHelp" },
+            { OpenHelp, "Shortcut_OpenHelp" },
             { OpenInNewTab, "Shortcut_OpenInNewTab" },
             { QuickLook, "Shortcut_QuickLook" },
             // Workspace
