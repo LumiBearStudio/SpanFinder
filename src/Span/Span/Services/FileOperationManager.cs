@@ -54,7 +54,8 @@ public class FileOperationManager
             Operation = operation,
             CancellationTokenSource = cts,
             PauseEvent = pauseEvent,
-            Status = OperationStatus.Running
+            Status = OperationStatus.Running,
+            DispatcherQueue = dispatcherQueue
         };
 
         // Inject pause event into the operation if it supports it

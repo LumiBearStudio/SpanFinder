@@ -155,6 +155,10 @@ public sealed partial class SettingsModeView : UserControl
             // Default preview
             DefaultPreviewToggle.IsOn = _settings.DefaultPreviewEnabled;
 
+            // Shelf
+            ShelfEnabledToggle.IsOn = _settings.ShelfEnabled;
+            ShelfSaveToggle.IsOn = _settings.ShelfSaveEnabled;
+
             // Preview: show folder info
             PreviewFolderInfoToggle.IsOn = _settings.PreviewShowFolderInfo;
 
@@ -315,6 +319,19 @@ public sealed partial class SettingsModeView : UserControl
         // Default preview
         DefaultPreviewToggle.Toggled += (s, e) => { if (!_isLoading) _settings.DefaultPreviewEnabled = DefaultPreviewToggle.IsOn; };
 
+        // Shelf
+        ShelfEnabledToggle.Toggled += (s, e) =>
+        {
+            if (_isLoading) return;
+            _settings.ShelfEnabled = ShelfEnabledToggle.IsOn;
+            try
+            {
+                foreach (var w in ((App)App.Current).GetRegisteredWindows())
+                    if (w is MainWindow mw) mw.ApplyShelfEnabledSetting(ShelfEnabledToggle.IsOn);
+            }
+            catch { }
+        };
+        ShelfSaveToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShelfSaveEnabled = ShelfSaveToggle.IsOn; };
 
         // Preview: show folder info
         PreviewFolderInfoToggle.Toggled += (s, e) => { if (!_isLoading) _settings.PreviewShowFolderInfo = PreviewFolderInfoToggle.IsOn; };
@@ -441,7 +458,7 @@ public sealed partial class SettingsModeView : UserControl
             ShellExtrasToggle, ShellExtensionsToggle, GitIntegrationToggle,
             HexPreviewToggle, FileHashToggle, CopilotMenuToggle, ContextMenuToggle, CrashReportToggle,
             WasdNavToggle,
-            DefaultFileManagerToggle, DefaultPreviewToggle, PreviewFolderInfoToggle })
+            DefaultFileManagerToggle, DefaultPreviewToggle, PreviewFolderInfoToggle, ShelfSaveToggle, ShelfEnabledToggle })
             Helpers.CursorHelper.SetHandCursor(toggle);
 
         Helpers.CursorHelper.SetHandCursor(IconPackCombo);
@@ -615,6 +632,10 @@ public sealed partial class SettingsModeView : UserControl
             // Preview
             DefaultPreviewLabel.Text = _loc.Get("Settings_DefaultPreview");
             DefaultPreviewDesc.Text = _loc.Get("Settings_DefaultPreviewDesc");
+            ShelfEnabledLabel.Text = _loc.Get("Settings_ShelfEnabled");
+            ShelfEnabledDesc.Text = _loc.Get("Settings_ShelfEnabledDesc");
+            ShelfSaveLabel.Text = _loc.Get("Settings_ShelfSave");
+            ShelfSaveDesc.Text = _loc.Get("Settings_ShelfSaveDesc");
             FavTreeLabel.Text = _loc.Get("Settings_FavoritesTree");
             FavTreeDesc.Text = _loc.Get("Settings_FavoritesTreeDesc");
             SysTrayLabel.Text = _loc.Get("Settings_SystemTray");

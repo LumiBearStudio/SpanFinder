@@ -32,7 +32,6 @@
             <RowDefinition Height="Auto"/> <!-- TitleBar -->
             <RowDefinition Height="Auto"/> <!-- Unified Bar -->
             <RowDefinition Height="*"/>    <!-- Main Area -->
-            <RowDefinition Height="Auto"/> <!-- File Shelf -->
             <RowDefinition Height="Auto"/> <!-- Status Bar -->
         </Grid.RowDefinitions>
 
@@ -916,6 +915,9 @@
                                               HorizontalScrollBarVisibility="Auto"
                                               VerticalScrollBarVisibility="Disabled"
                                               VerticalScrollMode="Disabled"
+                                              AllowDrop="True"
+                                              DragOver="OnMillerEmptyAreaDragOver"
+                                              DragLeave="OnMillerEmptyAreaDragLeave"
                                               >
                                     <StackPanel Orientation="Horizontal">
                                     <ItemsControl x:Name="MillerColumnsControl">
@@ -1332,7 +1334,10 @@
                             <ScrollViewer x:Name="MillerScrollViewerRight"
                                           HorizontalScrollBarVisibility="Auto"
                                           VerticalScrollBarVisibility="Disabled"
-                                          Visibility="{x:Bind IsMillerColumnsMode(ViewModel.RightViewMode), Mode=OneWay}">
+                                          Visibility="{x:Bind IsMillerColumnsMode(ViewModel.RightViewMode), Mode=OneWay}"
+                                          AllowDrop="True"
+                                          DragOver="OnMillerEmptyAreaDragOver"
+                                          DragLeave="OnMillerEmptyAreaDragLeave">
                                 <ItemsControl x:Name="MillerColumnsControlRight" ItemsSource="{x:Bind ViewModel.RightExplorer.Columns, Mode=OneWay}">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>
@@ -1595,97 +1600,11 @@
             </Grid>
 
             <!-- Sidebar edge shadow removed: splitter alone provides sufficient separation -->
+
         </Grid>
 
-        <!-- 4. File Shelf (임시 수집함) -->
-        <Border x:Name="ShelfPanel" Grid.Row="3"
-                Background="{ThemeResource SpanBgLayer2Brush}"
-                BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="0,1,0,0"
-                Visibility="{x:Bind ViewModel.IsShelfPanelVisible, Mode=OneWay}"
-                AllowDrop="True"
-                DragOver="OnShelfDragOver" Drop="OnShelfDrop" DragLeave="OnShelfDragLeave"
-                Padding="8,6">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-
-                <!-- Label -->
-                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="4,0,12,0">
-                    <FontIcon Glyph="&#xE8F1;" FontSize="14" Foreground="{ThemeResource SpanAccentBrush}"/>
-                    <TextBlock x:Name="ShelfCountText" Text="Shelf (0)" FontSize="12" FontWeight="SemiBold"
-                               Foreground="{ThemeResource SpanTextPrimaryBrush}" VerticalAlignment="Center"/>
-                </StackPanel>
-
-                <!-- Items ScrollViewer -->
-                <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
-                              HorizontalScrollMode="Enabled" VerticalScrollMode="Disabled">
-                    <ItemsRepeater ItemsSource="{x:Bind ViewModel.ShelfItems, Mode=OneWay}">
-                        <ItemsRepeater.Layout>
-                            <StackLayout Orientation="Horizontal" Spacing="4"/>
-                        </ItemsRepeater.Layout>
-                        <ItemsRepeater.ItemTemplate>
-                            <DataTemplate x:DataType="models:ShelfItem">
-                                <Grid Background="{ThemeResource SpanBgLayer1Brush}" CornerRadius="4"
-                                      Padding="8,4" Height="32"
-                                      PointerEntered="OnShelfItemPointerEntered"
-                                      PointerExited="OnShelfItemPointerExited"
-                                      RightTapped="OnShelfItemRightTapped">
-                                    <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <FontIcon Glyph="{x:Bind IconGlyph}" FontSize="14"
-                                                  Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
-                                        <TextBlock Text="{x:Bind Name}" FontSize="11" VerticalAlignment="Center"
-                                                   MaxWidth="120" TextTrimming="CharacterEllipsis"
-                                                   Foreground="{ThemeResource SpanTextPrimaryBrush}"/>
-                                        <Button Tag="{x:Bind Id}" Click="OnShelfItemRemoveClick"
-                                                Background="Transparent" BorderThickness="0"
-                                                Padding="2" Width="20" Height="20" MinWidth="0" MinHeight="0"
-                                                VerticalAlignment="Center">
-                                            <FontIcon Glyph="&#xE711;" FontSize="10"
-                                                      Foreground="{ThemeResource SpanTextTertiaryBrush}"/>
-                                        </Button>
-                                    </StackPanel>
-                                </Grid>
-                            </DataTemplate>
-                        </ItemsRepeater.ItemTemplate>
-                    </ItemsRepeater>
-                </ScrollViewer>
-
-                <!-- Action Buttons -->
-                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Margin="12,0,4,0">
-                    <Button x:Name="ShelfMoveHereButton" Click="OnShelfMoveHereClick"
-                            Background="{ThemeResource SpanAccentBrush}"
-                            Foreground="White" CornerRadius="4"
-                            Padding="10,4" Height="28" MinWidth="0" MinHeight="0">
-                        <StackPanel Orientation="Horizontal" Spacing="4">
-                            <FontIcon Glyph="&#xE8DE;" FontSize="12" Foreground="White"/>
-                            <TextBlock x:Name="ShelfMoveText" Text="Move here" FontSize="11"/>
-                        </StackPanel>
-                    </Button>
-                    <Button x:Name="ShelfCopyHereButton" Click="OnShelfCopyHereClick"
-                            Background="{ThemeResource SpanBgLayer1Brush}"
-                            CornerRadius="4"
-                            Padding="10,4" Height="28" MinWidth="0" MinHeight="0">
-                        <StackPanel Orientation="Horizontal" Spacing="4">
-                            <FontIcon Glyph="&#xE8C8;" FontSize="12" Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
-                            <TextBlock x:Name="ShelfCopyText" Text="Copy here" FontSize="11"
-                                       Foreground="{ThemeResource SpanTextPrimaryBrush}"/>
-                        </StackPanel>
-                    </Button>
-                    <Button x:Name="ShelfClearButton" Click="OnShelfClearClick"
-                            Background="Transparent" BorderThickness="0"
-                            Padding="6,4" Height="28" MinWidth="0" MinHeight="0"
-                            ToolTipService.ToolTip="Clear shelf">
-                        <FontIcon Glyph="&#xE74D;" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}"/>
-                    </Button>
-                </StackPanel>
-            </Grid>
-        </Border>
-
-        <!-- 5. Status Bar -->
-        <Grid Grid.Row="4" AutomationProperties.AutomationId="StatusBar" Height="{StaticResource StatusBarHeight}" Background="{ThemeResource SpanBgMicaBrush}" BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="0,1,0,0">
+        <!-- 4. Status Bar -->
+        <Grid Grid.Row="3" AutomationProperties.AutomationId="StatusBar" Height="{StaticResource StatusBarHeight}" Background="{ThemeResource SpanBgMicaBrush}" BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="0,1,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
@@ -1724,6 +1643,186 @@
                                                     Canvas.ZIndex="100"
                                                     Margin="0,0,16,8"/>
 
+        <!-- ===== FILE SHELF — Yoink-style floating overlay (right edge) ===== -->
+        <Border x:Name="ShelfPanel" Grid.Row="2"
+                HorizontalAlignment="Right" VerticalAlignment="Stretch"
+                Width="270" Canvas.ZIndex="150"
+                Background="{ThemeResource SpanBgLayer1Brush}"
+                BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="1,0,0,0"
+                Visibility="{x:Bind ViewModel.IsShelfPanelVisible, Mode=OneWay}"
+                AllowDrop="True"
+                DragOver="OnShelfDragOver" Drop="OnShelfDrop" DragLeave="OnShelfDragLeave"
+                PointerExited="OnShelfPanelPointerExited" PointerEntered="OnShelfPanelPointerEntered"
+                RenderTransformOrigin="1,0.5">
+            <Border.RenderTransform>
+                <TranslateTransform x:Name="ShelfSlideTransform" X="0"/>
+            </Border.RenderTransform>
+            <!-- 너비 애니메이션을 위한 ScaleTransform (축소 모드: ScaleX=20/270) -->
+            <Border.Resources>
+                <Storyboard x:Name="ShelfShrinkStoryboard"/>
+                <Storyboard x:Name="ShelfExpandStoryboard"/>
+            </Border.Resources>
+            <Border.Shadow>
+                <ThemeShadow/>
+            </Border.Shadow>
+            <Grid>
+                <!-- 축소 배지 (ShelfCollapsed 모드에서만 표시) -->
+                <Border x:Name="ShelfCollapsedBadge" Visibility="Collapsed"
+                        HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <StackPanel Spacing="6" HorizontalAlignment="Center">
+                        <FontIcon Glyph="&#xE8F1;" FontSize="14" Foreground="{ThemeResource SpanAccentBrush}"
+                                  HorizontalAlignment="Center"/>
+                        <TextBlock x:Name="ShelfCollapsedCount" Text="0"
+                                   FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{ThemeResource SpanTextSecondaryBrush}"
+                                   HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- 전체 콘텐츠 (Full 모드) -->
+                <Grid x:Name="ShelfFullContent">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/> <!-- Header -->
+                    <RowDefinition Height="*"/>    <!-- Item List -->
+                    <RowDefinition Height="Auto"/> <!-- Actions -->
+                </Grid.RowDefinitions>
+
+                <!-- Header -->
+                <Grid Padding="12,10" BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="0,0,0,1">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE8F1;" FontSize="16" Foreground="{ThemeResource SpanAccentBrush}"/>
+                        <TextBlock x:Name="ShelfCountText" Text="Shelf (0)" FontSize="13" FontWeight="SemiBold"
+                                   Foreground="{ThemeResource SpanTextPrimaryBrush}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <Button Grid.Column="1" Click="OnShelfClearClick"
+                            Background="Transparent" BorderThickness="0"
+                            Padding="4" Width="28" Height="28" MinWidth="0" MinHeight="0"
+                            ToolTipService.ToolTip="Clear all">
+                        <FontIcon Glyph="&#xE74D;" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}"/>
+                    </Button>
+                    <Button Grid.Column="2" Click="OnShelfCloseClick"
+                            Background="Transparent" BorderThickness="0"
+                            Padding="4" Width="28" Height="28" MinWidth="0" MinHeight="0"
+                            ToolTipService.ToolTip="Close shelf">
+                        <FontIcon Glyph="&#xE711;" FontSize="12" Foreground="{ThemeResource SpanTextTertiaryBrush}"/>
+                    </Button>
+                </Grid>
+
+                <!-- Item List (vertical, multi-select) — Grid wrapper for RubberBandSelectionHelper -->
+                <Grid x:Name="ShelfListViewGrid" Grid.Row="1">
+                    <ListView x:Name="ShelfListView"
+                              ItemsSource="{x:Bind ViewModel.ShelfItems, Mode=OneWay}"
+                              SelectionMode="Extended" CanDragItems="True" Padding="4"
+                              KeyDown="OnShelfListViewKeyDown"
+                              DoubleTapped="OnShelfItemDoubleTapped"
+                              DragItemsStarting="OnShelfDragItemsStarting"
+                              DragItemsCompleted="OnShelfDragItemsCompleted">
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="models:ShelfItem">
+                                <Grid Padding="8,6" ColumnSpacing="8"
+                                      RightTapped="OnShelfItemRightTapped"
+                                      PointerEntered="OnShelfItemPointerEntered"
+                                      PointerExited="OnShelfItemPointerExited">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- 아이콘 + 핀 배지 -->
+                                    <Grid VerticalAlignment="Center">
+                                        <FontIcon FontFamily="{StaticResource RemixIcons}"
+                                                  Glyph="{x:Bind IconGlyph}" FontSize="16"
+                                                  Foreground="{x:Bind IconBrush}"/>
+                                        <!-- 핀 인디케이터 (잠금 시만 표시) -->
+                                        <FontIcon Glyph="&#xE840;" FontSize="7"
+                                                  Foreground="{ThemeResource SpanAccentBrush}"
+                                                  HorizontalAlignment="Right" VerticalAlignment="Top"
+                                                  Margin="0,-3,-5,0"
+                                                  Visibility="{x:Bind IsPinned, Mode=OneWay}"/>
+                                    </Grid>
+
+                                    <!-- 이름 + 경로 -->
+                                    <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
+                                        <TextBlock Text="{x:Bind Name}" FontSize="12"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Foreground="{ThemeResource SpanTextPrimaryBrush}"/>
+                                        <TextBlock Text="{x:Bind SourceFolder}" FontSize="10"
+                                                   TextTrimming="CharacterEllipsis" Opacity="0.6"
+                                                   Foreground="{ThemeResource SpanTextTertiaryBrush}"/>
+                                    </StackPanel>
+
+                                    <!-- 호버 오버레이 버튼 (기본 숨김) -->
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="2"
+                                                VerticalAlignment="Center"
+                                                Visibility="Collapsed" Tag="ShelfHoverButtons">
+                                        <Button Tag="{x:Bind Id}" Click="OnShelfItemPinClick"
+                                                Background="Transparent" BorderThickness="0"
+                                                Padding="2" Width="24" Height="24" MinWidth="0" MinHeight="0"
+                                                ToolTipService.ToolTip="Pin">
+                                            <FontIcon Glyph="&#xE718;" FontSize="10"
+                                                      Foreground="{ThemeResource SpanTextTertiaryBrush}"/>
+                                        </Button>
+                                        <Button Tag="{x:Bind Id}" Click="OnShelfItemRemoveClick"
+                                                Background="Transparent" BorderThickness="0"
+                                                Padding="2" Width="24" Height="24" MinWidth="0" MinHeight="0"
+                                                ToolTipService.ToolTip="Remove">
+                                            <FontIcon Glyph="&#xE711;" FontSize="10"
+                                                      Foreground="{ThemeResource SpanTextTertiaryBrush}"/>
+                                        </Button>
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </Grid>
+
+                <!-- Empty state -->
+                <StackPanel x:Name="ShelfEmptyHint" Grid.Row="1"
+                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                            Spacing="8" Opacity="0.4">
+                    <FontIcon Glyph="&#xE896;" FontSize="32"
+                              Foreground="{ThemeResource SpanTextTertiaryBrush}"
+                              HorizontalAlignment="Center"/>
+                    <TextBlock Text="Drop files here" FontSize="12"
+                               Foreground="{ThemeResource SpanTextTertiaryBrush}"
+                               HorizontalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- Action Buttons -->
+                <StackPanel Grid.Row="2" Spacing="4" Padding="8,8"
+                            BorderBrush="{ThemeResource SpanBorderSubtleBrush}" BorderThickness="0,1,0,0">
+                    <Button x:Name="ShelfMoveHereButton" Click="OnShelfMoveHereClick"
+                            Background="{ThemeResource SpanAccentBrush}"
+                            Foreground="White" CornerRadius="4"
+                            HorizontalAlignment="Stretch" Height="32"
+                            HorizontalContentAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <FontIcon Glyph="&#xE8DE;" FontSize="13" Foreground="White"/>
+                            <TextBlock x:Name="ShelfMoveText" Text="Move here" FontSize="12"/>
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="ShelfCopyHereButton" Click="OnShelfCopyHereClick"
+                            Background="{ThemeResource SpanBgLayer2Brush}"
+                            CornerRadius="4"
+                            HorizontalAlignment="Stretch" Height="32"
+                            HorizontalContentAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <FontIcon Glyph="&#xE8C8;" FontSize="13" Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
+                            <TextBlock x:Name="ShelfCopyText" Text="Copy here" FontSize="12"
+                                       Foreground="{ThemeResource SpanTextPrimaryBrush}"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+                </Grid> <!-- /ShelfFullContent -->
+            </Grid>
+        </Border>
+
         <!-- Command Palette Overlay (Ctrl+K) -->
         <Grid x:Name="CommandPaletteOverlay" Grid.RowSpan="5" Visibility="Collapsed"
               Canvas.ZIndex="250"
@@ -1756,13 +1855,13 @@
 
                     <!-- Results List -->
                     <ListView x:Name="CommandPaletteList" Grid.Row="2"
-                              MaxHeight="380"
+                              MaxHeight="420"
                               SelectionMode="Single"
                               IsItemClickEnabled="True"
                               ItemClick="OnCommandPaletteItemClick">
                         <ListView.ItemTemplate>
                             <DataTemplate x:DataType="models:CommandPaletteItem">
-                                <Grid Padding="12,8" ColumnSpacing="10">
+                                <Grid Padding="12,8" ColumnSpacing="10" Opacity="{x:Bind Opacity}">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="*"/>
@@ -1802,7 +1901,7 @@
         </Grid>
 
         <!-- Help Overlay (Shift+? / F1) -->
-        <Grid x:Name="HelpOverlay" AutomationProperties.AutomationId="HelpOverlay" Grid.RowSpan="5" Visibility="Collapsed"
+        <Grid x:Name="HelpOverlay" AutomationProperties.AutomationId="HelpOverlay" Grid.RowSpan="4" Visibility="Collapsed"
               Canvas.ZIndex="200"
               Background="#80000000"
               PointerPressed="HelpOverlay_PointerPressed">

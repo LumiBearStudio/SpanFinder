@@ -1222,6 +1222,7 @@ namespace Span
                 {
                     ViewModel.SaveActiveTabState();
                     ViewModel.SaveTabsToSettings();
+                    SaveShelfToSettings();
                 }
 
                 // FileSystemWatcher 정리

@@ -311,6 +311,18 @@ public class SettingsService : ISettingsService
         set => Set("DefaultPreviewEnabled", value);
     }
 
+    public bool ShelfSaveEnabled
+    {
+        get => Get("ShelfSaveEnabled", true);
+        set => Set("ShelfSaveEnabled", value);
+    }
+
+    public bool ShelfEnabled
+    {
+        get => Get("ShelfEnabled", true);
+        set => Set("ShelfEnabled", value);
+    }
+
     public string LastSessionPath
     {
         get => Get("LastSessionPath", "");
@@ -375,5 +387,16 @@ public class SettingsService : ISettingsService
     {
         get => Get("RatingCompleted", false);
         set => Set("RatingCompleted", value);
+    }
+
+    // ── Command Palette ──
+
+    /// <summary>
+    /// Command Palette에서 최근 실행한 커맨드 ID 목록 ("|" 구분, 최대 8개).
+    /// </summary>
+    public string RecentCommandIds
+    {
+        get => Get("RecentCommandIds", "");
+        set => Set("RecentCommandIds", value);
     }
 }

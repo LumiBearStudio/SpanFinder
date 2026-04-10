@@ -1079,6 +1079,9 @@ namespace Span
         /// </summary>
         private void OnPaneDragOver(object sender, DragEventArgs e)
         {
+            // Yoink-style: 드래그 중 Shelf 패널 자동 표시
+            ShowShelfForDrag();
+
             if (sender is not FrameworkElement fe) return;
 
             // Determine source and target panes
@@ -1183,6 +1186,29 @@ namespace Span
         }
 
         /// <summary>
+        /// Miller 컬럼 ScrollViewer 빈 영역 드래그 — Handled 처리하여 PaneDragOver 버블링 차단.
+        /// 컬럼 뒤 빈 공간에서 DropOverlay가 뜨는 문제 방지.
+        /// </summary>
+        private void OnMillerEmptyAreaDragOver(object sender, DragEventArgs e)
+        {
+            // 컬럼 ListView가 이미 Handled 한 경우는 여기 안 옴
+            // 빈 영역이므로 드롭 불가로 표시하고 버블링만 차단 (DropOverlay 방지)
+            e.AcceptedOperation = DataPackageOperation.None;
+            e.Handled = true;
+            HideDragTooltip();
+
+            // Shelf 자동 표시는 유지해야 함 (OnPaneDragOver 버블링 차단되므로 여기서 직접 호출)
+            ShowShelfForDrag();
+        }
+
+        private void OnMillerEmptyAreaDragLeave(object sender, DragEventArgs e)
+        {
+            HideDragTooltip();
+            // Shelf 숨김 처리도 여기서 해야 함 (OnPaneDragLeave 버블링 차단)
+            TryHideShelfAfterPaneDragLeave();
+        }
+
+        /// <summary>
         /// 좌측/우측 패널 영역에서 드래그 나갈 시 시각적 피드백을 초기화한다.
         /// </summary>
         private void OnPaneDragLeave(object sender, DragEventArgs e)
@@ -1194,6 +1220,8 @@ namespace Span
                 overlay.Opacity = 0;
             }
             HideDragTooltip();
+            // Shelf 위에 커서가 있으면 숨기지 않음 (다음 프레임에서 확인)
+            TryHideShelfAfterPaneDragLeave();
         }
 
         #endregion
