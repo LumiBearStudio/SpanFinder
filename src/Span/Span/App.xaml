@@ -176,6 +176,12 @@
                  Theme-Independent Resources
                  ============================================================ -->
 
+            <!-- FontScale: 전역 폰트 스케일 서비스 (Single Source of Truth).
+                 모든 XAML의 {Binding Source={StaticResource FontScale}, Path=...} 가 이 인스턴스를 참조.
+                 FontScaleService.Instance (C#) 는 Application.Current.Resources["FontScale"] 을 읽어
+                 XAML 파서가 만든 이 인스턴스와 동일한 객체를 반환한다. -->
+            <helpers:FontScaleService x:Key="FontScale"/>
+
             <!-- Dimensions -->
             <x:Double x:Key="TitleBarHeight">40</x:Double>
             <x:Double x:Key="CommandBarHeight">44</x:Double>

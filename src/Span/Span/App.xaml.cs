@@ -25,20 +25,61 @@ namespace Span
 
         public App()
         {
-            this.InitializeComponent();
-            ApplySystemAccentColor();
+            // === 크래시 진단용 초기 부트 로그 (DebugLogger 사용 안 함 — 초기화 전에 크래시하기 때문) ===
+            // DebugLogger 는 static ctor 에서 Task.Run 을 돌리는데 이 시점에 크래시가 나면 아무 로그도 안 남음.
+            // 그래서 여기서는 File.AppendAllText 로 직접 쓴다.
+            EarlyBootLog("App() start");
 
-            // FontScaleService 싱글톤을 전역 리소스로 등록.
-            // XAML literal (<helpers:FontScaleService x:Key="FontScale"/>) 대신 코드 등록 —
-            // 파서가 별도 인스턴스를 만들지 않고 Instance 속성과 동일한 객체를 보장 (R-3).
-            // 모든 DataTemplate 의 {Binding X, Source={StaticResource FontScale}} 가 이 인스턴스를 구독.
-            Resources["FontScale"] = Helpers.FontScaleService.Instance;
+            try
+            {
+                EarlyBootLog("App() → this.InitializeComponent() 호출 전");
+                this.InitializeComponent();
+                EarlyBootLog("App() → this.InitializeComponent() OK");
+
+                EarlyBootLog("App() → ApplySystemAccentColor() 호출 전");
+                ApplySystemAccentColor();
+                EarlyBootLog("App() → ApplySystemAccentColor() 리턴 (내부 성공 여부는 catch 로그 참조)");
+
+                // --- FontScale: App.xaml 의 <helpers:FontScaleService x:Key="FontScale"/> 가
+                //     이미 Resources 에 등록되어 있음. 여기서는 verify 만. ---
+                EarlyBootLog("App() → FontScale probe: Resources[\"FontScale\"] 조회");
+                try
+                {
+                    if (this.Resources.TryGetValue("FontScale", out var fsObj))
+                    {
+                        var fsSvc = fsObj as Helpers.FontScaleService;
+                        EarlyBootLog($"App() → FontScale probe OK (type={fsObj?.GetType().FullName}, Level={fsSvc?.Level})");
+                    }
+                    else
+                    {
+                        EarlyBootLog("App() → FontScale probe: key 'FontScale' 없음 (!)");
+                    }
+                }
+                catch (Exception probeEx)
+                {
+                    EarlyBootLog($"App() → FontScale probe FAIL: {probeEx.GetType().FullName}: {probeEx.Message}");
+                    EarlyBootLog($"    StackTrace: {probeEx.StackTrace}");
+                }
+
+                // FontScaleService.Instance 정합성 확인 (App.Current.Resources 경로로 XAML 인스턴스 반환해야 함)
+                EarlyBootLog("App() → FontScaleService.Instance 참조");
+                var fontScaleInstance = Helpers.FontScaleService.Instance;
+                EarlyBootLog($"App() → FontScaleService.Instance OK (Level={fontScaleInstance.Level})");
+            }
+            catch (Exception ex)
+            {
+                EarlyBootLog($"*** App() CRASH *** {ex.GetType().FullName}: {ex.Message}\n{ex.StackTrace}");
+                throw;
+            }
 
             Services = ConfigureServices();
+            EarlyBootLog("App() → ConfigureServices OK");
 
+            EarlyBootLog("App() → CrashReportingService 초기화 전");
             // Initialize Sentry crash reporting (must be early, before any exception can occur)
             var crashService = Services.GetRequiredService<Services.CrashReportingService>();
             crashService.Initialize();
+            EarlyBootLog("App() → CrashReportingService 초기화 OK");
 
             // ColorCode 등 라이브러리의 Regex catastrophic backtracking 방지 (Issue #36)
             // 1초 이상 UI 스레드 블로킹 시 사용자 체감 "응답없음" → 타임아웃 1초로 제한
@@ -53,6 +94,27 @@ namespace Span
 
             // Single instance: 기존 인스턴스로 리다이렉트된 활성화 이벤트 수신
             AppInstance.GetCurrent().Activated += OnAppActivated;
+            EarlyBootLog("App() end (ctor 완료)");
+        }
+
+        /// <summary>
+        /// 부트 초기 단계 진단용. DebugLogger 의 static ctor / Task.Run 의존 없이
+        /// File.AppendAllText 로 직접 기록. 크래시가 나도 파일은 항상 남는다.
+        /// </summary>
+        internal static void EarlyBoot(string message) => EarlyBootLog(message);
+
+        private static void EarlyBootLog(string message)
+        {
+            try
+            {
+                var baseDir = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                var logsDir = System.IO.Path.Combine(baseDir, "Span", "Logs");
+                System.IO.Directory.CreateDirectory(logsDir);
+                var path = System.IO.Path.Combine(logsDir, "Span_Boot.log");
+                var line = $"[{DateTime.Now:HH:mm:ss.fff}] {message}\n";
+                System.IO.File.AppendAllText(path, line);
+            }
+            catch { /* 진단 실패해도 절대 throw 하지 말 것 */ }
         }
 
         /// <summary>
@@ -65,8 +127,10 @@ namespace Span
         /// </summary>
         private void ApplySystemAccentColor()
         {
+            EarlyBootLog("  [Accent] 진입");
             try
             {
+                EarlyBootLog("  [Accent] UISettings 생성 전");
                 var uiSettings = new Windows.UI.ViewManagement.UISettings();
                 var accent = uiSettings.GetColorValue(Windows.UI.ViewManagement.UIColorType.Accent);
                 var c = new Windows.UI.Color { A = accent.A, R = accent.R, G = accent.G, B = accent.B };
@@ -80,6 +144,7 @@ namespace Span
                 var dimBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(dimColor);
 
                 // --- ThemeDictionaries (XAML {ThemeResource} 바인딩용) ---
+                EarlyBootLog("  [Accent] Resources.ThemeDictionaries foreach 직전");
                 foreach (var entry in Resources.ThemeDictionaries)
                 {
                     if (entry.Value is not ResourceDictionary rd) continue;
@@ -117,6 +182,7 @@ namespace Span
                 }
 
                 // --- 최상위 Resources (코드-비하인드 Resources["key"] 조회용) ---
+                EarlyBootLog("  [Accent] top-level Resources 할당 직전");
                 Resources["SpanAccentColor"] = c;
                 Resources["SpanAccentBrush"] = accentBrush;
                 Resources["SpanAccentHoverBrush"] = hoverBrush;
@@ -129,8 +195,14 @@ namespace Span
                 Resources["GridViewItemBackgroundSelected"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(ColorFromHex($"#25{hex}"));
                 Resources["GridViewItemBackgroundSelectedPointerOver"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(ColorFromHex($"#30{hex}"));
                 Resources["GridViewItemBackgroundSelectedPressed"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(ColorFromHex($"#1A{hex}"));
+                EarlyBootLog("  [Accent] 모든 할당 완료 — try 블록 정상 종료");
             }
-            catch { /* fallback: XAML에 정의된 기본값 사용 */ }
+            catch (Exception accEx)
+            {
+                EarlyBootLog($"  [Accent] *** CAUGHT *** {accEx.GetType().FullName}: {accEx.Message}");
+                EarlyBootLog($"     StackTrace: {accEx.StackTrace}");
+                /* fallback: XAML에 정의된 기본값 사용 */
+            }
         }
 
         /// <summary>
@@ -490,6 +562,7 @@ namespace Span
 
         protected override async void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
+            EarlyBootLog("OnLaunched() start");
             try
             {
                 // Apply saved language before creating windows
@@ -499,9 +572,11 @@ namespace Span
                 var savedLang = settings.Language;
                 // Always apply — "system" resolves to OS locale, others force specific language
                 loc.Language = savedLang;
+                EarlyBootLog($"OnLaunched() → Language 설정 OK ({savedLang})");
 
                 var iconService = Services.GetRequiredService<Services.IconService>();
                 await iconService.LoadAsync();
+                EarlyBootLog("OnLaunched() → IconService.LoadAsync OK");
 
                 // 앱 시작 시 테마에 맞게 아이콘 색상 보정 적용
                 var savedTheme = Services.GetRequiredService<Services.SettingsService>().Theme;
@@ -576,14 +651,24 @@ namespace Span
                     return;
                 }
 
+                EarlyBootLog("OnLaunched() → new MainWindow() 호출 전");
                 m_window = new MainWindow();
+                EarlyBootLog("OnLaunched() → new MainWindow() OK");
+
+                EarlyBootLog("OnLaunched() → RegisterWindow/Activate 전");
                 RegisterWindow(m_window);
                 m_window.Activate();
+                EarlyBootLog("OnLaunched() → window.Activate() OK");
             }
             catch (Exception ex)
             {
+                EarlyBootLog($"*** OnLaunched() CRASH *** {ex.GetType().FullName}: {ex.Message}\n{ex.StackTrace}");
+                if (ex.InnerException != null)
+                {
+                    EarlyBootLog($"    Inner: {ex.InnerException.GetType().FullName}: {ex.InnerException.Message}\n{ex.InnerException.StackTrace}");
+                }
                 System.Diagnostics.Debug.WriteLine($"Unhandled exception in OnLaunched: {ex}");
-                // In a real app, might show a dialog here
+                throw; // crash loudly instead of silently swallowing
             }
         }
 

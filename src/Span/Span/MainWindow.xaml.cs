@@ -375,7 +375,25 @@ namespace Span
         /// </summary>
         public MainWindow()
         {
-            this.InitializeComponent();
+            App.EarlyBoot("MainWindow() start");
+            try
+            {
+                App.EarlyBoot("MainWindow() → this.InitializeComponent() 호출 전");
+                this.InitializeComponent();
+                App.EarlyBoot("MainWindow() → this.InitializeComponent() OK");
+            }
+            catch (Exception bootEx)
+            {
+                App.EarlyBoot($"*** MainWindow() InitializeComponent CRASH *** {bootEx.GetType().FullName}: {bootEx.Message}\n{bootEx.StackTrace}");
+                if (bootEx.InnerException != null)
+                    App.EarlyBoot($"    Inner: {bootEx.InnerException.GetType().FullName}: {bootEx.InnerException.Message}\n{bootEx.InnerException.StackTrace}");
+                throw;
+            }
+
+            // FontScaleService 싱글톤은 App.xaml.cs 생성자에서 Application.Resources
+            // ["FontScale"] 에 이미 등록됨. 여기서 별도 승격/동기화 불필요 —
+            // XAML {StaticResource FontScale} 와 C# FontScaleService.Instance 는
+            // 같은 객체 하나만 존재.
 
             // 전역 FocusVisual 스타일: WinUI 3의 FocusVisualPrimaryBrush 기본값이 하드코딩(White)이라
             // ThemeResource 오버라이드 불가.

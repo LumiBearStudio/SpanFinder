@@ -22,13 +22,52 @@ namespace Span.Helpers
     /// </summary>
     public sealed class FontScaleService : INotifyPropertyChanged
     {
-        /// <summary>
-        /// 앱 수명 전역 단일 인스턴스. App.xaml.cs 에서
-        /// <c>Resources["FontScale"] = FontScaleService.Instance;</c> 로 등록됨.
-        /// </summary>
-        public static FontScaleService Instance { get; } = new FontScaleService();
+        // 테스트(Span.Tests) 는 Application.Current == null 이므로 별도 싱글톤이 필요.
+        // 런타임은 App.xaml 의 XAML 파서가 <helpers:FontScaleService x:Key="FontScale"/>
+        // 를 활성화하면서 만든 인스턴스가 Application.Resources["FontScale"] 로 저장됨.
+        // Instance 는 런타임엔 XAML 인스턴스를, 테스트엔 fallback 싱글톤을 반환.
+        private static FontScaleService? _fallback;
 
-        private FontScaleService() { }
+        /// <summary>
+        /// 전역 단일 인스턴스.
+        /// - 런타임(Application.Current != null): App.xaml 에 선언된
+        ///   <c>{StaticResource FontScale}</c> 와 동일한 XAML 파서-생성 객체.
+        /// - 테스트(Application 없음): lazy-created fallback 싱글톤.
+        /// 두 경우 모두 호출자 관점에서 "한 앱 수명 당 하나의 객체" 라는 불변식 유지.
+        /// </summary>
+        public static FontScaleService Instance
+        {
+            get
+            {
+                // 런타임: Application.Current.Resources 에서 가져옴.
+                // {StaticResource FontScale} 와 정확히 같은 객체를 보장.
+                try
+                {
+                    if (Microsoft.UI.Xaml.Application.Current is { } app)
+                    {
+                        if (app.Resources.TryGetValue("FontScale", out var val)
+                            && val is FontScaleService svc)
+                        {
+                            return svc;
+                        }
+                    }
+                }
+                catch
+                {
+                    // Application.Current.Resources 접근 실패 시 fallback 으로 내려감
+                }
+
+                // 테스트 / 초기 부팅 fallback
+                return _fallback ??= new FontScaleService();
+            }
+        }
+
+        /// <summary>
+        /// XAML 파서용 public ctor.
+        /// App.xaml 의 <c>&lt;helpers:FontScaleService x:Key="FontScale"/&gt;</c> 활성화.
+        /// 코드에서 직접 <c>new FontScaleService()</c> 호출은 테스트에서만 허용.
+        /// </summary>
+        public FontScaleService() { }
 
         private int _level = 0;
 
