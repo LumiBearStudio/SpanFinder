@@ -27,11 +27,9 @@
                                               TrueThickness="1"
                                               FalseThickness="1"/>
 
-            <!-- NOTE: FontScale 은 XAML 로 선언하지 않는다.
-                 App.xaml.cs 생성자에서 Application.Resources["FontScale"] 에
-                 FontScaleService.Instance 싱글톤을 코드로 주입한다.
-                 {StaticResource FontScale} lookup 은 로컬 스코프 →
-                 App.Resources 로 walk up 하여 이 인스턴스를 찾는다. -->
+            <!-- FontScale 은 App.xaml 의 <helpers:FontScaleService x:Key="FontScale"/> 로 전역 선언됨.
+                 {StaticResource FontScale} lookup 은 로컬 RootGrid.Resources → Window 스코프 →
+                 Application.Resources 로 walk up 하여 단일 XAML 인스턴스를 찾는다. -->
         </Grid.Resources>
 
         <Grid.RowDefinitions>
