@@ -316,14 +316,7 @@ namespace Span.Views
             {
                 ApplyCellWidths(grid);
                 grid.Height = _densityRowHeight;
-
-                // Apply icon/font scale to newly materialized containers
-                {
-                    double itemFont = 13.0 + _iconFontScaleLevel;
-                    double iconFont = 16.0 + _iconFontScaleLevel;
-                    double secondaryFont = 12.0 + _iconFontScaleLevel;
-                    ApplyFontScaleToGrid(grid, itemFont, iconFont, secondaryFont);
-                }
+                // FontScale은 이제 XAML {Binding Source={StaticResource FontScale}} 로 자동 적용 — 여기서 설정할 필요 없음.
             }
 
             // Details 뷰에서 폴더 표시 시 크기 계산 요청 (lazy)
@@ -490,7 +483,6 @@ namespace Span.Views
         #region Density
 
         private double _densityRowHeight = 24.0; // comfortable default
-        private int _iconFontScaleLevel = 0;
 
         public void ApplyDensity(string density)
         {
@@ -535,53 +527,7 @@ namespace Span.Views
             return style;
         }
 
-        /// <summary>
-        /// 아이콘/폰트 스케일(0~5)을 적용한다. 레벨 0 = 기본(13px/16px).
-        /// </summary>
-        public void ApplyIconFontScale(string scale)
-        {
-            int level = int.TryParse(scale, out var n) ? Math.Clamp(n, 0, 5) : 0;
-            _iconFontScaleLevel = level;
-            double itemFont = 13.0 + level;
-            double iconFont = 16.0 + level;
-            double secondaryFont = 12.0 + level;
-
-            // ItemsPanelRoot 자식만 순회 — 14K 전수 순회 방지
-            var scalePanel = DetailsListView?.ItemsPanelRoot;
-            if (scalePanel == null) return;
-            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(scalePanel); i++)
-            {
-                if (VisualTreeHelper.GetChild(scalePanel, i) is ListViewItem container &&
-                    container.ContentTemplateRoot is Grid grid)
-                {
-                    ApplyFontScaleToGrid(grid, itemFont, iconFont, secondaryFont);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Column 기반 폰트 스케일 적용 — 범위 판별 대신 요소 타입으로 결정.
-        /// TextBlock 직접 자식 = Name (Column 1) → itemFont,
-        /// Border > TextBlock = Column 2~6 → secondaryFont,
-        /// Grid (icon) → iconFont + Width/Height.
-        /// </summary>
-        private static void ApplyFontScaleToGrid(Grid grid, double itemFont, double iconFont, double secondaryFont)
-        {
-            foreach (var child in grid.Children)
-            {
-                if (child is TextBlock tb)
-                    tb.FontSize = itemFont;
-                else if (child is Border b && b.Child is TextBlock btb)
-                    btb.FontSize = secondaryFont;
-                else if (child is Grid iconGrid && iconGrid.Width <= 24)
-                {
-                    var fi = VisualTreeHelpers.FindChild<FontIcon>(iconGrid);
-                    if (fi != null) fi.FontSize = iconFont;
-                    iconGrid.Width = iconFont;
-                    iconGrid.Height = iconFont;
-                }
-            }
-        }
+        // ApplyIconFontScale/ApplyFontScaleToGrid 는 FontScaleService + XAML {Binding} 으로 대체됨 (Phase B/C).
 
         #endregion
 

@@ -662,8 +662,6 @@ namespace Span
         //  #region Icon & Font Scale
         // =================================================================
 
-        private int _iconFontScaleLevel = 0;
-
         /// <summary>
         /// 직전 스케일 레벨. ConditionalWeakTable baseline이 GC로 유실되었을 때
         /// 현재 FontSize에서 역산(currentSize - previousLevel)으로 baseline을 복원하기 위해 사용.
@@ -674,60 +672,42 @@ namespace Span
         /// 각 UI 요소의 원래(XAML 기본) FontSize를 저장하는 약한 참조 테이블.
         /// 절대값 기반 스케일링의 핵심: baseline + level = target FontSize.
         /// 요소가 GC되면 자동 정리됨 → PreviousScaleLevel로 역산 복원.
+        /// (Global UI — toolbar/tab bar/status bar — 만 사용. ListView items, Sidebar, Miller,
+        ///  AddressBar 는 FontScaleService + XAML {Binding} 로 대체됨.)
         /// </summary>
         internal static readonly ConditionalWeakTable<DependencyObject, double[]> BaselineFontSizes = new();
 
         /// <summary>
-        /// 아이콘/폰트 스케일(0~5)을 사이드바, 밀러, 리스트/상세 뷰에 적용한다.
-        /// 레벨 0 = 기본 크기(아이콘 16px, 텍스트 13px), 각 레벨 +1px.
+        /// 아이콘/폰트 스케일(0~5)을 FontScaleService 에 전파한다.
+        /// 대부분의 UI(ListView items / Sidebar / Miller / AddressBar)는 XAML {Binding} 으로 자동 반영.
+        /// Global UI(toolbar/tab bar/status bar), HomeView, SettingsView 만 여기서 tree walker 로 처리.
         /// </summary>
         private void ApplyIconFontScale(string scale)
         {
             if (_isClosed) return;
 
-            PreviousScaleLevel = _iconFontScaleLevel;
-            _iconFontScaleLevel = int.TryParse(scale, out var n) ? Math.Clamp(n, 0, 5) : 0;
+            var svc = Helpers.FontScaleService.Instance;
+            PreviousScaleLevel = svc.Level;
+            int newLevel = int.TryParse(scale, out var n) ? Math.Clamp(n, 0, 5) : 0;
+            svc.Level = newLevel; // → PropertyChanged → XAML bindings 자동 갱신
 
-            double itemFont = 13.0 + _iconFontScaleLevel;
-            double iconFont = 16.0 + _iconFontScaleLevel;
-
-            // Sidebar width scaling (base 200 + level * 6)
-            double sidebarWidth = 200 + _iconFontScaleLevel * 6;
+            // Sidebar 컬럼 폭 (GridLength 는 직접 바인딩 어려우므로 여기서 설정)
+            double sidebarWidth = 200 + newLevel * 6;
             if (!_sidebarHiddenForSpecialMode)
                 SidebarCol.Width = new GridLength(sidebarWidth);
             else
                 _savedSidebarWidth = sidebarWidth; // Settings 모드 해제 시 복원될 값 갱신
 
-            // Sidebar font/icon
-            ApplyIconFontScaleToSidebar(itemFont, iconFont);
-
-            // Miller columns
-            foreach (var kvp in _tabMillerPanels)
-                ApplyIconFontScaleToMillerControl(kvp.Value.items, itemFont, iconFont);
-            ApplyIconFontScaleToMillerControl(MillerColumnsControlRight, itemFont, iconFont);
-
-            // Details / List views
-            var scaleStr = _iconFontScaleLevel.ToString();
-            foreach (var kvp in _tabDetailsPanels)
-                kvp.Value.ApplyIconFontScale(scaleStr);
-            foreach (var kvp in _tabListPanels)
-                kvp.Value.ApplyIconFontScale(scaleStr);
-
-            // Global UI (toolbar, tab bar, status bar)
-            ApplyIconFontScaleToGlobalUI(_iconFontScaleLevel);
+            // Global UI (toolbar, tab bar, status bar) — 여전히 tree walker
+            ApplyIconFontScaleToGlobalUI(newLevel);
 
             // Settings page — Collapsed 상태에선 VisualTree 순회 불가하므로 Visible일 때만 적용
             if (SettingsView.Visibility == Visibility.Visible)
-                SettingsView.ApplyIconFontScale(_iconFontScaleLevel);
+                SettingsView.ApplyIconFontScale(newLevel);
 
             // Home page — 동일하게 Visible일 때만 적용
             if (HomeView.Visibility == Visibility.Visible)
-                HomeView.ApplyIconFontScale(_iconFontScaleLevel);
-
-            // Address bars — ScaleLevel 설정으로 ElementPrepared 자동 스케일 + 기존 element 즉시 적용
-            MainAddressBar.ScaleLevel = _iconFontScaleLevel;
-            LeftAddressBar.ScaleLevel = _iconFontScaleLevel;
-            RightAddressBar.ScaleLevel = _iconFontScaleLevel;
+                HomeView.ApplyIconFontScale(newLevel);
 
             // Sidebar width: reset custom width on scale change
             try
@@ -736,135 +716,6 @@ namespace Span
                 appSettings.Values.Remove("CustomSidebarWidth");
             }
             catch { }
-        }
-
-        private void ApplyIconFontScaleToSidebar(double itemFont, double iconFont)
-        {
-            // Home item
-            if (SidebarHomeText != null) SidebarHomeText.FontSize = itemFont;
-            var homeGrid = SidebarHomeText?.Parent as Grid;
-            if (homeGrid != null)
-            {
-                var homeIcon = VisualTreeHelpers.FindChild<FontIcon>(homeGrid);
-                if (homeIcon != null) homeIcon.FontSize = iconFont;
-            }
-
-            // Favorites list
-            ApplyIconFontScaleToItemsControl(FavoritesFlatList, itemFont, iconFont);
-
-            // Drive sections (Local, Cloud, Network) — find ItemsControls in sidebar
-            var sidebarScroll = VisualTreeHelpers.FindChild<ScrollViewer>(SidebarBorder);
-            if (sidebarScroll?.Content is StackPanel sidebarStack)
-            {
-                foreach (var child in sidebarStack.Children)
-                {
-                    // Direct ItemsControls (local drives)
-                    if (child is ItemsControl ic && child is not Microsoft.UI.Xaml.Controls.ListView)
-                        ApplyIconFontScaleToItemsControl(ic, itemFont, iconFont);
-
-                    // StackPanels wrapping cloud/network sections
-                    if (child is StackPanel sp)
-                    {
-                        foreach (var spChild in sp.Children)
-                        {
-                            if (spChild is ItemsControl sic && spChild is not Microsoft.UI.Xaml.Controls.ListView)
-                                ApplyIconFontScaleToItemsControl(sic, itemFont, iconFont);
-                        }
-                    }
-                }
-            }
-        }
-
-        private void ApplyIconFontScaleToItemsControl(ItemsControl? itemsControl, double itemFont, double iconFont)
-        {
-            if (itemsControl?.ItemsPanelRoot == null) return;
-            foreach (var container in itemsControl.ItemsPanelRoot.Children)
-            {
-                ApplyIconFontScaleToContainer(container, itemFont, iconFont);
-            }
-        }
-
-        private void ApplyIconFontScaleToMillerControl(ItemsControl? millerControl, double itemFont, double iconFont)
-        {
-            if (millerControl?.ItemsPanelRoot == null) return;
-            double columnWidth = 220 + _iconFontScaleLevel * 6;
-            foreach (var columnContainer in millerControl.ItemsPanelRoot.Children)
-            {
-                // ItemsControl + ItemTemplate → ContentPresenter가 DataTemplate 루트를 래핑
-                Grid? columnGrid = columnContainer as Grid
-                    ?? VisualTreeHelpers.FindChild<Grid>(columnContainer);
-                if (columnGrid != null && columnGrid.Width >= 220 && columnGrid.Width <= 250)
-                    columnGrid.Width = columnWidth;
-
-                // Miller 컬럼 내부의 ListView 찾기 (ListView 타입 명시 — x:Name "ListView" 필드와 충돌 방지)
-                var listView = VisualTreeHelpers.FindChild<Microsoft.UI.Xaml.Controls.ListView>(columnContainer);
-                if (listView?.ItemsPanelRoot == null) continue;
-                for (int i = 0; i < listView.Items.Count; i++)
-                {
-                    if (listView.ContainerFromIndex(i) is ListViewItem item)
-                    {
-                        // ListViewItem → ContentPresenter → DataTemplate Grid 경로 사용
-                        var cp = VisualTreeHelpers.FindChild<ContentPresenter>(item);
-                        if (cp != null)
-                        {
-                            var grid = VisualTreeHelpers.FindChild<Grid>(cp);
-                            if (grid != null)
-                                ApplyScaleToTemplateGrid(grid, itemFont, iconFont);
-                        }
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// DataTemplate의 루트 Grid에서 Column 기반으로 아이콘/텍스트 크기를 조정한다.
-        /// Column 0 TextBlock = 아이콘(iconFont), Column 1+ TextBlock = 텍스트(itemFont).
-        /// FontFamily/FontSize 범위 체크 대신 Grid.Column 위치로 판별 → 스케일 변경 후에도 안정적.
-        /// </summary>
-        private static void ApplyScaleToTemplateGrid(Grid grid, double itemFont, double iconFont)
-        {
-            for (int i = 0; i < Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(grid); i++)
-            {
-                var child = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(grid, i);
-                if (child is TextBlock tb)
-                {
-                    // Column 0 = 아이콘 (RemixIcons/Segoe), Column 1+ = 텍스트
-                    int col = Grid.GetColumn(tb);
-                    tb.FontSize = col == 0 ? iconFont : itemFont;
-                }
-                else if (child is FontIcon fi)
-                    fi.FontSize = iconFont;
-                // Icon inside a nested Grid (e.g., file icon container Grid wrapping FontIcon)
-                else if (child is Grid iconGrid)
-                {
-                    var nestedIcon = VisualTreeHelpers.FindChild<FontIcon>(iconGrid);
-                    if (nestedIcon != null)
-                        nestedIcon.FontSize = iconFont;
-                    iconGrid.Width = iconFont;
-                    iconGrid.Height = iconFont;
-                }
-            }
-        }
-
-        /// <summary>
-        /// Sidebar 등 비 ListView 컨테이너(ContentPresenter 직접 자식)에 스케일 적용.
-        /// </summary>
-        private static void ApplyIconFontScaleToContainer(DependencyObject container, double itemFont, double iconFont)
-        {
-            // ContentControl(ListViewItem 등): ContentPresenter 경유
-            if (container is ContentControl)
-            {
-                var cp = VisualTreeHelpers.FindChild<ContentPresenter>(container);
-                if (cp != null)
-                {
-                    var grid = VisualTreeHelpers.FindChild<Grid>(cp);
-                    if (grid != null) { ApplyScaleToTemplateGrid(grid, itemFont, iconFont); return; }
-                }
-            }
-            // ContentPresenter 또는 일반 요소: 직접 Grid 탐색 (사이드바 ItemsControl용)
-            var directGrid = VisualTreeHelpers.FindChild<Grid>(container);
-            if (directGrid != null)
-                ApplyScaleToTemplateGrid(directGrid, itemFont, iconFont);
         }
 
         /// <summary>

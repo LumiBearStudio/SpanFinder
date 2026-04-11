@@ -168,7 +168,7 @@
                         <!-- Icon -->
                         <FontIcon Grid.Column="0" FontFamily="{StaticResource RemixIcons}"
                                   Glyph="{x:Bind IconGlyph}"
-                                  FontSize="16"
+                                  FontSize="{Binding IconFontSize, Source={StaticResource FontScale}}"
                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
 
                         <!-- Name -->
@@ -176,7 +176,7 @@
                                    Text="{x:Bind Name}"
                                    VerticalAlignment="Center"
                                    TextTrimming="CharacterEllipsis"
-                                   FontSize="13"
+                                   FontSize="{Binding ItemFontSize, Source={StaticResource FontScale}}"
                                    Padding="6,0"/>
 
                         <!-- Original Location -->
@@ -184,7 +184,7 @@
                             <TextBlock Text="{x:Bind OriginalLocation}"
                                        VerticalAlignment="Center"
                                        TextTrimming="CharacterEllipsis"
-                                       FontSize="12"
+                                       FontSize="{Binding SecondaryFontSize, Source={StaticResource FontScale}}"
                                        Foreground="{ThemeResource SpanTextSecondaryBrush}"
                                        Padding="6,0"/>
                         </Border>
@@ -193,7 +193,7 @@
                         <Border Grid.Column="3" x:Name="DateDeletedCell" Width="200">
                             <TextBlock VerticalAlignment="Center"
                                        TextTrimming="CharacterEllipsis"
-                                       FontSize="12"
+                                       FontSize="{Binding SecondaryFontSize, Source={StaticResource FontScale}}"
                                        Foreground="{ThemeResource SpanTextSecondaryBrush}"
                                        Padding="6,0"/>
                         </Border>
@@ -202,7 +202,7 @@
                         <Border Grid.Column="4" x:Name="SizeCell" Width="100">
                             <TextBlock VerticalAlignment="Center"
                                        TextTrimming="CharacterEllipsis"
-                                       FontSize="12"
+                                       FontSize="{Binding SecondaryFontSize, Source={StaticResource FontScale}}"
                                        Foreground="{ThemeResource SpanTextSecondaryBrush}"
                                        Padding="6,0"/>
                         </Border>
@@ -212,7 +212,7 @@
                             <TextBlock Text="{x:Bind ItemType}"
                                        VerticalAlignment="Center"
                                        TextTrimming="CharacterEllipsis"
-                                       FontSize="12"
+                                       FontSize="{Binding SecondaryFontSize, Source={StaticResource FontScale}}"
                                        Foreground="{ThemeResource SpanTextSecondaryBrush}"
                                        Padding="6,0"/>
                         </Border>

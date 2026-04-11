@@ -1139,7 +1139,6 @@ namespace Span.Views
         #region Density
 
         private double _densityRowHeight = 24.0; // comfortable default
-        private int _iconFontScaleLevel = 0;
 
         public void ApplyDensity(string density)
         {
@@ -1180,38 +1179,7 @@ namespace Span.Views
             }
         }
 
-        /// <summary>
-        /// 아이콘/폰트 스케일(0~5)을 적용한다. 레벨 0 = 기본(13px/16px).
-        /// </summary>
-        public void ApplyIconFontScale(string scale)
-        {
-            int level = int.TryParse(scale, out var n) ? Math.Clamp(n, 0, 5) : 0;
-            _iconFontScaleLevel = level;
-            double itemFont = 13.0 + level;
-            double iconFont = 16.0 + level;
-
-            // ItemsPanelRoot 자식만 순회 — 14K 전수 순회 방지
-            var scalePanel = ListGridView?.ItemsPanelRoot;
-            if (scalePanel == null) return;
-            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(scalePanel); i++)
-            {
-                if (VisualTreeHelper.GetChild(scalePanel, i) is GridViewItem container &&
-                    container.ContentTemplateRoot is Grid grid)
-                {
-                    foreach (var child in grid.Children)
-                    {
-                        if (child is TextBlock tb && tb.FontSize >= 13 && tb.FontSize <= 18)
-                            tb.FontSize = itemFont;
-                        else if (child is Grid iconGrid && iconGrid.Width <= 24)
-                        {
-                            var fi = VisualTreeHelpers.FindChild<FontIcon>(iconGrid);
-                            if (fi != null && fi.FontSize >= 16 && fi.FontSize <= 21)
-                                fi.FontSize = iconFont;
-                        }
-                    }
-                }
-            }
-        }
+        // ApplyIconFontScale 는 FontScaleService + XAML {Binding} 으로 대체됨 (Phase B/C).
 
         #endregion
     }

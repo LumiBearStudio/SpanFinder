@@ -41,14 +41,14 @@
                            Text="{x:Bind TruncatedDisplayName, Mode=OneWay}"
                            VerticalAlignment="Center"
                            TextTrimming="CharacterEllipsis"
-                           FontSize="13"
+                           FontSize="{Binding ItemFontSize, Source={StaticResource FontScale}}"
                            Visibility="{x:Bind vm:FileSystemViewModel.NotRenaming(IsRenaming), Mode=OneWay}"/>
                 <TextBox Grid.Column="1"
                          Text="{x:Bind EditableName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                          Visibility="{x:Bind IsRenaming, Mode=OneWay}"
                          VerticalAlignment="Center"
                          VerticalContentAlignment="Center"
-                         Padding="4,0" MinHeight="0" FontSize="13"
+                         Padding="4,0" MinHeight="0" FontSize="{Binding ItemFontSize, Source={StaticResource FontScale}}"
                          LostFocus="OnRenameTextBoxLostFocus"
                          KeyDown="OnRenameTextBoxKeyDown"/>
             </Grid>
@@ -89,14 +89,14 @@
                            TextTrimming="CharacterEllipsis"
                            TextWrapping="Wrap"
                            MaxLines="2"
-                           FontSize="13"
+                           FontSize="{Binding ItemFontSize, Source={StaticResource FontScale}}"
                            Visibility="{x:Bind vm:FileSystemViewModel.NotRenaming(IsRenaming), Mode=OneWay}"/>
                 <TextBox Grid.Column="1"
                          Text="{x:Bind EditableName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                          Visibility="{x:Bind IsRenaming, Mode=OneWay}"
                          VerticalAlignment="Center"
                          VerticalContentAlignment="Center"
-                         Padding="4,0" MinHeight="0" FontSize="13"
+                         Padding="4,0" MinHeight="0" FontSize="{Binding ItemFontSize, Source={StaticResource FontScale}}"
                          LostFocus="OnRenameTextBoxLostFocus"
                          KeyDown="OnRenameTextBoxKeyDown"/>
             </Grid>
@@ -138,7 +138,7 @@
                            TextTrimming="CharacterEllipsis"
                            TextWrapping="Wrap"
                            MaxLines="2"
-                           FontSize="13"
+                           FontSize="{Binding ItemFontSize, Source={StaticResource FontScale}}"
                            Margin="4,0"
                            Visibility="{x:Bind vm:FileSystemViewModel.NotRenaming(IsRenaming), Mode=OneWay}"/>
                 <TextBox Grid.Row="1"
@@ -148,7 +148,7 @@
                          VerticalAlignment="Center"
                          TextAlignment="Center"
                          VerticalContentAlignment="Center"
-                         Padding="4,0" MinHeight="0" FontSize="13"
+                         Padding="4,0" MinHeight="0" FontSize="{Binding ItemFontSize, Source={StaticResource FontScale}}"
                          Margin="4,0"
                          LostFocus="OnRenameTextBoxLostFocus"
                          KeyDown="OnRenameTextBoxKeyDown"/>
@@ -191,7 +191,7 @@
                            TextTrimming="CharacterEllipsis"
                            TextWrapping="Wrap"
                            MaxLines="3"
-                           FontSize="14"
+                           FontSize="{Binding ItemFontSizeXL, Source={StaticResource FontScale}}"
                            Margin="8,0"
                            Visibility="{x:Bind vm:FileSystemViewModel.NotRenaming(IsRenaming), Mode=OneWay}"/>
                 <TextBox Grid.Row="1"
@@ -201,7 +201,7 @@
                          VerticalAlignment="Center"
                          TextAlignment="Center"
                          VerticalContentAlignment="Center"
-                         Padding="8,0" MinHeight="0" FontSize="14"
+                         Padding="8,0" MinHeight="0" FontSize="{Binding ItemFontSizeXL, Source={StaticResource FontScale}}"
                          Margin="8,0"
                          LostFocus="OnRenameTextBoxLostFocus"
                          KeyDown="OnRenameTextBoxKeyDown"/>

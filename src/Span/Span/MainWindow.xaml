@@ -383,8 +383,8 @@
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <FontIcon Grid.Column="0" Glyph="&#xE80F;" FontSize="16" Foreground="{ThemeResource SpanAccentBrush}" Margin="0,0,12,0"/>
-                            <TextBlock x:Name="SidebarHomeText" Grid.Column="1" Text="홈" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"
+                            <FontIcon Grid.Column="0" Glyph="&#xE80F;" FontSize="{Binding IconFontSize, Source={StaticResource FontScale}}" Foreground="{ThemeResource SpanAccentBrush}" Margin="0,0,12,0"/>
+                            <TextBlock x:Name="SidebarHomeText" Grid.Column="1" Text="홈" FontSize="{Binding ItemFontSize, Source={StaticResource FontScale}}" FontWeight="SemiBold" VerticalAlignment="Center"
                                        TextTrimming="CharacterEllipsis"/>
                         </Grid>
                         <Rectangle Height="1" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="12,12"/>
@@ -439,13 +439,13 @@
                                         <TextBlock Grid.Column="0"
                                                    Text="{x:Bind IconGlyph}"
                                                    FontFamily="{StaticResource RemixIcons}"
-                                                   FontSize="16"
+                                                   FontSize="{Binding IconFontSize, Source={StaticResource FontScale}}"
                                                    Foreground="{x:Bind IconBrush}"
                                                    VerticalAlignment="Center"
                                                    Margin="0,0,12,0"/>
                                         <TextBlock Grid.Column="1"
                                                    Text="{x:Bind Name}"
-                                                   FontSize="13"
+                                                   FontSize="{Binding ItemFontSize, Source={StaticResource FontScale}}"
                                                    VerticalAlignment="Center"
                                                    TextTrimming="CharacterEllipsis"/>
                                     </Grid>
@@ -476,11 +476,11 @@
                                                 ToolTipService.ToolTip="{Binding Content.Path}">
                                         <TextBlock Text="{Binding Content.IconGlyph}"
                                                    FontFamily="{StaticResource RemixIcons}"
-                                                   FontSize="16"
+                                                   FontSize="{Binding IconFontSize, Source={StaticResource FontScale}}"
                                                    Foreground="{Binding Content.IconBrush}"
                                                    VerticalAlignment="Center"/>
                                         <TextBlock Text="{Binding Content.Name}"
-                                                   FontSize="13"
+                                                   FontSize="{Binding ItemFontSize, Source={StaticResource FontScale}}"
                                                    VerticalAlignment="Center"
                                                    TextTrimming="CharacterEllipsis"/>
                                     </StackPanel>
@@ -524,10 +524,10 @@
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Grid.Column="0" Text="{x:Bind IconGlyph}"
-                                                   FontFamily="{StaticResource RemixIcons}" FontSize="16"
+                                                   FontFamily="{StaticResource RemixIcons}" FontSize="{Binding IconFontSize, Source={StaticResource FontScale}}"
                                                    Foreground="{ThemeResource SpanTextSecondaryBrush}"
                                                    VerticalAlignment="Center" Margin="0,0,12,0"/>
-                                        <TextBlock Grid.Column="1" Text="{x:Bind Name}" FontSize="13"
+                                        <TextBlock Grid.Column="1" Text="{x:Bind Name}" FontSize="{Binding ItemFontSize, Source={StaticResource FontScale}}"
                                                    VerticalAlignment="Center"
                                                    TextTrimming="CharacterEllipsis"/>
                                     </Grid>
@@ -572,10 +572,10 @@
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
                                             <TextBlock Grid.Column="0" Text="{x:Bind IconGlyph}"
-                                                       FontFamily="{StaticResource RemixIcons}" FontSize="16"
+                                                       FontFamily="{StaticResource RemixIcons}" FontSize="{Binding IconFontSize, Source={StaticResource FontScale}}"
                                                        Foreground="{ThemeResource SpanTextSecondaryBrush}"
                                                        VerticalAlignment="Center" Margin="0,0,12,0"/>
-                                            <TextBlock Grid.Column="1" Text="{x:Bind Name}" FontSize="13"
+                                            <TextBlock Grid.Column="1" Text="{x:Bind Name}" FontSize="{Binding ItemFontSize, Source={StaticResource FontScale}}"
                                                        VerticalAlignment="Center"
                                                        TextTrimming="CharacterEllipsis"/>
                                         </Grid>
@@ -621,7 +621,7 @@
                                             <Grid Grid.Column="0" Width="16" Height="16"
                                                   VerticalAlignment="Center" Margin="0,0,12,0">
                                                 <TextBlock Text="{x:Bind IconGlyph}"
-                                                           FontFamily="{StaticResource RemixIcons}" FontSize="16"
+                                                           FontFamily="{StaticResource RemixIcons}" FontSize="{Binding IconFontSize, Source={StaticResource FontScale}}"
                                                            Foreground="{ThemeResource SpanTextSecondaryBrush}"
                                                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                 <!-- 잠금 뱃지: 인증 필요 시 표시 -->
@@ -631,7 +631,7 @@
                                                           Margin="0,0,-4,-4"
                                                           Visibility="{x:Bind AuthBadgeVisibility}"/>
                                             </Grid>
-                                            <TextBlock Grid.Column="1" Text="{x:Bind Name}" FontSize="13"
+                                            <TextBlock Grid.Column="1" Text="{x:Bind Name}" FontSize="{Binding ItemFontSize, Source={StaticResource FontScale}}"
                                                        VerticalAlignment="Center"
                                                        TextTrimming="CharacterEllipsis"/>
                                         </Grid>
@@ -661,14 +661,14 @@
                             <!-- 아이콘 (비어있음/참 전환) -->
                             <TextBlock Grid.Column="0"
                                        Text="{x:Bind ViewModel.RecycleBinIconGlyph, Mode=OneWay}"
-                                       FontFamily="{StaticResource RemixIcons}" FontSize="16"
+                                       FontFamily="{StaticResource RemixIcons}" FontSize="{Binding IconFontSize, Source={StaticResource FontScale}}"
                                        Foreground="{ThemeResource SpanTextSecondaryBrush}"
                                        VerticalAlignment="Center" Margin="0,0,12,0"/>
 
                             <!-- 라벨 -->
                             <TextBlock Grid.Column="1"
                                        x:Name="RecycleBinLabel"
-                                       Text="Recycle Bin" FontSize="13"
+                                       Text="Recycle Bin" FontSize="{Binding ItemFontSize, Source={StaticResource FontScale}}"
                                        VerticalAlignment="Center"/>
 
                             <!-- 항목 개수 배지 -->
@@ -928,7 +928,7 @@
                                     </ItemsControl.ItemsPanel>
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="viewmodels:FolderViewModel">
-                                            <Grid Width="220" MinWidth="150">
+                                            <Grid Width="{Binding MillerColumnWidth, Source={StaticResource FontScale}}" MinWidth="150">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="Auto"/>
@@ -975,12 +975,12 @@
                                                                                         <ColumnDefinition Width="Auto"/>
                                                                                     </Grid.ColumnDefinitions>
                                                                                     <!-- Col0: reserved for layout alignment (indicator handled by floating overlay) -->
-                                                                                    <FontIcon Grid.Column="1" FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Folder}" FontSize="16" Foreground="{x:Bind IconBrush}" Margin="0,0,12,0"/>
-                                                                                    <TextBlock Grid.Column="2" Text="{x:Bind TruncatedDisplayName, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontSize="13"
+                                                                                    <FontIcon Grid.Column="1" FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Folder}" FontSize="{Binding IconFontSize, Source={StaticResource FontScale}}" Foreground="{x:Bind IconBrush}" Margin="0,0,12,0"/>
+                                                                                    <TextBlock Grid.Column="2" Text="{x:Bind TruncatedDisplayName, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontSize="{Binding ItemFontSize, Source={StaticResource FontScale}}"
                                                                                                Visibility="{x:Bind viewmodels:FileSystemViewModel.NotRenaming(IsRenaming), Mode=OneWay}"/>
                                                                                     <TextBox Grid.Column="2" Text="{x:Bind EditableName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                                                              Visibility="{x:Bind IsRenaming, Mode=OneWay}"
-                                                                                             VerticalAlignment="Center" Padding="2" MinHeight="0" FontSize="13"
+                                                                                             VerticalAlignment="Center" Padding="2" MinHeight="0" FontSize="{Binding ItemFontSize, Source={StaticResource FontScale}}"
                                                                                              LostFocus="OnRenameTextBoxLostFocus" KeyDown="OnRenameTextBoxKeyDown"/>
                                                                                     <!-- Item count badge -->
                                                                                     <TextBlock Grid.Column="3" Text="{x:Bind ChildCountText, Mode=OneWay}" VerticalAlignment="Center"
@@ -1008,7 +1008,7 @@
                                                                                         <Image Source="{x:Bind ThumbnailSource, Mode=OneWay}" Stretch="UniformToFill"
                                                                                                Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfTrue(HasThumbnail), Mode=OneWay}"
                                                                                                IsHitTestVisible="False" x:Phase="1"/>
-                                                                                        <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{x:Bind IconGlyph}" FontSize="16" Foreground="{x:Bind IconBrush}"
+                                                                                        <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{x:Bind IconGlyph}" FontSize="{Binding IconFontSize, Source={StaticResource FontScale}}" Foreground="{x:Bind IconBrush}"
                                                                                                   Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfFalse(HasThumbnail), Mode=OneWay}"
                                                                                                   IsHitTestVisible="False"/>
                                                                                         <Border Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfTrue(HasCloudBadge), Mode=OneWay}"
@@ -1030,11 +1030,11 @@
                                                                                                        Margin="0,-1,0,0"/>
                                                                                         </Border>
                                                                                     </Grid>
-                                                                                    <TextBlock Grid.Column="2" Text="{x:Bind TruncatedDisplayName, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontSize="13"
+                                                                                    <TextBlock Grid.Column="2" Text="{x:Bind TruncatedDisplayName, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontSize="{Binding ItemFontSize, Source={StaticResource FontScale}}"
                                                                                                Visibility="{x:Bind viewmodels:FileSystemViewModel.NotRenaming(IsRenaming), Mode=OneWay}"/>
                                                                                     <TextBox Grid.Column="2" Text="{x:Bind EditableName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                                                              Visibility="{x:Bind IsRenaming, Mode=OneWay}"
-                                                                                             VerticalAlignment="Center" Padding="2" MinHeight="0" FontSize="13"
+                                                                                             VerticalAlignment="Center" Padding="2" MinHeight="0" FontSize="{Binding ItemFontSize, Source={StaticResource FontScale}}"
                                                                                              LostFocus="OnRenameTextBoxLostFocus" KeyDown="OnRenameTextBoxKeyDown"/>
                                                                                 </Grid>
                                                                             </DataTemplate>
@@ -1346,7 +1346,7 @@
                                     </ItemsControl.ItemsPanel>
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="viewmodels:FolderViewModel">
-                                            <Grid Width="220" MinWidth="150">
+                                            <Grid Width="{Binding MillerColumnWidth, Source={StaticResource FontScale}}" MinWidth="150">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="Auto"/>
@@ -1393,12 +1393,12 @@
                                                                                         <ColumnDefinition Width="Auto"/>
                                                                                     </Grid.ColumnDefinitions>
                                                                                     <!-- Col0: reserved for layout alignment (indicator handled by floating overlay) -->
-                                                                                    <FontIcon Grid.Column="1" FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Folder}" FontSize="16" Foreground="{x:Bind IconBrush}" Margin="0,0,12,0"/>
-                                                                                    <TextBlock Grid.Column="2" Text="{x:Bind TruncatedDisplayName, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontSize="13"
+                                                                                    <FontIcon Grid.Column="1" FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Folder}" FontSize="{Binding IconFontSize, Source={StaticResource FontScale}}" Foreground="{x:Bind IconBrush}" Margin="0,0,12,0"/>
+                                                                                    <TextBlock Grid.Column="2" Text="{x:Bind TruncatedDisplayName, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontSize="{Binding ItemFontSize, Source={StaticResource FontScale}}"
                                                                                                Visibility="{x:Bind viewmodels:FileSystemViewModel.NotRenaming(IsRenaming), Mode=OneWay}"/>
                                                                                     <TextBox Grid.Column="2" Text="{x:Bind EditableName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                                                              Visibility="{x:Bind IsRenaming, Mode=OneWay}"
-                                                                                             VerticalAlignment="Center" Padding="2" MinHeight="0" FontSize="13"
+                                                                                             VerticalAlignment="Center" Padding="2" MinHeight="0" FontSize="{Binding ItemFontSize, Source={StaticResource FontScale}}"
                                                                                              LostFocus="OnRenameTextBoxLostFocus" KeyDown="OnRenameTextBoxKeyDown"/>
                                                                                     <!-- Item count badge -->
                                                                                     <TextBlock Grid.Column="3" Text="{x:Bind ChildCountText, Mode=OneWay}" VerticalAlignment="Center"
@@ -1426,7 +1426,7 @@
                                                                                         <Image Source="{x:Bind ThumbnailSource, Mode=OneWay}" Stretch="UniformToFill"
                                                                                                Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfTrue(HasThumbnail), Mode=OneWay}"
                                                                                                IsHitTestVisible="False" x:Phase="1"/>
-                                                                                        <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{x:Bind IconGlyph}" FontSize="16" Foreground="{x:Bind IconBrush}"
+                                                                                        <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{x:Bind IconGlyph}" FontSize="{Binding IconFontSize, Source={StaticResource FontScale}}" Foreground="{x:Bind IconBrush}"
                                                                                                   Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfFalse(HasThumbnail), Mode=OneWay}"
                                                                                                   IsHitTestVisible="False"/>
                                                                                         <Border Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfTrue(HasCloudBadge), Mode=OneWay}"
@@ -1448,11 +1448,11 @@
                                                                                                        Margin="0,-1,0,0"/>
                                                                                         </Border>
                                                                                     </Grid>
-                                                                                    <TextBlock Grid.Column="2" Text="{x:Bind TruncatedDisplayName, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontSize="13"
+                                                                                    <TextBlock Grid.Column="2" Text="{x:Bind TruncatedDisplayName, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontSize="{Binding ItemFontSize, Source={StaticResource FontScale}}"
                                                                                                Visibility="{x:Bind viewmodels:FileSystemViewModel.NotRenaming(IsRenaming), Mode=OneWay}"/>
                                                                                     <TextBox Grid.Column="2" Text="{x:Bind EditableName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                                                              Visibility="{x:Bind IsRenaming, Mode=OneWay}"
-                                                                                             VerticalAlignment="Center" Padding="2" MinHeight="0" FontSize="13"
+                                                                                             VerticalAlignment="Center" Padding="2" MinHeight="0" FontSize="{Binding ItemFontSize, Source={StaticResource FontScale}}"
                                                                                              LostFocus="OnRenameTextBoxLostFocus" KeyDown="OnRenameTextBoxKeyDown"/>
                                                                                 </Grid>
                                                                             </DataTemplate>

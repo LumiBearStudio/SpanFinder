@@ -35,7 +35,7 @@
                     <ItemsRepeater.ItemTemplate>
                         <DataTemplate x:DataType="models:PathSegment">
                             <StackPanel Orientation="Horizontal">
-                                <FontIcon Glyph="{x:Bind IconGlyph}" FontSize="13"
+                                <FontIcon Glyph="{x:Bind IconGlyph}" FontSize="{Binding AddressBarIconFontSize, Source={StaticResource FontScale}}"
                                           FontFamily="{StaticResource RemixIcons}"
                                           Foreground="{ThemeResource SpanTextSecondaryBrush}"
                                           VerticalAlignment="Center" Margin="4,0,0,0"
@@ -44,7 +44,7 @@
                                         Click="OnSegmentClick"
                                         Background="Transparent" BorderThickness="0"
                                         Padding="6,2" MinWidth="0" MinHeight="0" CornerRadius="3"
-                                        FontSize="11" VerticalAlignment="Center"
+                                        FontSize="{Binding AddressBarFontSize, Source={StaticResource FontScale}}" VerticalAlignment="Center"
                                         Foreground="{ThemeResource SpanTextSecondaryBrush}"/>
                                 <Button Tag="{x:Bind FullPath}"
                                         Click="OnChevronClick"
@@ -76,13 +76,13 @@
                     <GradientStop Color="{ThemeResource SpanBgLayer2TransparentColor}" Offset="1"/>
                 </LinearGradientBrush>
             </Border.Background>
-            <TextBlock Text="&#x2026;" FontSize="11" VerticalAlignment="Center"
+            <TextBlock Text="&#x2026;" FontSize="{Binding AddressBarFontSize, Source={StaticResource FontScale}}" VerticalAlignment="Center"
                        Foreground="{ThemeResource SpanTextTertiaryBrush}"/>
         </Border>
 
         <!-- Edit mode AutoSuggestBox -->
         <AutoSuggestBox x:Name="AutoSuggest" AutomationProperties.AutomationId="TextBox_AddressBar" Visibility="Collapsed"
-                 VerticalAlignment="Center" VerticalContentAlignment="Center" FontSize="11"
+                 VerticalAlignment="Center" VerticalContentAlignment="Center" FontSize="{Binding AddressBarFontSize, Source={StaticResource FontScale}}"
                  BorderThickness="0" CornerRadius="0"
                  TextChanged="OnAutoSuggestTextChanged"
                  SuggestionChosen="OnAutoSuggestSuggestionChosen"
@@ -108,7 +108,7 @@
             </AutoSuggestBox.ItemContainerStyle>
             <AutoSuggestBox.ItemTemplate>
                 <DataTemplate x:DataType="x:String">
-                    <TextBlock Text="{x:Bind}" FontSize="11" Padding="0"
+                    <TextBlock Text="{x:Bind}" FontSize="{Binding AddressBarFontSize, Source={StaticResource FontScale}}" Padding="0"
                                Margin="0" TextTrimming="CharacterEllipsis"/>
                 </DataTemplate>
             </AutoSuggestBox.ItemTemplate>

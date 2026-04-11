@@ -27,6 +27,13 @@ namespace Span
         {
             this.InitializeComponent();
             ApplySystemAccentColor();
+
+            // FontScaleService 싱글톤을 전역 리소스로 등록.
+            // XAML literal (<helpers:FontScaleService x:Key="FontScale"/>) 대신 코드 등록 —
+            // 파서가 별도 인스턴스를 만들지 않고 Instance 속성과 동일한 객체를 보장 (R-3).
+            // 모든 DataTemplate 의 {Binding X, Source={StaticResource FontScale}} 가 이 인스턴스를 구독.
+            Resources["FontScale"] = Helpers.FontScaleService.Instance;
+
             Services = ConfigureServices();
 
             // Initialize Sentry crash reporting (must be early, before any exception can occur)

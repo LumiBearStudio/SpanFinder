@@ -1016,7 +1016,7 @@ namespace Span
             // ConditionalWeakTable 의존 제거 — DataTemplate 재활용 시 baseline 오염 방지
             DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
             {
-                ApplyScaleToTabElement(args.Element, _iconFontScaleLevel);
+                ApplyScaleToTabElement(args.Element, Helpers.FontScaleService.Instance.Level);
 
                 // 재활용/신규 탭에 Chrome-style 고정 너비 적용 (auto-size 방지)
                 if (_calculatedTabWidth > 0 && args.Element is FrameworkElement elem)
@@ -2047,14 +2047,8 @@ namespace Span
             else if (e.PropertyName == nameof(MainViewModel.HasCloudDrives) ||
                      e.PropertyName == nameof(MainViewModel.HasNetworkDrives))
             {
-                // 클라우드/네트워크 드라이브가 비동기 로딩 후 나타나면 사이드바 스케일 재적용
-                if (_iconFontScaleLevel > 0)
-                {
-                    Helpers.DispatcherHelper.SafeEnqueue(DispatcherQueue, Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
-                    {
-                        ApplyIconFontScaleToSidebar(13.0 + _iconFontScaleLevel, 16.0 + _iconFontScaleLevel);
-                    });
-                }
+                // Sidebar 스케일은 이제 FontScaleService + XAML {Binding} 으로 자동 반영됨.
+                // (기존 _iconFontScaleLevel 기반 fan-out 재적용 불필요 — Phase B/C 제거)
             }
             else if (e.PropertyName == nameof(MainViewModel.IsToastError))
             {
@@ -2352,7 +2346,7 @@ namespace Span
             {
                 SettingsView.RefreshSettings();
                 // Settings가 Visible이 된 직후 → 절대값 기반이므로 항상 정확
-                SettingsView.ApplyIconFontScale(_iconFontScaleLevel);
+                SettingsView.ApplyIconFontScale(Helpers.FontScaleService.Instance.Level);
             }
             else if (mode == ViewMode.ActionLog)
             {
@@ -2361,7 +2355,7 @@ namespace Span
             else if (mode == ViewMode.Home)
             {
                 SetSpecialModeAddressBar(ViewMode.Home);
-                HomeView.ApplyIconFontScale(_iconFontScaleLevel);
+                HomeView.ApplyIconFontScale(Helpers.FontScaleService.Instance.Level);
             }
 
             // 분할뷰 UI 동기화 — 탭별 분할 상태에 따라 우측 패인 표시/숨김
@@ -2406,14 +2400,7 @@ namespace Span
                     SidebarCol.MinWidth = 150;
                     _sidebarHiddenForSpecialMode = false;
 
-                    // Settings/ActionLog 모드에서 사이드바가 Collapsed → ItemsPanelRoot null → 스케일 누락.
-                    // Visible 복원 직후 사이드바 폰트 스케일 재적용.
-                    Helpers.DispatcherHelper.SafeEnqueue(DispatcherQueue, Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
-                    {
-                        double itemFont = 13.0 + _iconFontScaleLevel;
-                        double iconFont = 16.0 + _iconFontScaleLevel;
-                        ApplyIconFontScaleToSidebar(itemFont, iconFont);
-                    });
+                    // Sidebar 스케일은 FontScaleService + XAML {Binding} 으로 자동 반영 — 재적용 불필요.
                 }
                 // 프리뷰 패널 복원 (활성화 상태에 따라, Home에서는 숨김)
                 bool hidePreview = mode == ViewMode.Home || isRecycleBin;
@@ -4167,25 +4154,12 @@ namespace Span
         // ── Rubber-band selection: attach/detach helpers per column ──
 
         /// <summary>
-        /// 사이드바 ListView(즐겨찾기) 컨테이너 생성 시 아이콘/폰트 스케일 적용.
+        /// 사이드바 ListView(즐겨찾기) 컨테이너 생성 콜백.
+        /// 폰트 스케일은 이제 FontScaleService + XAML {Binding} 으로 자동 반영됨 (Phase B/C).
         /// </summary>
         private void OnSidebarContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
         {
-            if (_isClosed || args.InRecycleQueue) return;
-            if (args.ItemContainer?.ContentTemplateRoot is Grid grid)
-            {
-                double itemFont = 13.0 + _iconFontScaleLevel;
-                double iconFont = 16.0 + _iconFontScaleLevel;
-                foreach (var child in grid.Children)
-                {
-                    if (child is TextBlock tb)
-                    {
-                        // Column 0 = 아이콘, Column 1+ = 텍스트 (range/FontFamily 의존 제거)
-                        int col = Grid.GetColumn(tb);
-                        tb.FontSize = col == 0 ? iconFont : itemFont;
-                    }
-                }
-            }
+            // No-op: 스케일은 XAML 바인딩이 처리.
         }
 
         /// <summary>
@@ -4196,12 +4170,7 @@ namespace Span
         {
             if (sender is not Grid grid) return;
 
-            // 새 밀러 컬럼 생성 시 너비 스케일링 적용 (base 220 + level * 6)
-            if (_iconFontScaleLevel > 0 && grid.Parent is Border border && border.Parent is Grid columnRoot
-                && columnRoot.Width >= 220 && columnRoot.Width <= 250)
-            {
-                columnRoot.Width = 220 + _iconFontScaleLevel * 6;
-            }
+            // 밀러 컬럼 폭은 XAML {Binding MillerColumnWidth, Source={StaticResource FontScale}} 으로 자동 반영됨 (Phase B-5).
 
             if (_rubberBandHelpers.ContainsKey(grid)) return;
 
@@ -4268,9 +4237,7 @@ namespace Span
                         if (grid.MinHeight != _densityMinHeight)
                             grid.MinHeight = _densityMinHeight;
 
-                        // Apply icon/font scale to newly materialized containers
-                        if (_iconFontScaleLevel > 0)
-                            ApplyScaleToTemplateGrid(grid, 13.0 + _iconFontScaleLevel, 16.0 + _iconFontScaleLevel);
+                        // 폰트/아이콘 스케일은 FontScaleService + XAML {Binding} 으로 자동 반영 (Phase B-5).
                     }
                 }
             }

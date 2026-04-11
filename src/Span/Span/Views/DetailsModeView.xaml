@@ -239,7 +239,7 @@
                             <FontIcon FontFamily="{StaticResource RemixIcons}"
                                       Glyph="{x:Bind IconGlyph, Mode=OneWay}"
                                       Foreground="{x:Bind IconBrush, Mode=OneWay}"
-                                      FontSize="16"
+                                      FontSize="{Binding IconFontSize, Source={StaticResource FontScale}}"
                                       Visibility="{x:Bind vm:FileSystemViewModel.ShowIfFalse(HasThumbnail), Mode=OneWay}"/>
                             <!-- Cloud sync badge -->
                             <Border Visibility="{x:Bind vm:FileSystemViewModel.ShowIfTrue(HasCloudBadge), Mode=OneWay}"
@@ -257,7 +257,7 @@
                                    Text="{x:Bind TruncatedDisplayName, Mode=OneWay}"
                                    VerticalAlignment="Center"
                                    TextTrimming="CharacterEllipsis"
-                                   FontSize="13"
+                                   FontSize="{Binding ItemFontSize, Source={StaticResource FontScale}}"
                                    Padding="6,0"
                                    Visibility="{x:Bind vm:FileSystemViewModel.NotRenaming(IsRenaming), Mode=OneWay}"/>
                         <!-- Rename TextBox (visible during rename) -->
@@ -266,7 +266,7 @@
                                  Visibility="{x:Bind IsRenaming, Mode=OneWay}"
                                  VerticalAlignment="Center"
                                  VerticalContentAlignment="Center"
-                                 Padding="6,0" MinHeight="0" FontSize="13"
+                                 Padding="6,0" MinHeight="0" FontSize="{Binding ItemFontSize, Source={StaticResource FontScale}}"
                                  LostFocus="OnRenameTextBoxLostFocus"
                                  KeyDown="OnRenameTextBoxKeyDown"/>
 
@@ -275,7 +275,7 @@
                             <TextBlock Text="{x:Bind LocationPath, Mode=OneWay}"
                                        VerticalAlignment="Center"
                                        TextTrimming="CharacterEllipsis"
-                                       FontSize="12"
+                                       FontSize="{Binding SecondaryFontSize, Source={StaticResource FontScale}}"
                                        Foreground="{ThemeResource SpanTextSecondaryBrush}"
                                        Padding="6,0"/>
                         </Border>
@@ -285,7 +285,7 @@
                             <TextBlock Text="{x:Bind DateModified, Mode=OneWay}"
                                        VerticalAlignment="Center"
                                        TextTrimming="CharacterEllipsis"
-                                       FontSize="12"
+                                       FontSize="{Binding SecondaryFontSize, Source={StaticResource FontScale}}"
                                        Padding="6,0"/>
                         </Border>
                         <!-- Type -->
@@ -293,7 +293,7 @@
                             <TextBlock Text="{x:Bind FileType, Mode=OneWay}"
                                        VerticalAlignment="Center"
                                        TextTrimming="CharacterEllipsis"
-                                       FontSize="12"
+                                       FontSize="{Binding SecondaryFontSize, Source={StaticResource FontScale}}"
                                        Padding="6,0"/>
                         </Border>
 
@@ -302,7 +302,7 @@
                             <TextBlock Text="{x:Bind Size, Mode=OneWay}"
                                        VerticalAlignment="Center"
                                        TextTrimming="CharacterEllipsis"
-                                       FontSize="12"
+                                       FontSize="{Binding SecondaryFontSize, Source={StaticResource FontScale}}"
                                        Padding="6,0"/>
                         </Border>
 
@@ -313,7 +313,7 @@
                                        VerticalAlignment="Center"
                                        TextTrimming="CharacterEllipsis"
                                        FontFamily="{StaticResource MonoFont}"
-                                       FontSize="12"
+                                       FontSize="{Binding SecondaryFontSize, Source={StaticResource FontScale}}"
                                        FontWeight="Bold"
                                        Padding="6,0"/>
                         </Border>

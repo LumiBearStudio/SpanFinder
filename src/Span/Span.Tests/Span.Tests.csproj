@@ -51,6 +51,7 @@
     <Compile Include="..\Span\Helpers\SearchQueryParser.cs" Link="Sources\Helpers\SearchQueryParser.cs" />
     <Compile Include="..\Span\Helpers\HangulSearchHelper.cs" Link="Sources\Helpers\HangulSearchHelper.cs" />
     <Compile Include="..\Span\Helpers\DebugLogger.cs" Link="Sources\Helpers\DebugLogger.cs" />
+    <Compile Include="..\Span\Helpers\FontScaleService.cs" Link="Sources\Helpers\FontScaleService.cs" />
     <!-- Services - file operations (pure C#) -->
     <Compile Include="..\Span\Services\FileOperations\OperationResult.cs" Link="Sources\Services\OperationResult.cs" />
     <Compile Include="..\Span\Services\FileOperations\FileOperationProgress.cs" Link="Sources\Services\FileOperationProgress.cs" />

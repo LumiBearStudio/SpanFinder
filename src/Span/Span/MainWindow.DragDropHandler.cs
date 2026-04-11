@@ -603,9 +603,10 @@ namespace Span
 
             var iconService = Services.IconService.Current;
             var iconFont = new FontFamily(iconService?.FontFamilyPath ?? "/Assets/Fonts/remixicon.ttf#remixicon");
-            double fontSize = 12 + _iconFontScaleLevel;
-            double largeIconSize = 26 + _iconFontScaleLevel;
-            double badgeFontSize = Math.Max(9, 10 + _iconFontScaleLevel);
+            int scaleLevel = Helpers.FontScaleService.Instance.Level;
+            double fontSize = 12 + scaleLevel;
+            double largeIconSize = 26 + scaleLevel;
+            double badgeFontSize = Math.Max(9, 10 + scaleLevel);
 
             _dragOverlayTransform = new TranslateTransform();
 
@@ -636,8 +637,8 @@ namespace Span
                 Child = iconStackGrid,
                 Background = GetThemeBrush("SpanBgHoverBrush"),
                 CornerRadius = new CornerRadius(6),
-                Width = 44 + _iconFontScaleLevel * 2,
-                Height = 40 + _iconFontScaleLevel * 2,
+                Width = 44 + scaleLevel * 2,
+                Height = 40 + scaleLevel * 2,
                 HorizontalAlignment = HorizontalAlignment.Left,
             };
 
