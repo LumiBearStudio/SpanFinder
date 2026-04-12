@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System;
+using System.IO;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -1231,6 +1232,13 @@ namespace Span.ViewModels
                 return;
             }
 
+            // .lnk shortcut files: resolve target and navigate accordingly
+            if (fileVm.Path.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase))
+            {
+                _ = HandleLnkSelectionAsync(fileVm, nextIndex);
+                return;
+            }
+
             Helpers.DebugLogger.Log($"[HandleFileSelection] file='{fileVm.Name}', nextIndex={nextIndex}");
             RemoveColumnsFrom(nextIndex);
             // Finder behavior: tab shows parent folder name, not file name
@@ -1239,6 +1247,75 @@ namespace Span.ViewModels
                 CurrentPath = parentDir;
             SelectedFile = fileVm;
             UpdatePathHighlights();
+        }
+
+        /// <summary>
+        /// .lnk 바로가기 파일의 대상 경로를 확인하여 폴더면 칼럼 확장, 파일이면 미리보기 표시.
+        /// </summary>
+        private async Task HandleLnkSelectionAsync(FileViewModel lnkFileVm, int nextIndex)
+        {
+            var targetPath = Services.FileSystemService.ResolveShellLink(lnkFileVm.Path);
+            Helpers.DebugLogger.Log($"[HandleLnkSelection] lnk='{lnkFileVm.Name}', target='{targetPath ?? "null"}'");
+
+            if (string.IsNullOrEmpty(targetPath) || (!Directory.Exists(targetPath) && !File.Exists(targetPath)))
+            {
+                // 대상을 확인할 수 없으면 일반 파일처럼 미리보기 표시
+                RemoveColumnsFrom(nextIndex);
+                var parentDir = System.IO.Path.GetDirectoryName(lnkFileVm.Path);
+                if (!string.IsNullOrEmpty(parentDir))
+                    CurrentPath = parentDir;
+                SelectedFile = lnkFileVm;
+                UpdatePathHighlights();
+                return;
+            }
+
+            if (Directory.Exists(targetPath))
+            {
+                // 대상이 폴더 → 다음 칼럼에 폴더 내용 표시
+                var folderItem = new Models.FolderItem
+                {
+                    Name = System.IO.Path.GetFileName(targetPath),
+                    Path = targetPath,
+                };
+                var folderVm = new FolderViewModel(folderItem, _fileService);
+                folderVm.PropertyChanged -= FolderVm_PropertyChanged;
+                folderVm.LoadError -= OnColumnLoadError;
+                folderVm.PropertyChanged += FolderVm_PropertyChanged;
+                folderVm.LoadError += OnColumnLoadError;
+
+                if (nextIndex < Columns.Count)
+                {
+                    var old = Columns[nextIndex];
+                    old.PropertyChanged -= FolderVm_PropertyChanged;
+                    old.LoadError -= OnColumnLoadError;
+                    old.CancelLoading();
+                    old.SelectedChild = null;
+                    Columns[nextIndex] = folderVm;
+                }
+                else
+                {
+                    Columns.Add(folderVm);
+                }
+                RemoveColumnsFrom(nextIndex + 1);
+
+                CurrentPath = targetPath;
+                SelectedFile = null;
+                UpdatePathHighlights();
+
+                await folderVm.EnsureChildrenLoadedAsync();
+            }
+            else
+            {
+                // 대상이 파일 → 대상 파일 미리보기 표시
+                RemoveColumnsFrom(nextIndex);
+                var parentDir = System.IO.Path.GetDirectoryName(lnkFileVm.Path);
+                if (!string.IsNullOrEmpty(parentDir))
+                    CurrentPath = parentDir;
+                SelectedFile = lnkFileVm;
+                // 미리보기 패널에 대상 파일 경로를 전달하기 위해 LinkTargetPath 설정
+                lnkFileVm.LinkTargetPath = targetPath;
+                UpdatePathHighlights();
+            }
         }
 
         /// <summary>

@@ -44,6 +44,11 @@ namespace Span.ViewModels
         }
 
         /// <summary>
+        /// .lnk 바로가기의 대상 파일 경로. 미리보기 패널에서 대상 파일 내용을 표시하는 데 사용.
+        /// </summary>
+        public string? LinkTargetPath { get; set; }
+
+        /// <summary>
         /// 확장자 기반 아이콘 (Segoe Fluent Icons)
         /// </summary>
         public override string IconGlyph => Services.IconService.Current?.GetIcon(((FileItem)_model).FileType) ?? "\uECE0";

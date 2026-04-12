@@ -4858,6 +4858,22 @@ namespace Span
                         _ = OpenArchiveEntryAsync(file.Path);
                         Helpers.DebugLogger.Log($"[MainWindow] Miller Column DoubleClick: Extracting archive entry {file.Name}");
                     }
+                    else if (file.Path.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // .lnk 바로가기: 대상이 폴더면 네비게이션, 파일이면 ShellExecute
+                        var target = FileSystemService.ResolveShellLink(file.Path);
+                        if (!string.IsNullOrEmpty(target) && System.IO.Directory.Exists(target))
+                        {
+                            _ = ViewModel.ActiveExplorer.NavigateToPath(target);
+                            Helpers.DebugLogger.Log($"[MainWindow] Miller Column DoubleClick: .lnk → navigate to folder {target}");
+                        }
+                        else
+                        {
+                            var shellService = App.Current.Services.GetRequiredService<ShellService>();
+                            shellService.OpenFile(file.Path);
+                            Helpers.DebugLogger.Log($"[MainWindow] Miller Column DoubleClick: .lnk → opening {file.Name}");
+                        }
+                    }
                     else
                     {
                         // Open file with default application via ShellExecute (faster than WinRT Launcher)

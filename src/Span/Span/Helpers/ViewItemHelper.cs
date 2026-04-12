@@ -42,6 +42,22 @@ namespace Span.Helpers
                         MainWindow.OpenArchiveEntryStaticAsync(file.Path);
                         DebugLogger.Log($"[{viewName}] Extracting archive entry {file.Name}");
                     }
+                    else if (file.Path.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // .lnk 바로가기: 대상이 폴더면 네비게이션, 파일이면 ShellExecute
+                        var target = Services.FileSystemService.ResolveShellLink(file.Path);
+                        if (!string.IsNullOrEmpty(target) && System.IO.Directory.Exists(target))
+                        {
+                            _ = explorer!.NavigateToPath(target);
+                            DebugLogger.Log($"[{viewName}] .lnk → navigate to folder {target}");
+                        }
+                        else
+                        {
+                            var shellService = App.Current.Services.GetRequiredService<Services.ShellService>();
+                            shellService.OpenFile(file.Path);
+                            DebugLogger.Log($"[{viewName}] .lnk → opening target file {file.Name}");
+                        }
+                    }
                     else
                     {
                         var shellService = App.Current.Services.GetRequiredService<Services.ShellService>();

@@ -275,7 +275,7 @@ namespace Span.Services
         /// <summary>
         /// .lnk 파일에서 대상 경로를 추출 (IShellLink COM 대신 바이너리 파싱).
         /// </summary>
-        private static string? ResolveShellLink(string lnkPath)
+        internal static string? ResolveShellLink(string lnkPath)
         {
             try
             {

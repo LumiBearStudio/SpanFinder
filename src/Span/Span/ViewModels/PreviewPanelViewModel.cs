@@ -185,8 +185,12 @@ namespace Span.ViewModels
                 SetBasicInfo(item);
 
                 // 2. Type-specific preview
+                // .lnk 바로가기가 파일을 가리키면 대상 파일의 미리보기 표시
+                var previewPath = item.Path;
+                if (item is FileViewModel fvm && !string.IsNullOrEmpty(fvm.LinkTargetPath))
+                    previewPath = fvm.LinkTargetPath;
                 bool isFolder = item is FolderViewModel;
-                var previewType = _previewService.GetPreviewType(item.Path, isFolder);
+                var previewType = _previewService.GetPreviewType(previewPath, isFolder);
                 if (previewType == PreviewType.HexBinary && _settings != null && !_settings.ShowHexPreview)
                     previewType = PreviewType.Generic;
 
@@ -204,7 +208,7 @@ namespace Span.ViewModels
                 ct.ThrowIfCancellationRequested();
 
                 // 3. Content loading + Git info (병렬)
-                var contentTask = LoadContentAsync(previewType, item, ct);
+                var contentTask = LoadContentAsync(previewType, item, previewPath, ct);
                 var gitTask = LoadGitInfoAsync(item, isFolder, ct);
                 var hashTask = LoadFileHashAsync(item, isFolder, ct);
 
@@ -226,7 +230,7 @@ namespace Span.ViewModels
             }
         }
 
-        private async Task LoadContentAsync(PreviewType previewType, FileSystemViewModel item, CancellationToken ct)
+        private async Task LoadContentAsync(PreviewType previewType, FileSystemViewModel item, string previewPath, CancellationToken ct)
         {
             switch (previewType)
             {
@@ -235,24 +239,24 @@ namespace Span.ViewModels
                     break;
 
                 case PreviewType.Image:
-                    ImagePreview = await _previewService.LoadImagePreviewAsync(item.Path, 1024, ct);
-                    var imgMeta = await _previewService.GetImageMetadataAsync(item.Path, ct);
+                    ImagePreview = await _previewService.LoadImagePreviewAsync(previewPath, 1024, ct);
+                    var imgMeta = await _previewService.GetImageMetadataAsync(previewPath, ct);
                     if (imgMeta != null)
                         Dimensions = $"{imgMeta.Width} x {imgMeta.Height}";
                     break;
 
                 case PreviewType.Text:
-                    TextFileExtension = System.IO.Path.GetExtension(item.Path)?.ToLowerInvariant() ?? "";
-                    TextPreview = await _previewService.LoadTextPreviewAsync(item.Path, ct);
+                    TextFileExtension = System.IO.Path.GetExtension(previewPath)?.ToLowerInvariant() ?? "";
+                    TextPreview = await _previewService.LoadTextPreviewAsync(previewPath, ct);
                     break;
 
                 case PreviewType.Pdf:
-                    PdfPreview = await _previewService.LoadPdfPreviewAsync(item.Path, ct);
+                    PdfPreview = await _previewService.LoadPdfPreviewAsync(previewPath, ct);
                     break;
 
                 case PreviewType.Media:
-                    MediaSource = await _previewService.LoadMediaSourceAsync(item.Path, ct);
-                    var mediaMeta = await _previewService.GetMediaMetadataAsync(item.Path, ct);
+                    MediaSource = await _previewService.LoadMediaSourceAsync(previewPath, ct);
+                    var mediaMeta = await _previewService.GetMediaMetadataAsync(previewPath, ct);
                     if (mediaMeta != null)
                     {
                         Duration = mediaMeta.Duration.ToString(@"hh\:mm\:ss");
@@ -266,11 +270,11 @@ namespace Span.ViewModels
                     break;
 
                 case PreviewType.HexBinary:
-                    HexPreview = await _previewService.LoadHexPreviewAsync(item.Path, ct);
+                    HexPreview = await _previewService.LoadHexPreviewAsync(previewPath, ct);
                     break;
 
                 case PreviewType.Font:
-                    var fontData = _previewService.GetFontPreviewData(item.Path);
+                    var fontData = _previewService.GetFontPreviewData(previewPath);
                     if (fontData != null)
                     {
                         FontFamilySource = fontData.FamilyName;
@@ -279,14 +283,14 @@ namespace Span.ViewModels
                     break;
 
                 case PreviewType.Archive:
-                    await LoadArchiveInfoAsync(item.Path, ct);
+                    await LoadArchiveInfoAsync(previewPath, ct);
                     break;
 
                 case PreviewType.Markdown:
                 case PreviewType.Csv:
                     // 사이드 패널에서는 텍스트로 폴백 표시
-                    TextFileExtension = System.IO.Path.GetExtension(item.Path)?.ToLowerInvariant() ?? "";
-                    TextPreview = await _previewService.LoadTextPreviewAsync(item.Path, ct);
+                    TextFileExtension = System.IO.Path.GetExtension(previewPath)?.ToLowerInvariant() ?? "";
+                    TextPreview = await _previewService.LoadTextPreviewAsync(previewPath, ct);
                     break;
 
                 case PreviewType.Generic:
