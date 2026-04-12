@@ -24,6 +24,12 @@
 
 ---
 
+<p align="center">
+  <strong>v1.3.1 NEU</strong> — <strong>File Shelf</strong>: Drag-&-Drop-Ablage im Stil von macOS <a href="https://www.yoink-app.com/">Yoink</a>. Dateien beim Navigieren zwischenlagern und am Zielort ablegen. (Ctrl+Shift+S)
+</p>
+
+---
+
 ![SPAN Finder — Miller-Columns-Navigation](miller-columns.gif)
 
 > **So sollte Ordnernavigation funktionieren.**

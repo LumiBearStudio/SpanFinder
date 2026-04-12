@@ -24,6 +24,12 @@
 
 ---
 
+<p align="center">
+  <strong>v1.3.1 NEW</strong> — <strong>File Shelf</strong>：macOS <a href="https://www.yoink-app.com/">Yoink</a> 风格的拖放暂存架。浏览时暂存文件，在需要的位置释放。(Ctrl+Shift+S)
+</p>
+
+---
+
 ![SPAN Finder — Miller Columns 文件浏览](miller-columns.gif)
 
 > **文件夹浏览，本该如此。**

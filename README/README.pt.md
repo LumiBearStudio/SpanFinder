@@ -24,6 +24,12 @@
 
 ---
 
+<p align="center">
+  <strong>v1.3.1 NOVO</strong> — <strong>File Shelf</strong>: Prateleira de arrastar e soltar estilo macOS <a href="https://www.yoink-app.com/">Yoink</a>. Guarde arquivos enquanto navega, solte onde precisar. (Ctrl+Shift+S)
+</p>
+
+---
+
 ![SPAN Finder — Navegacao em Miller Columns](miller-columns.gif)
 
 > **Navegar por pastas deveria ser assim.**

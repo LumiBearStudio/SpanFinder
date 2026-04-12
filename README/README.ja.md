@@ -24,6 +24,12 @@
 
 ---
 
+<p align="center">
+  <strong>v1.3.1 NEW</strong> — <strong>File Shelf</strong>: macOS <a href="https://www.yoink-app.com/">Yoink</a>スタイルのドラッグ＆ドロップシェルフ。ナビゲーション中にファイルを一時保管し、必要な場所にドロップ。(Ctrl+Shift+S)
+</p>
+
+---
+
 ![SPAN Finder — ミラーカラムナビゲーション](miller-columns.gif)
 
 > **フォルダ探索、本来こうあるべきです。**

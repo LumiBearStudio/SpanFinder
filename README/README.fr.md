@@ -24,6 +24,12 @@
 
 ---
 
+<p align="center">
+  <strong>v1.3.1 NOUVEAU</strong> — <strong>File Shelf</strong> : Étagère de glisser-déposer style macOS <a href="https://www.yoink-app.com/">Yoink</a>. Stockez vos fichiers en naviguant, déposez-les où vous voulez. (Ctrl+Shift+S)
+</p>
+
+---
+
 ![SPAN Finder — Navigation en colonnes Miller](miller-columns.gif)
 
 > **La navigation de fichiers, comme elle devrait vraiment être.**

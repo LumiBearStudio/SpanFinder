@@ -24,6 +24,12 @@
 
 ---
 
+<p align="center">
+  <strong>v1.3.1 NEW</strong> — <strong>File Shelf</strong>：macOS <a href="https://www.yoink-app.com/">Yoink</a> 風格的拖放暫存架。瀏覽時暫存檔案，在需要的位置釋放。(Ctrl+Shift+S)
+</p>
+
+---
+
 ![SPAN Finder — Miller Columns 瀏覽](miller-columns.gif)
 
 > **資料夾瀏覽，本來就該這樣。**

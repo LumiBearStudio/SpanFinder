@@ -24,6 +24,12 @@
 
 ---
 
+<p align="center">
+  <strong>v1.3.1 NEW</strong> — <strong>File Shelf</strong>: macOS <a href="https://www.yoink-app.com/">Yoink</a> 스타일의 임시 파일 보관함. 탐색 중 파일을 잠시 올려두고, 원하는 곳에 드롭하세요. (Ctrl+Shift+S)
+</p>
+
+---
+
 ![SPAN Finder — 밀러 컬럼 탐색](miller-columns.gif)
 
 > **폴더 탐색, 원래 이렇게 해야 합니다.**

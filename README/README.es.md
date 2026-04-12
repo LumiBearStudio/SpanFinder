@@ -24,6 +24,12 @@
 
 ---
 
+<p align="center">
+  <strong>v1.3.1 NUEVO</strong> — <strong>File Shelf</strong>: Estante de arrastrar y soltar estilo macOS <a href="https://www.yoink-app.com/">Yoink</a>. Guarda archivos mientras navegas y suéltalos donde los necesites. (Ctrl+Shift+S)
+</p>
+
+---
+
 ![SPAN Finder — Navegacion con Miller Columns](miller-columns.gif)
 
 > **Asi es como deberia ser la navegacion de carpetas.**

@@ -24,6 +24,12 @@
 
 ---
 
+<p align="center">
+  <strong>NEW in v1.3.1</strong> — <strong>File Shelf</strong>: macOS <a href="https://www.yoink-app.com/">Yoink</a>-style drag & drop shelf for Windows. Stash files while you navigate, drop them where you need. (Ctrl+Shift+S)
+</p>
+
+---
+
 ![SPAN Finder — Miller Columns in Action](README/miller-columns.gif)
 
 > **Navigate folder hierarchies the way they were meant to be navigated.**
