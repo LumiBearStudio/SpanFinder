@@ -55,9 +55,13 @@ namespace Span.ViewModels
         [NotifyPropertyChangedFor(nameof(IsShelfPanelVisible))]
         private bool _isShelfDragHover;
 
-        /// <summary>패널 보이기: 수동 토글 OR 드래그 호버 OR 아이템 있음</summary>
+        /// <summary>패널 보이기: (수동 토글 OR 드래그 호버 OR 아이템 있음) AND Settings/Log 모드가 아님.
+        /// 설정/작업 로그 화면에서는 Shelf 가 콘텐츠를 가리지 않도록 자동 숨김.
+        /// 상태(_isShelfVisible/ShelfItems)는 그대로 유지되어 모드 복귀 시 다시 나타남.</summary>
         public Microsoft.UI.Xaml.Visibility IsShelfPanelVisible
-            => _isShelfVisible || _isShelfDragHover || ShelfItems.Count > 0
+            => (_isShelfVisible || _isShelfDragHover || ShelfItems.Count > 0)
+               && _currentViewMode != ViewMode.Settings
+               && _currentViewMode != ViewMode.ActionLog
                 ? Microsoft.UI.Xaml.Visibility.Visible
                 : Microsoft.UI.Xaml.Visibility.Collapsed;
 
@@ -230,6 +234,7 @@ namespace Span.ViewModels
         private System.Threading.Timer? _toastTimer;
 
         [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(IsShelfPanelVisible))]
         private ViewMode _currentViewMode = ViewMode.MillerColumns;
 
         [ObservableProperty]

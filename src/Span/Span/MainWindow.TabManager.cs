@@ -1959,7 +1959,7 @@ namespace Span
             var titleItem = new MenuFlyoutItem
             {
                 Text = _loc?.Get("Workspace_PaletteTitle") ?? "Workspaces",
-                Icon = new FontIcon { Glyph = "\uE8F1", FontSize = 14 },
+                Icon = new FontIcon { Glyph = "\uE737", FontSize = 14 },
                 IsEnabled = true
             };
             // 클릭해도 아무 동작 안 함 (헤더 역할만)

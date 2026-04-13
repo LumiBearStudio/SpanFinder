@@ -300,6 +300,9 @@ namespace Span
                 if (!isTextBoxFocused)
                 {
                     var commandId = _keyBindingService.ResolveCommand(e.Key, ctrl, shift, alt, e.KeyStatus.ScanCode);
+                    // QuickLook은 뷰별 핸들러(Miller/Details/List/Icon)에서 독립 처리.
+                    // 글로벌 핸들러(handledEventsToo=true)에서 중복 실행 시 Open→즉시Close → AV 크래시.
+                    if (commandId == ShortcutCommands.QuickLook) commandId = null;
                     if (commandId != null && ExecuteCommand(commandId))
                     {
                         e.Handled = true;
@@ -1797,11 +1800,81 @@ namespace Span
                             }
                         }
                         break;
+
+                    case "delete":
+                    case "permanentDelete":
+                        _ = HandleQuickLookDeleteAsync(path, permanent: action == "permanentDelete");
+                        break;
                 }
             }
             catch (Exception ex)
             {
                 Helpers.DebugLogger.Log($"[QuickLook] ActionForwarded '{action}' error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// QuickLook에서 Del 키로 파일 삭제 요청 처리.
+        /// 삭제 확인 → 삭제 실행 → QuickLook에 결과 콜백(다음 파일 이동 or 닫기).
+        /// </summary>
+        private async Task HandleQuickLookDeleteAsync(string filePath, bool permanent)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(filePath) || !System.IO.File.Exists(filePath)) return;
+
+                // 확인 다이얼로그 (설정에 따라)
+                // 다이얼로그는 QuickLook 윈도우 위에 표시
+                var dialogRoot = (_quickLookWindow?.Content as FrameworkElement)?.XamlRoot ?? this.Content.XamlRoot;
+
+                if (!permanent && _settings.ConfirmDelete)
+                {
+                    var fileName = System.IO.Path.GetFileName(filePath);
+                    var dialog = new ContentDialog
+                    {
+                        Title = _loc.Get("DeleteConfirmTitle"),
+                        Content = string.Format(_loc.Get("DeleteConfirmContent"), fileName),
+                        PrimaryButtonText = _loc.Get("Delete"),
+                        CloseButtonText = _loc.Get("Cancel"),
+                        XamlRoot = dialogRoot,
+                        DefaultButton = ContentDialogButton.Close
+                    };
+                    var result = await ShowContentDialogSafeAsync(dialog);
+                    if (result != ContentDialogResult.Primary) return;
+                    if (_isClosed) return;
+                }
+                else if (permanent)
+                {
+                    var fileName = System.IO.Path.GetFileName(filePath);
+                    var dialog = new ContentDialog
+                    {
+                        Title = _loc.Get("PermanentDeleteConfirmTitle"),
+                        Content = string.Format(_loc.Get("PermanentDeleteConfirmContent"), fileName),
+                        PrimaryButtonText = _loc.Get("Delete"),
+                        CloseButtonText = _loc.Get("Cancel"),
+                        XamlRoot = dialogRoot,
+                        DefaultButton = ContentDialogButton.Close
+                    };
+                    var result = await ShowContentDialogSafeAsync(dialog);
+                    if (result != ContentDialogResult.Primary) return;
+                    if (_isClosed) return;
+                }
+
+                // 삭제 실행
+                var router = App.Current.Services.GetRequiredService<Services.FileSystemRouter>();
+                var operation = new Services.FileOperations.DeleteFileOperation(
+                    new List<string> { filePath }, permanent: permanent, router: router);
+                await ViewModel.ExecuteFileOperationAsync(operation, null);
+                if (_isClosed) return;
+
+                // QuickLook에 ��제 완료 콜백 → 다음 파일로 이동 or 닫기
+                _quickLookWindow?.OnFileDeleted(filePath);
+
+                Helpers.DebugLogger.Log($"[QuickLook] File deleted: {filePath} (permanent={permanent})");
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[QuickLook] Delete error: {ex.Message}");
             }
         }
 

@@ -154,7 +154,15 @@ namespace Span.Views
 
             // Owner 설정: QuickLook이 메인 창 위에만 표시 (모든 창 위가 아님)
             var qlHwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
-            Helpers.NativeMethods.SetWindowLongPtr64(qlHwnd, Helpers.NativeMethods.GWLP_HWNDPARENT, mainHwnd);
+            try
+            {
+                if (qlHwnd != IntPtr.Zero && mainHwnd != IntPtr.Zero)
+                    Helpers.NativeMethods.SetWindowLongPtr64(qlHwnd, Helpers.NativeMethods.GWLP_HWNDPARENT, mainHwnd);
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[QuickLook] SetWindowLongPtr64 failed: {ex.Message}");
+            }
 
             // DPI 비율 보정: QuickLook이 메인 창과 다른 모니터에 생성될 수 있음
             uint qlDpi = Helpers.NativeMethods.GetDpiForWindow(qlHwnd);
@@ -528,6 +536,13 @@ namespace Span.Views
                     e.Handled = true;
                     NavigateSibling(-1);
                     break;
+
+                case Windows.System.VirtualKey.Delete:
+                    e.Handled = true;
+                    bool shift = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(
+                        Windows.System.VirtualKey.Shift).HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+                    RequestDeleteCurrentFile(shift);
+                    break;
             }
         }
 
@@ -575,6 +590,66 @@ namespace Span.Views
             catch { }
         }
 
+        // ── 삭제 요청 + 삭제 후 다음 파일 이동 ────────────────────
+
+        /// <summary>
+        /// 현재 미리보기 중인 파일의 삭제를 MainWindow에 요청한다.
+        /// </summary>
+        private void RequestDeleteCurrentFile(bool permanent)
+        {
+            if (_siblingItems == null || _currentIndex < 0 || _currentIndex >= _siblingItems.Count) return;
+            var item = _siblingItems[_currentIndex];
+            if (item is FolderViewModel) return; // 폴더 삭제는 QuickLook에서 지원하지 않음
+
+            var action = permanent ? "permanentDelete" : "delete";
+            ActionForwarded?.Invoke(action, item.Path);
+        }
+
+        /// <summary>
+        /// MainWindow에서 삭제 완료 후 호출. 형제 목록을 갱신하고 다음 파일로 이동.
+        /// 남은 파일이 없으면 QuickLook을 닫는다.
+        /// </summary>
+        public void OnFileDeleted(string deletedPath)
+        {
+            if (_siblingItems == null) return;
+
+            // 삭제된 항목의 인덱스 찾기
+            int deletedIndex = -1;
+            for (int i = 0; i < _siblingItems.Count; i++)
+            {
+                if (string.Equals(_siblingItems[i].Path, deletedPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    deletedIndex = i;
+                    break;
+                }
+            }
+            if (deletedIndex < 0) return;
+
+            // 형제 목록에서 삭제된 항목 제거 (IReadOnlyList → 새 리스트)
+            var newList = new System.Collections.Generic.List<FileSystemViewModel>(_siblingItems);
+            newList.RemoveAt(deletedIndex);
+            _siblingItems = newList;
+
+            // 남은 파일이 없으면 QuickLook 닫기
+            if (newList.Count == 0)
+            {
+                try { this.Close(); } catch { }
+                return;
+            }
+
+            // 다음 파일로 이동 (같은 인덱스, 범위 초과 시 마지막 항목)
+            _currentIndex = Math.Clamp(deletedIndex, 0, newList.Count - 1);
+            var nextItem = newList[_currentIndex];
+
+            StopMedia();
+            UpdateContent(nextItem);
+            SelectionSynced?.Invoke(nextItem);
+            UpdateNavButtonStates();
+            UpdateFileCounter();
+
+            Helpers.DebugLogger.Log($"[QuickLook] After delete: showing {nextItem.Name} ({_currentIndex + 1}/{newList.Count})");
+        }
+
         /// <summary>
         /// 형제 파일 목록에서 다음/이전 항목으로 이동하여 미리보기를 갱신한다.
         /// </summary>
@@ -605,10 +680,10 @@ namespace Span.Views
         {
             try
             {
-                if (QuickLookMediaPlayer?.MediaPlayer != null)
+                if (_mediaPlayer?.MediaPlayer != null)
                 {
-                    QuickLookMediaPlayer.MediaPlayer.Pause();
-                    QuickLookMediaPlayer.Source = null;
+                    _mediaPlayer.MediaPlayer.Pause();
+                    _mediaPlayer.Source = null;
                 }
             }
             catch { }
@@ -630,7 +705,9 @@ namespace Span.Views
             catch { }
         }
 
-        // ── Markdown 렌더링 (WebView2) ──────────────────────
+        // ── Markdown 렌더링 (WebView2 — 지연 생성) ──────────────────────
+
+        private Microsoft.UI.Xaml.Controls.WebView2? _markdownWebView;
 
         private async Task RenderMarkdownAsync()
         {
@@ -639,14 +716,26 @@ namespace Span.Views
                 var html = ViewModel.MarkdownHtml;
                 if (string.IsNullOrEmpty(html))
                 {
-                    MarkdownWebView.Visibility = Visibility.Collapsed;
+                    if (_markdownWebView != null)
+                        _markdownWebView.Visibility = Visibility.Collapsed;
                     return;
                 }
 
-                await MarkdownWebView.EnsureCoreWebView2Async();
+                // WebView2 지연 생성: Markdown 파일을 열 때만 인스턴스화
+                if (_markdownWebView == null)
+                {
+                    _markdownWebView = new Microsoft.UI.Xaml.Controls.WebView2
+                    {
+                        DefaultBackgroundColor = Microsoft.UI.Colors.Transparent
+                    };
+                    MarkdownWebViewHost.Children.Add(_markdownWebView);
+                }
+
+                _markdownWebView.Visibility = Visibility.Visible;
+                await _markdownWebView.EnsureCoreWebView2Async();
                 var isDark = (this.Content as FrameworkElement)?.ActualTheme != ElementTheme.Light;
                 var fullHtml = Helpers.MarkdownHelper.WrapInHtmlDocument(html, isDark);
-                MarkdownWebView.NavigateToString(fullHtml);
+                _markdownWebView.NavigateToString(fullHtml);
             }
             catch (Exception ex)
             {
@@ -977,8 +1066,32 @@ namespace Span.Views
             ViewModel.PropertyChanged -= OnInfoOnlyPropertyChanged;
             ContentPreviewArea.SizeChanged -= OnContentPreviewAreaSizeChanged;
             this.Content.PreviewKeyDown -= OnContentPreviewKeyDown;
+
+            // 지연 생성 네이티브 컨트롤 정리
+            try { _markdownWebView?.Close(); } catch { }
+            _markdownWebView = null;
+            try { if (_mediaPlayer != null) { _mediaPlayer.Source = null; } } catch { }
+            _mediaPlayer = null;
+
             ViewModel?.Dispose();
             WindowClosed?.Invoke();
+        }
+
+        // ── MediaPlayerElement 지연 생성 ──────────────────────
+        private MediaPlayerElement? _mediaPlayer;
+
+        private void EnsureMediaPlayer()
+        {
+            if (_mediaPlayer != null) return;
+            _mediaPlayer = new MediaPlayerElement
+            {
+                AreTransportControlsEnabled = true,
+                Stretch = Microsoft.UI.Xaml.Media.Stretch.Uniform,
+                AutoPlay = false,
+                MinHeight = 180,
+                TransportControls = new MediaTransportControls { IsCompact = true, Opacity = 0.85 }
+            };
+            MediaPlayerHost.Children.Add(_mediaPlayer);
         }
 
         private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -986,6 +1099,18 @@ namespace Span.Views
             if (e.PropertyName == nameof(QuickLookViewModel.RotationAngle))
             {
                 UpdateImageTransform();
+            }
+            else if (e.PropertyName == nameof(QuickLookViewModel.MediaSource))
+            {
+                if (ViewModel.MediaSource != null)
+                {
+                    EnsureMediaPlayer();
+                    _mediaPlayer!.Source = ViewModel.MediaSource;
+                }
+                else if (_mediaPlayer != null)
+                {
+                    _mediaPlayer.Source = null;
+                }
             }
             else if (e.PropertyName == nameof(QuickLookViewModel.MarkdownHtml))
             {

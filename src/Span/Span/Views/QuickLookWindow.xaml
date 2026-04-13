@@ -115,20 +115,10 @@
                            HorizontalAlignment="Center" VerticalAlignment="Center"
                            Margin="16"/>
 
-                    <!-- Media Preview -->
-                    <Grid Visibility="{Binding IsMediaVisible, Converter={StaticResource VisConv}}"
-                          VerticalAlignment="Center" Margin="16">
-                        <MediaPlayerElement x:Name="QuickLookMediaPlayer"
-                                            Source="{Binding MediaSource}"
-                                            AreTransportControlsEnabled="True"
-                                            Stretch="Uniform"
-                                            AutoPlay="False"
-                                            MinHeight="180">
-                            <MediaPlayerElement.TransportControls>
-                                <MediaTransportControls IsCompact="True" Opacity="0.85"/>
-                            </MediaPlayerElement.TransportControls>
-                        </MediaPlayerElement>
-                    </Grid>
+                    <!-- Media Preview — 지연 생성: Grid placeholder만 배치 -->
+                    <Grid x:Name="MediaPlayerHost"
+                          Visibility="{Binding IsMediaVisible, Converter={StaticResource VisConv}}"
+                          VerticalAlignment="Center" Margin="16" MinHeight="180"/>
 
                     <!-- Hex Binary Preview -->
                     <Border Visibility="{Binding IsHexBinaryVisible, Converter={StaticResource VisConv}}"
@@ -197,10 +187,9 @@
                 </Grid>
             </ScrollViewer>
 
-            <!-- Markdown Rendered Preview (WebView2) -->
-            <WebView2 x:Name="MarkdownWebView"
-                       Visibility="{Binding IsMarkdownVisible, Converter={StaticResource VisConv}}"
-                       DefaultBackgroundColor="Transparent"/>
+            <!-- Markdown Rendered Preview (WebView2) — 지연 생성: Grid placeholder만 배치 -->
+            <Grid x:Name="MarkdownWebViewHost"
+                  Visibility="{Binding IsMarkdownVisible, Converter={StaticResource VisConv}}"/>
 
             <!-- CSV Table Preview -->
             <Border Visibility="{Binding IsCsvVisible, Converter={StaticResource VisConv}}"

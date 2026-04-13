@@ -551,7 +551,7 @@ namespace Span
             "Window" => "\uE8A7",
             "Shelf" => "\uE8F1",
             "CommandPalette" => "\uE773",
-            "Workspace" => "\uE74C",
+            "Workspace" => "\uE737",
             "QuickLook" => "\uE8FF",
             _ => "\uE756",
         };
