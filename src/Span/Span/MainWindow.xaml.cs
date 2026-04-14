@@ -5658,7 +5658,11 @@ namespace Span
         {
             if (item is FolderViewModel folder)
             {
-                ViewModel.ActiveExplorer?.NavigateIntoFolder(folder);
+                // 부모 컬럼을 명시 전달: fromColumn 누락 시 CurrentFolder(=마지막 컬럼)로 폴백되어
+                // 엉뚱한 위치에 컬럼이 삽입되고 이후 컬럼이 stale 상태로 남는 버그 수정 (Discussion #20)
+                var explorer = ViewModel.ActiveExplorer;
+                var parentCol = explorer?.Columns.FirstOrDefault(c => c.Children.Contains(folder));
+                explorer?.NavigateIntoFolder(folder, fromColumn: parentCol);
             }
             else if (item is FileViewModel file)
             {
