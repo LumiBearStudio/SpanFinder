@@ -63,7 +63,7 @@ namespace Span.Views
         private string _currentSortBy = "Name";
         private bool _isAscending = true;
         private bool _isLoaded = false;
-        private readonly ApplicationDataContainer _localSettings = ApplicationData.Current.LocalSettings;
+        private ApplicationDataContainer? _localSettings;
         private SettingsService? _settings;
 
         // 컬럼 너비 동기화 디바운스 — GridSplitter 드래그 시 인접 컬럼 콜백이
@@ -124,6 +124,15 @@ namespace Span.Views
 
         public DetailsModeView()
         {
+            try
+            {
+                _localSettings = ApplicationData.Current.LocalSettings;
+            }
+            catch
+            {
+                // LocalSettings corrupted/unavailable — sort/column settings won't persist but app won't crash
+            }
+
             this.InitializeComponent();
 
             this.Loaded += (s, e) =>
@@ -1149,7 +1158,8 @@ namespace Span.Views
                     ["SizeColumnVisible"] = _sizeColumnVisible,
                     ["GitColumnVisible"] = _gitColumnVisible
                 };
-                _localSettings.Values["DetailsViewSort"] = composite;
+                if (_localSettings != null)
+                    _localSettings.Values["DetailsViewSort"] = composite;
                 Helpers.DebugLogger.Log("[DetailsModeView] Sort settings saved");
             }
             catch (Exception ex)
@@ -1162,7 +1172,7 @@ namespace Span.Views
         {
             try
             {
-                if (_localSettings.Values["DetailsViewSort"] is ApplicationDataCompositeValue composite)
+                if (_localSettings?.Values["DetailsViewSort"] is ApplicationDataCompositeValue composite)
                 {
                     if (composite.TryGetValue("SortColumn", out var sortObj) && sortObj is string sortColumn)
                     {
@@ -1399,7 +1409,7 @@ namespace Span.Views
         {
             try
             {
-                if (_localSettings.Values["DetailsViewSort"] is ApplicationDataCompositeValue composite)
+                if (_localSettings?.Values["DetailsViewSort"] is ApplicationDataCompositeValue composite)
                 {
                     if (composite.TryGetValue("DateColumnVisible", out var dateObj) && dateObj is bool dateVis)
                     {

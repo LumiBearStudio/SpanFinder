@@ -373,9 +373,19 @@ namespace Span
                 _sentryCaptureCount++;
                 try
                 {
+                    var extras = new Dictionary<string, string> { ["crashCount"] = _crashCount.ToString() };
+
+                    // Inner exception 체인 기록 — XamlParseException 등이 실제 원인을 래핑
+                    var inner = e.Exception?.InnerException;
+                    for (int i = 1; inner != null && i <= 5; i++, inner = inner.InnerException)
+                    {
+                        extras[$"innerException{i}.type"] = inner.GetType().FullName ?? "unknown";
+                        extras[$"innerException{i}.message"] = inner.Message ?? "";
+                        extras[$"innerException{i}.stackTrace"] = inner.StackTrace ?? "(no stack)";
+                    }
+
                     var crashSvc = Services.GetRequiredService<Services.CrashReportingService>();
-                    crashSvc.CaptureException(e.Exception, "UI.UnhandledException",
-                        new Dictionary<string, string> { ["crashCount"] = _crashCount.ToString() });
+                    crashSvc.CaptureException(e.Exception, "UI.UnhandledException", extras);
                 }
                 catch { }
             }
