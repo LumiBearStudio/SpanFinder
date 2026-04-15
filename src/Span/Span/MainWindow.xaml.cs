@@ -422,33 +422,44 @@ namespace Span
             // Mica
             SystemBackdrop = new Microsoft.UI.Xaml.Media.MicaBackdrop();
 
-            // Close-to-Tray: hide window to system tray instead of closing.
-            // - _forceClose: explicit exit path (TrayIconService.ExitApplication)
-            // - _isTearOffWindow excluded? No — tray hides every window uniformly now.
-            //   (Previous SW_MINIMIZE implementation excluded tear-offs; with real tray
-            //    we hide all windows consistently. Session save is already guarded by
-            //    _isTearOffWindow check in OnClosed, so no data loss on genuine exit.)
+            // Close-to-Tray policy:
+            //   - Setting OFF  → always real close (existing behavior)
+            //   - Setting ON + multiple windows open → real close this window only
+            //     (other windows keep the app alive; X is treated as window cleanup)
+            //   - Setting ON + this is the LAST window → hide to tray
+            //     (preserves the user's "keep app running" intent)
+            //   - _forceClose bypass: TrayIconService's "Exit Span" menu sets this flag.
+            //
+            // Rationale: avoids the trap where one window's X forces every window into
+            // the tray. X keeps its intuitive "close this window" meaning unless the
+            // window is the last thing keeping the app visible.
             this.AppWindow.Closing += (s, e) =>
             {
-                if (_settings.MinimizeToTray && !_forceClose)
+                if (!_settings.MinimizeToTray || _forceClose) return;
+
+                // If other windows remain, let this one close normally.
+                var windowCount = App.Current.GetRegisteredWindows().Count;
+                if (windowCount > 1)
                 {
-                    try
-                    {
-                        e.Cancel = true;
-                        // AppWindow.Hide() removes from taskbar AND Alt+Tab, unlike SW_MINIMIZE.
-                        // TrayIconService must be active to provide a way back — the service
-                        // syncs with the setting at startup, so this branch only runs when
-                        // the user opted in AND the tray icon is alive.
-                        this.AppWindow.Hide();
-                        // ensure icon exists if toggled mid-session
-                        (App.Current.Services.GetService(typeof(Services.TrayIconService)) as Services.TrayIconService)
-                            ?.SyncWithSetting();
-                    }
-                    catch (Exception ex)
-                    {
-                        Helpers.DebugLogger.Log($"[MainWindow] Hide-to-tray failed: {ex.Message}");
-                        e.Cancel = false; // fall back to real close rather than leave user stuck
-                    }
+                    Helpers.DebugLogger.Log($"[MainWindow] Close-to-Tray: {windowCount} windows open, closing this one normally");
+                    return;
+                }
+
+                // Last window → hide to tray.
+                try
+                {
+                    e.Cancel = true;
+                    // AppWindow.Hide() removes from taskbar AND Alt+Tab, unlike SW_MINIMIZE.
+                    this.AppWindow.Hide();
+                    // Ensure tray icon is alive (user may have toggled mid-session).
+                    (App.Current.Services.GetService(typeof(Services.TrayIconService)) as Services.TrayIconService)
+                        ?.SyncWithSetting();
+                    Helpers.DebugLogger.Log("[MainWindow] Close-to-Tray: last window hidden to tray");
+                }
+                catch (Exception ex)
+                {
+                    Helpers.DebugLogger.Log($"[MainWindow] Hide-to-tray failed: {ex.Message}");
+                    e.Cancel = false; // fall back to real close rather than leave user stuck
                 }
             };
 
