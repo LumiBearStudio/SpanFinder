@@ -222,6 +222,12 @@ namespace Span
 
         private bool _forceClose = false;
 
+        /// <summary>
+        /// Marks this window for a genuine close (bypassing Close-to-Tray hide behavior).
+        /// Called by TrayIconService's "Exit Span" menu.
+        /// </summary>
+        internal void SetForceClose() => _forceClose = true;
+
         // Miller Columns checkbox mode tracking
         private ListViewSelectionMode _millerSelectionMode = ListViewSelectionMode.Extended;
         private Thickness _densityPadding = new(12, 2, 12, 2); // comfortable default
@@ -416,15 +422,33 @@ namespace Span
             // Mica
             SystemBackdrop = new Microsoft.UI.Xaml.Media.MicaBackdrop();
 
-            // Minimize to taskbar on close (instead of quitting) when MinimizeToTray enabled
-            // Tear-off windows close normally (no tray minimization)
-            // If already minimized (e.g. taskbar right-click → Close), allow actual close
+            // Close-to-Tray: hide window to system tray instead of closing.
+            // - _forceClose: explicit exit path (TrayIconService.ExitApplication)
+            // - _isTearOffWindow excluded? No — tray hides every window uniformly now.
+            //   (Previous SW_MINIMIZE implementation excluded tear-offs; with real tray
+            //    we hide all windows consistently. Session save is already guarded by
+            //    _isTearOffWindow check in OnClosed, so no data loss on genuine exit.)
             this.AppWindow.Closing += (s, e) =>
             {
-                if (_settings.MinimizeToTray && !_forceClose && !_isTearOffWindow && !IsIconic(_hwnd))
+                if (_settings.MinimizeToTray && !_forceClose)
                 {
-                    e.Cancel = true;
-                    ShowWindow(_hwnd, 6); // SW_MINIMIZE
+                    try
+                    {
+                        e.Cancel = true;
+                        // AppWindow.Hide() removes from taskbar AND Alt+Tab, unlike SW_MINIMIZE.
+                        // TrayIconService must be active to provide a way back — the service
+                        // syncs with the setting at startup, so this branch only runs when
+                        // the user opted in AND the tray icon is alive.
+                        this.AppWindow.Hide();
+                        // ensure icon exists if toggled mid-session
+                        (App.Current.Services.GetService(typeof(Services.TrayIconService)) as Services.TrayIconService)
+                            ?.SyncWithSetting();
+                    }
+                    catch (Exception ex)
+                    {
+                        Helpers.DebugLogger.Log($"[MainWindow] Hide-to-tray failed: {ex.Message}");
+                        e.Cancel = false; // fall back to real close rather than leave user stuck
+                    }
                 }
             };
 

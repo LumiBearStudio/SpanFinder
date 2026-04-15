@@ -1026,7 +1026,9 @@ namespace Span.Services
             // Settings_DefaultPreview / Settings_ShelfEnabled / Settings_ShelfSave 는 위쪽 블록(라인 ~307~)에 이미 정의되어 있어 중복 제거됨 (2026-04-10)
             ("Settings_ShowFavoritesTree", "Show favorites tree", "즐겨찾기 트리 표시", "お気に入りツリーを表示", "显示收藏树", "顯示我的最愛樹狀檢視", "Favoritenbaum anzeigen", "Mostrar árbol de favoritos", "Afficher arbre des favoris", "Mostrar árvore de favoritos"),
             ("Settings_ShowContextMenu", "Show context menu", "컨텍스트 메뉴 표시", "コンテキストメニューを表示", "显示上下文菜单", "顯示快顯功能表", "Kontextmenü anzeigen", "Mostrar menú contextual", "Afficher le menu contextuel", "Mostrar menu de contexto"),
-            ("Settings_MinimizeToTray", "Minimize to tray", "트레이로 최소화", "トレイに最小化", "最小化到托盘", "最小化到工作列", "In Infobereich minimieren", "Minimizar a la bandeja", "Réduire dans la barre d'état", "Minimizar para a bandeja"),
+            ("Settings_MinimizeToTray", "Close to tray", "닫을 때 트레이로 보내기", "閉じるときにトレイへ", "关闭时最小化到托盘", "關閉時隱藏到工作列", "Beim Schließen in Infobereich", "Cerrar a la bandeja", "Fermer dans la barre d'état", "Fechar para a bandeja"),
+            ("Tray_Show", "Show Span", "Span 열기", "Spanを表示", "显示 Span", "顯示 Span", "Span anzeigen", "Mostrar Span", "Afficher Span", "Mostrar Span"),
+            ("Tray_Exit", "Exit Span", "Span 종료", "Spanを終了", "退出 Span", "結束 Span", "Span beenden", "Salir de Span", "Quitter Span", "Sair do Span"),
             ("Settings_RememberWindowPosition", "Remember window position", "창 위치 기억", "ウィンドウ位置を記憶", "记住窗口位置", "記住視窗位置", "Fensterposition merken", "Recordar posición de ventana", "Mémoriser la position de fenêtre", "Lembrar posição da janela"),
             ("Settings_ShowGitIntegration", "Show Git integration", "Git 통합 표시", "Git統合を表示", "显示 Git 集成", "顯示 Git 整合", "Git-Integration anzeigen", "Mostrar integración Git", "Afficher l'intégration Git", "Mostrar integração Git"),
             ("Settings_ShowHexPreview", "Show hex preview", "헥스 미리보기 표시", "16進プレビューを表示", "显示十六进制预览", "顯示十六進位預覽", "Hex-Vorschau anzeigen", "Mostrar vista previa hex", "Afficher l'aperçu hex", "Mostrar visualização hex"),

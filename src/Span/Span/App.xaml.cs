@@ -264,10 +264,36 @@ namespace Span
 
         public void RegisterWindow(Window w)
         {
+            bool isFirst;
             lock (_windowLock)
             {
                 if (!_windows.Contains(w))
                     _windows.Add(w);
+                isFirst = _windows.Count == 1;
+            }
+
+            // Lazy-initialize the tray icon on first window registration.
+            // Subsequent registrations (tear-off) just reuse the single shared icon.
+            //
+            // Defer to DispatcherQueue so the window's XAML content (and compositor)
+            // is fully ready — TaskbarIcon.ForceCreate() needs a live visual context.
+            if (isFirst)
+            {
+                try
+                {
+                    // Instantiate now so SettingChanged subscription is active.
+                    var tray = Services.GetService(typeof(Services.TrayIconService)) as Services.TrayIconService;
+
+                    w.DispatcherQueue?.TryEnqueue(() =>
+                    {
+                        try { tray?.SyncWithSetting(); }
+                        catch (Exception ex) { Helpers.DebugLogger.Log($"[App] deferred TrayIcon sync failed: {ex.Message}"); }
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Helpers.DebugLogger.Log($"[App] TrayIcon init failed: {ex.Message}");
+                }
             }
         }
 
@@ -280,6 +306,15 @@ namespace Span
                 {
                     Helpers.DebugLogger.Log("[App] Last window closed — force-killing process to avoid WinUI teardown hang");
                     Helpers.DebugLogger.Shutdown();
+
+                    // Dispose tray icon BEFORE Process.Kill so the notification area
+                    // icon is removed cleanly instead of lingering as a ghost until
+                    // Windows detects the dead process and cleans up.
+                    try
+                    {
+                        (Services.GetService(typeof(Services.TrayIconService)) as Services.TrayIconService)?.Dispose();
+                    }
+                    catch { }
 
                     // Flush Sentry events before force-killing the process
                     try { Sentry.SentrySdk.FlushAsync(TimeSpan.FromSeconds(2)).GetAwaiter().GetResult(); } catch { }
@@ -467,6 +502,7 @@ namespace Span
             services.AddSingleton<Services.ShellNewService>();
             services.AddSingleton<Services.WorkspaceService>();
             services.AddSingleton<Services.ShelfService>();
+            services.AddSingleton<Services.TrayIconService>();
 
             // Interface registrations (for testability — resolve to same singleton)
             services.AddSingleton<Services.IFileSystemService>(sp => sp.GetRequiredService<Services.FileSystemService>());
@@ -639,6 +675,11 @@ namespace Span
                     try
                     {
                         if (mainWindow.IsClosed) return;
+
+                        // 0. Close-to-Tray 복원: AppWindow.Hide()로 숨겨진 창은 AppWindow.Show()로 복원.
+                        //    SW_SHOW(ShowWindow)만으로는 WS_EX_APPWINDOW 스타일이 복원되지 않아
+                        //    Alt+Tab/작업표시줄에 나타나지 않음. 기본 파일매니저에서 클릭 시 치명적 UX.
+                        try { mainWindow.AppWindow?.Show(); } catch { }
 
                         // 1. 포그라운드 활성화
                         var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(mainWindow);
