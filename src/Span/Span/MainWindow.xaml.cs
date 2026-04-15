@@ -2283,6 +2283,14 @@ namespace Span
                     SetViewModeVisibility(newMode);
                     // IsSingleNonHomeVisible 등 남은 바인딩용 (경량)
                     ViewModel.NotifyViewModeChanged();
+
+                    // Miller 뷰로 전환 시 열려있던 필터 바 자동 닫기 — Miller에서는 필터 미지원.
+                    if (newMode == Models.ViewMode.MillerColumns
+                        && LeftFilterBar != null
+                        && LeftFilterBar.Visibility == Visibility.Visible)
+                    {
+                        CloseFilterBar();
+                    }
                 }
             }
             finally
@@ -6427,13 +6435,23 @@ namespace Span
             if (LeftFilterBar.Visibility == Visibility.Visible)
             {
                 CloseFilterBar();
+                return;
             }
-            else
+
+            // Miller Column 뷰에서는 필터가 의미 없음 — 각 컬럼의 Children을 숨기면
+            // 경로 하이라이트/SelectedChild 상태가 깨져 빈 컬럼 유령 UI 발생.
+            // Details/List/Icon 같은 평면 목록 뷰에서만 필터 허용.
+            var activeMode = (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == Models.ActivePane.Right)
+                ? ViewModel.RightViewMode : ViewModel.LeftViewMode;
+            if (activeMode == Models.ViewMode.MillerColumns)
             {
-                LeftFilterBar.Visibility = Visibility.Visible;
-                LeftFilterTextBox.Focus(FocusState.Keyboard);
-                UpdateFilterCount();
+                ViewModel.ShowToast(_loc.Get("Filter_NotAvailableInMiller"), 2500, isError: false);
+                return;
             }
+
+            LeftFilterBar.Visibility = Visibility.Visible;
+            LeftFilterTextBox.Focus(FocusState.Keyboard);
+            UpdateFilterCount();
         }
 
         private void CloseFilterBar()

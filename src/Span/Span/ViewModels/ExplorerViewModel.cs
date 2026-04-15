@@ -68,9 +68,10 @@ namespace Span.ViewModels
                 {
                     // 필터 적용 중 Children 교체 → SelectedChild 변경 → Columns 수정 연쇄를 방지
                     // 1) Columns 스냅샷으로 순회 (ConcurrentModificationException 방지)
-                    // 2) AutoNavigation 억제 (필터로 인한 컬럼 추가/제거 방지)
-                    var prevAutoNav = EnableAutoNavigation;
-                    EnableAutoNavigation = false;
+                    // 2) AutoNavigation 억제 — 내부 카운터로 관리 (EnableAutoNavigation 건드리지 않음)
+                    //    NavigateTo/NavigateToPath가 awaiting 중에 FilterText가 실행되어도
+                    //    전역 상태 오염 없이 안전하게 억제 중첩 가능.
+                    Interlocked.Increment(ref _autoNavSuppressCount);
                     try
                     {
                         foreach (var col in Columns.ToList())
@@ -78,7 +79,7 @@ namespace Span.ViewModels
                     }
                     finally
                     {
-                        EnableAutoNavigation = prevAutoNav;
+                        Interlocked.Decrement(ref _autoNavSuppressCount);
                     }
                     OnPropertyChanged(nameof(IsFilterActive));
                 }
@@ -104,8 +105,23 @@ namespace Span.ViewModels
         /// Controls automatic navigation on selection change.
         /// TRUE: Miller Columns mode - navigate on single click
         /// FALSE: Details/Icon mode - selection only, navigate on double click
+        /// 외부(MainViewModel/SettingsHandler)가 뷰모드/설정에 따라 설정하는 "의도값".
+        /// 탐색 도중의 **일시적** 억제는 _autoNavSuppressCount로 관리 — 동시 탐색
+        /// 호출이 서로의 save/restore를 덮어쓰며 False로 고착되는 레이스 방지.
+        /// (Discussion #20 @cyluss 로그 기반)
         /// </summary>
         public bool EnableAutoNavigation { get; set; } = true;
+
+        /// <summary>
+        /// NavigateTo / NavigateToPath / 기타 탐색 시퀀스 중 자동 네비게이션을
+        /// 일시 억제하기 위한 refcount 카운터. Interlocked로 증감.
+        /// EnableAutoNavigation (외부 관리값)을 **절대 건드리지 않고** 억제만 수행하여
+        /// 동시 탐색 호출의 stale restore로 인한 AutoNav=False 고착 버그를 방지한다.
+        /// </summary>
+        private int _autoNavSuppressCount;
+
+        /// <summary>현재 탐색 루프가 자동 네비게이션을 억제 중인지 여부.</summary>
+        private bool IsAutoNavSuppressed => Volatile.Read(ref _autoNavSuppressCount) > 0;
 
         /// <summary>
         /// 탭 전환 시 SelectionChanged로 인한 컬럼 자동 추가 억제용 타임스탬프.
@@ -545,25 +561,32 @@ namespace Span.ViewModels
             }
             Columns.Clear();
 
-            // 초기 로딩 중 자동 네비게이션 억제 — 첫 항목 선택 시 연쇄 진입 방지
-            var prevAutoNav = EnableAutoNavigation;
-            EnableAutoNavigation = false;
+            // 초기 로딩 중 자동 네비게이션 억제 — 첫 항목 선택 시 연쇄 진입 방지.
+            // EnableAutoNavigation 전역 상태를 건드리지 않고 내부 카운터로만 억제하여
+            // 동시 탐색 호출 간 boolean save/restore 레이스를 원천 차단.
+            Interlocked.Increment(ref _autoNavSuppressCount);
 
             var rootVm = new FolderViewModel(folder, _fileService);
-            AddColumn(rootVm);                          // 즉시 UI에 추가 → ProgressRing 표시
-            CurrentPath = rootVm.Path;
-            SelectedFile = null;
-            await rootVm.EnsureChildrenLoadedAsync();   // 로딩 완료 시 항목 표시
+            try
+            {
+                AddColumn(rootVm);                          // 즉시 UI에 추가 → ProgressRing 표시
+                CurrentPath = rootVm.Path;
+                SelectedFile = null;
+                await rootVm.EnsureChildrenLoadedAsync();   // 로딩 완료 시 항목 표시
 
-            // UI의 ListView 선택 이벤트는 비동기로 디스패치되므로
-            // EnsureChildrenLoadedAsync 완료 직후에는 아직 발생하지 않음.
-            // 짧은 지연으로 UI 선택 이벤트가 flush된 후 AutoNav 복원.
-            await Task.Delay(400);
-            EnableAutoNavigation = prevAutoNav;
+                // UI의 ListView 선택 이벤트는 비동기로 디스패치되므로
+                // EnsureChildrenLoadedAsync 완료 직후에는 아직 발생하지 않음.
+                // 짧은 지연으로 UI 선택 이벤트가 flush된 후 억제 해제.
+                await Task.Delay(400);
+            }
+            finally
+            {
+                Interlocked.Decrement(ref _autoNavSuppressCount);
+            }
 
-            // AutoNav 억제 중에 정렬로 인해 SelectedChild가 설정된 경우,
+            // 억제 중에 정렬로 인해 SelectedChild가 설정된 경우,
             // PropertyChanged가 무시되어 2단계 컬럼이 생성되지 않음.
-            // AutoNav 복원 후 수동으로 2단계 컬럼을 열어줌.
+            // 억제 해제 후 수동으로 2단계 컬럼을 열어줌.
             if (EnableAutoNavigation && Columns.Count == 1
                 && rootVm.SelectedChild is FolderViewModel selectedAfterLoad)
             {
@@ -575,7 +598,7 @@ namespace Span.ViewModels
             if (Columns.Count > 0)
                 SetActiveColumn(Columns[0]);
 
-            Helpers.DebugLogger.Log($"[NavigateTo] Navigation complete. Current path: {CurrentPath}, AutoNav restored={EnableAutoNavigation}");
+            Helpers.DebugLogger.Log($"[NavigateTo] Navigation complete. Current path: {CurrentPath}, EnableAutoNav={EnableAutoNavigation}, SuppressCount={Volatile.Read(ref _autoNavSuppressCount)}");
         }
 
         /// <summary>
@@ -686,9 +709,10 @@ namespace Span.ViewModels
                 Helpers.DebugLogger.Log($"[NavigateToPath] Building full hierarchy for: {path} ({parts.Length + 1} levels)");
             }
 
-            // Suppress auto-navigation while building column hierarchy
-            var previousAutoNav = EnableAutoNavigation;
-            EnableAutoNavigation = false;
+            // 컬럼 계층 구축 중 자동 네비게이션 억제.
+            // EnableAutoNavigation 전역값을 건드리지 않고 내부 카운터로만 억제하여
+            // 동시 탐색 호출 간 save/restore 레이스로 AutoNav이 False 고착되는 버그 방지.
+            Interlocked.Increment(ref _autoNavSuppressCount);
 
             try
             {
@@ -756,9 +780,8 @@ namespace Span.ViewModels
             }
             finally
             {
-                Helpers.DebugLogger.Log($"[NavigateToPath] Restoring EnableAutoNavigation from {EnableAutoNavigation} to {previousAutoNav}");
-                EnableAutoNavigation = previousAutoNav;
-                Helpers.DebugLogger.Log($"[NavigateToPath] DONE. Columns={Columns.Count}, EnableAutoNav={EnableAutoNavigation}");
+                Interlocked.Decrement(ref _autoNavSuppressCount);
+                Helpers.DebugLogger.Log($"[NavigateToPath] DONE. Columns={Columns.Count}, EnableAutoNav={EnableAutoNavigation}, SuppressCount={Volatile.Read(ref _autoNavSuppressCount)}");
             }
         }
 
@@ -1162,6 +1185,10 @@ namespace Span.ViewModels
                 // CRITICAL: In Details/Icon mode, disable auto-navigation (only allow double-click)
                 if (!EnableAutoNavigation) return;
 
+                // 탐색 시퀀스(NavigateTo/NavigateToPath) 진행 중에는 자동 전이 억제.
+                // 내부 refcount 기반 — 전역 EnableAutoNavigation 상태를 오염시키지 않음.
+                if (IsAutoNavSuppressed) return;
+
                 // CRITICAL: Yield to escape any active layout pass.
                 // When switching to MillerColumns, the ItemsControl becomes Visible and
                 // triggers measure/arrange. During layout, ListView fires SelectionChanged
@@ -1172,6 +1199,7 @@ namespace Span.ViewModels
                 // execution (including layout) completes.
                 await Task.Yield();
                 if (!EnableAutoNavigation) return; // Re-check after yield
+                if (IsAutoNavSuppressed) return;   // 비동기 경계 이후 재확인
 
                 // CRITICAL: 탭 전환 후 패널 Visible 전환으로 인한 phantom SelectionChanged 억제
                 if (Environment.TickCount64 < TabSwitchSuppressionTicks)
