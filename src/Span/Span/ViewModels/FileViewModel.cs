@@ -209,10 +209,20 @@ namespace Span.ViewModels
             catch (Exception ex)
             {
                 Helpers.DebugLogger.Log($"[FileViewModel] Thumbnail load failed for {Name}: {ex.Message}");
-                // WIC 디코딩 에러 (0x8898xxxx) 및 네트워크 에러는 Sentry 필터링
-                bool isWicOrNetworkError = (ex.HResult & unchecked((int)0xFFFF0000)) == unchecked((int)0x88980000)
-                    || ex.HResult == unchecked((int)0x80072EE7);
-                if (!isWicOrNetworkError)
+                // 썸네일 로딩 중 예상 가능한 에러는 Sentry 필터링:
+                //   - WIC 디코딩 에러 (0x8898xxxx): 손상/비표준 이미지
+                //   - 네트워크 에러 (0x80072EE7): 네트워크 공유 연결 끊김
+                //   - UnauthorizedAccessException (0x80070005): 네트워크 공유 ACL 거부
+                //   - FileNotFoundException / DirectoryNotFoundException: 목록 갱신 전 파일 삭제 레이스
+                //   - IOException: 파일 잠금, 네트워크 공유 일시 장애 등
+                bool isExpectedError =
+                    (ex.HResult & unchecked((int)0xFFFF0000)) == unchecked((int)0x88980000)
+                    || ex.HResult == unchecked((int)0x80072EE7)
+                    || ex is UnauthorizedAccessException
+                    || ex is FileNotFoundException
+                    || ex is DirectoryNotFoundException
+                    || ex is IOException;
+                if (!isExpectedError)
                 {
                     try { (App.Current.Services.GetService(typeof(Services.CrashReportingService)) as Services.CrashReportingService)?.CaptureException(ex, $"Thumbnail({Name})"); } catch { }
                 }
