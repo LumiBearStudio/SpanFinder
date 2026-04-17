@@ -1,3 +1,4 @@
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Span.Models;
 using System;
@@ -80,8 +81,11 @@ namespace Span.ViewModels
 
             _thumbnailLoading = true;
 
-            // 이전 로딩 취소 후 새 CTS 생성
-            _thumbnailCts?.Cancel();
+            // 이전 로딩 취소 + 해제 후 새 CTS 생성 (타이머 누수 방지)
+            var oldCts = _thumbnailCts;
+            _thumbnailCts = null;
+            oldCts?.Cancel();
+            oldCts?.Dispose();
             var cts = new CancellationTokenSource();
             _thumbnailCts = cts;
 
@@ -152,7 +156,11 @@ namespace Span.ViewModels
                     var fi = new FileInfo(filePath);
                     if (fi.Length > 10 * 1024 * 1024) return null; // Skip files > 10MB
 
-                    using var fileStream = File.OpenRead(filePath);
+                    // FileShare.ReadWrite: 다른 프로세스(빌드 도구, 이미지 편집기 등)가
+                    // 파일을 열고 있어도 읽기 가능 (IOException 0x80070020 방지)
+                    using var fileStream = new System.IO.FileStream(
+                        filePath, System.IO.FileMode.Open, System.IO.FileAccess.Read,
+                        System.IO.FileShare.ReadWrite);
                     using var ras = fileStream.AsRandomAccessStream();
 
                     var decoder = await BitmapDecoder.CreateAsync(ras);
@@ -184,8 +192,15 @@ namespace Span.ViewModels
                     if (bmp.BitmapPixelFormat != BitmapPixelFormat.Bgra8
                         || bmp.BitmapAlphaMode != BitmapAlphaMode.Premultiplied)
                     {
-                        var converted = SoftwareBitmap.Convert(bmp, BitmapPixelFormat.Bgra8, BitmapAlphaMode.Premultiplied);
-                        bmp.Dispose();
+                        SoftwareBitmap? converted = null;
+                        try
+                        {
+                            converted = SoftwareBitmap.Convert(bmp, BitmapPixelFormat.Bgra8, BitmapAlphaMode.Premultiplied);
+                        }
+                        finally
+                        {
+                            bmp.Dispose(); // Convert 성공/실패 무관하게 원본 해제
+                        }
                         return converted;
                     }
                     return bmp;
@@ -200,7 +215,12 @@ namespace Span.ViewModels
                 softwareBitmap = null;
 
                 // Guard: 비동기 디코드 중 컨테이너 재활용/취소되었을 수 있음
-                if (!_thumbnailLoading || cts.IsCancellationRequested) return;
+                // source는 XAML에 아직 미등록 상태 → 안전하게 Dispose 가능
+                if (!_thumbnailLoading || cts.IsCancellationRequested)
+                {
+                    source.Dispose();
+                    return;
+                }
 
                 ThumbnailSource = source;
                 _thumbnailLoaded = true;
@@ -288,7 +308,7 @@ namespace Span.ViewModels
                 using var thumbnail = await storageFile.GetThumbnailAsync(
                     ThumbnailMode.SingleItem,
                     (uint)decodePixelWidth,
-                    options);
+                    options).AsTask(ct);
 
                 if (ct.IsCancellationRequested) return;
 
@@ -341,13 +361,29 @@ namespace Span.ViewModels
         /// </summary>
         public void UnloadThumbnail()
         {
-            _thumbnailCts?.Cancel();
+            var oldCts = _thumbnailCts;
+            _thumbnailCts = null;
+            oldCts?.Cancel();
+            oldCts?.Dispose();
             _thumbnailLoading = false;
             _thumbnailLoaded = false;
-            // 이전 소스를 먼저 캡처, null 대입으로 XAML 바인딩 해제 후 dispose
             var old = ThumbnailSource;
             ThumbnailSource = null;
-            (old as IDisposable)?.Dispose();
+            // 지연 해제: DirectComposition이 UI 스레드와 비동기로 렌더링하므로
+            // ThumbnailSource = null 직후 Dispose하면 아직 사용 중인 D3D surface를 해제할 수 있음.
+            // Low 우선순위 큐잉으로 Normal(렌더링) 작업 완료 후 Close → 안전하게 D3D 리소스 회수.
+            // GC finalizer에만 의존하면 finalization 큐 적체(3790+) → D3D 고갈 → 크래시.
+            if (old is IDisposable disposable)
+                DeferDispose(disposable);
+        }
+
+        private static void DeferDispose(IDisposable disposable)
+        {
+            var dq = DispatcherQueue.GetForCurrentThread();
+            if (dq != null)
+                dq.TryEnqueue(DispatcherQueuePriority.Low,
+                    () => { try { disposable.Dispose(); } catch { } });
+            // dq가 null이면 앱 종료 중 — GC에 위임
         }
     }
 }
