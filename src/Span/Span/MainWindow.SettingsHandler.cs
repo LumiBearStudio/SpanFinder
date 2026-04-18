@@ -51,7 +51,9 @@ namespace Span
                     root.RequestedTheme = isLightCustom ? ElementTheme.Dark : ElementTheme.Light;
                     // 2) 커스텀 리소스 오버라이드 적용
                     ApplyCustomThemeOverrides(root, theme);
-                    // 3) 대상 테마로 복귀 → 모든 {ThemeResource} 바인딩 재평가
+                    // 3) 사용자 커스텀 액센트 override (있으면 팔레트 accent 위에 덮어씀)
+                    TryApplyCustomAccentOverride(root, theme);
+                    // 4) 대상 테마로 복귀 → 모든 {ThemeResource} 바인딩 재평가
                     root.RequestedTheme = isLightCustom ? ElementTheme.Light : ElementTheme.Dark;
                 }
                 else
@@ -63,6 +65,8 @@ namespace Span
                     root.RequestedTheme = targetTheme == ElementTheme.Light
                         ? ElementTheme.Dark : ElementTheme.Light;
                     root.RequestedTheme = targetTheme;
+                    // 비커스텀 테마에서도 커스텀 액센트 override 지원
+                    TryApplyCustomAccentOverride(root, theme);
                 }
             }
 
@@ -299,6 +303,185 @@ namespace Span
 
             var dictKey = theme == "solarized-light" ? "Light" : "Dark";
             root.Resources.ThemeDictionaries[dictKey] = darkDict;
+        }
+
+        /// <summary>
+        /// 현재 저장된 Theme 값으로 ApplyTheme을 재호출한다 (커스텀 액센트 toggle/color 변경 시 사용).
+        /// </summary>
+        public void ReapplyCurrentTheme()
+        {
+            try
+            {
+                var settings = (App.Current as App)?.Services?.GetService<Services.SettingsService>();
+                var theme = settings?.Theme ?? "system";
+                ApplyTheme(theme);
+                RefreshCachedAccentColors();
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[MainWindow] ReapplyCurrentTheme error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// SettingsService의 UseCustomAccent/CustomAccentColor 값에 따라 액센트 override를 적용한다.
+        /// </summary>
+        private void TryApplyCustomAccentOverride(FrameworkElement root, string theme)
+        {
+            try
+            {
+                var settings = (App.Current as App)?.Services?.GetService<Services.SettingsService>();
+                if (settings == null || !settings.UseCustomAccent) return;
+                if (!TryParseAccentHex(settings.CustomAccentColor, out var accent)) return;
+                ApplyAccentOverride(root, accent, theme);
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[MainWindow] TryApplyCustomAccentOverride error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 사용자 지정 액센트 컬러를 현재 테마 위에 덮어쓴다.
+        /// 액센트 기반 파생 리소스(Dim/Hover/Active/Selected/PathHighlight + ListView/GridView 선택
+        /// + NavigationView/AccentFill/FocusVisual/TextControl)를 일괄 갱신한다.
+        /// ApplyCustomThemeOverrides 호출 후 + RequestedTheme 토글 후에 호출해야 한다.
+        /// </summary>
+        internal static void ApplyAccentOverride(FrameworkElement root, Windows.UI.Color accent, string theme)
+        {
+            // 대상 ThemeDictionary 키: solarized-light는 Light, 나머지 (system/light/dark/커스텀)는
+            // 현재 root.RequestedTheme에 따른다. light가 아니면 Dark.
+            string dictKey;
+            if (theme == "light" || theme == "solarized-light")
+                dictKey = "Light";
+            else if (theme == "dark" || _customThemes.Contains(theme))
+                dictKey = "Dark";
+            else // system
+                dictKey = App.Current.RequestedTheme == ApplicationTheme.Light ? "Light" : "Dark";
+
+            if (!root.Resources.ThemeDictionaries.TryGetValue(dictKey, out var dictObj)
+                || dictObj is not ResourceDictionary dict)
+            {
+                dict = new ResourceDictionary();
+                root.Resources.ThemeDictionaries[dictKey] = dict;
+            }
+
+            var accentHover = DeriveAccentHover(accent);
+            var accentDim = Windows.UI.Color.FromArgb(0xB3, accent.R, accent.G, accent.B);
+            var bgHover = Windows.UI.Color.FromArgb(0x0F, accent.R, accent.G, accent.B);
+            var bgActive = Windows.UI.Color.FromArgb(0x1A, accent.R, accent.G, accent.B);
+            var bgSelected = Windows.UI.Color.FromArgb(0x25, accent.R, accent.G, accent.B);
+            var bgSelHover = Windows.UI.Color.FromArgb(0x30, accent.R, accent.G, accent.B);
+            var pathHighlight = Windows.UI.Color.FromArgb(0x20, accent.R, accent.G, accent.B);
+
+            dict["SpanAccent"] = accent;
+            dict["SpanAccentBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(accent);
+            dict["SpanAccentHover"] = accentHover;
+            dict["SpanAccentHoverBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentHover);
+            dict["SpanAccentDimColor"] = accentDim;
+            dict["SpanAccentDimBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentDim);
+            dict["SpanBgHoverBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(bgHover);
+            dict["SpanBgActiveBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(bgActive);
+            dict["SpanBgSelectedBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(bgSelected);
+            dict["SpanBgSelectedHoverBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(bgSelHover);
+            dict["SpanPathHighlightBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(pathHighlight);
+
+            dict["ListViewItemBackgroundSelected"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(bgSelected);
+            dict["ListViewItemBackgroundSelectedPointerOver"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(bgSelHover);
+            dict["ListViewItemBackgroundSelectedPressed"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(bgActive);
+            dict["GridViewItemBackgroundSelected"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(bgSelected);
+            dict["GridViewItemBackgroundSelectedPointerOver"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(bgSelHover);
+            dict["GridViewItemBackgroundSelectedPressed"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(bgActive);
+
+            var accentBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(accent);
+            dict["NavigationViewSelectionIndicatorForeground"] = accentBrush;
+            dict["ListViewItemSelectionIndicatorBrush"] = accentBrush;
+            dict["AccentFillColorDefaultBrush"] = accentBrush;
+            dict["AccentFillColorSecondaryBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentHover);
+            dict["AccentFillColorTertiaryBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentDim);
+
+            dict["SystemControlFocusVisualPrimaryBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentDim);
+            dict["SystemControlFocusVisualSecondaryBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
+
+            dict["TextControlBorderBrushFocused"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(accent);
+        }
+
+        /// <summary>
+        /// HSL 명도 -10%로 호버 색상 파생. 포화도/색상은 유지.
+        /// </summary>
+        internal static Windows.UI.Color DeriveAccentHover(Windows.UI.Color c)
+        {
+            double r = c.R / 255.0, g = c.G / 255.0, b = c.B / 255.0;
+            double max = Math.Max(r, Math.Max(g, b));
+            double min = Math.Min(r, Math.Min(g, b));
+            double h = 0, s, l = (max + min) / 2.0;
+            if (max == min) { s = 0; }
+            else
+            {
+                double d = max - min;
+                s = l > 0.5 ? d / (2.0 - max - min) : d / (max + min);
+                if (max == r) h = (g - b) / d + (g < b ? 6 : 0);
+                else if (max == g) h = (b - r) / d + 2;
+                else h = (r - g) / d + 4;
+                h /= 6;
+            }
+            // 명도: 어두우면 +10%, 밝으면 -10% (호버는 "변화"가 핵심)
+            l = l < 0.5 ? Math.Min(1.0, l + 0.10) : Math.Max(0.0, l - 0.10);
+
+            double HueToRgb(double p, double q, double t)
+            {
+                if (t < 0) t += 1; if (t > 1) t -= 1;
+                if (t < 1.0 / 6) return p + (q - p) * 6 * t;
+                if (t < 0.5) return q;
+                if (t < 2.0 / 3) return p + (q - p) * (2.0 / 3 - t) * 6;
+                return p;
+            }
+            double r2, g2, b2;
+            if (s == 0) { r2 = g2 = b2 = l; }
+            else
+            {
+                double q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+                double p = 2 * l - q;
+                r2 = HueToRgb(p, q, h + 1.0 / 3);
+                g2 = HueToRgb(p, q, h);
+                b2 = HueToRgb(p, q, h - 1.0 / 3);
+            }
+            return Windows.UI.Color.FromArgb(0xFF,
+                (byte)Math.Round(r2 * 255),
+                (byte)Math.Round(g2 * 255),
+                (byte)Math.Round(b2 * 255));
+        }
+
+        /// <summary>
+        /// "#RRGGBB" 또는 "#AARRGGBB" Hex 문자열을 Color로 파싱. 실패 시 false.
+        /// </summary>
+        internal static bool TryParseAccentHex(string hex, out Windows.UI.Color color)
+        {
+            color = default;
+            if (string.IsNullOrEmpty(hex)) return false;
+            var s = hex.StartsWith("#") ? hex[1..] : hex;
+            if (s.Length == 6)
+            {
+                if (byte.TryParse(s[0..2], System.Globalization.NumberStyles.HexNumber, null, out var r) &&
+                    byte.TryParse(s[2..4], System.Globalization.NumberStyles.HexNumber, null, out var g) &&
+                    byte.TryParse(s[4..6], System.Globalization.NumberStyles.HexNumber, null, out var b))
+                {
+                    color = Windows.UI.Color.FromArgb(0xFF, r, g, b);
+                    return true;
+                }
+            }
+            else if (s.Length == 8)
+            {
+                if (byte.TryParse(s[0..2], System.Globalization.NumberStyles.HexNumber, null, out var a) &&
+                    byte.TryParse(s[2..4], System.Globalization.NumberStyles.HexNumber, null, out var r) &&
+                    byte.TryParse(s[4..6], System.Globalization.NumberStyles.HexNumber, null, out var g) &&
+                    byte.TryParse(s[6..8], System.Globalization.NumberStyles.HexNumber, null, out var b))
+                {
+                    color = Windows.UI.Color.FromArgb(a, r, g, b);
+                    return true;
+                }
+            }
+            return false;
         }
 
         internal static (

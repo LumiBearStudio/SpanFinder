@@ -80,6 +80,19 @@ public class SettingsService : ISettingsService
         set => Set("Theme", value);
     }
 
+    public bool UseCustomAccent
+    {
+        get => Get("UseCustomAccent", false);
+        set => Set("UseCustomAccent", value);
+    }
+
+    // "#RRGGBB" format. Empty = not set (falls back to theme accent).
+    public string CustomAccentColor
+    {
+        get => Get("CustomAccentColor", "");
+        set => Set("CustomAccentColor", value);
+    }
+
     public string Density
     {
         get => Get("Density", "comfortable");

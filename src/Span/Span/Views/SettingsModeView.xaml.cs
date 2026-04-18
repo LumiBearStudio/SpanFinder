@@ -180,6 +180,19 @@ public sealed partial class SettingsModeView : UserControl
             ThemeOneDark.IsChecked = theme == "onedark";
             ThemeMonokai.IsChecked = theme == "monokai";
 
+            // Custom accent override
+            UseCustomAccentToggle.IsOn = _settings.UseCustomAccent;
+            if (MainWindow.TryParseAccentHex(_settings.CustomAccentColor, out var savedAccent))
+            {
+                CustomAccentPicker.Color = savedAccent;
+                CustomAccentPreview.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(savedAccent);
+            }
+            CustomAccentPanel.Visibility = UseCustomAccentToggle.IsOn
+                ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+            AccentOverrideBadge.Visibility = UseCustomAccentToggle.IsOn
+                ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+            if (UseCustomAccentToggle.IsOn) UpdateContrastWarning(CustomAccentPicker.Color);
+
             // Density: 숫자(0~5) 또는 레거시 이름
             var density = _settings.Density;
             int densityLevel = density switch
@@ -664,6 +677,11 @@ public sealed partial class SettingsModeView : UserControl
             // Custom themes
             CustomThemesLabel.Text = _loc.Get("Settings_CustomThemes");
             CustomThemesDesc.Text = _loc.Get("Settings_CustomThemesDesc");
+            CustomAccentLabel.Text = _loc.Get("Settings_CustomAccent");
+            CustomAccentDesc.Text = _loc.Get("Settings_CustomAccentDesc");
+            AccentOverrideBadgeText.Text = _loc.Get("Settings_AccentOverrideBadge");
+            ResetAccentText.Text = _loc.Get("Settings_ResetAccent");
+            AccentContrastWarning.Message = _loc.Get("Settings_AccentContrastWarning");
             DraculaDescText.Text = _loc.Get("Theme_DraculaDesc");
             TokyoNightDescText.Text = _loc.Get("Theme_TokyoNightDesc");
             CatppuccinDescText.Text = _loc.Get("Theme_CatppuccinDesc");
@@ -1903,5 +1921,97 @@ public sealed partial class SettingsModeView : UserControl
             XamlRoot = this.XamlRoot
         };
         await dialog.ShowAsync();
+    }
+
+    // ═══ Custom Accent Color ═══
+    private Microsoft.UI.Xaml.DispatcherTimer? _accentDebounce;
+
+    private void OnUseCustomAccentToggled(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        if (_isLoading) return;
+        bool on = UseCustomAccentToggle.IsOn;
+        CustomAccentPanel.Visibility = on
+            ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+        AccentOverrideBadge.Visibility = on
+            ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+
+        // 처음 켤 때 CustomAccentColor 비어있으면 현재 ColorPicker 색상을 저장
+        if (on && string.IsNullOrEmpty(_settings.CustomAccentColor))
+        {
+            var c = CustomAccentPicker.Color;
+            _settings.CustomAccentColor = $"#{c.R:X2}{c.G:X2}{c.B:X2}";
+        }
+        _settings.UseCustomAccent = on;
+
+        if (on) UpdateContrastWarning(CustomAccentPicker.Color);
+        else AccentContrastWarning.IsOpen = false;
+
+        RequestAccentApply();
+    }
+
+    private void OnCustomAccentColorChanged(Microsoft.UI.Xaml.Controls.ColorPicker sender,
+        Microsoft.UI.Xaml.Controls.ColorChangedEventArgs args)
+    {
+        if (_isLoading) return;
+        var c = args.NewColor;
+        CustomAccentPreview.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(c);
+        _settings.CustomAccentColor = $"#{c.R:X2}{c.G:X2}{c.B:X2}";
+        UpdateContrastWarning(c);
+
+        // 드래그 중 ColorChanged 폭주 방지 → 50ms 디바운스
+        _accentDebounce ??= new Microsoft.UI.Xaml.DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(50)
+        };
+        _accentDebounce.Tick -= OnAccentDebounceTick;
+        _accentDebounce.Tick += OnAccentDebounceTick;
+        _accentDebounce.Stop();
+        _accentDebounce.Start();
+    }
+
+    private void OnAccentDebounceTick(object? sender, object e)
+    {
+        _accentDebounce?.Stop();
+        RequestAccentApply();
+    }
+
+    private void OnResetCustomAccent(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        _settings.UseCustomAccent = false;
+        UseCustomAccentToggle.IsOn = false;
+    }
+
+    private void RequestAccentApply()
+    {
+        // SettingsService.Set가 SettingChanged 이벤트를 발행 → MainWindow가 테마 재적용
+        // UseCustomAccent/CustomAccentColor 둘 다 이미 위에서 set됨. 하지만 MainWindow가
+        // "UseCustomAccent"/"CustomAccentColor" 키를 알아듣도록 명시적 테마 재적용 트리거 필요 →
+        // 현재 Theme 값을 다시 set해서 ApplyTheme 유도 (SettingChanged 이벤트 발생)
+        var current = _settings.Theme;
+        // 같은 값 재할당은 SettingChanged 발행 안 되므로, Set은 old != new일 때만 발행함 →
+        // 직접 MainWindow를 찾아 ApplyTheme 재호출
+        var app = Microsoft.UI.Xaml.Application.Current as Span.App;
+        if (app == null) return;
+        foreach (var win in app.GetRegisteredWindows())
+        {
+            if (win is MainWindow mw) mw.ReapplyCurrentTheme();
+        }
+    }
+
+    private void UpdateContrastWarning(Windows.UI.Color accent)
+    {
+        double lum = RelativeLuminance(accent);
+        bool isLight = _settings.Theme == "light"
+            || _settings.Theme == "solarized-light"
+            || (_settings.Theme == "system" && Microsoft.UI.Xaml.Application.Current.RequestedTheme == Microsoft.UI.Xaml.ApplicationTheme.Light);
+        double bgLum = isLight ? 0.95 : 0.05;
+        double ratio = (Math.Max(lum, bgLum) + 0.05) / (Math.Min(lum, bgLum) + 0.05);
+        AccentContrastWarning.IsOpen = ratio < 4.5;
+    }
+
+    private static double RelativeLuminance(Windows.UI.Color c)
+    {
+        double Ch(byte v) { double s = v / 255.0; return s <= 0.03928 ? s / 12.92 : Math.Pow((s + 0.055) / 1.055, 2.4); }
+        return 0.2126 * Ch(c.R) + 0.7152 * Ch(c.G) + 0.0722 * Ch(c.B);
     }
 }
