@@ -115,6 +115,13 @@ namespace Span.ViewModels
             }
 
             // 세마포어 획득 후 I/O 타임아웃 시작 (대기 시간 제외)
+            // Guard: 세마포어 대기 중 ResetThumbnail이 이 CTS를 Cancel+Dispose했을 수 있음
+            if (cts.IsCancellationRequested)
+            {
+                _thumbnailThrottle.Release();
+                _thumbnailLoading = false;
+                return;
+            }
             cts.CancelAfter(10000);
             SoftwareBitmap? softwareBitmap = null;
             try
