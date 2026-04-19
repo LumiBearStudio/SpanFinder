@@ -51,13 +51,10 @@ namespace Span
                     root.RequestedTheme = isLightCustom ? ElementTheme.Dark : ElementTheme.Light;
                     // 2) 커스텀 리소스 오버라이드 적용
                     ApplyCustomThemeOverrides(root, theme);
-                    // 3) 사용자 커스텀 액센트 override (있으면 팔레트 accent 위에 덮어씀)
-                    TryApplyCustomAccentOverride(root, theme);
-                    // 4) 대상 테마로 복귀 → 모든 {ThemeResource} 바인딩 재평가
+                    // 3) 대상 테마로 복귀 → 모든 {ThemeResource} 바인딩 재평가
                     root.RequestedTheme = isLightCustom ? ElementTheme.Light : ElementTheme.Dark;
-                    // 5) override가 초기화될 수 있으므로 재적용 후 다시 토글로 강제 갱신
+                    // 4) 사용자 커스텀 액센트 override (dict 교체 방식이라 자동으로 바인딩 재평가됨)
                     TryApplyCustomAccentOverride(root, theme);
-                    ForceThemeReevaluation(root, isLightCustom ? ElementTheme.Light : ElementTheme.Dark);
                 }
                 else
                 {
@@ -68,10 +65,8 @@ namespace Span
                     root.RequestedTheme = targetTheme == ElementTheme.Light
                         ? ElementTheme.Dark : ElementTheme.Light;
                     root.RequestedTheme = targetTheme;
-                    // 비커스텀 테마에서도 커스텀 액센트 override 지원
+                    // 비커스텀 테마에서도 커스텀 액센트 override 지원 (dict 교체 → 자동 재평가)
                     TryApplyCustomAccentOverride(root, theme);
-                    // override 주입 후 바인딩 재평가 (system은 Default 테마 기반이라 Dark/Light 둘다 토글)
-                    ForceThemeReevaluation(root, targetTheme);
                 }
             }
 
@@ -388,11 +383,13 @@ namespace Span
             else // system
                 dictKey = App.Current.RequestedTheme == ApplicationTheme.Light ? "Light" : "Dark";
 
-            if (!root.Resources.ThemeDictionaries.TryGetValue(dictKey, out var dictObj)
-                || dictObj is not ResourceDictionary dict)
+            // ★ ApplyCustomThemeOverrides와 동일 패턴: 기존 키를 새 dict에 복사한 뒤 교체
+            // (기존 dict 수정만으로는 WinUI 3이 {ThemeResource} 바인딩 재평가를 트리거하지 않음)
+            var dict = new ResourceDictionary();
+            if (root.Resources.ThemeDictionaries.TryGetValue(dictKey, out var existingObj)
+                && existingObj is ResourceDictionary existing)
             {
-                dict = new ResourceDictionary();
-                root.Resources.ThemeDictionaries[dictKey] = dict;
+                foreach (var kv in existing) dict[kv.Key] = kv.Value;
             }
 
             var accentHover = DeriveAccentHover(accent);
@@ -521,6 +518,9 @@ namespace Span
             dict["HyperlinkButtonForeground"] = accentText;
             dict["HyperlinkButtonForegroundPointerOver"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentLight3);
             dict["HyperlinkButtonForegroundPressed"] = accentBrush;
+
+            // ★ 새 dict를 기존 자리에 교체 → WinUI 3이 변경 감지해 {ThemeResource} 전체 재평가
+            root.Resources.ThemeDictionaries[dictKey] = dict;
         }
 
         /// <summary>
