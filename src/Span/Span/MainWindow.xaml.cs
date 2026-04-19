@@ -2436,6 +2436,15 @@ namespace Span
                 SidebarCol.Width = new GridLength(0);
                 LeftPreviewSplitterCol.Width = new GridLength(0);
                 LeftPreviewCol.Width = new GridLength(0);
+
+                // Settings/ActionLog 탭은 파일 시스템 경로와 무관 → git 상태바 숨김
+                _leftGitStatusBarVm?.Clear();
+                _rightGitStatusBarVm?.Clear();
+            }
+            else if (mode == ViewMode.Home)
+            {
+                // Home 탭도 특정 경로가 없으므로 git 상태바 숨김
+                _leftGitStatusBarVm?.Clear();
             }
             else
             {
