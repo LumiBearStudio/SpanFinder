@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 
@@ -8,19 +9,27 @@ namespace Span.Helpers
     /// <summary>
     /// Debug logger that writes to Debug output synchronously
     /// and flushes to file asynchronously via Channel.
+    /// 세션별 타임스탬프 파일명으로 이전 크래시 로그를 보존한다 (7일 / 50개 보관).
     /// </summary>
     public static class DebugLogger
     {
+        private const string LogFilePrefix = "Span_Debug_";
+        private const string LogFileSuffix = ".log";
+        private const string LegacyLogFileName = "Span_Debug.log";
+        private static readonly TimeSpan RetentionPeriod = TimeSpan.FromDays(7);
+        private const int MaxRetainedFiles = 50;
+
+        private static readonly string LogsDir;
         private static readonly string LogFilePath;
 
-        private static string InitLogFilePath()
+        private static string InitLogsDir()
         {
             // MSIX 패키지 앱은 AppContext.BaseDirectory(Program Files\WindowsApps)가 읽기 전용.
             // LocalApplicationData로 변경하여 Store 배포에서도 로그 파일 생성 보장.
             var baseDir = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            var logsDir = Path.Combine(baseDir, "Span", "Logs");
-            try { Directory.CreateDirectory(logsDir); } catch { }
-            return Path.Combine(logsDir, "Span_Debug.log");
+            var dir = Path.Combine(baseDir, "Span", "Logs");
+            try { Directory.CreateDirectory(dir); } catch { }
+            return dir;
         }
 
         private static readonly Channel<string> _channel =
@@ -32,19 +41,53 @@ namespace Span.Helpers
 
         static DebugLogger()
         {
-            LogFilePath = InitLogFilePath();
+            LogsDir = InitLogsDir();
+
+            // 세션별 파일명 — 이전 세션 크래시 로그 보존
+            var sessionTag = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            LogFilePath = Path.Combine(LogsDir, $"{LogFilePrefix}{sessionTag}{LogFileSuffix}");
+
+            // 시작 시 1회 정리 (7일 초과 + 50개 초과)
+            try { CleanupOldLogs(); } catch { }
+
             try
             {
-                if (File.Exists(LogFilePath))
-                {
-                    File.Delete(LogFilePath);
-                }
                 File.WriteAllText(LogFilePath, $"=== Span Debug Log - {DateTime.Now:yyyy-MM-dd HH:mm:ss} ===\n\n");
             }
             catch { }
 
             // Background consumer — writes batches to file
             Task.Run(ConsumeLogsAsync);
+        }
+
+        /// <summary>
+        /// 보관 기간(7일) 초과 또는 개수(50개) 초과 로그 파일을 삭제.
+        /// 레거시 파일명(Span_Debug.log)도 함께 정리.
+        /// </summary>
+        private static void CleanupOldLogs()
+        {
+            if (!Directory.Exists(LogsDir)) return;
+
+            // 레거시 파일은 무조건 삭제 (한 번만 발생)
+            var legacyPath = Path.Combine(LogsDir, LegacyLogFileName);
+            try { if (File.Exists(legacyPath)) File.Delete(legacyPath); } catch { }
+
+            var files = Directory.EnumerateFiles(LogsDir, $"{LogFilePrefix}*{LogFileSuffix}")
+                .Select(p => new FileInfo(p))
+                .OrderByDescending(fi => fi.LastWriteTimeUtc)
+                .ToList();
+
+            var threshold = DateTime.UtcNow - RetentionPeriod;
+            for (int i = 0; i < files.Count; i++)
+            {
+                var fi = files[i];
+                bool tooOld = fi.LastWriteTimeUtc < threshold;
+                bool tooMany = i >= MaxRetainedFiles;
+                if (tooOld || tooMany)
+                {
+                    try { fi.Delete(); } catch { /* ignore */ }
+                }
+            }
         }
 
         public static void Log(string message)

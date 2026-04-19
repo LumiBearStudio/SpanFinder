@@ -359,7 +359,9 @@ public sealed class CrashReportingService : IDisposable
             var scrubbedText = ScrubPaths(logText);
             var scrubbedBytes = Encoding.UTF8.GetBytes(scrubbedText);
 
-            scope.AddAttachment(scrubbedBytes, "Span_Debug.log", AttachmentType.Default, "text/plain");
+            var attachName = Path.GetFileName(logPath);
+            if (string.IsNullOrEmpty(attachName)) attachName = "Span_Debug.log";
+            scope.AddAttachment(scrubbedBytes, attachName, AttachmentType.Default, "text/plain");
             scope.SetExtra("log.status", $"attached ({scrubbedBytes.Length} bytes)");
         }
         catch (Exception ex)
