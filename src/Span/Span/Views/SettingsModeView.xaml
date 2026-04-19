@@ -988,12 +988,6 @@
                                             </Button>
                                         </Grid>
 
-                                        <InfoBar x:Name="AccentContrastWarning"
-                                                 Severity="Warning"
-                                                 IsClosable="False"
-                                                 IsOpen="False"
-                                                 Title="가독성 경고"
-                                                 Message="이 색상은 배경과의 대비가 낮아 가독성이 떨어질 수 있습니다." />
                                     </StackPanel>
                                 </StackPanel>
                             </Border>

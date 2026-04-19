@@ -191,7 +191,6 @@ public sealed partial class SettingsModeView : UserControl
                 ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
             AccentOverrideBadge.Visibility = UseCustomAccentToggle.IsOn
                 ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
-            if (UseCustomAccentToggle.IsOn) UpdateContrastWarning(CustomAccentPicker.Color);
 
             // Density: 숫자(0~5) 또는 레거시 이름
             var density = _settings.Density;
@@ -691,7 +690,6 @@ public sealed partial class SettingsModeView : UserControl
             CustomAccentDesc.Text = _loc.Get("Settings_CustomAccentDesc");
             AccentOverrideBadgeText.Text = _loc.Get("Settings_AccentOverrideBadge");
             ResetAccentText.Text = _loc.Get("Settings_ResetAccent");
-            AccentContrastWarning.Message = _loc.Get("Settings_AccentContrastWarning");
             DraculaDescText.Text = _loc.Get("Theme_DraculaDesc");
             TokyoNightDescText.Text = _loc.Get("Theme_TokyoNightDesc");
             CatppuccinDescText.Text = _loc.Get("Theme_CatppuccinDesc");
@@ -1951,10 +1949,6 @@ public sealed partial class SettingsModeView : UserControl
             _settings.CustomAccentColor = $"#{c.R:X2}{c.G:X2}{c.B:X2}";
         }
         _settings.UseCustomAccent = on;
-
-        if (on) UpdateContrastWarning(CustomAccentPicker.Color);
-        else AccentContrastWarning.IsOpen = false;
-
         RequestAccentApply();
     }
 
@@ -1966,7 +1960,6 @@ public sealed partial class SettingsModeView : UserControl
         var c = args.NewColor;
         CustomAccentPreview.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(c);
         _settings.CustomAccentColor = $"#{c.R:X2}{c.G:X2}{c.B:X2}";
-        UpdateContrastWarning(c);
 
         // 디바운스 제거 — DispatcherTimer가 안 터지는 케이스 회피. 직접 호출.
         RequestAccentApply();
@@ -1999,20 +1992,4 @@ public sealed partial class SettingsModeView : UserControl
         Helpers.DebugLogger.Log($"[SettingsView] RequestAccentApply: {count} MainWindow(s) refreshed");
     }
 
-    private void UpdateContrastWarning(Windows.UI.Color accent)
-    {
-        double lum = RelativeLuminance(accent);
-        bool isLight = _settings.Theme == "light"
-            || _settings.Theme == "solarized-light"
-            || (_settings.Theme == "system" && Application.Current.RequestedTheme == ApplicationTheme.Light);
-        double bgLum = isLight ? 0.95 : 0.05;
-        double ratio = (Math.Max(lum, bgLum) + 0.05) / (Math.Min(lum, bgLum) + 0.05);
-        AccentContrastWarning.IsOpen = ratio < 4.5;
-    }
-
-    private static double RelativeLuminance(Windows.UI.Color c)
-    {
-        double Ch(byte v) { double s = v / 255.0; return s <= 0.03928 ? s / 12.92 : Math.Pow((s + 0.055) / 1.055, 2.4); }
-        return 0.2126 * Ch(c.R) + 0.7152 * Ch(c.G) + 0.0722 * Ch(c.B);
-    }
 }
