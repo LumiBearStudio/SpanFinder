@@ -1267,7 +1267,18 @@ namespace Span
             SubscribeGitStatusToExplorer(isLeft);
             var explorer = isLeft ? ViewModel.LeftExplorer : ViewModel.RightExplorer;
             var vm = isLeft ? _leftGitStatusBarVm : _rightGitStatusBarVm;
-            if (vm != null && explorer != null)
+            if (vm == null) return;
+
+            // 파일 탐색과 무관한 모드(Settings/ActionLog/Home)에서는 git 정보 조회 자체를 skip
+            // (SetViewModeVisibility의 Clear()를 ResubscribeGitStatusBar가 덮어쓰는 레이스 방지)
+            var mode = ViewModel.CurrentViewMode;
+            if (mode == ViewMode.Settings || mode == ViewMode.ActionLog || mode == ViewMode.Home)
+            {
+                vm.Clear();
+                return;
+            }
+
+            if (explorer != null)
                 _ = vm.UpdateForPathAsync(explorer.CurrentPath);
         }
 
