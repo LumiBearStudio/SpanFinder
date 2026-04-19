@@ -1934,7 +1934,6 @@ public sealed partial class SettingsModeView : UserControl
     }
 
     // ═══ Custom Accent Color ═══
-    private Microsoft.UI.Xaml.DispatcherTimer? _accentDebounce;
 
     private void OnUseCustomAccentToggled(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
@@ -1962,27 +1961,14 @@ public sealed partial class SettingsModeView : UserControl
     private void OnCustomAccentColorChanged(Microsoft.UI.Xaml.Controls.ColorPicker sender,
         Microsoft.UI.Xaml.Controls.ColorChangedEventArgs args)
     {
+        Helpers.DebugLogger.Log($"[SettingsView] OnCustomAccentColorChanged entered, _isLoading={_isLoading}");
         if (_isLoading) return;
         var c = args.NewColor;
         CustomAccentPreview.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(c);
         _settings.CustomAccentColor = $"#{c.R:X2}{c.G:X2}{c.B:X2}";
         UpdateContrastWarning(c);
 
-        // 드래그 중 ColorChanged 폭주 방지 → 50ms 디바운스
-        _accentDebounce ??= new Microsoft.UI.Xaml.DispatcherTimer
-        {
-            Interval = TimeSpan.FromMilliseconds(50)
-        };
-        _accentDebounce.Tick -= OnAccentDebounceTick;
-        _accentDebounce.Tick += OnAccentDebounceTick;
-        _accentDebounce.Stop();
-        _accentDebounce.Start();
-    }
-
-    private void OnAccentDebounceTick(object? sender, object e)
-    {
-        _accentDebounce?.Stop();
-        Helpers.DebugLogger.Log("[SettingsView] OnAccentDebounceTick → RequestAccentApply");
+        // 디바운스 제거 — DispatcherTimer가 안 터지는 케이스 회피. 직접 호출.
         RequestAccentApply();
     }
 
