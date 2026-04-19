@@ -1982,6 +1982,7 @@ public sealed partial class SettingsModeView : UserControl
     private void OnAccentDebounceTick(object? sender, object e)
     {
         _accentDebounce?.Stop();
+        Helpers.DebugLogger.Log("[SettingsView] OnAccentDebounceTick → RequestAccentApply");
         RequestAccentApply();
     }
 
@@ -1993,16 +1994,23 @@ public sealed partial class SettingsModeView : UserControl
 
     private void RequestAccentApply()
     {
-        // SettingsService.Set가 SettingChanged 이벤트를 발행 → MainWindow가 테마 재적용
-        // UseCustomAccent/CustomAccentColor 둘 다 이미 위에서 set됨. 하지만 MainWindow가
-        // "UseCustomAccent"/"CustomAccentColor" 키를 알아듣도록 명시적 테마 재적용 트리거 필요 →
-        // 현재 Theme 값을 다시 set해서 ApplyTheme 유도 (SettingChanged 이벤트 발생)
-        // SettingChanged는 old != new일 때만 발행 → 직접 MainWindow를 찾아 재적용
-        if (Application.Current is not Span.App app) return;
-        foreach (var win in app.GetRegisteredWindows())
+        if (Application.Current is not Span.App app)
         {
-            if (win is MainWindow mw) mw.ReapplyCurrentTheme();
+            Helpers.DebugLogger.Log("[SettingsView] RequestAccentApply: Application.Current is NOT Span.App");
+            return;
         }
+        var windows = app.GetRegisteredWindows();
+        Helpers.DebugLogger.Log($"[SettingsView] RequestAccentApply: {windows.Count} windows registered");
+        int count = 0;
+        foreach (var win in windows)
+        {
+            if (win is MainWindow mw)
+            {
+                mw.ReapplyCurrentTheme();
+                count++;
+            }
+        }
+        Helpers.DebugLogger.Log($"[SettingsView] RequestAccentApply: {count} MainWindow(s) refreshed");
     }
 
     private void UpdateContrastWarning(Windows.UI.Color accent)

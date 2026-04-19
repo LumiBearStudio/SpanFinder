@@ -317,8 +317,10 @@ namespace Span
             {
                 var settings = (App.Current as App)?.Services?.GetService<Services.SettingsService>();
                 var theme = settings?.Theme ?? "system";
+                Helpers.DebugLogger.Log($"[ReapplyCurrentTheme] theme={theme} UseCustomAccent={settings?.UseCustomAccent} Color={settings?.CustomAccentColor}");
                 ApplyTheme(theme);
                 RefreshCachedAccentColors();
+                Helpers.DebugLogger.Log("[ReapplyCurrentTheme] completed");
             }
             catch (Exception ex)
             {
