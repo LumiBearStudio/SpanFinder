@@ -55,6 +55,8 @@ namespace Span
                     TryApplyCustomAccentOverride(root, theme);
                     // 4) 대상 테마로 복귀 → 모든 {ThemeResource} 바인딩 재평가
                     root.RequestedTheme = isLightCustom ? ElementTheme.Light : ElementTheme.Dark;
+                    // 5) 토글 후 override가 초기화될 수 있으므로 재적용
+                    TryApplyCustomAccentOverride(root, theme);
                 }
                 else
                 {
@@ -404,6 +406,139 @@ namespace Span
             dict["SystemControlFocusVisualSecondaryBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
 
             dict["TextControlBorderBrushFocused"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(accent);
+
+            // ── SystemAccentColor 계열 (WinUI 3 시스템 컨트롤 대부분이 참조) ──
+            var accentLight1 = AdjustLightness(accent, +0.15);
+            var accentLight2 = AdjustLightness(accent, +0.30);
+            var accentLight3 = AdjustLightness(accent, +0.45);
+            var accentDark1 = AdjustLightness(accent, -0.15);
+            var accentDark2 = AdjustLightness(accent, -0.30);
+            var accentDark3 = AdjustLightness(accent, -0.45);
+
+            dict["SystemAccentColor"] = accent;
+            dict["SystemAccentColorLight1"] = accentLight1;
+            dict["SystemAccentColorLight2"] = accentLight2;
+            dict["SystemAccentColorLight3"] = accentLight3;
+            dict["SystemAccentColorDark1"] = accentDark1;
+            dict["SystemAccentColorDark2"] = accentDark2;
+            dict["SystemAccentColorDark3"] = accentDark3;
+
+            // AccentFillColor* Color 버전 (Brush만이 아니라 Color도 필요)
+            dict["AccentFillColorDefault"] = accent;
+            dict["AccentFillColorSecondary"] = accentHover;
+            dict["AccentFillColorTertiary"] = accentDim;
+
+            // AccentTextFillColor* (하이퍼링크 등)
+            var accentText = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentLight2);
+            dict["AccentTextFillColorPrimaryBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentLight3);
+            dict["AccentTextFillColorSecondaryBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentLight2);
+            dict["AccentTextFillColorTertiaryBrush"] = accentText;
+            dict["AccentTextFillColorDisabledBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentDim);
+
+            // SystemFillColorAttention (InfoBar "information"/뱃지 등)
+            dict["SystemFillColorAttentionBrush"] = accentBrush;
+            dict["SystemFillColorAttentionBackgroundBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(bgSelected);
+
+            // ── ToggleSwitch (ON 상태) ──
+            var accentHoverBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentHover);
+            var accentDimBrush2 = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentDim);
+            var whiteBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White);
+            dict["ToggleSwitchFillOn"] = accentBrush;
+            dict["ToggleSwitchFillOnPointerOver"] = accentHoverBrush;
+            dict["ToggleSwitchFillOnPressed"] = accentDimBrush2;
+            dict["ToggleSwitchStrokeOn"] = accentBrush;
+            dict["ToggleSwitchStrokeOnPointerOver"] = accentHoverBrush;
+            dict["ToggleSwitchStrokeOnPressed"] = accentDimBrush2;
+            dict["ToggleSwitchKnobFillOn"] = whiteBrush;
+            dict["ToggleSwitchKnobFillOnPointerOver"] = whiteBrush;
+            dict["ToggleSwitchKnobFillOnPressed"] = whiteBrush;
+
+            // ── RadioButton (선택 원형) ──
+            dict["RadioButtonOuterEllipseCheckedStroke"] = accentBrush;
+            dict["RadioButtonOuterEllipseCheckedStrokePointerOver"] = accentHoverBrush;
+            dict["RadioButtonOuterEllipseCheckedStrokePressed"] = accentDimBrush2;
+            dict["RadioButtonOuterEllipseCheckedFill"] = accentBrush;
+            dict["RadioButtonOuterEllipseCheckedFillPointerOver"] = accentHoverBrush;
+            dict["RadioButtonOuterEllipseCheckedFillPressed"] = accentDimBrush2;
+
+            // ── CheckBox ──
+            dict["CheckBoxCheckBackgroundFillChecked"] = accentBrush;
+            dict["CheckBoxCheckBackgroundFillCheckedPointerOver"] = accentHoverBrush;
+            dict["CheckBoxCheckBackgroundFillCheckedPressed"] = accentDimBrush2;
+            dict["CheckBoxCheckBackgroundStrokeChecked"] = accentBrush;
+            dict["CheckBoxCheckBackgroundStrokeCheckedPointerOver"] = accentHoverBrush;
+            dict["CheckBoxCheckBackgroundStrokeCheckedPressed"] = accentDimBrush2;
+
+            // ── AccentButton ──
+            dict["AccentButtonBackground"] = accentBrush;
+            dict["AccentButtonBackgroundPointerOver"] = accentHoverBrush;
+            dict["AccentButtonBackgroundPressed"] = accentDimBrush2;
+            dict["AccentButtonBackgroundDisabled"] = accentDimBrush2;
+            dict["AccentButtonBorderBrush"] = accentBrush;
+            dict["AccentButtonBorderBrushPointerOver"] = accentHoverBrush;
+            dict["AccentButtonBorderBrushPressed"] = accentDimBrush2;
+
+            // ── Slider ──
+            dict["SliderTrackValueFill"] = accentBrush;
+            dict["SliderTrackValueFillPointerOver"] = accentHoverBrush;
+            dict["SliderTrackValueFillPressed"] = accentDimBrush2;
+            dict["SliderThumbBackground"] = accentBrush;
+            dict["SliderThumbBackgroundPointerOver"] = accentHoverBrush;
+            dict["SliderThumbBackgroundPressed"] = accentDimBrush2;
+
+            // ── ProgressBar ──
+            dict["ProgressBarForeground"] = accentBrush;
+            dict["ProgressBarForegroundPointerOver"] = accentHoverBrush;
+
+            // ── HyperlinkButton / 탭 아이콘 ──
+            dict["HyperlinkButtonForeground"] = accentText;
+            dict["HyperlinkButtonForegroundPointerOver"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(accentLight3);
+            dict["HyperlinkButtonForegroundPressed"] = accentBrush;
+        }
+
+        /// <summary>
+        /// HSL 명도 조정. amount는 -1.0 ~ +1.0. 색상/포화도 유지.
+        /// </summary>
+        private static Windows.UI.Color AdjustLightness(Windows.UI.Color c, double amount)
+        {
+            double r = c.R / 255.0, g = c.G / 255.0, b = c.B / 255.0;
+            double max = Math.Max(r, Math.Max(g, b));
+            double min = Math.Min(r, Math.Min(g, b));
+            double h = 0, s, l = (max + min) / 2.0;
+            if (max == min) { s = 0; }
+            else
+            {
+                double d = max - min;
+                s = l > 0.5 ? d / (2.0 - max - min) : d / (max + min);
+                if (max == r) h = (g - b) / d + (g < b ? 6 : 0);
+                else if (max == g) h = (b - r) / d + 2;
+                else h = (r - g) / d + 4;
+                h /= 6;
+            }
+            l = Math.Max(0, Math.Min(1, l + amount));
+
+            double HueToRgb(double p, double q, double t)
+            {
+                if (t < 0) t += 1; if (t > 1) t -= 1;
+                if (t < 1.0 / 6) return p + (q - p) * 6 * t;
+                if (t < 0.5) return q;
+                if (t < 2.0 / 3) return p + (q - p) * (2.0 / 3 - t) * 6;
+                return p;
+            }
+            double r2, g2, b2;
+            if (s == 0) { r2 = g2 = b2 = l; }
+            else
+            {
+                double q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+                double p = 2 * l - q;
+                r2 = HueToRgb(p, q, h + 1.0 / 3);
+                g2 = HueToRgb(p, q, h);
+                b2 = HueToRgb(p, q, h - 1.0 / 3);
+            }
+            return Windows.UI.Color.FromArgb(c.A,
+                (byte)Math.Round(r2 * 255),
+                (byte)Math.Round(g2 * 255),
+                (byte)Math.Round(b2 * 255));
         }
 
         /// <summary>
