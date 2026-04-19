@@ -55,8 +55,9 @@ namespace Span
                     TryApplyCustomAccentOverride(root, theme);
                     // 4) 대상 테마로 복귀 → 모든 {ThemeResource} 바인딩 재평가
                     root.RequestedTheme = isLightCustom ? ElementTheme.Light : ElementTheme.Dark;
-                    // 5) 토글 후 override가 초기화될 수 있으므로 재적용
+                    // 5) override가 초기화될 수 있으므로 재적용 후 다시 토글로 강제 갱신
                     TryApplyCustomAccentOverride(root, theme);
+                    ForceThemeReevaluation(root, isLightCustom ? ElementTheme.Light : ElementTheme.Dark);
                 }
                 else
                 {
@@ -69,6 +70,8 @@ namespace Span
                     root.RequestedTheme = targetTheme;
                     // 비커스텀 테마에서도 커스텀 액센트 override 지원
                     TryApplyCustomAccentOverride(root, theme);
+                    // override 주입 후 바인딩 재평가 (system은 Default 테마 기반이라 Dark/Light 둘다 토글)
+                    ForceThemeReevaluation(root, targetTheme);
                 }
             }
 
@@ -322,6 +325,30 @@ namespace Span
             catch (Exception ex)
             {
                 Helpers.DebugLogger.Log($"[MainWindow] ReapplyCurrentTheme error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// RequestedTheme을 반대 → 원래로 토글해서 모든 {ThemeResource} 바인딩을 강제 재평가한다.
+        /// override 리소스를 늦게 주입한 경우, 이미 바인딩된 컨트롤이 신규 리소스를 읽게 하기 위함.
+        /// Default(ElementTheme.Default)는 Light/Dark로 먼저 설정 후 다시 Default로 복귀.
+        /// </summary>
+        private static void ForceThemeReevaluation(FrameworkElement root, ElementTheme target)
+        {
+            if (target == ElementTheme.Default)
+            {
+                // system 모드: 현재 App 테마에 따라 결정된 값으로 한번, 반대로 한번, 다시 Default로 복귀
+                var current = App.Current.RequestedTheme == ApplicationTheme.Light
+                    ? ElementTheme.Light : ElementTheme.Dark;
+                var opposite = current == ElementTheme.Light ? ElementTheme.Dark : ElementTheme.Light;
+                root.RequestedTheme = opposite;
+                root.RequestedTheme = ElementTheme.Default;
+            }
+            else
+            {
+                var opposite = target == ElementTheme.Light ? ElementTheme.Dark : ElementTheme.Light;
+                root.RequestedTheme = opposite;
+                root.RequestedTheme = target;
             }
         }
 
