@@ -177,6 +177,9 @@ namespace Span
                 // 버튼 아이콘 색상 갱신
                 UpdatePreviewButtonState();
                 UpdateSplitViewButtonState();
+
+                // SettingsModeView 사이드바 선택 항목 배경 (코드-비하인드 직접 할당이라 수동 갱신 필요)
+                SettingsView?.RefreshSelectedNavItemAccent();
             }
             catch (Exception ex)
             {

@@ -503,6 +503,16 @@ public sealed partial class SettingsModeView : UserControl
         item.Background = GetThemeBrush("SpanBgSelectedBrush");
     }
 
+    /// <summary>
+    /// 테마/액센트 변경 시 현재 선택된 사이드바 항목의 배경색을 갱신한다.
+    /// 코드-비하인드에서 직접 설정한 브러시는 {ThemeResource} 재평가 대상이 아니므로 수동 갱신 필요.
+    /// </summary>
+    public void RefreshSelectedNavItemAccent()
+    {
+        if (_selectedNavItem != null)
+            _selectedNavItem.Background = GetThemeBrush("SpanBgSelectedBrush");
+    }
+
     private void OnNavItemPointerEntered(object sender, PointerRoutedEventArgs e)
     {
         if (sender is Grid grid && grid != _selectedNavItem)
