@@ -1987,11 +1987,8 @@ public sealed partial class SettingsModeView : UserControl
         // UseCustomAccent/CustomAccentColor 둘 다 이미 위에서 set됨. 하지만 MainWindow가
         // "UseCustomAccent"/"CustomAccentColor" 키를 알아듣도록 명시적 테마 재적용 트리거 필요 →
         // 현재 Theme 값을 다시 set해서 ApplyTheme 유도 (SettingChanged 이벤트 발생)
-        var current = _settings.Theme;
-        // 같은 값 재할당은 SettingChanged 발행 안 되므로, Set은 old != new일 때만 발행함 →
-        // 직접 MainWindow를 찾아 ApplyTheme 재호출
-        var app = Microsoft.UI.Xaml.Application.Current as Span.App;
-        if (app == null) return;
+        // SettingChanged는 old != new일 때만 발행 → 직접 MainWindow를 찾아 재적용
+        if (Application.Current is not Span.App app) return;
         foreach (var win in app.GetRegisteredWindows())
         {
             if (win is MainWindow mw) mw.ReapplyCurrentTheme();
@@ -2003,7 +2000,7 @@ public sealed partial class SettingsModeView : UserControl
         double lum = RelativeLuminance(accent);
         bool isLight = _settings.Theme == "light"
             || _settings.Theme == "solarized-light"
-            || (_settings.Theme == "system" && Microsoft.UI.Xaml.Application.Current.RequestedTheme == Microsoft.UI.Xaml.ApplicationTheme.Light);
+            || (_settings.Theme == "system" && Application.Current.RequestedTheme == ApplicationTheme.Light);
         double bgLum = isLight ? 0.95 : 0.05;
         double ratio = (Math.Max(lum, bgLum) + 0.05) / (Math.Min(lum, bgLum) + 0.05);
         AccentContrastWarning.IsOpen = ratio < 4.5;
