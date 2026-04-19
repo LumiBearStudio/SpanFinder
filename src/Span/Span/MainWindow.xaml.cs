@@ -2403,6 +2403,8 @@ namespace Span
             {
                 SetSpecialModeAddressBar(ViewMode.Home);
                 HomeView.ApplyIconFontScale(Helpers.FontScaleService.Instance.Level);
+                // Home 탭도 특정 경로가 없으므로 git 상태바 숨김 (사이드바 복원은 아래 else 블록에서 정상 처리)
+                _leftGitStatusBarVm?.Clear();
             }
 
             // 분할뷰 UI 동기화 — 탭별 분할 상태에 따라 우측 패인 표시/숨김
@@ -2440,11 +2442,6 @@ namespace Span
                 // Settings/ActionLog 탭은 파일 시스템 경로와 무관 → git 상태바 숨김
                 _leftGitStatusBarVm?.Clear();
                 _rightGitStatusBarVm?.Clear();
-            }
-            else if (mode == ViewMode.Home)
-            {
-                // Home 탭도 특정 경로가 없으므로 git 상태바 숨김
-                _leftGitStatusBarVm?.Clear();
             }
             else
             {
