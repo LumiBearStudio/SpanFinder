@@ -358,8 +358,18 @@ namespace Span
             try
             {
                 var settings = (App.Current as App)?.Services?.GetService<Services.SettingsService>();
-                if (settings == null || !settings.UseCustomAccent) return;
-                if (!TryParseAccentHex(settings.CustomAccentColor, out var accent)) return;
+                if (settings == null)
+                {
+                    Helpers.DebugLogger.Log("[TryApplyCustomAccentOverride] settings service null");
+                    return;
+                }
+                Helpers.DebugLogger.Log($"[TryApplyCustomAccentOverride] UseCustomAccent={settings.UseCustomAccent} Color='{settings.CustomAccentColor}' theme={theme}");
+                if (!settings.UseCustomAccent) return;
+                if (!TryParseAccentHex(settings.CustomAccentColor, out var accent))
+                {
+                    Helpers.DebugLogger.Log($"[TryApplyCustomAccentOverride] Hex parse failed: '{settings.CustomAccentColor}'");
+                    return;
+                }
                 ApplyAccentOverride(root, accent, theme);
             }
             catch (Exception ex)
@@ -376,6 +386,8 @@ namespace Span
         /// </summary>
         internal static void ApplyAccentOverride(FrameworkElement root, Windows.UI.Color accent, string theme)
         {
+            Helpers.DebugLogger.Log($"[ApplyAccentOverride] theme={theme} accent=#{accent.R:X2}{accent.G:X2}{accent.B:X2}");
+
             // 대상 ThemeDictionary 키: solarized-light는 Light, 나머지 (system/light/dark/커스텀)는
             // 현재 root.RequestedTheme에 따른다. light가 아니면 Dark.
             string dictKey;
@@ -393,6 +405,11 @@ namespace Span
                 && existingObj is ResourceDictionary existing)
             {
                 foreach (var kv in existing) dict[kv.Key] = kv.Value;
+                Helpers.DebugLogger.Log($"[ApplyAccentOverride] copied {dict.Count} keys from existing {dictKey} dict");
+            }
+            else
+            {
+                Helpers.DebugLogger.Log($"[ApplyAccentOverride] no existing {dictKey} dict at root, starting empty");
             }
 
             var accentHover = DeriveAccentHover(accent);
@@ -524,6 +541,29 @@ namespace Span
 
             // ★ 새 dict를 기존 자리에 교체 → WinUI 3이 변경 감지해 {ThemeResource} 전체 재평가
             root.Resources.ThemeDictionaries[dictKey] = dict;
+
+            // Application.Resources.ThemeDictionaries에도 미러링 — 일부 컨트롤이
+            // 상위 리소스 체인을 통해 Application 레벨에서 직접 조회하는 경우 대비.
+            // XamlControlsResources의 SystemAccentColor 등은 App 레벨 Default dict에 있음.
+            try
+            {
+                var appResources = Application.Current.Resources;
+                var appDict = new ResourceDictionary();
+                if (appResources.ThemeDictionaries.TryGetValue(dictKey, out var appExistingObj)
+                    && appExistingObj is ResourceDictionary appExisting)
+                {
+                    foreach (var kv in appExisting) appDict[kv.Key] = kv.Value;
+                }
+                // 우리가 덮어쓰려던 override 키만 appDict에 복사
+                foreach (var kv in dict)
+                    appDict[kv.Key] = kv.Value;
+                appResources.ThemeDictionaries[dictKey] = appDict;
+                Helpers.DebugLogger.Log($"[ApplyAccentOverride] mirrored override to Application.Resources ThemeDictionaries[{dictKey}]");
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[ApplyAccentOverride] App-level mirror failed: {ex.Message}");
+            }
         }
 
         /// <summary>
