@@ -43,30 +43,30 @@ namespace Span
                     _ => ElementTheme.Default
                 };
 
-                // 커스텀 테마: 리소스 설정 후 테마 토글로 {ThemeResource} 바인딩 강제 갱신
+                // ★ 중요: {ThemeResource} 바인딩 재평가는 **RequestedTheme 변경**이 트리거함.
+                //   dict 객체 교체만으로는 재평가 안 됨. 따라서 dict 작업은 반드시
+                //   "반대 테마 → dict 조작 → 대상 테마" 순서 안에 넣어야 함.
                 if (isCustom)
                 {
                     bool isLightCustom = theme == "solarized-light";
-                    // 1) 반대 테마로 전환하여 기존 리소스 해제
+                    // 1) 반대 테마로 전환 (기존 리소스 해제 + 반대 테마로 재평가)
                     root.RequestedTheme = isLightCustom ? ElementTheme.Dark : ElementTheme.Light;
-                    // 2) 커스텀 리소스 오버라이드 적용
+                    // 2) 커스텀 테마 팔레트 주입
                     ApplyCustomThemeOverrides(root, theme);
-                    // 3) 대상 테마로 복귀 → 모든 {ThemeResource} 바인딩 재평가
-                    root.RequestedTheme = isLightCustom ? ElementTheme.Light : ElementTheme.Dark;
-                    // 4) 사용자 커스텀 액센트 override (dict 교체 방식이라 자동으로 바인딩 재평가됨)
+                    // 3) 사용자 커스텀 액센트 override (팔레트 액센트 위에 덮어씀)
                     TryApplyCustomAccentOverride(root, theme);
+                    // 4) 대상 테마로 복귀 → 모든 {ThemeResource} 바인딩이 새 dict 값으로 재평가
+                    root.RequestedTheme = isLightCustom ? ElementTheme.Light : ElementTheme.Dark;
                 }
                 else
                 {
-                    // 비커스텀: 오버라이드 제거 후 테마 적용
+                    // 비커스텀: 커스텀 팔레트 제거 + 커스텀 액센트(있으면) 주입
                     ApplyCustomThemeOverrides(root, theme);
-                    // 반대 테마로 한 번 토글하여 {ThemeResource} 바인딩 강제 갱신
-                    // (커스텀(Dark기반) → dark 전환 시 동일 ElementTheme이면 갱신 안 됨)
+                    TryApplyCustomAccentOverride(root, theme);
+                    // 반대 → 대상 토글로 {ThemeResource} 바인딩 강제 재평가
                     root.RequestedTheme = targetTheme == ElementTheme.Light
                         ? ElementTheme.Dark : ElementTheme.Light;
                     root.RequestedTheme = targetTheme;
-                    // 비커스텀 테마에서도 커스텀 액센트 override 지원 (dict 교체 → 자동 재평가)
-                    TryApplyCustomAccentOverride(root, theme);
                 }
             }
 
