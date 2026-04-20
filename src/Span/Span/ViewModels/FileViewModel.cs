@@ -136,6 +136,12 @@ namespace Span.ViewModels
                     (File.Exists(filePath), Services.CloudSyncService.IsCloudOnlyFile(filePath)));
                 if (!exists || cts.IsCancellationRequested) return;
 
+                // ── Phase 1: 워커 격리 경로 시도 (UseIsolatedThumbnails=true 시) ──
+                // 워커가 PNG로 만들어 디스크 캐시 → BitmapImage(file://)로 단순 로딩.
+                // 워커 미동작/실패 시 null 반환 → 기존 인프로세스 경로로 폴백.
+                if (await TryLoadIsolatedAsync(filePath, decodePixelWidth, isCloudOnly, cts.Token))
+                    return;
+
                 // Video files & cloud-only files: use Shell thumbnail API
                 // (videos can't be decoded via BitmapImage; cloud files must not trigger download)
                 if (IsVideoFile || isCloudOnly)
@@ -293,6 +299,61 @@ namespace Span.ViewModels
             catch (Exception ex)
             {
                 Helpers.DebugLogger.Log($"[FileViewModel] GIF fallback failed for {Name}: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Phase 1 — 격리 워커 경로로 썸네일 로딩 시도.
+        /// 성공: BitmapImage(file://cache.png) 설정 후 true 반환.
+        /// 실패/비활성화: false 반환 → 호출자가 인프로세스 경로 폴백.
+        ///
+        /// feature flag(UseIsolatedThumbnails) OFF 시 즉시 false (호출 비용 거의 0).
+        /// 워커 spawn 실패/응답 실패 시에도 false → 사용자 영향 없음.
+        /// </summary>
+        private async Task<bool> TryLoadIsolatedAsync(string filePath, int decodePixelWidth, bool isCloudOnly, CancellationToken ct)
+        {
+            try
+            {
+                var settings = App.Current.Services.GetService(typeof(Services.SettingsService)) as Services.SettingsService;
+                if (settings == null || !settings.UseIsolatedThumbnails) return false;
+
+                var client = App.Current.Services.GetService(typeof(Services.Thumbnails.ThumbnailClientService))
+                    as Services.Thumbnails.ThumbnailClientService;
+                if (client == null) return false;
+
+                // 메인이 알고 있는 컨텍스트 — Phase 1은 단순화 (theme/dpi는 메타로만 전달)
+                string theme = "Default";
+                uint dpi = 96;
+
+                var uri = await client.GetThumbnailUriAsync(
+                    filePath,
+                    decodePixelWidth,
+                    mode: "SingleItem",
+                    isCloudOnly: isCloudOnly,
+                    applyExif: true,
+                    theme: theme,
+                    dpi: dpi,
+                    ct: ct).ConfigureAwait(true);
+
+                if (uri == null) return false;
+                if (!_thumbnailLoading || ct.IsCancellationRequested) return true;  // true 반환해도 OK — 폴백 안 함
+
+                var bitmap = new BitmapImage();
+                bitmap.DecodePixelWidth = decodePixelWidth;
+                bitmap.DecodePixelType = DecodePixelType.Logical;
+                bitmap.UriSource = uri;
+
+                if (!_thumbnailLoading || ct.IsCancellationRequested) return true;
+
+                ThumbnailSource = bitmap;
+                _thumbnailLoaded = true;
+                return true;
+            }
+            catch (OperationCanceledException) { return true; }  // 취소는 폴백 X
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[FileViewModel] isolated path failed for {Name}: {ex.Message}");
+                return false;  // 인프로세스 폴백
             }
         }
 

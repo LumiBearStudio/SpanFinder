@@ -66,6 +66,36 @@
   <ItemGroup Condition="'$(DisableMsixProjectCapabilityAddedByProject)'!='true' and '$(EnableMsixTooling)'=='true'">
     <ProjectCapability Include="Msix" />
   </ItemGroup>
+  <!-- Phase 1: 썸네일 격리 워커 — 빌드 의존성만 ProjectReference로,
+       출력 복사는 별도 target(CopyThumbsWorker)이 처리 -->
+  <ItemGroup>
+    <ProjectReference Include="..\Span.Thumbs\Span.Thumbs.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <PrivateAssets>all</PrivateAssets>
+      <Private>false</Private>
+      <SkipGetTargetFrameworkProperties>true</SkipGetTargetFrameworkProperties>
+    </ProjectReference>
+  </ItemGroup>
+
+  <!-- 워커 .exe + .dll + 메타 파일을 메인 출력 폴더 직속에 복사.
+       워커가 메인과 같은 폴더에서 실행되도록 → WindowsAppSDK deps 공유. -->
+  <Target Name="CopyThumbsWorker" AfterTargets="Build" DependsOnTargets="ResolveProjectReferences">
+    <PropertyGroup>
+      <_ThumbsBinDir>$(MSBuildThisFileDirectory)..\Span.Thumbs\bin\$(Platform)\$(Configuration)\$(TargetFramework)\</_ThumbsBinDir>
+    </PropertyGroup>
+    <ItemGroup>
+      <_ThumbsFiles Include="$(_ThumbsBinDir)Span.Thumbs.exe" />
+      <_ThumbsFiles Include="$(_ThumbsBinDir)Span.Thumbs.dll" />
+      <_ThumbsFiles Include="$(_ThumbsBinDir)Span.Thumbs.deps.json" />
+      <_ThumbsFiles Include="$(_ThumbsBinDir)Span.Thumbs.runtimeconfig.json" />
+      <_ThumbsFiles Include="$(_ThumbsBinDir)Span.Thumbs.pdb" Condition="'$(Configuration)' == 'Debug'" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_ThumbsFiles)"
+          DestinationFolder="$(OutDir)"
+          SkipUnchangedFiles="true"
+          Condition="Exists('%(Identity)')" />
+  </Target>
+
   <ItemGroup>
     <PackageReference Include="ColorCode.WinUI" Version="2.0.15" />
     <PackageReference Include="CommunityToolkit.WinUI.Controls.Sizers" Version="8.2.251219" />

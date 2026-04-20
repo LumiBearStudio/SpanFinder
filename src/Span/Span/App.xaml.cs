@@ -507,6 +507,7 @@ namespace Span
             services.AddSingleton<Services.ConnectionManagerService>();
             services.AddSingleton<Services.GitStatusService>();
             services.AddSingleton<Services.CrashReportingService>();
+            services.AddSingleton<Services.Thumbnails.ThumbnailClientService>();
             services.AddSingleton<Services.JumpListService>();
             services.AddSingleton<Services.ArchiveReaderService>();
             services.AddSingleton<Services.RecycleBinService>();

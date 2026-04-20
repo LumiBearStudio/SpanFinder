@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <RootNamespace>Span.Thumbs</RootNamespace>
+    <AssemblyName>Span.Thumbs</AssemblyName>
+    <Platforms>x86;x64;ARM64</Platforms>
+    <RuntimeIdentifiers>win-x86;win-x64;win-arm64</RuntimeIdentifiers>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWindowsForms>false</UseWindowsForms>
+    <UseWPF>false</UseWPF>
+    <!-- 메인 앱이 같은 폴더에 self-contained로 배포 → 워커는 deps 공유 (디스크 절약) -->
+    <WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained>
+    <!-- Worker는 console 동작 — UI 없음 -->
+    <DisableWinExeOutputInference>true</DisableWinExeOutputInference>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260209005" />
+    <PackageReference Include="Sentry" Version="6.1.0" />
+  </ItemGroup>
+
+</Project>
