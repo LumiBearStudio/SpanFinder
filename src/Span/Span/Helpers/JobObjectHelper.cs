@@ -18,7 +18,8 @@ namespace Span.Helpers;
 internal sealed class JobObjectHelper : IDisposable
 {
     private IntPtr _handle;
-    private bool _disposed;
+    // C-LK3: Interlocked 가드로 finalizer/Dispose race 차단 (Application Verifier 환경 메인 크래시 방지)
+    private int _disposed;  // 0 = alive, 1 = disposed
 
     public JobObjectHelper()
     {
@@ -62,7 +63,7 @@ internal sealed class JobObjectHelper : IDisposable
     /// </summary>
     public bool AssignProcess(Process process)
     {
-        if (_disposed) throw new ObjectDisposedException(nameof(JobObjectHelper));
+        if (System.Threading.Volatile.Read(ref _disposed) != 0) throw new ObjectDisposedException(nameof(JobObjectHelper));
         if (process == null) throw new ArgumentNullException(nameof(process));
         if (_handle == IntPtr.Zero) return false;
 
@@ -79,12 +80,12 @@ internal sealed class JobObjectHelper : IDisposable
 
     public void Dispose()
     {
-        if (_disposed) return;
-        _disposed = true;
-        if (_handle != IntPtr.Zero)
+        // C-LK3: Interlocked로 idempotent — finalizer 동시 진입 시 두 번째 호출은 즉시 return
+        if (System.Threading.Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        var h = System.Threading.Interlocked.Exchange(ref _handle, IntPtr.Zero);
+        if (h != IntPtr.Zero)
         {
-            CloseHandle(_handle);
-            _handle = IntPtr.Zero;
+            CloseHandle(h);
         }
         GC.SuppressFinalize(this);
     }

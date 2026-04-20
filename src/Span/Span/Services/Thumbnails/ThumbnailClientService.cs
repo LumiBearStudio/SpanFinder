@@ -106,16 +106,27 @@ public sealed class ThumbnailClientService : IDisposable
         // I-N6: spawn 진행 중이면 추가 Task.Run 누적 방지
         if (Interlocked.CompareExchange(ref _prewarmInFlight, 1, 0) != 0) return;
 
-        _ = Task.Run(async () =>
+        // I-3R-2: Task.Run 큐잉 자체가 throw하면 (OOM/ThreadPool 고갈) finally 실행 안 됨
+        // → _prewarmInFlight 영구 stuck 방지하기 위해 try-catch로 보호
+        try
         {
-            try
+            _ = Task.Run(async () =>
             {
-                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-                await EnsureWorkerAsync(cts.Token).ConfigureAwait(false);
-            }
-            catch (Exception ex) { DebugLogger.Log($"[ThumbnailClient] prewarm failed: {ex.Message}"); }
-            finally { Interlocked.Exchange(ref _prewarmInFlight, 0); }
-        });
+                try
+                {
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                    await EnsureWorkerAsync(cts.Token).ConfigureAwait(false);
+                }
+                catch (Exception ex) { DebugLogger.Log($"[ThumbnailClient] prewarm failed: {ex.Message}"); }
+                finally { Interlocked.Exchange(ref _prewarmInFlight, 0); }
+            });
+        }
+        catch (Exception ex)
+        {
+            // Task.Run 큐잉 실패 시 카운터 reset (다음 호출에서 재시도 가능)
+            Interlocked.Exchange(ref _prewarmInFlight, 0);
+            DebugLogger.Log($"[ThumbnailClient] prewarm queue failed: {ex.Message}");
+        }
     }
 
     /// <summary>
@@ -231,11 +242,15 @@ public sealed class ThumbnailClientService : IDisposable
                 _folderFailureCount.AddOrUpdate(parentDir, 1, (_, n) => n + 1);
             return null;
         }
-        catch (InvalidOperationException) when (!worker.IsAlive)
+        catch (Exception ex) when (
+            !worker.IsAlive
+            && (ex is InvalidOperationException || ex is IOException || ex is ObjectDisposedException))
         {
-            // I6: EnsureWorkerAsync 직후 ~ RequestAsync 사이에 워커 죽음 race.
-            // 이 호출은 실패 처리 안 함 (워커가 보낸 적 없음) — 다른 워커 1회 retry.
-            DebugLogger.Log($"[ThumbnailClient] worker#{workerId} died before request — single retry");
+            // I6 + I-LK4: EnsureWorkerAsync 직후 ~ RequestAsync 사이에 워커 죽음 race.
+            // ReadLoop가 disconnect 시 모든 pending TCS에 IOException SetException.
+            // → InvalidOperationException 외에 IOException, ObjectDisposedException도 retry.
+            // 워커 spawn 직후 첫 요청 IOException 시 폴더 fallback 진입까지 3-9초 지연 방지.
+            DebugLogger.Log($"[ThumbnailClient] worker#{workerId} died before/during request ({ex.GetType().Name}) — single retry");
             HandleWorkerFailure(workerId);
             return await GetThumbnailUriAsyncInternalRetry(req, parentDir, ct).ConfigureAwait(false);
         }

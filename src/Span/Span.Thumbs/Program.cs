@@ -91,9 +91,14 @@ internal static class Program
             catch (Exception ex) { WorkerLogger.Log($"[Worker] Sentry init failed: {ex.Message}"); }
 
             // ── 3. NamedPipe 서버 + 이벤트 루프 ──
-            // I3: ACL 명시 — 현재 사용자(WindowsIdentity)만 read/write 허용.
-            // 같은 머신의 다른 사용자/세션이 pipe 이름을 알아내도 접근 거부.
+            // I3 + S1: ACL 명시 — 현재 사용자(WindowsIdentity.User)만 read/write 허용.
+            // S2: 실패 시 fail-secure — null 반환 → 워커 종료 → 메인 인프로세스 폴백.
             using var pipe = CreateRestrictedNamedPipe(pipeName);
+            if (pipe == null)
+            {
+                WorkerLogger.Log("[Worker] Cannot create secure pipe — exiting (main will fallback to inprocess)");
+                return 4;
+            }
 
             WorkerLogger.Log("[Worker] Waiting for client connection...");
             // 30초 내 메인 연결 없으면 종료
@@ -345,44 +350,44 @@ internal static class Program
     }
 
     /// <summary>
-    /// I3: 현재 사용자만 read/write 가능한 NamedPipe 생성.
-    /// NamedPipeServerStreamAcl.Create는 .NET 8+ Windows 전용.
+    /// I3 + S1: 현재 사용자만 read/write 가능한 NamedPipe 생성.
+    /// .User SID 사용 (Owner는 admin 실행 시 BUILTIN\Administrators 그룹이라 잘못 부여됨).
+    /// S2: ACL 실패 시 fail-secure — null 반환으로 워커 종료 → 메인 인프로세스 폴백.
     /// </summary>
-    private static NamedPipeServerStream CreateRestrictedNamedPipe(string pipeName)
+    private static NamedPipeServerStream? CreateRestrictedNamedPipe(string pipeName)
     {
         try
         {
-            var sid = System.Security.Principal.WindowsIdentity.GetCurrent().Owner;
-            if (sid != null)
+            // S1: Owner가 아닌 User SID 사용 (admin 실행 시도 정확한 사용자 SID)
+            var sid = System.Security.Principal.WindowsIdentity.GetCurrent().User;
+            if (sid == null)
             {
-                var ps = new System.IO.Pipes.PipeSecurity();
-                ps.AddAccessRule(new System.IO.Pipes.PipeAccessRule(
-                    sid,
-                    System.IO.Pipes.PipeAccessRights.ReadWrite | System.IO.Pipes.PipeAccessRights.Synchronize,
-                    System.Security.AccessControl.AccessControlType.Allow));
-                return NamedPipeServerStreamAcl.Create(
-                    pipeName,
-                    PipeDirection.InOut,
-                    maxNumberOfServerInstances: 1,
-                    PipeTransmissionMode.Byte,
-                    PipeOptions.Asynchronous,
-                    inBufferSize: 0,
-                    outBufferSize: 0,
-                    pipeSecurity: ps);
+                WorkerLogger.Log("[Worker] FATAL: WindowsIdentity.User is null — fail-secure");
+                return null;
             }
+
+            var ps = new System.IO.Pipes.PipeSecurity();
+            ps.AddAccessRule(new System.IO.Pipes.PipeAccessRule(
+                sid,
+                System.IO.Pipes.PipeAccessRights.ReadWrite | System.IO.Pipes.PipeAccessRights.Synchronize,
+                System.Security.AccessControl.AccessControlType.Allow));
+            return NamedPipeServerStreamAcl.Create(
+                pipeName,
+                PipeDirection.InOut,
+                maxNumberOfServerInstances: 1,
+                PipeTransmissionMode.Byte,
+                PipeOptions.Asynchronous,
+                inBufferSize: 0,
+                outBufferSize: 0,
+                pipeSecurity: ps);
         }
         catch (Exception ex)
         {
-            WorkerLogger.Log($"[Worker] ACL pipe creation failed, falling back to default: {ex.Message}");
+            // S2: 폴백 안 함 — fail-secure
+            // 같은 사용자 세션의 다른 프로세스가 pipe 선점할 위험을 fallback이 차단 못함
+            WorkerLogger.Log($"[Worker] FATAL: ACL pipe creation failed (fail-secure exit): {ex.Message}");
+            return null;
         }
-
-        // 폴백: 기본 ACL (같은 사용자 세션 신뢰 모델)
-        return new NamedPipeServerStream(
-            pipeName,
-            PipeDirection.InOut,
-            maxNumberOfServerInstances: 1,
-            PipeTransmissionMode.Byte,
-            PipeOptions.Asynchronous);
     }
 
     private static async Task SendAsync(StreamWriter writer, IpcEnvelope msg)

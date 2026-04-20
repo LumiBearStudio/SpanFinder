@@ -23,7 +23,7 @@ internal sealed class WorkerProcess : IDisposable
     private readonly int _workerId;
     private readonly string _exePath;
     private readonly string _cacheDir;
-    private readonly JobObjectHelper _jobObject;
+    private readonly JobObjectHelper? _jobObject;  // I7: null 가능 — null이면 ClientService가 _disabled 처리
 
     private Process? _process;
     private NamedPipeClientStream? _pipe;
@@ -42,7 +42,7 @@ internal sealed class WorkerProcess : IDisposable
     public int? Pid => _process?.Id;
     public string? PipeName { get; private set; }
 
-    public WorkerProcess(int workerId, string exePath, string cacheDir, JobObjectHelper sharedJob)
+    public WorkerProcess(int workerId, string exePath, string cacheDir, JobObjectHelper? sharedJob)
     {
         _workerId = workerId;
         _exePath = exePath;
@@ -81,8 +81,27 @@ internal sealed class WorkerProcess : IDisposable
             }
 
             // JobObject 등록 — 메인 종료 시 워커도 자동 종료 (orphan 방지)
-            try { _jobObject.AssignProcess(_process); }
-            catch (Exception ex) { DebugLogger.Log($"[WorkerProcess#{_workerId}] JobObject assign failed: {ex.Message}"); }
+            // C-LK2: 실패 시 abort — orphan 워커 위험 차단 (메인 강제종료 시 워커 30초 살아남음)
+            // I7: _jobObject가 null이면 ClientService에서 _disabled로 차단됐을 것이지만 방어
+            if (_jobObject == null)
+            {
+                DebugLogger.Log($"[WorkerProcess#{_workerId}] No JobObject (init failed) → aborting spawn");
+                SafeKill();
+                return false;
+            }
+            bool jobAssigned;
+            try { jobAssigned = _jobObject.AssignProcess(_process); }
+            catch (Exception ex)
+            {
+                jobAssigned = false;
+                DebugLogger.Log($"[WorkerProcess#{_workerId}] JobObject assign threw: {ex.Message}");
+            }
+            if (!jobAssigned)
+            {
+                DebugLogger.Log($"[WorkerProcess#{_workerId}] JobObject not assigned → orphan risk, aborting spawn");
+                SafeKill();
+                return false;
+            }
 
             // 워커 stderr 라인은 메인 로그로 mirror
             // M6: 핸들러를 필드에 보관 → Dispose 시 명시적 -=
@@ -103,6 +122,9 @@ internal sealed class WorkerProcess : IDisposable
                 catch (Exception ex)
                 {
                     DebugLogger.Log($"[WorkerProcess#{_workerId}] pipe connect failed: {ex.Message}");
+                    // C-LK1: pipe 명시 dispose — Dispose 경로 200ms write-lock 대기 우회
+                    try { _pipe?.Dispose(); } catch { }
+                    _pipe = null;
                     SafeKill();
                     return false;
                 }
@@ -143,10 +165,13 @@ internal sealed class WorkerProcess : IDisposable
         var tcs = new TaskCompletionSource<IpcEnvelope>(TaskCreationOptions.RunContinuationsAsynchronously);
         _pending[request.Id] = tcs;
 
-        // C-N2: 등록 직후 재확인 — Dispose가 _pending 순회 전에 도착할 수 있음
+        // C-N2 + C-3R-3: 등록 직후 재확인 — Dispose가 _pending 순회 전에 도착할 수 있음
+        // tcs를 unobserved로 두면 TaskScheduler.UnobservedTaskException 트리거 (Sentry 노이즈)
+        // → SetException으로 observe 처리 후 throw
         if (System.Threading.Volatile.Read(ref _disposed) != 0)
         {
-            _pending.TryRemove(request.Id, out _);
+            if (_pending.TryRemove(request.Id, out var orphan))
+                orphan.TrySetException(new InvalidOperationException("worker disposed during registration"));
             throw new InvalidOperationException("worker disposed during registration");
         }
 

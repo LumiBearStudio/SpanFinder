@@ -317,6 +317,12 @@ namespace Span.ViewModels
                 var settings = App.Current.Services.GetService(typeof(Services.SettingsService)) as Services.SettingsService;
                 if (settings == null || !settings.UseIsolatedThumbnails) return false;
 
+                // 회귀-GIF: 격리 경로는 PNG 첫 프레임만 굽기 → 애니메이션 멈춤.
+                // 인프로세스 LoadBitmapImageFallbackAsync가 BitmapImage로 GIF 애니메이션 유지하므로
+                // .gif는 즉시 인프로세스 폴백 강제.
+                var ext = System.IO.Path.GetExtension(filePath);
+                if (string.Equals(ext, ".gif", StringComparison.OrdinalIgnoreCase)) return false;
+
                 var client = App.Current.Services.GetService(typeof(Services.Thumbnails.ThumbnailClientService))
                     as Services.Thumbnails.ThumbnailClientService;
                 if (client == null) return false;
@@ -341,6 +347,16 @@ namespace Span.ViewModels
                 var bitmap = new BitmapImage();
                 bitmap.DecodePixelWidth = decodePixelWidth;
                 bitmap.DecodePixelType = DecodePixelType.Logical;
+
+                // 회귀-ImageFailed: 디코딩 실패 시 silent breakage 방지
+                // (cache 파일이 사용자에 의해 삭제되거나 PNG가 손상된 케이스)
+                bitmap.ImageFailed += (s, args) =>
+                {
+                    Helpers.DebugLogger.Log($"[Thumbnail] Isolated path ImageFailed for {Name}: {args.ErrorMessage}");
+                    // 다음 visible-trigger에서 재시도 가능하게 플래그 되돌림
+                    _thumbnailLoaded = false;
+                };
+
                 bitmap.UriSource = uri;
 
                 if (!_thumbnailLoading || ct.IsCancellationRequested) return true;

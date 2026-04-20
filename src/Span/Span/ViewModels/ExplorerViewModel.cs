@@ -541,17 +541,12 @@ namespace Span.ViewModels
         }
 
         /// <summary>
-        /// Navigate to a folder from sidebar (reset all columns).
+        /// 회귀-NavCancel: 폴더 변경 진입점에서 공통 호출 — 격리 워커 cancel-batch + prewarm.
+        /// flag OFF 사용자에 대해서도 안전 (CancelAllInflightAsync는 _disabled fast path,
+        /// PrewarmWorker는 settings 검사로 즉시 return).
         /// </summary>
-        public async Task NavigateTo(FolderItem folder)
+        private void CancelInflightAndPrewarm()
         {
-            Helpers.DebugLogger.Log($"[NavigateTo] Navigating to: {folder.Name}, clearing {Columns.Count} columns");
-
-            // Push current path to history before navigating
-            PushToHistory(folder.Path);
-
-            // P2-3: 격리 워커 cancel-batch — 폴더 변경 시 진행 중 워커 작업 무효화
-            // A2: 동시에 prewarm — 첫 폴더 진입 시 워커 spawn 시작 (cold start 비용을 백그라운드로 숨김)
             try
             {
                 var thumbClient = App.Current.Services.GetService(typeof(Services.Thumbnails.ThumbnailClientService))
@@ -563,6 +558,19 @@ namespace Span.ViewModels
                 }
             }
             catch { /* best-effort */ }
+        }
+
+        /// <summary>
+        /// Navigate to a folder from sidebar (reset all columns).
+        /// </summary>
+        public async Task NavigateTo(FolderItem folder)
+        {
+            Helpers.DebugLogger.Log($"[NavigateTo] Navigating to: {folder.Name}, clearing {Columns.Count} columns");
+
+            // Push current path to history before navigating
+            PushToHistory(folder.Path);
+
+            CancelInflightAndPrewarm();
 
             // 경량 정리 — 구독 해제 + 진행 중 썸네일 태스크 취소
             foreach (var col in Columns)
@@ -623,6 +631,9 @@ namespace Span.ViewModels
         public async Task NavigateToPath(string path)
         {
             if (string.IsNullOrWhiteSpace(path)) return;
+
+            // 회귀-NavCancel: 격리 워커 진행 중 작업 무효화 (브레드크럼/주소창/뒤로/앞으로 진입점)
+            CancelInflightAndPrewarm();
 
             // \\?\ 접두사 제거 (.NET 8은 long path를 네이티브 지원)
             if (path.StartsWith(@"\\?\"))
@@ -951,6 +962,9 @@ namespace Span.ViewModels
             try
             {
                 Helpers.DebugLogger.Log($"[NavigateIntoFolder] Manual navigation to: {folder.Name}");
+
+                // 회귀-NavCancel: 격리 워커 진행 중 작업 무효화 (Miller 더블클릭/드릴다운 진입점)
+                CancelInflightAndPrewarm();
 
                 // Push current path to history before navigating
                 PushToHistory(folder.Path);
