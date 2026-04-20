@@ -142,6 +142,12 @@ public sealed class CrashReportingService : IDisposable
     {
         if (!_isEnabled || _sentryDisposable == null) return;
 
+#if DEBUG
+        // 디버그 빌드: 디버거 stop / 빌드 재시작이 false-positive로 잡히는 노이즈 방지.
+        // 실사용자(release)만 post-mortem 보고 → Sentry 시그널 정확도 유지.
+        Helpers.DebugLogger.Log("[CrashReporting] post-mortem skipped (DEBUG build)");
+        return;
+#else
         try
         {
             DetectPreviousAbnormalExit();
@@ -153,6 +159,7 @@ public sealed class CrashReportingService : IDisposable
             UploadAndCleanWerDumps();
         }
         catch (Exception ex) { Helpers.DebugLogger.Log($"[CrashReporting] UploadAndCleanWerDumps failed: {ex.Message}"); }
+#endif
     }
 
     private void DetectPreviousAbnormalExit()
