@@ -4261,52 +4261,71 @@ namespace Span
         /// </summary>
         private void OnMillerContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
         {
-            // 재활용 큐: 화면 밖 아이템의 썸네일 해제 (메모리 절약)
-            if (args.InRecycleQueue)
+            // 긴급 임시 가드: STATUS_STOWED_EXCEPTION 차단
+            // 컨테이너 unload race / unloaded folder VM 접근 / stale dict race 등
+            // ContainerContentChanging 처리 도중 발생 가능한 모든 throw를 흡수.
+            // 근본 원인은 별도 작업으로 추적 (spawn_task: Git.Warm + ContainerContentChanging race).
+            try
             {
-                if (args.Item is ViewModels.FileViewModel recycledFile)
-                    recycledFile.UnloadThumbnail();
-                return;
-            }
-
-            if (args.ItemContainer is ListViewItem item)
-            {
-                // Reset any stale padding on the template root Grid (ContentBorder)
-                var rootGrid = VisualTreeHelpers.FindChild<Grid>(item);
-                if (rootGrid != null && rootGrid.Padding != _zeroPadding)
-                    rootGrid.Padding = _zeroPadding;
-
-                // Apply density padding + min height to the DATA TEMPLATE Grid (inside ContentPresenter),
-                // NOT the template root Grid (ContentBorder).
-                // 값이 이미 동일하면 건너뛰어 불필요한 레이아웃 무효화 방지.
-                var cp = VisualTreeHelpers.FindChild<ContentPresenter>(item);
-                if (cp != null)
+                // 재활용 큐: 화면 밖 아이템의 썸네일 해제 (메모리 절약)
+                if (args.InRecycleQueue)
                 {
-                    var grid = VisualTreeHelpers.FindChild<Grid>(cp);
-                    if (grid != null)
+                    if (args.Item is ViewModels.FileViewModel recycledFile)
                     {
-                        if (grid.Padding != _densityPadding)
-                            grid.Padding = _densityPadding;
-                        if (grid.MinHeight != _densityMinHeight)
-                            grid.MinHeight = _densityMinHeight;
+                        try { recycledFile.UnloadThumbnail(); } catch (Exception ex)
+                        {
+                            Helpers.DebugLogger.Log($"[OnMillerCCC] UnloadThumbnail failed: {ex.Message}");
+                        }
+                    }
+                    return;
+                }
 
-                        // 폰트/아이콘 스케일은 FontScaleService + XAML {Binding} 으로 자동 반영 (Phase B-5).
+                if (args.ItemContainer is ListViewItem item)
+                {
+                    // Reset any stale padding on the template root Grid (ContentBorder)
+                    var rootGrid = VisualTreeHelpers.FindChild<Grid>(item);
+                    if (rootGrid != null && rootGrid.Padding != _zeroPadding)
+                        rootGrid.Padding = _zeroPadding;
+
+                    // Apply density padding + min height to the DATA TEMPLATE Grid (inside ContentPresenter),
+                    // NOT the template root Grid (ContentBorder).
+                    // 값이 이미 동일하면 건너뛰어 불필요한 레이아웃 무효화 방지.
+                    var cp = VisualTreeHelpers.FindChild<ContentPresenter>(item);
+                    if (cp != null)
+                    {
+                        var grid = VisualTreeHelpers.FindChild<Grid>(cp);
+                        if (grid != null)
+                        {
+                            if (grid.Padding != _densityPadding)
+                                grid.Padding = _densityPadding;
+                            if (grid.MinHeight != _densityMinHeight)
+                                grid.MinHeight = _densityMinHeight;
+
+                            // 폰트/아이콘 스케일은 FontScaleService + XAML {Binding} 으로 자동 반영 (Phase B-5).
+                        }
                     }
                 }
-            }
 
-            // On-demand 썸네일 로딩: 보이는 아이템만 로드
-            if (args.Item is ViewModels.FileViewModel fileVm && fileVm.IsThumbnailSupported && !fileVm.HasThumbnail)
-            {
-                _ = fileVm.LoadThumbnailAsync();
-            }
+                // On-demand 썸네일 로딩: 보이는 아이템만 로드
+                if (args.Item is ViewModels.FileViewModel fileVm && fileVm.IsThumbnailSupported && !fileVm.HasThumbnail)
+                {
+                    _ = fileVm.LoadThumbnailAsync();
+                }
 
-            // On-demand 클라우드 + Git 상태 주입: 보이는 아이템만
-            if (args.Item is ViewModels.FileSystemViewModel fsVm
-                && sender.DataContext is ViewModels.FolderViewModel folderVm)
+                // On-demand 클라우드 + Git 상태 주입: 보이는 아이템만
+                if (args.Item is ViewModels.FileSystemViewModel fsVm
+                    && sender.DataContext is ViewModels.FolderViewModel folderVm)
+                {
+                    try { folderVm.InjectCloudStateIfNeeded(fsVm); }
+                    catch (Exception ex) { Helpers.DebugLogger.Log($"[OnMillerCCC] InjectCloud failed: {ex.Message}"); }
+                    try { folderVm.InjectGitStateIfNeeded(fsVm); }
+                    catch (Exception ex) { Helpers.DebugLogger.Log($"[OnMillerCCC] InjectGit failed: {ex.Message}"); }
+                }
+            }
+            catch (Exception ex)
             {
-                folderVm.InjectCloudStateIfNeeded(fsVm);
-                folderVm.InjectGitStateIfNeeded(fsVm);
+                // STATUS_STOWED_EXCEPTION 차단 — 마지막 안전망
+                Helpers.DebugLogger.Log($"[OnMillerCCC] Outer guard caught: {ex.GetType().Name}: {ex.Message}");
             }
         }
 

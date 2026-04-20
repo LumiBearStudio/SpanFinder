@@ -1035,23 +1035,33 @@ namespace Span.Views
 
         private void OnContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
         {
-            // 재활용 큐: 화면 밖 아이템의 썸네일 해제 (메모리 절약)
-            if (args.InRecycleQueue)
+            // 긴급 임시 가드: STATUS_STOWED_EXCEPTION 차단 (별도 작업으로 근본 원인 추적)
+            try
             {
-                if (args.Item is ViewModels.FileViewModel recycledFile)
-                    recycledFile.UnloadThumbnail();
-                return;
-            }
+                if (args.InRecycleQueue)
+                {
+                    if (args.Item is ViewModels.FileViewModel recycledFile)
+                    {
+                        try { recycledFile.UnloadThumbnail(); }
+                        catch (Exception ex) { Helpers.DebugLogger.Log($"[List.CCC] UnloadThumbnail failed: {ex.Message}"); }
+                    }
+                    return;
+                }
 
-            // On-demand 썸네일 로딩: 보이는 아이템만 로드
-            if (args.Item is ViewModels.FileViewModel fileVm && fileVm.IsThumbnailSupported && !fileVm.HasThumbnail)
-            {
-                _ = fileVm.LoadThumbnailAsync();
-            }
+                if (args.Item is ViewModels.FileViewModel fileVm && fileVm.IsThumbnailSupported && !fileVm.HasThumbnail)
+                {
+                    _ = fileVm.LoadThumbnailAsync();
+                }
 
-            if (args.Item is ViewModels.FileSystemViewModel fsVm)
+                if (args.Item is ViewModels.FileSystemViewModel fsVm)
+                {
+                    try { _viewModel?.CurrentFolder?.InjectCloudStateIfNeeded(fsVm); }
+                    catch (Exception ex) { Helpers.DebugLogger.Log($"[List.CCC] InjectCloud failed: {ex.Message}"); }
+                }
+            }
+            catch (Exception ex)
             {
-                _viewModel?.CurrentFolder?.InjectCloudStateIfNeeded(fsVm);
+                Helpers.DebugLogger.Log($"[List.CCC] Outer guard caught: {ex.GetType().Name}: {ex.Message}");
             }
         }
 

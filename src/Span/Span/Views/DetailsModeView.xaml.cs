@@ -313,40 +313,51 @@ namespace Span.Views
         /// </summary>
         private void OnContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
         {
-            if (args.InRecycleQueue)
+            // 긴급 임시 가드: STATUS_STOWED_EXCEPTION 차단 (별도 작업으로 근본 원인 추적)
+            try
             {
-                // 재활용 큐: 화면 밖 아이템의 썸네일 해제 (메모리 절약)
-                if (args.Item is ViewModels.FileViewModel recycledFile)
-                    recycledFile.UnloadThumbnail();
-                return;
-            }
+                if (args.InRecycleQueue)
+                {
+                    // 재활용 큐: 화면 밖 아이템의 썸네일 해제 (메모리 절약)
+                    if (args.Item is ViewModels.FileViewModel recycledFile)
+                    {
+                        try { recycledFile.UnloadThumbnail(); }
+                        catch (Exception ex) { Helpers.DebugLogger.Log($"[Details.CCC] UnloadThumbnail failed: {ex.Message}"); }
+                    }
+                    return;
+                }
 
-            if (args.ItemContainer?.ContentTemplateRoot is Grid grid)
-            {
-                ApplyCellWidths(grid);
-                grid.Height = _densityRowHeight;
-                // FontScale은 이제 XAML {Binding Source={StaticResource FontScale}} 로 자동 적용 — 여기서 설정할 필요 없음.
-            }
+                if (args.ItemContainer?.ContentTemplateRoot is Grid grid)
+                {
+                    ApplyCellWidths(grid);
+                    grid.Height = _densityRowHeight;
+                }
 
-            // Details 뷰에서 폴더 표시 시 크기 계산 요청 (lazy)
-            if (args.Item is ViewModels.FolderViewModel folderVm)
-            {
-                folderVm.RequestFolderSizeCalculation();
-            }
+                if (args.Item is ViewModels.FolderViewModel folderVm)
+                {
+                    folderVm.RequestFolderSizeCalculation();
+                }
 
-            // On-demand 썸네일 로딩: 보이는 아이템만 로드
-            if (args.Item is ViewModels.FileViewModel fileVm && fileVm.IsThumbnailSupported && !fileVm.HasThumbnail)
-            {
-                _ = fileVm.LoadThumbnailAsync();
-            }
+                if (args.Item is ViewModels.FileViewModel fileVm && fileVm.IsThumbnailSupported && !fileVm.HasThumbnail)
+                {
+                    _ = fileVm.LoadThumbnailAsync();
+                }
 
-            // Git/Cloud 상태 on-demand 주입 (캐시된 값만, I/O 없음)
-            if (args.Item is ViewModels.FileSystemViewModel fsVm)
+                if (args.Item is ViewModels.FileSystemViewModel fsVm)
+                {
+                    var currentFolder = _viewModel?.CurrentFolder;
+                    try
+                    {
+                        if (_gitColumnVisible)
+                            currentFolder?.InjectGitStateIfNeeded(fsVm);
+                        currentFolder?.InjectCloudStateIfNeeded(fsVm);
+                    }
+                    catch (Exception ex) { Helpers.DebugLogger.Log($"[Details.CCC] Inject failed: {ex.Message}"); }
+                }
+            }
+            catch (Exception ex)
             {
-                var currentFolder = _viewModel?.CurrentFolder;
-                if (_gitColumnVisible)
-                    currentFolder?.InjectGitStateIfNeeded(fsVm);
-                currentFolder?.InjectCloudStateIfNeeded(fsVm);
+                Helpers.DebugLogger.Log($"[Details.CCC] Outer guard caught: {ex.GetType().Name}: {ex.Message}");
             }
         }
 
