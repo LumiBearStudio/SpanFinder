@@ -1007,7 +1007,17 @@ namespace Span.ViewModels
 
                 // Git 캐시 워밍 완료 — 실제 UI 주입은 ContainerContentChanging에서 on-demand 수행.
                 // 14K+ 파일 폴더에서 전체 Children 루프를 방지하여 UI 스레드 부하 제거.
-                Helpers.DebugLogger.Log($"[Git.Warm] Cache warmed with {states?.Count ?? 0} entries, injection deferred to ContainerContentChanging");
+                // 단, 0 entries이면 _isGitFolder=false로 InjectGitStateIfNeeded 호출 자체 skip 가능
+                // (현재 의심: deferred injection이 ContainerContentChanging 측에서 native crash 유발)
+                if ((states?.Count ?? 0) == 0)
+                {
+                    _isGitFolder = false;
+                    Helpers.DebugLogger.Log($"[Git.Warm] 0 entries → _isGitFolder=false (skip on-demand inject)");
+                }
+                else
+                {
+                    Helpers.DebugLogger.Log($"[Git.Warm] Cache warmed with {states.Count} entries, injection deferred to ContainerContentChanging");
+                }
             }
             catch (OperationCanceledException) { Helpers.DebugLogger.Log("[Git.Warm] Cancelled"); }
             catch (Exception ex)

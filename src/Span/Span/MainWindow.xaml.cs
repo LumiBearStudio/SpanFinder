@@ -4723,6 +4723,21 @@ namespace Span
 
         private void ApplyPathIndicators(ViewModels.ExplorerViewModel sender, Dictionary<int, ViewModels.FileSystemViewModel?> highlightMap)
         {
+            // 긴급 가드: STATUS_STOWED_EXCEPTION 차단 (별도 이슈 추적 중)
+            // ContainerFromIndex / FindChild / TransformToVisual 등이 unloaded visual tree에서
+            // native exception throw 시 흡수
+            try
+            {
+                ApplyPathIndicatorsImpl(sender, highlightMap);
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.LogCrash($"[PathIndicator] Outer guard caught: {ex.GetType().Name}: {ex.Message}", ex);
+            }
+        }
+
+        private void ApplyPathIndicatorsImpl(ViewModels.ExplorerViewModel sender, Dictionary<int, ViewModels.FileSystemViewModel?> highlightMap)
+        {
             // Determine which ItemsControl based on sender (left vs right pane)
             ItemsControl control;
             string paneLabel;
