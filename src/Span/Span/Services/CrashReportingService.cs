@@ -129,6 +129,178 @@ public sealed class CrashReportingService : IDisposable
     }
 
     /// <summary>
+    /// 시작 직후 1회 호출 — 이전 세션 비정상 종료 감지 + WER 미니덤프 업로드 (Phase 0).
+    /// 백그라운드 스레드에서 실행되도록 Task.Run으로 호출 권장.
+    ///
+    /// 동작:
+    /// 1. 이전 세션 로그 파일 마지막 줄에 [Shutdown] clean exit 마커 검사
+    /// 2. 마커 없음 → 비정상 종료로 판단 → post-mortem Sentry 이벤트 + 이전 로그 첨부
+    /// 3. WER 덤프 폴더(%LocalAppData%\Span\CrashDumps) 스캔 → 각 .dmp를 Sentry attachment로 업로드
+    /// 4. 업로드 성공 시 .dmp 삭제 (디스크 보호)
+    /// </summary>
+    public void DetectPreviousAbnormalExitAndUploadDumps()
+    {
+        if (!_isEnabled || _sentryDisposable == null) return;
+
+        try
+        {
+            DetectPreviousAbnormalExit();
+        }
+        catch (Exception ex) { Helpers.DebugLogger.Log($"[CrashReporting] DetectPreviousAbnormalExit failed: {ex.Message}"); }
+
+        try
+        {
+            UploadAndCleanWerDumps();
+        }
+        catch (Exception ex) { Helpers.DebugLogger.Log($"[CrashReporting] UploadAndCleanWerDumps failed: {ex.Message}"); }
+    }
+
+    private void DetectPreviousAbnormalExit()
+    {
+        var prevLogPath = Helpers.DebugLogger.GetPreviousSessionLogPath();
+        if (string.IsNullOrEmpty(prevLogPath) || !File.Exists(prevLogPath))
+        {
+            Helpers.DebugLogger.Log("[CrashReporting] No previous session log found");
+            return;
+        }
+
+        // 마지막 5줄 검사 — [Shutdown] clean exit 마커 존재 여부
+        bool cleanExit = false;
+        try
+        {
+            var lastLines = ReadLastLines(prevLogPath, 5);
+            cleanExit = lastLines.Any(l => l.Contains("[Shutdown] clean exit", StringComparison.Ordinal));
+        }
+        catch { /* 읽기 실패 시 비정상으로 간주 안 함 — 노이즈 방지 */ return; }
+
+        if (cleanExit)
+        {
+            Helpers.DebugLogger.Log($"[CrashReporting] Previous session ended cleanly: {Path.GetFileName(prevLogPath)}");
+            return;
+        }
+
+        Helpers.DebugLogger.Log($"[CrashReporting] Previous session abnormal exit detected: {Path.GetFileName(prevLogPath)}");
+
+        // post-mortem 이벤트 — 일반 메시지로 보내고 이전 로그 첨부
+        try
+        {
+            SentrySdk.CaptureMessage(
+                "post-mortem: previous session ended without clean exit marker",
+                scope =>
+                {
+                    scope.Level = SentryLevel.Error;
+                    scope.SetTag("crash.context", "post-mortem.abnormal-exit");
+                    scope.SetExtra("prev.log.fileName", Path.GetFileName(prevLogPath));
+                    AttachSpecificLogFile(scope, prevLogPath, "Span_PreviousSession.log");
+                });
+        }
+        catch (Exception ex) { Helpers.DebugLogger.Log($"[CrashReporting] post-mortem capture failed: {ex.Message}"); }
+    }
+
+    private void UploadAndCleanWerDumps()
+    {
+        var dumps = Helpers.WerHelper.EnumerateDumps();
+        if (dumps.Length == 0) return;
+
+        Helpers.DebugLogger.Log($"[CrashReporting] Found {dumps.Length} WER dump(s)");
+
+        const long MaxDumpAttachmentBytes = 10 * 1024 * 1024; // 10MB Sentry 제한 고려
+
+        foreach (var dumpPath in dumps)
+        {
+            try
+            {
+                var fi = new FileInfo(dumpPath);
+                if (!fi.Exists) continue;
+
+                // 너무 큰 덤프는 메타만 보고 + 파일 삭제 (디스크 보호)
+                if (fi.Length > MaxDumpAttachmentBytes)
+                {
+                    SentrySdk.CaptureMessage(
+                        "WER minidump too large to attach",
+                        scope =>
+                        {
+                            scope.Level = SentryLevel.Warning;
+                            scope.SetTag("crash.context", "wer.dump.oversized");
+                            scope.SetExtra("dump.fileName", fi.Name);
+                            scope.SetExtra("dump.sizeBytes", fi.Length);
+                        });
+                    try { fi.Delete(); } catch { }
+                    continue;
+                }
+
+                var bytes = File.ReadAllBytes(dumpPath);
+                SentrySdk.CaptureMessage(
+                    "WER minidump captured (post-mortem)",
+                    scope =>
+                    {
+                        scope.Level = SentryLevel.Fatal;
+                        scope.SetTag("crash.context", "wer.dump");
+                        scope.SetExtra("dump.fileName", fi.Name);
+                        scope.SetExtra("dump.sizeBytes", fi.Length);
+                        scope.SetExtra("dump.lastWriteUtc", fi.LastWriteTimeUtc.ToString("o"));
+                        scope.AddAttachment(bytes, fi.Name, AttachmentType.Minidump, "application/octet-stream");
+                    });
+
+                // 동기 flush 후 삭제 (전송 보장)
+                try { SentrySdk.FlushAsync(TimeSpan.FromSeconds(5)).GetAwaiter().GetResult(); } catch { }
+                try { fi.Delete(); } catch (Exception ex) { Helpers.DebugLogger.Log($"[CrashReporting] dump delete failed: {ex.Message}"); }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[CrashReporting] dump upload failed for {Path.GetFileName(dumpPath)}: {ex.Message}");
+            }
+        }
+    }
+
+    private static string[] ReadLastLines(string path, int n)
+    {
+        // 작은 로그 파일이면 전체 읽기, 큰 파일이면 tail
+        var fi = new FileInfo(path);
+        if (fi.Length < 64 * 1024)
+        {
+            try { return File.ReadAllLines(path).Reverse().Take(n).Reverse().ToArray(); }
+            catch { return Array.Empty<string>(); }
+        }
+
+        // 마지막 16KB만 읽어서 줄 단위 파싱
+        try
+        {
+            using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            var readSize = (int)Math.Min(fs.Length, 16 * 1024);
+            fs.Seek(-readSize, SeekOrigin.End);
+            var buf = new byte[readSize];
+            fs.Read(buf, 0, readSize);
+            var text = Encoding.UTF8.GetString(buf);
+            var lines = text.Split('\n');
+            return lines.Reverse().Take(n).Reverse().Select(l => l.TrimEnd('\r')).ToArray();
+        }
+        catch
+        {
+            return Array.Empty<string>();
+        }
+    }
+
+    private static void AttachSpecificLogFile(Scope scope, string logPath, string attachName)
+    {
+        try
+        {
+            var bytes = ReadTailBytes(logPath, MaxLogAttachmentBytes);
+            if (bytes == null || bytes.Length == 0)
+            {
+                scope.SetExtra("log.attach.status", "empty");
+                return;
+            }
+            var scrubbed = Encoding.UTF8.GetBytes(ScrubPaths(Encoding.UTF8.GetString(bytes)));
+            scope.AddAttachment(scrubbed, attachName, AttachmentType.Default, "text/plain");
+        }
+        catch (Exception ex)
+        {
+            scope.SetExtra("log.attach.status", $"error: {ex.Message}");
+        }
+    }
+
+    /// <summary>
     /// UI 컨텍스트 정보를 Breadcrumb으로 기록 (크래시 전 유저 행동 추적).
     /// </summary>
     public void AddBreadcrumb(string message, string category = "ui")

@@ -40,6 +40,19 @@ namespace Span
             var crashService = Services.GetRequiredService<Services.CrashReportingService>();
             crashService.Initialize();
 
+            // Phase 0: WER LocalDumps 등록 — 다음 네이티브 크래시부터 자동 미니덤프 생성
+            // .NET 핸들러가 못 잡는 AccessViolation/SEH 예외 (이슈 #23 본질) 추적용
+            Helpers.WerHelper.EnsureRegistered();
+
+            // Phase 0: 이전 세션 비정상 종료 감지 + 누적된 WER dump 업로드 (백그라운드)
+            // - 이전 로그 마지막 줄에 [Shutdown] clean exit 마커 없으면 post-mortem 이벤트 전송
+            // - %LocalAppData%\Span\CrashDumps\*.dmp를 Sentry attachment로 업로드 후 삭제
+            Task.Run(() =>
+            {
+                try { crashService.DetectPreviousAbnormalExitAndUploadDumps(); }
+                catch (Exception ex) { Helpers.DebugLogger.Log($"[App] post-mortem detect failed: {ex.Message}"); }
+            });
+
             // ColorCode 등 라이브러리의 Regex catastrophic backtracking 방지 (Issue #36)
             // 1초 이상 UI 스레드 블로킹 시 사용자 체감 "응답없음" → 타임아웃 1초로 제한
             AppDomain.CurrentDomain.SetData("REGEX_DEFAULT_MATCH_TIMEOUT", TimeSpan.FromSeconds(1));

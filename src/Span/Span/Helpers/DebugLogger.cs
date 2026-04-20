@@ -104,6 +104,28 @@ namespace Span.Helpers
         public static string GetLogFilePath() => LogFilePath;
 
         /// <summary>
+        /// 현재 세션을 제외한 가장 최근 로그 파일 경로 반환.
+        /// 비정상 종료 감지(Phase 0)에서 사용 — 마지막 줄에 [Shutdown] clean exit 마커가 있는지 검사.
+        /// </summary>
+        public static string? GetPreviousSessionLogPath()
+        {
+            try
+            {
+                if (!Directory.Exists(LogsDir)) return null;
+                var files = Directory.EnumerateFiles(LogsDir, $"{LogFilePrefix}*{LogFileSuffix}")
+                    .Where(p => !string.Equals(p, LogFilePath, StringComparison.OrdinalIgnoreCase))
+                    .Select(p => new FileInfo(p))
+                    .OrderByDescending(fi => fi.LastWriteTimeUtc)
+                    .FirstOrDefault();
+                return files?.FullName;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
         /// Synchronous crash-time logging. Writes directly to file (bypasses async channel)
         /// because the process may die before the channel consumer flushes.
         /// </summary>
@@ -129,9 +151,19 @@ namespace Span.Helpers
 
         /// <summary>
         /// Flush pending log entries. Call on app shutdown.
+        /// 정상 종료 마커([Shutdown] clean exit)를 기록하여 다음 시작 시
+        /// 비정상 종료 여부를 판별할 수 있게 한다 (Phase 0).
         /// </summary>
         public static void Shutdown()
         {
+            try
+            {
+                // 동기 마커 기록 — 채널 종료 전 직접 파일에 기록해야 누락 방지
+                var timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
+                File.AppendAllText(LogFilePath, $"[{timestamp}] [Shutdown] clean exit\n");
+            }
+            catch { /* 종료 직전 — 실패해도 진행 */ }
+
             _channel.Writer.TryComplete();
         }
 
