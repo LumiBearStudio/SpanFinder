@@ -79,6 +79,11 @@ internal sealed class ThumbnailDiskCache
         {
             if (!Directory.Exists(CacheRoot)) return;
 
+            // I8: NTFS는 Win 8 이후 LastAccessTime 업데이트 기본 비활성
+            // (`fsutil behavior query disablelastaccess` → 1).
+            // 우리는 캐시 hit 시 명시적으로 SetLastAccessTimeUtc 호출(GetThumbnailUriAsync)하므로
+            // 활성화된 환경에서는 LRU 정확, 비활성 환경에서는 LastWriteTime처럼 동작 (= 생성 시 정렬).
+            // 비활성 환경 = 7일 전에 생성된 캐시는 자주 사용해도 만료될 수 있음 → trade-off 수용.
             var files = Directory.EnumerateFiles(CacheRoot, "*.png", SearchOption.AllDirectories)
                 .Select(p =>
                 {

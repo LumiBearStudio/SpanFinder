@@ -551,12 +551,16 @@ namespace Span.ViewModels
             PushToHistory(folder.Path);
 
             // P2-3: 격리 워커 cancel-batch — 폴더 변경 시 진행 중 워커 작업 무효화
-            // fire-and-forget (await 안 함 — 폴더 진입 지연 방지)
+            // A2: 동시에 prewarm — 첫 폴더 진입 시 워커 spawn 시작 (cold start 비용을 백그라운드로 숨김)
             try
             {
                 var thumbClient = App.Current.Services.GetService(typeof(Services.Thumbnails.ThumbnailClientService))
                     as Services.Thumbnails.ThumbnailClientService;
-                _ = thumbClient?.CancelAllInflightAsync();
+                if (thumbClient != null)
+                {
+                    _ = thumbClient.CancelAllInflightAsync();
+                    thumbClient.PrewarmWorker();
+                }
             }
             catch { /* best-effort */ }
 

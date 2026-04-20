@@ -1,5 +1,8 @@
 using System;
+using System.Collections.Concurrent;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Span.Thumbs;
 
@@ -7,13 +10,16 @@ namespace Span.Thumbs;
 /// 워커 전용 로그. 메인 DebugLogger와 같은 폴더에 별도 prefix로 저장.
 /// 위치: %LocalAppData%\Span\Logs\Span_Worker_yyyyMMdd_HHmmss_pid{pid}.log
 ///
-/// 동기 append만 사용 — 워커는 단순 단일 스레드 처리에 가까워 channel 불필요.
-/// 7일 이전 워커 로그는 메인 측 DebugLogger의 LRU 정리에서 함께 처리됨 (file pattern).
+/// M1: ConcurrentQueue + 백그라운드 flush — 호출 스레드 디스크 I/O 차단 제거.
+/// 워커 종료 시 FlushSync로 누락 방지.
 /// </summary>
 internal static class WorkerLogger
 {
-    private static readonly object _lock = new();
+    private static readonly ConcurrentQueue<string> _queue = new();
+    private static readonly ManualResetEventSlim _hasItems = new(false);
+    private static readonly object _writeLock = new();
     private static readonly string LogPath;
+    private static volatile bool _stopped;
 
     static WorkerLogger()
     {
@@ -28,19 +34,53 @@ internal static class WorkerLogger
             File.WriteAllText(LogPath, $"=== Span Thumbs Worker Log - {DateTime.Now:yyyy-MM-dd HH:mm:ss} (pid={pid}) ===\n\n");
         }
         catch { }
+
+        var t = new Thread(FlushLoop) { IsBackground = true, Name = "Span.Thumbs.Logger" };
+        t.Start();
     }
 
     public static void Log(string message)
     {
         var line = $"[{DateTime.Now:HH:mm:ss.fff}] {message}";
         Console.Error.WriteLine(line);  // 메인이 stderr 캡처 가능
+        _queue.Enqueue(line);
+        _hasItems.Set();
+    }
+
+    /// <summary>워커 종료 직전 호출 — 남은 큐 모두 동기 flush.</summary>
+    public static void Stop()
+    {
+        _stopped = true;
+        _hasItems.Set();
+        FlushNow();
+    }
+
+    private static void FlushLoop()
+    {
+        while (!_stopped)
+        {
+            _hasItems.Wait();
+            _hasItems.Reset();
+            FlushNow();
+        }
+        // 종료 신호 후 마지막 잔여
+        FlushNow();
+    }
+
+    private static void FlushNow()
+    {
+        if (_queue.IsEmpty) return;
         try
         {
-            lock (_lock)
+            lock (_writeLock)
             {
-                File.AppendAllText(LogPath, line + "\n");
+                using var sw = new StreamWriter(LogPath, append: true);
+                while (_queue.TryDequeue(out var line))
+                {
+                    sw.WriteLine(line);
+                }
             }
         }
-        catch { /* ignore */ }
+        catch { /* ignore — 디스크 가득/권한 문제 */ }
     }
 }

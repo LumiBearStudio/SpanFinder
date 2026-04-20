@@ -47,11 +47,16 @@ namespace Span
             // Phase 0: 이전 세션 비정상 종료 감지 + 누적된 WER dump 업로드 (백그라운드)
             // - 이전 로그 마지막 줄에 [Shutdown] clean exit 마커 없으면 post-mortem 이벤트 전송
             // - %LocalAppData%\Span\CrashDumps\*.dmp를 Sentry attachment로 업로드 후 삭제
-            Task.Run(() =>
+            // I10: discard + ContinueWith로 unobserved exception 방지
+            _ = Task.Run(() =>
             {
                 try { crashService.DetectPreviousAbnormalExitAndUploadDumps(); }
                 catch (Exception ex) { Helpers.DebugLogger.Log($"[App] post-mortem detect failed: {ex.Message}"); }
-            });
+            }).ContinueWith(t =>
+            {
+                if (t.Exception != null)
+                    Helpers.DebugLogger.Log($"[App] post-mortem task faulted: {t.Exception.Flatten().Message}");
+            }, TaskContinuationOptions.OnlyOnFaulted);
 
             // ColorCode 등 라이브러리의 Regex catastrophic backtracking 방지 (Issue #36)
             // 1초 이상 UI 스레드 블로킹 시 사용자 체감 "응답없음" → 타임아웃 1초로 제한

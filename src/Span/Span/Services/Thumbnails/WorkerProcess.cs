@@ -29,6 +29,7 @@ internal sealed class WorkerProcess : IDisposable
     private NamedPipeClientStream? _pipe;
     private StreamReader? _reader;
     private StreamWriter? _writer;
+    private DataReceivedEventHandler? _stderrHandler;
 
     private readonly ConcurrentDictionary<long, TaskCompletionSource<IpcEnvelope>> _pending = new();
     private readonly SemaphoreSlim _writeLock = new(1, 1);
@@ -85,11 +86,13 @@ internal sealed class WorkerProcess : IDisposable
             catch (Exception ex) { DebugLogger.Log($"[WorkerProcess#{_workerId}] JobObject assign failed: {ex.Message}"); }
 
             // 워커 stderr 라인은 메인 로그로 mirror
-            _process.ErrorDataReceived += (_, e) =>
+            // M6: 핸들러를 필드에 보관 → Dispose 시 명시적 -=
+            _stderrHandler = (_, e) =>
             {
                 if (!string.IsNullOrEmpty(e.Data))
                     DebugLogger.Log($"[Worker#{_workerId}.stderr] {e.Data}");
             };
+            _process.ErrorDataReceived += _stderrHandler;
             try { _process.BeginErrorReadLine(); } catch { }
 
             // Pipe 연결 (최대 5초)
@@ -194,6 +197,9 @@ internal sealed class WorkerProcess : IDisposable
         catch (Exception ex) { DebugLogger.Log($"[WorkerProcess#{_workerId}] send failed: {ex.Message}"); }
     }
 
+    // M8: 라인 크기 상한 — 워커가 비정상으로 거대 메시지 보내면 메모리 폭증 방지
+    private const int MaxLineLength = 64 * 1024;
+
     private async Task ReadLoopAsync(CancellationToken ct)
     {
         try
@@ -215,6 +221,11 @@ internal sealed class WorkerProcess : IDisposable
                     break;
                 }
                 if (line.Length == 0) continue;
+                if (line.Length > MaxLineLength)
+                {
+                    DebugLogger.Log($"[WorkerProcess#{_workerId}] discarded oversized line ({line.Length} bytes)");
+                    continue;
+                }
 
                 IpcEnvelope? msg = null;
                 try { msg = JsonSerializer.Deserialize<IpcEnvelope>(line, IpcJson.Options); }
@@ -286,6 +297,15 @@ internal sealed class WorkerProcess : IDisposable
             }
 
             SafeKill();
+
+            // M6: stderr 핸들러 명시 해제 (Process.Dispose가 처리하지만 보수적으로)
+            try
+            {
+                if (_process != null && _stderrHandler != null)
+                    _process.ErrorDataReceived -= _stderrHandler;
+            }
+            catch { }
+
             try { _process?.Dispose(); } catch { }
         }
         finally

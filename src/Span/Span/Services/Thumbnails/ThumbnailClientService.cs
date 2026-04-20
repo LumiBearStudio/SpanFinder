@@ -75,6 +75,32 @@ public sealed class ThumbnailClientService : IDisposable
     }
 
     /// <summary>
+    /// A2: feature flag ON 사용자에 한해 첫 워커 prewarm.
+    /// 첫 폴더 진입 후 호출 권장 — cold start 5초 부담을 백그라운드로 숨김.
+    /// 호출 안 해도 lazy spawn으로 동작 — 단지 첫 요청이 느림.
+    /// </summary>
+    public void PrewarmWorker()
+    {
+        if (_disabled) return;
+        // 이미 살아있는 워커가 있으면 skip
+        for (int i = 0; i < PoolSize; i++)
+        {
+            var w = System.Threading.Volatile.Read(ref _workers[i]);
+            if (w != null && w.IsAlive) return;
+        }
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                await EnsureWorkerAsync(cts.Token).ConfigureAwait(false);
+            }
+            catch (Exception ex) { DebugLogger.Log($"[ThumbnailClient] prewarm failed: {ex.Message}"); }
+        });
+    }
+
+    /// <summary>
     /// 썸네일 요청 — 캐시 hit 시 즉시 경로 반환, miss 시 워커 호출.
     /// 실패 또는 워커 미동작 시 null → 호출자가 인프로세스 폴백.
     /// </summary>
@@ -158,8 +184,8 @@ public sealed class ThumbnailClientService : IDisposable
             var resp = await worker.RequestAsync(req, timeoutCts.Token).ConfigureAwait(false);
             if (resp.Type == IpcMessageTypes.Ok && !string.IsNullOrEmpty(resp.CachePath) && File.Exists(resp.CachePath))
             {
-                // 첫 성공 → warm 표시
-                _workerWarm[workerId] = true;
+                // 첫 성공 → warm 표시 (C3: Volatile.Write로 cross-thread visibility)
+                System.Threading.Volatile.Write(ref _workerWarm[workerId], true);
                 // 폴더/워커 실패 카운터 리셋
                 if (parentDir != null) _folderFailureCount.TryRemove(parentDir, out _);
                 _workerFailures[workerId] = 0;
@@ -187,12 +213,56 @@ public sealed class ThumbnailClientService : IDisposable
                 _folderFailureCount.AddOrUpdate(parentDir, 1, (_, n) => n + 1);
             return null;
         }
+        catch (InvalidOperationException) when (!worker.IsAlive)
+        {
+            // I6: EnsureWorkerAsync 직후 ~ RequestAsync 사이에 워커 죽음 race.
+            // 이 호출은 실패 처리 안 함 (워커가 보낸 적 없음) — 다른 워커 1회 retry.
+            DebugLogger.Log($"[ThumbnailClient] worker#{workerId} died before request — single retry");
+            HandleWorkerFailure(workerId);
+            return await GetThumbnailUriAsyncInternalRetry(req, parentDir, ct).ConfigureAwait(false);
+        }
         catch (Exception ex)
         {
             DebugLogger.Log($"[ThumbnailClient] worker#{workerId} call failed: {ex.Message}");
             HandleWorkerFailure(workerId);
             if (parentDir != null)
                 _folderFailureCount.AddOrUpdate(parentDir, 1, (_, n) => n + 1);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// I6: 워커가 EnsureWorker ~ RequestAsync 사이에 죽었을 때 1회 재시도.
+    /// 무한 재귀 방지 — 여기서 또 실패하면 그냥 폴백.
+    /// </summary>
+    private async Task<Uri?> GetThumbnailUriAsyncInternalRetry(IpcEnvelope req, string? parentDir, CancellationToken ct)
+    {
+        var worker = await EnsureWorkerAsync(ct).ConfigureAwait(false);
+        if (worker == null) return null;
+
+        var workerId = worker.WorkerId;
+        bool isWarm = System.Threading.Volatile.Read(ref _workerWarm[workerId]);
+        var timeout = isWarm ? TimeSpan.FromSeconds(3) : TimeSpan.FromSeconds(7);
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeoutCts.CancelAfter(timeout);
+
+        try
+        {
+            var resp = await worker.RequestAsync(req, timeoutCts.Token).ConfigureAwait(false);
+            if (resp.Type == IpcMessageTypes.Ok && !string.IsNullOrEmpty(resp.CachePath) && File.Exists(resp.CachePath))
+            {
+                System.Threading.Volatile.Write(ref _workerWarm[workerId], true);
+                if (parentDir != null) _folderFailureCount.TryRemove(parentDir, out _);
+                _workerFailures[workerId] = 0;
+                return new Uri(resp.CachePath);
+            }
+            if (parentDir != null) _folderFailureCount.AddOrUpdate(parentDir, 1, (_, n) => n + 1);
+            return null;
+        }
+        catch
+        {
+            // retry 실패 — 폴더 카운터만 증가하고 폴백 (재귀 안 함)
+            if (parentDir != null) _folderFailureCount.AddOrUpdate(parentDir, 1, (_, n) => n + 1);
             return null;
         }
     }

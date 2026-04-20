@@ -91,12 +91,9 @@ internal static class Program
             catch (Exception ex) { WorkerLogger.Log($"[Worker] Sentry init failed: {ex.Message}"); }
 
             // ── 3. NamedPipe 서버 + 이벤트 루프 ──
-            using var pipe = new NamedPipeServerStream(
-                pipeName,
-                PipeDirection.InOut,
-                maxNumberOfServerInstances: 1,
-                PipeTransmissionMode.Byte,
-                PipeOptions.Asynchronous);
+            // I3: ACL 명시 — 현재 사용자(WindowsIdentity)만 read/write 허용.
+            // 같은 머신의 다른 사용자/세션이 pipe 이름을 알아내도 접근 거부.
+            using var pipe = CreateRestrictedNamedPipe(pipeName);
 
             WorkerLogger.Log("[Worker] Waiting for client connection...");
             // 30초 내 메인 연결 없으면 종료
@@ -133,6 +130,12 @@ internal static class Program
                     break;
                 }
                 if (line.Length == 0) continue;
+                // M8: 메인이 비정상으로 거대 메시지 보내면 거부
+                if (line.Length > 64 * 1024)
+                {
+                    WorkerLogger.Log($"[Worker] discarded oversized line ({line.Length} bytes)");
+                    continue;
+                }
 
                 IpcEnvelope? msg = null;
                 try { msg = JsonSerializer.Deserialize<IpcEnvelope>(line, IpcJson.Options); }
@@ -248,6 +251,7 @@ internal static class Program
             try { writer.Dispose(); } catch { }
             try { Sentry.SentrySdk.FlushAsync(TimeSpan.FromSeconds(2)).GetAwaiter().GetResult(); } catch { }
             WorkerLogger.Log("[Worker] Exiting cleanly");
+            WorkerLogger.Stop();  // M1: 큐 동기 flush
             return 0;
         }
         catch (Exception ex)
@@ -324,6 +328,47 @@ internal static class Program
         {
             await SendErrAsync(writer, req.Id, "cancelled", retryable: false);
         }
+    }
+
+    /// <summary>
+    /// I3: 현재 사용자만 read/write 가능한 NamedPipe 생성.
+    /// NamedPipeServerStreamAcl.Create는 .NET 8+ Windows 전용.
+    /// </summary>
+    private static NamedPipeServerStream CreateRestrictedNamedPipe(string pipeName)
+    {
+        try
+        {
+            var sid = System.Security.Principal.WindowsIdentity.GetCurrent().Owner;
+            if (sid != null)
+            {
+                var ps = new System.IO.Pipes.PipeSecurity();
+                ps.AddAccessRule(new System.IO.Pipes.PipeAccessRule(
+                    sid,
+                    System.IO.Pipes.PipeAccessRights.ReadWrite | System.IO.Pipes.PipeAccessRights.Synchronize,
+                    System.Security.AccessControl.AccessControlType.Allow));
+                return NamedPipeServerStreamAcl.Create(
+                    pipeName,
+                    PipeDirection.InOut,
+                    maxNumberOfServerInstances: 1,
+                    PipeTransmissionMode.Byte,
+                    PipeOptions.Asynchronous,
+                    inBufferSize: 0,
+                    outBufferSize: 0,
+                    pipeSecurity: ps);
+            }
+        }
+        catch (Exception ex)
+        {
+            WorkerLogger.Log($"[Worker] ACL pipe creation failed, falling back to default: {ex.Message}");
+        }
+
+        // 폴백: 기본 ACL (같은 사용자 세션 신뢰 모델)
+        return new NamedPipeServerStream(
+            pipeName,
+            PipeDirection.InOut,
+            maxNumberOfServerInstances: 1,
+            PipeTransmissionMode.Byte,
+            PipeOptions.Asynchronous);
     }
 
     private static async Task SendAsync(StreamWriter writer, IpcEnvelope msg)

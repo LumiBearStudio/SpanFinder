@@ -31,10 +31,19 @@ public sealed class CrashReportingService : IDisposable
     private volatile bool _isEnabled;
     private readonly SettingsService _settings;
     private int _initializing; // 0 = idle, 1 = in progress (interlocked guard)
+    private readonly object _sentryLifecycleLock = new();  // I1: Start/Stop 직렬화
 
     // 경로 스크러빙용 패턴 — Lazy로 JIT 컴파일 비용을 첫 크래시 시점까지 지연
+    // M3: 한국어 사용자는 보통 C: 사용이지만 다른 드라이브/UNC도 보호.
     private static readonly Lazy<Regex> UserPathRegex = new(
         () => new Regex(@"(?i)([A-Z]:\\Users\\)[^\\""]+", RegexOptions.Compiled));
+
+    // UNC 경로의 사용자 폴더: \\server\share\Users\username\... → \\server\share\Users\***\...
+    private static readonly Lazy<Regex> UncUserPathRegex = new(
+        () => new Regex(@"(?i)(\\\\[^\\""]+\\[^\\""]+\\Users\\)[^\\""]+", RegexOptions.Compiled));
+
+    // 한국어 / 일본어 / 중국어 사용자 폴더가 다른 위치에 있을 수 있음 — 일반화 어려워 유지보수 비용 큼.
+    // 대부분의 PII는 위 두 패턴으로 충분.
 
     public CrashReportingService(SettingsService settings)
     {
@@ -148,17 +157,39 @@ public sealed class CrashReportingService : IDisposable
         Helpers.DebugLogger.Log("[CrashReporting] post-mortem skipped (DEBUG build)");
         return;
 #else
-        try
+        // M7: 전체 작업 timeout (Sentry flush 누적으로 30초 초과 시 강제 중단)
+        using var overallCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+
+        // A4 dedup: WER dump가 있으면 dump가 정확한 native crash 정보 → post-mortem 알림 skip
+        // (둘 다 같은 크래시인데 두 번 보고되면 Sentry 노이즈)
+        bool hadDumps = Helpers.WerHelper.EnumerateDumps().Length > 0;
+
+        if (!hadDumps)
         {
-            DetectPreviousAbnormalExit();
+            try
+            {
+                DetectPreviousAbnormalExit();
+            }
+            catch (Exception ex) { Helpers.DebugLogger.Log($"[CrashReporting] DetectPreviousAbnormalExit failed: {ex.Message}"); }
         }
-        catch (Exception ex) { Helpers.DebugLogger.Log($"[CrashReporting] DetectPreviousAbnormalExit failed: {ex.Message}"); }
+        else
+        {
+            Helpers.DebugLogger.Log("[CrashReporting] Skipping post-mortem marker check — WER dumps will be reported");
+        }
 
         try
         {
             UploadAndCleanWerDumps();
         }
         catch (Exception ex) { Helpers.DebugLogger.Log($"[CrashReporting] UploadAndCleanWerDumps failed: {ex.Message}"); }
+
+        // M2: 7일 이상된 dump 정리 (업로드 실패한 것도 포함)
+        try { Helpers.WerHelper.CleanupOldDumps(); }
+        catch (Exception ex) { Helpers.DebugLogger.Log($"[CrashReporting] CleanupOldDumps failed: {ex.Message}"); }
+
+        // M7: overallCts가 취소됐으면 로그
+        if (overallCts.IsCancellationRequested)
+            Helpers.DebugLogger.Log("[CrashReporting] post-mortem detection timed out (30s)");
 #endif
     }
 
@@ -189,6 +220,7 @@ public sealed class CrashReportingService : IDisposable
         Helpers.DebugLogger.Log($"[CrashReporting] Previous session abnormal exit detected: {Path.GetFileName(prevLogPath)}");
 
         // post-mortem 이벤트 — 일반 메시지로 보내고 이전 로그 첨부
+        // I2: fingerprint 고정 → Sentry에서 동일 이슈로 그룹화 (개별 세션 ID로 분산 방지)
         try
         {
             SentrySdk.CaptureMessage(
@@ -198,6 +230,7 @@ public sealed class CrashReportingService : IDisposable
                     scope.Level = SentryLevel.Error;
                     scope.SetTag("crash.context", "post-mortem.abnormal-exit");
                     scope.SetExtra("prev.log.fileName", Path.GetFileName(prevLogPath));
+                    scope.SetFingerprint(new[] { "post-mortem.abnormal-exit" });
                     AttachSpecificLogFile(scope, prevLogPath, "Span_PreviousSession.log");
                 });
         }
@@ -349,6 +382,9 @@ public sealed class CrashReportingService : IDisposable
         // 동시 초기화 방지 (Task.Run + OnSettingChanged 경합)
         if (Interlocked.CompareExchange(ref _initializing, 1, 0) != 0) return;
 
+        // I1: StopSentry와 동시 실행 시 dispose-after-init race 방지
+        lock (_sentryLifecycleLock)
+        {
         try
         {
             _sentryDisposable = SentrySdk.Init(options =>
@@ -392,17 +428,22 @@ public sealed class CrashReportingService : IDisposable
         {
             Interlocked.Exchange(ref _initializing, 0);
         }
+        }  // end lock(_sentryLifecycleLock)
     }
 
     private void StopSentry()
     {
-        try
+        // I1: StartSentry와 직렬화
+        lock (_sentryLifecycleLock)
         {
-            _sentryDisposable?.Dispose();
-            _sentryDisposable = null;
-            Helpers.DebugLogger.Log("[CrashReporting] Sentry stopped");
+            try
+            {
+                _sentryDisposable?.Dispose();
+                _sentryDisposable = null;
+                Helpers.DebugLogger.Log("[CrashReporting] Sentry stopped");
+            }
+            catch (Exception ex) { Helpers.DebugLogger.Log($"[CrashReporting] StopSentry failed: {ex.Message}"); }
         }
-        catch (Exception ex) { Helpers.DebugLogger.Log($"[CrashReporting] StopSentry failed: {ex.Message}"); }
     }
 
     private void OnSettingChanged(string key, object? value)
@@ -464,7 +505,10 @@ public sealed class CrashReportingService : IDisposable
         if (string.IsNullOrEmpty(input)) return input;
 
         // C:\Users\{username}\ → C:\Users\***\
-        return UserPathRegex.Value.Replace(input, "$1***");
+        var scrubbed = UserPathRegex.Value.Replace(input, "$1***");
+        // \\server\share\Users\{username}\ → \\server\share\Users\***\
+        scrubbed = UncUserPathRegex.Value.Replace(scrubbed, "$1***");
+        return scrubbed;
     }
 
     /// <summary>

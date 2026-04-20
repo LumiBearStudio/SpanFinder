@@ -88,4 +88,34 @@ internal static class WerHelper
             return Array.Empty<string>();
         }
     }
+
+    /// <summary>
+    /// M2: 7일 이상된 .dmp 자동 정리 — Sentry 비활성 사용자 디스크 무한 누적 방지.
+    /// 업로드 안 된 dump도 7일 후 삭제 (네트워크 영구 장애 등).
+    /// </summary>
+    public static void CleanupOldDumps()
+    {
+        try
+        {
+            if (!Directory.Exists(DumpFolder)) return;
+            var threshold = DateTime.UtcNow - TimeSpan.FromDays(7);
+            foreach (var file in Directory.EnumerateFiles(DumpFolder, "*.dmp"))
+            {
+                try
+                {
+                    var fi = new FileInfo(file);
+                    if (fi.LastWriteTimeUtc < threshold)
+                    {
+                        fi.Delete();
+                        DebugLogger.Log($"[WER] Cleaned old dump: {fi.Name}");
+                    }
+                }
+                catch { /* 개별 파일 실패 무시 */ }
+            }
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"[WER] CleanupOldDumps failed: {ex.Message}");
+        }
+    }
 }
