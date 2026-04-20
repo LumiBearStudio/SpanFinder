@@ -72,6 +72,14 @@ namespace Span.ViewModels
             if (_thumbnailLoaded || _thumbnailLoading) return;
             if (!IsThumbnailSupported) return;
 
+            // 진단: 동기 LogCrash로 강제 디스크 기록 (채널 flush 손실 회피)
+            try
+            {
+                var dbgSettings = App.Current.Services.GetService(typeof(Services.SettingsService)) as Services.SettingsService;
+                Helpers.DebugLogger.LogCrash($"[Diag] LoadThumb ENTER {Name} isolated={dbgSettings?.UseIsolatedThumbnails} pid={Environment.ProcessId}", null);
+            }
+            catch { }
+
             try
             {
                 var settings = App.Current.Services.GetService(typeof(Services.SettingsService)) as Services.SettingsService;
@@ -136,10 +144,14 @@ namespace Span.ViewModels
                     (File.Exists(filePath), Services.CloudSyncService.IsCloudOnlyFile(filePath)));
                 if (!exists || cts.IsCancellationRequested) return;
 
+                Helpers.DebugLogger.LogCrash($"[Diag] LoadThumb pre-isolated {Name} exists={exists} cloud={isCloudOnly}", null);
+
                 // ── Phase 1: 워커 격리 경로 시도 (UseIsolatedThumbnails=true 시) ──
                 // 워커가 PNG로 만들어 디스크 캐시 → BitmapImage(file://)로 단순 로딩.
                 // 워커 미동작/실패 시 null 반환 → 기존 인프로세스 경로로 폴백.
-                if (await TryLoadIsolatedAsync(filePath, decodePixelWidth, isCloudOnly, cts.Token))
+                bool isolated = await TryLoadIsolatedAsync(filePath, decodePixelWidth, isCloudOnly, cts.Token);
+                Helpers.DebugLogger.LogCrash($"[Diag] LoadThumb post-isolated {Name} result={isolated}", null);
+                if (isolated)
                     return;
 
                 // Video files & cloud-only files: use Shell thumbnail API
@@ -221,9 +233,13 @@ namespace Span.ViewModels
 
                 if (softwareBitmap == null || !_thumbnailLoading || cts.IsCancellationRequested) return;
 
+                Helpers.DebugLogger.LogCrash($"[Diag] LoadThumb pre-SetBitmap {Name} pid={Environment.ProcessId}", null);
+
                 // UI 스레드: SetBitmapAsync는 사전 디코딩된 버퍼 복사만 수행 (~0.5ms)
                 var source = new SoftwareBitmapSource();
                 await source.SetBitmapAsync(softwareBitmap);
+
+                Helpers.DebugLogger.LogCrash($"[Diag] LoadThumb post-SetBitmap {Name}", null);
                 softwareBitmap.Dispose();
                 softwareBitmap = null;
 
