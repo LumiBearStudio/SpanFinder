@@ -171,6 +171,15 @@ internal static class Program
                 }
                 if (msg.Type == IpcMessageTypes.CancelBatch)
                 {
+                    // C4: CAS 루프로 lost update 방지
+                    long cur, target;
+                    do
+                    {
+                        cur = Interlocked.Read(ref _maxCancelledId);
+                        target = Math.Max(cur, msg.MaxId);
+                    }
+                    while (Interlocked.CompareExchange(ref _maxCancelledId, target, cur) != cur);
+
                     var keys = _inflight.Keys.Where(k => k >= msg.MinId && k <= msg.MaxId).ToList();
                     foreach (var k in keys)
                     {
@@ -180,14 +189,13 @@ internal static class Program
                             cts.Dispose();
                         }
                     }
-                    Interlocked.Exchange(ref _maxCancelledId, Math.Max(_maxCancelledId, msg.MaxId));
                     continue;
                 }
 
                 // 비동기 처리 — gen 요청
                 if (msg.Type == IpcMessageTypes.Gen)
                 {
-                    // 이미 cancel-batch로 무효화된 ID
+                    // C4 1차 가드: 이미 cancel-batch로 무효화된 ID
                     if (msg.Id <= Interlocked.Read(ref _maxCancelledId))
                     {
                         await SendErrAsync(writer, msg.Id, "cancelled-pre-start", retryable: false);
@@ -196,6 +204,15 @@ internal static class Program
 
                     var cts = new CancellationTokenSource(TimeSpan.FromSeconds(7));  // 작업당 타임아웃
                     _inflight[msg.Id] = cts;
+
+                    // C4 2차 가드: 등록 직후 재확인 — register 직전에 cancel-batch가 도착했을 가능성
+                    if (msg.Id <= Interlocked.Read(ref _maxCancelledId))
+                    {
+                        if (_inflight.TryRemove(msg.Id, out var c)) { try { c.Cancel(); c.Dispose(); } catch { } }
+                        await SendErrAsync(writer, msg.Id, "cancelled-post-register", retryable: false);
+                        continue;
+                    }
+
                     var captured = msg;
                     _ = Task.Run(async () =>
                     {
@@ -216,6 +233,16 @@ internal static class Program
                 }
 
                 WorkerLogger.Log($"[Worker] Unknown type: {msg.Type}");
+            }
+
+            // I11: shutdown 시 _inflight CTS 정리
+            foreach (var key in _inflight.Keys)
+            {
+                if (_inflight.TryRemove(key, out var c))
+                {
+                    try { c.Cancel(); } catch { }
+                    try { c.Dispose(); } catch { }
+                }
             }
 
             try { writer.Dispose(); } catch { }
@@ -239,6 +266,23 @@ internal static class Program
             return;
         }
 
+        // I4+A1: cachePath는 메인이 결정해서 IPC로 보냄 — 워커는 그대로 사용.
+        // 양쪽 키 알고리즘 미러 제거 → 파일 mtime time-of-check-vs-use race 차단.
+        if (string.IsNullOrEmpty(req.CachePath))
+        {
+            await SendErrAsync(writer, req.Id, "missing-cache-path", retryable: false);
+            return;
+        }
+
+        // M5: path traversal 가드 — cachePath가 _cacheDir 하위인지 검증
+        var fullCachePath = Path.GetFullPath(req.CachePath);
+        var fullCacheDir = Path.GetFullPath(_cacheDir);
+        if (!fullCachePath.StartsWith(fullCacheDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        {
+            await SendErrAsync(writer, req.Id, "cache-path-out-of-root", retryable: false);
+            return;
+        }
+
         try
         {
             var result = await _generator.GenerateAsync(
@@ -251,25 +295,25 @@ internal static class Program
                 return;
             }
 
-            // 캐시 경로: 메인이 미리 계산한 경로를 보내지 않고 워커가 직접 결정.
-            // 메인은 동일한 키 알고리즘으로 같은 경로를 알고 있어야 함.
-            // → ThumbnailDiskCache.GetCachePath와 동일 로직 미러 필요
-            // Phase 1: 임시로 메인이 cachePath를 응답에서 받아 디스크 읽기로 사용
-            // (양쪽 키 알고리즘 분기 방지)
-            string cachePath = ComputeCachePath(req);
-            try { Directory.CreateDirectory(Path.GetDirectoryName(cachePath)!); } catch { }
+            try { Directory.CreateDirectory(Path.GetDirectoryName(fullCachePath)!); } catch { }
 
-            // 원자적 쓰기: 임시 파일 → rename
-            var tmpPath = cachePath + ".tmp";
+            // 원자적 쓰기: 임시 파일 → rename (PID 포함으로 다른 워커와 충돌 방지)
+            var tmpPath = fullCachePath + $".tmp.{Environment.ProcessId}";
             await File.WriteAllBytesAsync(tmpPath, result.PngBytes, ct);
-            try { File.Move(tmpPath, cachePath, overwrite: true); }
-            catch (Exception ex) { WorkerLogger.Log($"[Worker] move failed for #{req.Id}: {ex.Message}"); }
+            try { File.Move(tmpPath, fullCachePath, overwrite: true); }
+            catch (Exception ex)
+            {
+                WorkerLogger.Log($"[Worker] move failed for #{req.Id}: {ex.Message}");
+                try { File.Delete(tmpPath); } catch { }
+                await SendErrAsync(writer, req.Id, "move-failed", retryable: true);
+                return;
+            }
 
             var ok = new IpcEnvelope
             {
                 Type = IpcMessageTypes.Ok,
                 Id = req.Id,
-                CachePath = cachePath,
+                CachePath = fullCachePath,
                 Width = result.Width,
                 Height = result.Height,
                 AppliedExif = result.AppliedExif,
@@ -280,35 +324,6 @@ internal static class Program
         {
             await SendErrAsync(writer, req.Id, "cancelled", retryable: false);
         }
-    }
-
-    /// <summary>
-    /// 메인 측 ThumbnailDiskCache.GetCachePath와 동일한 키 알고리즘.
-    /// 양쪽이 일치해야 메인이 캐시 hit 시 워커 호출 없이 디스크 직접 읽기 가능.
-    /// </summary>
-    private static string ComputeCachePath(IpcEnvelope req)
-    {
-        var fi = new FileInfo(req.Path!);
-        long size = fi.Exists ? fi.Length : 0;
-        long mtime = fi.Exists ? fi.LastWriteTimeUtc.Ticks : 0;
-
-        var keySource = string.Join("|",
-            req.Path ?? "",
-            size.ToString(),
-            mtime.ToString(),
-            req.Size.ToString(),
-            req.Mode ?? "",
-            req.Theme ?? "",
-            req.Dpi.ToString(),
-            req.ApplyExif ? "1" : "0",
-            req.IsCloudOnly ? "1" : "0");
-
-        Span<byte> hash = stackalloc byte[20];
-        System.Security.Cryptography.SHA1.HashData(Encoding.UTF8.GetBytes(keySource), hash);
-        var sb = new StringBuilder(40);
-        foreach (var b in hash) sb.Append(b.ToString("x2"));
-        var hex = sb.ToString();
-        return Path.Combine(_cacheDir, hex.Substring(0, 2), hex + ".png");
     }
 
     private static async Task SendAsync(StreamWriter writer, IpcEnvelope msg)

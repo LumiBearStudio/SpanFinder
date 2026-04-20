@@ -93,6 +93,9 @@
     <Compile Include="..\Span\Services\LocalizationData.cs" Link="Sources\Services\LocalizationData.cs" />
     <!-- Helpers - P/Invoke (pure C#) -->
     <Compile Include="..\Span\Helpers\NativeMethods.cs" Link="Sources\Helpers\NativeMethods.cs" />
+    <!-- Phase 1 — 썸네일 격리 (테스트 가능 부분만) -->
+    <Compile Include="..\Span\Services\Thumbnails\IpcProtocol.cs" Link="Sources\Services\Thumbnails\IpcProtocol.cs" />
+    <Compile Include="..\Span\Services\Thumbnails\ThumbnailDiskCache.cs" Link="Sources\Services\Thumbnails\ThumbnailDiskCache.cs" />
   </ItemGroup>
 
   <ItemGroup>

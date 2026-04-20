@@ -31,7 +31,7 @@ public sealed class ThumbnailClientService : IDisposable
 
     private readonly object _lock = new();
     private readonly ThumbnailDiskCache _cache = new();
-    private readonly JobObjectHelper _jobObject;
+    private readonly JobObjectHelper? _jobObject;  // I7: null이면 격리 비활성
     private readonly WorkerProcess?[] _workers = new WorkerProcess?[PoolSize];
     private readonly int[] _workerFailures = new int[PoolSize];
     private readonly DateTime[] _nextRetryAt = new DateTime[PoolSize];
@@ -39,7 +39,8 @@ public sealed class ThumbnailClientService : IDisposable
     private int _roundRobinIndex;
     private readonly string _workerExePath;
     private bool _spawnAttempted;
-    private bool _disabled;
+    // C3: cross-thread visibility
+    private volatile bool _disabled;
     private int _totalFailures;
     private long _idCounter;
 
@@ -48,7 +49,14 @@ public sealed class ThumbnailClientService : IDisposable
 
     public ThumbnailClientService()
     {
-        _jobObject = new JobObjectHelper();
+        // I7: JobObject 생성 실패가 앱 시작 막지 않도록 try/catch
+        try { _jobObject = new JobObjectHelper(); }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"[ThumbnailClient] JobObject init failed → 격리 비활성: {ex.Message}");
+            _jobObject = null;
+            _disabled = true;
+        }
 
         var baseDir = AppContext.BaseDirectory;
         _workerExePath = Path.Combine(baseDir, "Span.Thumbs.exe");
@@ -58,8 +66,12 @@ public sealed class ThumbnailClientService : IDisposable
             if (File.Exists(alt)) _workerExePath = alt;
         }
 
-        // 시작 시 캐시 정리 (백그라운드)
-        Task.Run(() => _cache.CleanupOldEntries());
+        // 시작 시 캐시 정리 (백그라운드, 자기 예외 흡수)
+        _ = Task.Run(() =>
+        {
+            try { _cache.CleanupOldEntries(); }
+            catch (Exception ex) { DebugLogger.Log($"[ThumbnailClient] cache cleanup failed: {ex.Message}"); }
+        });
     }
 
     /// <summary>
@@ -117,17 +129,20 @@ public sealed class ThumbnailClientService : IDisposable
 
         // ── 5. 적응형 타임아웃 (P2-6) ──
         // cold start (warm 안 된 워커): 7초, warm: 3초
+        // C2: 워커 인덱스는 0..PoolSize-1 보장 (Volatile.Read로 race 안전)
         var workerId = worker.WorkerId;
-        bool isWarm = _workerWarm[workerId];
+        bool isWarm = System.Threading.Volatile.Read(ref _workerWarm[workerId]);
         var timeout = isWarm ? TimeSpan.FromSeconds(3) : TimeSpan.FromSeconds(7);
 
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeoutCts.CancelAfter(timeout);
 
         // ── 6. 워커 호출 ──
+        // C1+I4+A1: ID + cachePath 모두 메인이 결정 → 워커는 그대로 사용
         var req = new IpcEnvelope
         {
             Type = IpcMessageTypes.Gen,
+            Id = Interlocked.Increment(ref _idCounter),
             Path = filePath,
             Size = requestedSize,
             Mode = mode,
@@ -135,9 +150,8 @@ public sealed class ThumbnailClientService : IDisposable
             ApplyExif = applyExif,
             Theme = theme,
             Dpi = dpi,
+            CachePath = cachePath,  // 메인 단일 출처
         };
-        // ID는 풀 전역에서 고유 (cancel-batch에서 사용)
-        req.Id = Interlocked.Increment(ref _idCounter);
 
         try
         {
@@ -186,21 +200,24 @@ public sealed class ThumbnailClientService : IDisposable
     /// <summary>
     /// P2-3: 폴더 이동 등으로 진행 중인 모든 요청 무효화.
     /// 호출자(FileViewModel/MainViewModel)가 폴더 변경 시 호출 권장.
+    /// C3: _workers는 Volatile.Read로 race 안전.
     /// </summary>
     public Task CancelAllInflightAsync()
     {
+        if (_disabled) return Task.CompletedTask;  // 격리 모드 OFF 시 fast path
+
         var maxId = Interlocked.Read(ref _idCounter);
         var tasks = new System.Collections.Generic.List<Task>(PoolSize);
         for (int i = 0; i < PoolSize; i++)
         {
-            var w = _workers[i];
+            var w = System.Threading.Volatile.Read(ref _workers[i]);
             if (w != null && w.IsAlive)
             {
                 try { tasks.Add(w.CancelBatchAsync(0, maxId)); }
                 catch { }
             }
         }
-        return Task.WhenAll(tasks);
+        return tasks.Count == 0 ? Task.CompletedTask : Task.WhenAll(tasks);
     }
 
     /// <summary>
@@ -214,12 +231,15 @@ public sealed class ThumbnailClientService : IDisposable
 
     private async Task<WorkerProcess?> EnsureWorkerAsync(CancellationToken ct)
     {
+        // C2: int.MaxValue wrap 시 음수 인덱스 방지 — uint cast로 % 결과를 항상 양수로
+        int startIndex = (int)((uint)Interlocked.Increment(ref _roundRobinIndex) % (uint)PoolSize);
+
         // 라운드로빈 시도 — 살아있는 워커 우선
-        int startIndex = Interlocked.Increment(ref _roundRobinIndex) % PoolSize;
         for (int offset = 0; offset < PoolSize; offset++)
         {
             int idx = (startIndex + offset) % PoolSize;
-            var w = _workers[idx];
+            // C3: _workers는 다른 스레드가 변경할 수 있음 → Volatile.Read로 cached read 차단
+            var w = System.Threading.Volatile.Read(ref _workers[idx]);
             if (w != null && w.IsAlive) return w;
         }
 
@@ -320,13 +340,20 @@ public sealed class ThumbnailClientService : IDisposable
         catch { return null; }
     }
 
+    /// <summary>
+    /// C6: Dispose는 비-블로킹. graceful shutdown은 best-effort fire-and-forget.
+    /// 워커 종료 보장은 JobObject(KILL_ON_JOB_CLOSE)가 처리 — 여기서는 핸들만 정리.
+    /// </summary>
     public void Dispose()
     {
         for (int i = 0; i < PoolSize; i++)
         {
-            try { _workers[i]?.SendShutdownAsync().Wait(TimeSpan.FromMilliseconds(500)); } catch { }
-            try { _workers[i]?.Dispose(); } catch { }
+            var w = System.Threading.Volatile.Read(ref _workers[i]);
+            if (w == null) continue;
+            // fire-and-forget shutdown 메시지 전송 후 즉시 dispose
+            try { _ = w.SendShutdownAsync(); } catch { }
+            try { w.Dispose(); } catch { }
         }
-        try { _jobObject.Dispose(); } catch { }
+        try { _jobObject?.Dispose(); } catch { }
     }
 }

@@ -126,12 +126,14 @@ internal sealed class WorkerProcess : IDisposable
 
     /// <summary>
     /// Generate request 전송 + ok/err 응답 대기.
+    /// C1: ID는 호출자가 발급한 글로벌 값 그대로 사용 — cancel-batch 매칭 보장.
+    /// I5: timeout cancel 시 워커에 추가 cancel 메시지 전송 안 함 (이미 응답 못함).
     /// </summary>
     public async Task<IpcEnvelope> RequestAsync(IpcEnvelope request, CancellationToken ct)
     {
         if (!IsAlive) throw new InvalidOperationException("worker not alive");
+        if (request.Id <= 0) throw new ArgumentException("request.Id must be set by caller (global)", nameof(request));
 
-        request.Id = Interlocked.Increment(ref _idCounter);
         var tcs = new TaskCompletionSource<IpcEnvelope>(TaskCreationOptions.RunContinuationsAsynchronously);
         _pending[request.Id] = tcs;
 
@@ -141,8 +143,9 @@ internal sealed class WorkerProcess : IDisposable
         {
             if (_pending.TryRemove(request.Id, out var t))
                 t.TrySetCanceled(ct);
-            // 워커에 cancel 요청도 보냄 (best-effort)
-            _ = SendAsync(new IpcEnvelope { Type = IpcMessageTypes.Cancel, Id = request.Id });
+            // 워커에 cancel 요청 — 살아있을 때만 (죽은 워커에 보내봐야 ObjectDisposedException 노이즈)
+            if (IsAlive)
+                _ = SendAsync(new IpcEnvelope { Type = IpcMessageTypes.Cancel, Id = request.Id });
         });
 
         return await tcs.Task;
@@ -253,15 +256,42 @@ internal sealed class WorkerProcess : IDisposable
         catch { }
     }
 
+    private int _disposed;  // 0 = alive, 1 = disposed (Interlocked)
+
+    /// <summary>
+    /// C5: write lock 잡고 진행하여 동시 SendAsync와 race 차단.
+    /// 한 번만 실행되도록 Interlocked 가드.
+    /// </summary>
     public void Dispose()
     {
-        try { _readLoopCts?.Cancel(); } catch { }
-        try { _readLoopCts?.Dispose(); } catch { }
-        try { _reader?.Dispose(); } catch { }
-        try { _writer?.Dispose(); } catch { }
-        try { _pipe?.Dispose(); } catch { }
-        SafeKill();
-        try { _process?.Dispose(); } catch { }
-        try { _writeLock.Dispose(); } catch { }
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;  // idempotent
+
+        // 진행 중 write가 끝날 때까지 짧게 대기 (max 200ms — UI 블록 방지)
+        bool gotLock = false;
+        try { gotLock = _writeLock.Wait(TimeSpan.FromMilliseconds(200)); } catch { }
+
+        try
+        {
+            try { _readLoopCts?.Cancel(); } catch { }
+            try { _readLoopCts?.Dispose(); } catch { }
+            try { _reader?.Dispose(); } catch { }
+            try { _writer?.Dispose(); } catch { }
+            try { _pipe?.Dispose(); } catch { }
+
+            // 모든 pending TCS 해제
+            foreach (var key in _pending.Keys)
+            {
+                if (_pending.TryRemove(key, out var tcs))
+                    tcs.TrySetException(new ObjectDisposedException(nameof(WorkerProcess)));
+            }
+
+            SafeKill();
+            try { _process?.Dispose(); } catch { }
+        }
+        finally
+        {
+            if (gotLock) { try { _writeLock.Release(); } catch { } }
+            try { _writeLock.Dispose(); } catch { }
+        }
     }
 }
