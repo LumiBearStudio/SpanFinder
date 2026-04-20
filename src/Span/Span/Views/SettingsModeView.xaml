@@ -1838,6 +1838,25 @@
                                 </Grid>
                             </Border>
 
+                            <!-- Phase 3 베타: 썸네일 격리 워커 (UseIsolatedThumbnails) -->
+                            <Border Style="{StaticResource SettingsCardBorder}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Style="{StaticResource CardIconContainer}">
+                                        <FontIcon Glyph="&#xE7F4;" Style="{StaticResource CardIconStyle}" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock x:Name="IsolatedThumbsLabel" Text="썸네일 격리 (베타)" Style="{StaticResource SettingsCardLabel}" />
+                                        <TextBlock x:Name="IsolatedThumbsDesc" Text="동영상/이미지 썸네일을 별도 프로세스에서 생성하여 폴더 진입 시 크래시를 방지합니다. 일부 파일의 썸네일이 표시되지 않을 수 있습니다." Style="{StaticResource SettingsCardDesc}" />
+                                    </StackPanel>
+                                    <ToggleSwitch x:Name="IsolatedThumbsToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="False" OnContent="" OffContent="" />
+                                </Grid>
+                            </Border>
+
                             <!-- Default File Manager -->
                             <Border Style="{StaticResource SettingsCardBorder}">
                                 <StackPanel Spacing="8">

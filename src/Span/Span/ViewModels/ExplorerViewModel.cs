@@ -550,6 +550,16 @@ namespace Span.ViewModels
             // Push current path to history before navigating
             PushToHistory(folder.Path);
 
+            // P2-3: 격리 워커 cancel-batch — 폴더 변경 시 진행 중 워커 작업 무효화
+            // fire-and-forget (await 안 함 — 폴더 진입 지연 방지)
+            try
+            {
+                var thumbClient = App.Current.Services.GetService(typeof(Services.Thumbnails.ThumbnailClientService))
+                    as Services.Thumbnails.ThumbnailClientService;
+                _ = thumbClient?.CancelAllInflightAsync();
+            }
+            catch { /* best-effort */ }
+
             // 경량 정리 — 구독 해제 + 진행 중 썸네일 태스크 취소
             foreach (var col in Columns)
             {

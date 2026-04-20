@@ -333,6 +333,9 @@ public sealed class CrashReportingService : IDisposable
                 scope.SetTag("app.viewMode", viewMode);
                 scope.SetTag("app.tabCount", tabCount.ToString());
                 scope.SetTag("app.splitView", isSplitView.ToString());
+                // P3-3: 격리 워커 활성화 여부 — Sentry에서 ON/OFF별 크래시율 분리 측정
+                try { scope.SetTag("feature.isolatedThumbs", _settings.UseIsolatedThumbnails.ToString()); }
+                catch { }
             });
         }
         catch (Exception ex) { Helpers.DebugLogger.Log($"[CrashReporting] SetAppContext failed: {ex.Message}"); }

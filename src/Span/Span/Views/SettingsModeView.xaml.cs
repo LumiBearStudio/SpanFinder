@@ -270,6 +270,7 @@ public sealed partial class SettingsModeView : UserControl
             CopilotMenuToggle.IsOn = _settings.ShowCopilotMenu;
             ContextMenuToggle.IsOn = _settings.ShowContextMenu;
             CrashReportToggle.IsOn = _settings.EnableCrashReporting;
+            IsolatedThumbsToggle.IsOn = _settings.UseIsolatedThumbnails;
 
             var dfmService = App.Current.Services.GetService<Services.DefaultFileManagerService>();
             if (dfmService != null)
@@ -452,6 +453,7 @@ public sealed partial class SettingsModeView : UserControl
         CopilotMenuToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowCopilotMenu = CopilotMenuToggle.IsOn; };
         ContextMenuToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowContextMenu = ContextMenuToggle.IsOn; };
         CrashReportToggle.Toggled += (s, e) => { if (!_isLoading) _settings.EnableCrashReporting = CrashReportToggle.IsOn; };
+        IsolatedThumbsToggle.Toggled += (s, e) => { if (!_isLoading) _settings.UseIsolatedThumbnails = IsolatedThumbsToggle.IsOn; };
         DefaultFileManagerToggle.Toggled += OnDefaultFileManagerToggled;
 
         // Hand cursor on all clickable card items
@@ -469,7 +471,7 @@ public sealed partial class SettingsModeView : UserControl
             FavoritesTreeToggle, SystemTrayToggle, WindowPositionToggle,
             ShellExtrasToggle, ShellExtensionsToggle, GitIntegrationToggle,
             HexPreviewToggle, FileHashToggle, CopilotMenuToggle, ContextMenuToggle, CrashReportToggle,
-            WasdNavToggle,
+            IsolatedThumbsToggle, WasdNavToggle,
             DefaultFileManagerToggle, DefaultPreviewToggle, PreviewFolderInfoToggle, ShelfSaveToggle, ShelfEnabledToggle })
             Helpers.CursorHelper.SetHandCursor(toggle);
 
