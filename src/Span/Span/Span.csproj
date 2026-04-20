@@ -81,11 +81,15 @@
     </ProjectReference>
   </ItemGroup>
 
-  <!-- 워커 .exe + .dll + 메타 파일을 메인 출력 폴더 직속에 복사.
-       워커가 메인과 같은 폴더에서 실행되도록 → WindowsAppSDK deps 공유. -->
-  <Target Name="CopyThumbsWorker" AfterTargets="Build" DependsOnTargets="ResolveProjectReferences">
+  <!-- 워커 .exe + .dll + 메타 파일을 메인 출력 폴더 + AppX staging 폴더 둘 다 복사.
+       MSIX 실행 시 메인은 AppX/ 하위에서 실행되므로 워커도 같은 위치에 있어야 함.
+       또한 PackagingOutputs로 등록하여 MSIX 패키지에도 정식 포함. -->
+  <Target Name="CopyThumbsWorker"
+          AfterTargets="Build"
+          DependsOnTargets="ResolveProjectReferences">
     <PropertyGroup>
       <_ThumbsBinDir>$(MSBuildThisFileDirectory)..\Span.Thumbs\bin\$(Platform)\$(Configuration)\$(TargetFramework)\</_ThumbsBinDir>
+      <_AppXDir>$(OutDir)AppX\</_AppXDir>
     </PropertyGroup>
     <ItemGroup>
       <_ThumbsFiles Include="$(_ThumbsBinDir)Span.Thumbs.exe" />
@@ -94,10 +98,44 @@
       <_ThumbsFiles Include="$(_ThumbsBinDir)Span.Thumbs.runtimeconfig.json" />
       <_ThumbsFiles Include="$(_ThumbsBinDir)Span.Thumbs.pdb" Condition="'$(Configuration)' == 'Debug'" />
     </ItemGroup>
+    <!-- 1) bin/{config}/ 직속 (직접 실행 케이스) -->
     <Copy SourceFiles="@(_ThumbsFiles)"
           DestinationFolder="$(OutDir)"
           SkipUnchangedFiles="true"
           Condition="Exists('%(Identity)')" />
+    <!-- 2) AppX/ 하위 (MSIX staging 케이스 — 사용자 baseDir이 여기) -->
+    <Copy SourceFiles="@(_ThumbsFiles)"
+          DestinationFolder="$(_AppXDir)"
+          SkipUnchangedFiles="true"
+          Condition="Exists('%(Identity)') and Exists('$(_AppXDir)')" />
+  </Target>
+
+  <!-- MSIX 패키지(*.msix/.appxbundle)에 정식 포함 — Store/사이드로드 배포 -->
+  <Target Name="IncludeThumbsInPackaging"
+          BeforeTargets="GetPackagingOutputs"
+          DependsOnTargets="CopyThumbsWorker">
+    <ItemGroup>
+      <PackagingOutputs Include="$(OutDir)Span.Thumbs.exe" Condition="Exists('$(OutDir)Span.Thumbs.exe')">
+        <TargetPath>Span.Thumbs.exe</TargetPath>
+        <OutputGroup>SpanThumbsWorkerOutputGroup</OutputGroup>
+        <ProjectName>Span.Thumbs</ProjectName>
+      </PackagingOutputs>
+      <PackagingOutputs Include="$(OutDir)Span.Thumbs.dll" Condition="Exists('$(OutDir)Span.Thumbs.dll')">
+        <TargetPath>Span.Thumbs.dll</TargetPath>
+        <OutputGroup>SpanThumbsWorkerOutputGroup</OutputGroup>
+        <ProjectName>Span.Thumbs</ProjectName>
+      </PackagingOutputs>
+      <PackagingOutputs Include="$(OutDir)Span.Thumbs.deps.json" Condition="Exists('$(OutDir)Span.Thumbs.deps.json')">
+        <TargetPath>Span.Thumbs.deps.json</TargetPath>
+        <OutputGroup>SpanThumbsWorkerOutputGroup</OutputGroup>
+        <ProjectName>Span.Thumbs</ProjectName>
+      </PackagingOutputs>
+      <PackagingOutputs Include="$(OutDir)Span.Thumbs.runtimeconfig.json" Condition="Exists('$(OutDir)Span.Thumbs.runtimeconfig.json')">
+        <TargetPath>Span.Thumbs.runtimeconfig.json</TargetPath>
+        <OutputGroup>SpanThumbsWorkerOutputGroup</OutputGroup>
+        <ProjectName>Span.Thumbs</ProjectName>
+      </PackagingOutputs>
+    </ItemGroup>
   </Target>
 
   <ItemGroup>
