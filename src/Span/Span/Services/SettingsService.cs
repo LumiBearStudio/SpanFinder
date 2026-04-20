@@ -150,14 +150,14 @@ public class SettingsService : ISettingsService
     }
 
     /// <summary>
-    /// Phase 1 — 썸네일 격리 워커 사용 여부.
-    /// 기본값 false (개발자 옵션). Phase 4에서 true로 전환 예정.
+    /// 썸네일 격리 워커 사용 여부 (v1.3.10부터 기본 ON).
+    /// Microsoft.ui.xaml.dll STATUS_STOWED_EXCEPTION (이슈 #23) 우회.
     /// true면 Span.Thumbs.exe 워커 프로세스 경유로 썸네일 생성.
     /// 워커 spawn 실패 시 자동으로 인프로세스 폴백.
     /// </summary>
     public bool UseIsolatedThumbnails
     {
-        get => Get("UseIsolatedThumbnails", false);
+        get => Get("UseIsolatedThumbnails", true);
         set => Set("UseIsolatedThumbnails", value);
     }
 
