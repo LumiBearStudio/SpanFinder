@@ -35,7 +35,6 @@ internal sealed class WorkerProcess : IDisposable
     private readonly SemaphoreSlim _writeLock = new(1, 1);
     private CancellationTokenSource? _readLoopCts;
 
-    private long _idCounter;
     private DateTime _lastPongUtc = DateTime.UtcNow;
 
     public bool IsAlive => _process is { HasExited: false } && _pipe?.IsConnected == true;
@@ -131,14 +130,25 @@ internal sealed class WorkerProcess : IDisposable
     /// Generate request 전송 + ok/err 응답 대기.
     /// C1: ID는 호출자가 발급한 글로벌 값 그대로 사용 — cancel-batch 매칭 보장.
     /// I5: timeout cancel 시 워커에 추가 cancel 메시지 전송 안 함 (이미 응답 못함).
+    /// C-N2: 진입/등록 후 _disposed 재확인 — 종료 시점 ObjectDisposedException 방지.
     /// </summary>
     public async Task<IpcEnvelope> RequestAsync(IpcEnvelope request, CancellationToken ct)
     {
+        // C-N2: 진입 시점 dispose 검사 — InvalidOperationException으로 통일 (I6 retry 매칭)
+        if (System.Threading.Volatile.Read(ref _disposed) != 0)
+            throw new InvalidOperationException("worker disposed");
         if (!IsAlive) throw new InvalidOperationException("worker not alive");
         if (request.Id <= 0) throw new ArgumentException("request.Id must be set by caller (global)", nameof(request));
 
         var tcs = new TaskCompletionSource<IpcEnvelope>(TaskCreationOptions.RunContinuationsAsynchronously);
         _pending[request.Id] = tcs;
+
+        // C-N2: 등록 직후 재확인 — Dispose가 _pending 순회 전에 도착할 수 있음
+        if (System.Threading.Volatile.Read(ref _disposed) != 0)
+        {
+            _pending.TryRemove(request.Id, out _);
+            throw new InvalidOperationException("worker disposed during registration");
+        }
 
         await SendAsync(request);
 
@@ -147,7 +157,7 @@ internal sealed class WorkerProcess : IDisposable
             if (_pending.TryRemove(request.Id, out var t))
                 t.TrySetCanceled(ct);
             // 워커에 cancel 요청 — 살아있을 때만 (죽은 워커에 보내봐야 ObjectDisposedException 노이즈)
-            if (IsAlive)
+            if (IsAlive && System.Threading.Volatile.Read(ref _disposed) == 0)
                 _ = SendAsync(new IpcEnvelope { Type = IpcMessageTypes.Cancel, Id = request.Id });
         });
 

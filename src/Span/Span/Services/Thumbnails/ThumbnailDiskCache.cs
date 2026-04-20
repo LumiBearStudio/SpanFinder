@@ -125,6 +125,23 @@ internal sealed class ThumbnailDiskCache
                 catch { }
             }
 
+            // M-N2: orphan tmp 파일 정리 (워커가 cancel/crash로 남긴 .tmp.PID)
+            try
+            {
+                foreach (var tmpFile in Directory.EnumerateFiles(CacheRoot, "*.tmp.*", SearchOption.AllDirectories))
+                {
+                    try
+                    {
+                        var fi = new FileInfo(tmpFile);
+                        // 1시간 이상 된 tmp만 정리 (진행 중 작업 보호)
+                        if (fi.LastWriteTimeUtc < DateTime.UtcNow - TimeSpan.FromHours(1))
+                            fi.Delete();
+                    }
+                    catch { }
+                }
+            }
+            catch { }
+
             // 빈 prefix 폴더 정리
             try
             {

@@ -74,20 +74,37 @@ public sealed class ThumbnailClientService : IDisposable
         });
     }
 
+    private int _prewarmInFlight;  // I-N6: 중복 spawn 가드
+
     /// <summary>
     /// A2: feature flag ON 사용자에 한해 첫 워커 prewarm.
     /// 첫 폴더 진입 후 호출 권장 — cold start 5초 부담을 백그라운드로 숨김.
     /// 호출 안 해도 lazy spawn으로 동작 — 단지 첫 요청이 느림.
+    ///
+    /// C-N1: feature flag OFF 사용자에게 워커 spawn하지 않도록 가드.
+    /// I-N6: 빠른 폴더 순환 시 Task.Run 누적 방지.
     /// </summary>
     public void PrewarmWorker()
     {
         if (_disabled) return;
+
+        // C-N1: feature flag OFF면 워커 spawn 안 함 — 베타 미참여 사용자 회귀 방지
+        try
+        {
+            var settings = App.Current.Services.GetService(typeof(SettingsService)) as SettingsService;
+            if (settings == null || !settings.UseIsolatedThumbnails) return;
+        }
+        catch { return; }
+
         // 이미 살아있는 워커가 있으면 skip
         for (int i = 0; i < PoolSize; i++)
         {
             var w = System.Threading.Volatile.Read(ref _workers[i]);
             if (w != null && w.IsAlive) return;
         }
+
+        // I-N6: spawn 진행 중이면 추가 Task.Run 누적 방지
+        if (Interlocked.CompareExchange(ref _prewarmInFlight, 1, 0) != 0) return;
 
         _ = Task.Run(async () =>
         {
@@ -97,6 +114,7 @@ public sealed class ThumbnailClientService : IDisposable
                 await EnsureWorkerAsync(cts.Token).ConfigureAwait(false);
             }
             catch (Exception ex) { DebugLogger.Log($"[ThumbnailClient] prewarm failed: {ex.Message}"); }
+            finally { Interlocked.Exchange(ref _prewarmInFlight, 0); }
         });
     }
 
@@ -188,7 +206,7 @@ public sealed class ThumbnailClientService : IDisposable
                 System.Threading.Volatile.Write(ref _workerWarm[workerId], true);
                 // 폴더/워커 실패 카운터 리셋
                 if (parentDir != null) _folderFailureCount.TryRemove(parentDir, out _);
-                _workerFailures[workerId] = 0;
+                Interlocked.Exchange(ref _workerFailures[workerId], 0);
                 return new Uri(resp.CachePath);
             }
 
@@ -253,7 +271,7 @@ public sealed class ThumbnailClientService : IDisposable
             {
                 System.Threading.Volatile.Write(ref _workerWarm[workerId], true);
                 if (parentDir != null) _folderFailureCount.TryRemove(parentDir, out _);
-                _workerFailures[workerId] = 0;
+                Interlocked.Exchange(ref _workerFailures[workerId], 0);
                 return new Uri(resp.CachePath);
             }
             if (parentDir != null) _folderFailureCount.AddOrUpdate(parentDir, 1, (_, n) => n + 1);
@@ -377,11 +395,12 @@ public sealed class ThumbnailClientService : IDisposable
 
     private void HandleWorkerFailure(int workerId)
     {
-        _workerFailures[workerId]++;
-        _totalFailures++;
+        // M-N3: 동시 실패 처리 시 카운터 race 방지
+        var fails = Interlocked.Increment(ref _workerFailures[workerId]);
+        Interlocked.Increment(ref _totalFailures);
 
         // 백오프: 1s → 3s → 10s
-        var delay = _workerFailures[workerId] switch
+        var delay = fails switch
         {
             1 => TimeSpan.FromSeconds(1),
             2 => TimeSpan.FromSeconds(3),

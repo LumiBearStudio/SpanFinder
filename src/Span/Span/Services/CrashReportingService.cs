@@ -179,7 +179,7 @@ public sealed class CrashReportingService : IDisposable
 
         try
         {
-            UploadAndCleanWerDumps();
+            UploadAndCleanWerDumps(overallCts.Token);  // I-N1: 토큰 전달로 실제 timeout 동작
         }
         catch (Exception ex) { Helpers.DebugLogger.Log($"[CrashReporting] UploadAndCleanWerDumps failed: {ex.Message}"); }
 
@@ -237,7 +237,7 @@ public sealed class CrashReportingService : IDisposable
         catch (Exception ex) { Helpers.DebugLogger.Log($"[CrashReporting] post-mortem capture failed: {ex.Message}"); }
     }
 
-    private void UploadAndCleanWerDumps()
+    private void UploadAndCleanWerDumps(CancellationToken ct = default)
     {
         var dumps = Helpers.WerHelper.EnumerateDumps();
         if (dumps.Length == 0) return;
@@ -248,6 +248,13 @@ public sealed class CrashReportingService : IDisposable
 
         foreach (var dumpPath in dumps)
         {
+            // I-N1: 전체 timeout 도달 시 남은 dump 처리 중단 (다음 실행에서 재시도)
+            if (ct.IsCancellationRequested)
+            {
+                Helpers.DebugLogger.Log("[CrashReporting] dump upload aborted — overall timeout");
+                break;
+            }
+
             try
             {
                 var fi = new FileInfo(dumpPath);
@@ -264,6 +271,7 @@ public sealed class CrashReportingService : IDisposable
                             scope.SetTag("crash.context", "wer.dump.oversized");
                             scope.SetExtra("dump.fileName", fi.Name);
                             scope.SetExtra("dump.sizeBytes", fi.Length);
+                            scope.SetFingerprint(new[] { "wer.dump.oversized" });  // I-N2: 그룹화
                         });
                     try { fi.Delete(); } catch { }
                     continue;
@@ -279,10 +287,13 @@ public sealed class CrashReportingService : IDisposable
                         scope.SetExtra("dump.fileName", fi.Name);
                         scope.SetExtra("dump.sizeBytes", fi.Length);
                         scope.SetExtra("dump.lastWriteUtc", fi.LastWriteTimeUtc.ToString("o"));
+                        // I-N2: dump 측도 fingerprint 고정 — 같은 native crash가 여러 번 와도 단일 이슈로 그룹화
+                        // (PID 다른 dump.fileName으로 분산되는 것 방지)
+                        scope.SetFingerprint(new[] { "wer.dump.native" });
                         scope.AddAttachment(bytes, fi.Name, AttachmentType.Minidump, "application/octet-stream");
                     });
 
-                // 동기 flush 후 삭제 (전송 보장)
+                // 동기 flush 후 삭제 (전송 보장) — overallCts가 취소돼도 짧게 시도
                 try { SentrySdk.FlushAsync(TimeSpan.FromSeconds(5)).GetAwaiter().GetResult(); } catch { }
                 try { fi.Delete(); } catch (Exception ex) { Helpers.DebugLogger.Log($"[CrashReporting] dump delete failed: {ex.Message}"); }
             }

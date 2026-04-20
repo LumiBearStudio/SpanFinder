@@ -251,7 +251,6 @@ internal static class Program
             try { writer.Dispose(); } catch { }
             try { Sentry.SentrySdk.FlushAsync(TimeSpan.FromSeconds(2)).GetAwaiter().GetResult(); } catch { }
             WorkerLogger.Log("[Worker] Exiting cleanly");
-            WorkerLogger.Stop();  // M1: 큐 동기 flush
             return 0;
         }
         catch (Exception ex)
@@ -259,6 +258,11 @@ internal static class Program
             try { WorkerLogger.Log($"[Worker] FATAL: {ex}"); } catch { }
             try { Sentry.SentrySdk.CaptureException(ex); Sentry.SentrySdk.FlushAsync(TimeSpan.FromSeconds(2)).GetAwaiter().GetResult(); } catch { }
             return 1;
+        }
+        finally
+        {
+            // I-N3: 정상/예외 모든 경로에서 큐 동기 flush — 마지막 FATAL 로그 누락 방지
+            try { WorkerLogger.Stop(); } catch { }
         }
     }
 
@@ -279,8 +283,9 @@ internal static class Program
         }
 
         // M5: path traversal 가드 — cachePath가 _cacheDir 하위인지 검증
+        // M-N1: 방어적 — fullCacheDir의 trailing separator를 명시 정규화 후 비교
         var fullCachePath = Path.GetFullPath(req.CachePath);
-        var fullCacheDir = Path.GetFullPath(_cacheDir);
+        var fullCacheDir = Path.TrimEndingDirectorySeparator(Path.GetFullPath(_cacheDir));
         if (!fullCachePath.StartsWith(fullCacheDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
         {
             await SendErrAsync(writer, req.Id, "cache-path-out-of-root", retryable: false);
@@ -303,14 +308,23 @@ internal static class Program
 
             // 원자적 쓰기: 임시 파일 → rename (PID 포함으로 다른 워커와 충돌 방지)
             var tmpPath = fullCachePath + $".tmp.{Environment.ProcessId}";
-            await File.WriteAllBytesAsync(tmpPath, result.PngBytes, ct);
-            try { File.Move(tmpPath, fullCachePath, overwrite: true); }
-            catch (Exception ex)
+            try
             {
-                WorkerLogger.Log($"[Worker] move failed for #{req.Id}: {ex.Message}");
+                await File.WriteAllBytesAsync(tmpPath, result.PngBytes, ct);
+                try { File.Move(tmpPath, fullCachePath, overwrite: true); }
+                catch (Exception ex)
+                {
+                    WorkerLogger.Log($"[Worker] move failed for #{req.Id}: {ex.Message}");
+                    try { File.Delete(tmpPath); } catch { }
+                    await SendErrAsync(writer, req.Id, "move-failed", retryable: true);
+                    return;
+                }
+            }
+            catch
+            {
+                // M-N2: cancellation/IO 실패 시 tmp 파일 정리 (디스크 누수 방지)
                 try { File.Delete(tmpPath); } catch { }
-                await SendErrAsync(writer, req.Id, "move-failed", retryable: true);
-                return;
+                throw;
             }
 
             var ok = new IpcEnvelope
