@@ -83,7 +83,7 @@
 
   <!-- 워커 .exe + .dll + 메타 파일을 메인 출력 폴더 + AppX staging 폴더 둘 다 복사.
        MSIX 실행 시 메인은 AppX/ 하위에서 실행되므로 워커도 같은 위치에 있어야 함.
-       또한 PackagingOutputs로 등록하여 MSIX 패키지에도 정식 포함. -->
+       (이전 PackagingOutputs 등록은 DEP1000 상대경로 오해석으로 제거 — Content 방식으로 대체) -->
   <Target Name="CopyThumbsWorker"
           AfterTargets="Build"
           DependsOnTargets="ResolveProjectReferences">
@@ -104,38 +104,11 @@
           SkipUnchangedFiles="true"
           Condition="Exists('%(Identity)')" />
     <!-- 2) AppX/ 하위 (MSIX staging 케이스 — 사용자 baseDir이 여기) -->
+    <MakeDir Directories="$(_AppXDir)" Condition="!Exists('$(_AppXDir)')" />
     <Copy SourceFiles="@(_ThumbsFiles)"
           DestinationFolder="$(_AppXDir)"
           SkipUnchangedFiles="true"
-          Condition="Exists('%(Identity)') and Exists('$(_AppXDir)')" />
-  </Target>
-
-  <!-- MSIX 패키지(*.msix/.appxbundle)에 정식 포함 — Store/사이드로드 배포 -->
-  <Target Name="IncludeThumbsInPackaging"
-          BeforeTargets="GetPackagingOutputs"
-          DependsOnTargets="CopyThumbsWorker">
-    <ItemGroup>
-      <PackagingOutputs Include="$(OutDir)Span.Thumbs.exe" Condition="Exists('$(OutDir)Span.Thumbs.exe')">
-        <TargetPath>Span.Thumbs.exe</TargetPath>
-        <OutputGroup>SpanThumbsWorkerOutputGroup</OutputGroup>
-        <ProjectName>Span.Thumbs</ProjectName>
-      </PackagingOutputs>
-      <PackagingOutputs Include="$(OutDir)Span.Thumbs.dll" Condition="Exists('$(OutDir)Span.Thumbs.dll')">
-        <TargetPath>Span.Thumbs.dll</TargetPath>
-        <OutputGroup>SpanThumbsWorkerOutputGroup</OutputGroup>
-        <ProjectName>Span.Thumbs</ProjectName>
-      </PackagingOutputs>
-      <PackagingOutputs Include="$(OutDir)Span.Thumbs.deps.json" Condition="Exists('$(OutDir)Span.Thumbs.deps.json')">
-        <TargetPath>Span.Thumbs.deps.json</TargetPath>
-        <OutputGroup>SpanThumbsWorkerOutputGroup</OutputGroup>
-        <ProjectName>Span.Thumbs</ProjectName>
-      </PackagingOutputs>
-      <PackagingOutputs Include="$(OutDir)Span.Thumbs.runtimeconfig.json" Condition="Exists('$(OutDir)Span.Thumbs.runtimeconfig.json')">
-        <TargetPath>Span.Thumbs.runtimeconfig.json</TargetPath>
-        <OutputGroup>SpanThumbsWorkerOutputGroup</OutputGroup>
-        <ProjectName>Span.Thumbs</ProjectName>
-      </PackagingOutputs>
-    </ItemGroup>
+          Condition="Exists('%(Identity)')" />
   </Target>
 
   <ItemGroup>
