@@ -989,6 +989,24 @@ namespace Span
                     // FileSystemWatcher 초기화
                     InitializeFileSystemWatcher();
 
+                    // ── 첫 실행 시 온보딩 창 표시 ──
+                    // Tear-off 윈도우는 대상 아님 (위 _pendingTearOff 분기에서 return됨)
+                    if (!_settings.OnboardingCompleted)
+                    {
+                        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+                        {
+                            try
+                            {
+                                var onboarding = new Views.OnboardingWindow(_settings, _loc);
+                                onboarding.Activate();
+                            }
+                            catch (Exception ex)
+                            {
+                                Helpers.DebugLogger.Log($"[Onboarding] Failed to show: {ex.Message}");
+                            }
+                        });
+                    }
+
                     // Store 별점 요청 (5회 이상 실행 후 1회만)
                     TryRequestStoreRating();
                 };

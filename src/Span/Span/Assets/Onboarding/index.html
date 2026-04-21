@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="slider" id="slider">
+
+    <!-- PAGE 1: Welcome -->
+    <section class="page active" data-page="0">
+      <div class="page-content welcome-page">
+        <!-- Aurora gradient mesh + subtle Miller column hint backdrop -->
+        <div class="welcome-bg">
+          <div class="aurora-blob aurora-blob-1"></div>
+          <div class="aurora-blob aurora-blob-2"></div>
+          <div class="aurora-blob aurora-blob-3"></div>
+          <div class="miller-cascade">
+            <div class="mc-bar"><i></i><i></i><i></i><i></i><i></i></div>
+            <div class="mc-bar"><i></i><i></i><i></i><i></i></div>
+            <div class="mc-bar"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+            <div class="mc-bar"><i></i><i></i><i></i></div>
+            <div class="mc-bar"><i></i><i></i><i></i><i></i><i></i></div>
+          </div>
+        </div>
+        <div class="welcome-icon-wrap">
+          <img src="app-icon.png" alt="SPAN Finder" class="welcome-icon" />
+          <div class="welcome-glow"></div>
+        </div>
+        <h1 class="welcome-title">SPAN Finder</h1>
+        <p class="welcome-subtitle" data-i18n="welcome_subtitle"></p>
+      </div>
+    </section>
+
+    <!-- PAGE 2: Miller Columns -->
+    <section class="page" data-page="1">
+      <div class="page-content miller-page">
+        <h2 data-i18n="miller_title"></h2>
+        <p class="page-desc" data-i18n="miller_desc"></p>
+
+        <div class="miller-demo">
+          <div class="mc-col mc-col-1">
+            <div class="mc-item" data-i18n="mc_this_pc">This PC</div>
+            <div class="mc-item active" data-i18n="mc_documents">Documents</div>
+            <div class="mc-item" data-i18n="mc_downloads">Downloads</div>
+            <div class="mc-item" data-i18n="mc_desktop">Desktop</div>
+          </div>
+          <div class="mc-col mc-col-2">
+            <div class="mc-item" data-i18n="mc_projects">Projects</div>
+            <div class="mc-item active" data-i18n="mc_span">Span</div>
+            <div class="mc-item" data-i18n="mc_notes">Notes</div>
+          </div>
+          <div class="mc-col mc-col-3">
+            <div class="mc-item mc-file" data-i18n="mc_readme">README.md</div>
+            <div class="mc-item mc-file active" data-i18n="mc_main">MainWindow.xaml</div>
+            <div class="mc-item mc-file" data-i18n="mc_app">App.xaml</div>
+            <div class="mc-item mc-folder" data-i18n="mc_assets">Assets</div>
+          </div>
+          <div class="mc-arrow-hint">
+            <span class="mc-key">→</span>
+            <span class="mc-key">→</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAGE 3: Tabs + Tear-Off -->
+    <section class="page" data-page="2">
+      <div class="page-content tabs-page">
+        <h2 data-i18n="tabs_title"></h2>
+        <p class="page-desc" data-i18n="tabs_desc"></p>
+
+        <div class="to-stage">
+          <!-- Origin window -->
+          <div class="to-window to-window-a">
+            <div class="to-titlebar">
+              <div class="to-tabs">
+                <div class="to-tab">Documents</div>
+                <div class="to-tab to-tab-active to-tab-drag">Projects</div>
+                <div class="to-tab">Downloads</div>
+              </div>
+              <div class="to-wincontrols">
+                <span class="to-wc"></span><span class="to-wc"></span><span class="to-wc"></span>
+              </div>
+            </div>
+            <div class="to-body"></div>
+          </div>
+
+          <!-- Detached window -->
+          <div class="to-window to-window-b">
+            <div class="to-titlebar">
+              <div class="to-tabs">
+                <div class="to-tab to-tab-active">Projects</div>
+              </div>
+              <div class="to-wincontrols">
+                <span class="to-wc"></span><span class="to-wc"></span><span class="to-wc"></span>
+              </div>
+            </div>
+            <div class="to-body"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAGE 4: Shelf + Split View -->
+    <section class="page" data-page="3">
+      <div class="page-content shelf-page">
+        <h2 data-i18n="shelf_title"></h2>
+        <p class="page-desc" data-i18n="shelf_desc"></p>
+
+        <div class="sv-stage">
+          <!-- Window with split view + right-edge floating Shelf overlay -->
+          <div class="sv-window">
+            <!-- Split view: Left + Right pane -->
+            <div class="sv-split">
+              <div class="sv-pane sv-pane-left">
+                <div class="sv-pane-head" data-i18n="sv_src">Source</div>
+                <div class="sv-file sv-file-dragging">
+                  <span class="sv-file-icon">📄</span>
+                  <span class="sv-file-name">report.pdf</span>
+                </div>
+                <div class="sv-file"><span class="sv-file-icon">🖼️</span><span class="sv-file-name">cover.png</span></div>
+                <div class="sv-file"><span class="sv-file-icon">📊</span><span class="sv-file-name">data.xlsx</span></div>
+              </div>
+              <div class="sv-divider"></div>
+              <div class="sv-pane sv-pane-right">
+                <div class="sv-pane-head" data-i18n="sv_dst">Destination</div>
+                <div class="sv-file"><span class="sv-file-icon">📁</span><span class="sv-file-name">archive</span></div>
+                <div class="sv-file"><span class="sv-file-icon">📁</span><span class="sv-file-name">2026</span></div>
+              </div>
+            </div>
+            <!-- Floating Shelf — right edge, slides in from right -->
+            <div class="sv-shelf">
+              <div class="sv-shelf-head">
+                <span class="sv-shelf-icon">📌</span>
+                <span class="sv-shelf-label" data-i18n="shelf_label">Shelf</span>
+              </div>
+              <div class="sv-shelf-items">
+                <div class="sv-shelf-card"><span>🎨</span><span>logo.svg</span></div>
+                <div class="sv-shelf-card"><span>📝</span><span>draft.md</span></div>
+                <div class="sv-shelf-card sv-shelf-pop"><span>📄</span><span>report.pdf</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAGE 5: Theme -->
+    <section class="page" data-page="4">
+      <div class="page-content theme-page">
+        <h2 data-i18n="theme_title"></h2>
+        <p class="page-desc" data-i18n="theme_desc"></p>
+
+        <div class="theme-options">
+          <!-- SYSTEM: light frame (full) + dark frame (clipped diagonally to bottom-right) -->
+          <button class="theme-option" data-theme="system">
+            <div class="theme-preview">
+              <div class="tp-frame tp-frame-light">
+                <div class="tp-tabs"><span class="tp-tab tp-tab-on"></span><span class="tp-tab"></span><span class="tp-tab"></span></div>
+                <div class="tp-body">
+                  <div class="tp-side"><span class="tp-icon"></span><span class="tp-icon"></span><span class="tp-icon"></span><span class="tp-icon"></span></div>
+                  <div class="tp-main"><span class="tp-row"></span><span class="tp-row tp-row-sel"></span><span class="tp-row"></span><span class="tp-row"></span></div>
+                </div>
+              </div>
+              <div class="tp-frame tp-frame-dark tp-clip-br">
+                <div class="tp-tabs"><span class="tp-tab tp-tab-on"></span><span class="tp-tab"></span><span class="tp-tab"></span></div>
+                <div class="tp-body">
+                  <div class="tp-side"><span class="tp-icon"></span><span class="tp-icon"></span><span class="tp-icon"></span><span class="tp-icon"></span></div>
+                  <div class="tp-main"><span class="tp-row"></span><span class="tp-row tp-row-sel"></span><span class="tp-row"></span><span class="tp-row"></span></div>
+                </div>
+              </div>
+              <!-- diagonal seam highlight -->
+              <div class="tp-seam"></div>
+            </div>
+            <div class="theme-option-label" data-i18n="theme_system"></div>
+          </button>
+
+          <!-- LIGHT -->
+          <button class="theme-option" data-theme="light">
+            <div class="theme-preview">
+              <div class="tp-frame tp-frame-light">
+                <div class="tp-tabs"><span class="tp-tab tp-tab-on"></span><span class="tp-tab"></span><span class="tp-tab"></span></div>
+                <div class="tp-body">
+                  <div class="tp-side"><span class="tp-icon"></span><span class="tp-icon"></span><span class="tp-icon"></span><span class="tp-icon"></span></div>
+                  <div class="tp-main"><span class="tp-row"></span><span class="tp-row tp-row-sel"></span><span class="tp-row"></span><span class="tp-row"></span></div>
+                </div>
+              </div>
+            </div>
+            <div class="theme-option-label" data-i18n="theme_light"></div>
+          </button>
+
+          <!-- DARK -->
+          <button class="theme-option" data-theme="dark">
+            <div class="theme-preview">
+              <div class="tp-frame tp-frame-dark">
+                <div class="tp-tabs"><span class="tp-tab tp-tab-on"></span><span class="tp-tab"></span><span class="tp-tab"></span></div>
+                <div class="tp-body">
+                  <div class="tp-side"><span class="tp-icon"></span><span class="tp-icon"></span><span class="tp-icon"></span><span class="tp-icon"></span></div>
+                  <div class="tp-main"><span class="tp-row"></span><span class="tp-row tp-row-sel"></span><span class="tp-row"></span><span class="tp-row"></span></div>
+                </div>
+              </div>
+            </div>
+            <div class="theme-option-label" data-i18n="theme_dark"></div>
+          </button>
+        </div>
+        <p class="theme-hint" data-i18n="theme_hint"></p>
+      </div>
+    </section>
+
+    <!-- PAGE 6: Shortcuts + Default file manager + Get Started -->
+    <section class="page" data-page="5">
+      <div class="page-content shortcuts-page">
+        <h2 data-i18n="shortcuts_title"></h2>
+        <div class="shortcut-list" id="shortcutList"></div>
+
+        <!-- Default file manager toggle -->
+        <div class="dfm-card">
+          <div class="dfm-text">
+            <div class="dfm-title" data-i18n="dfm_title"></div>
+            <div class="dfm-desc" data-i18n="dfm_desc"></div>
+          </div>
+          <button class="dfm-toggle" id="dfmToggle" role="switch" aria-checked="false">
+            <span class="dfm-knob"></span>
+          </button>
+        </div>
+
+        <button class="start-btn" id="startBtn" data-i18n="shortcuts_start"></button>
+      </div>
+    </section>
+  </div>
+
+  <!-- Navigation -->
+  <div class="nav-bar">
+    <div class="dots" id="dots">
+      <span class="dot active" data-idx="0"></span>
+      <span class="dot" data-idx="1"></span>
+      <span class="dot" data-idx="2"></span>
+      <span class="dot" data-idx="3"></span>
+      <span class="dot" data-idx="4"></span>
+      <span class="dot" data-idx="5"></span>
+    </div>
+    <button class="next-btn" id="nextBtn" data-i18n="nav_next"></button>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

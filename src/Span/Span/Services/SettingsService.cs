@@ -414,6 +414,14 @@ public class SettingsService : ISettingsService
         set => Set("RatingCompleted", value);
     }
 
+    // ── Onboarding ──
+
+    public bool OnboardingCompleted
+    {
+        get => Get("OnboardingCompleted", false);
+        set => Set("OnboardingCompleted", value);
+    }
+
     // ── Command Palette ──
 
     /// <summary>

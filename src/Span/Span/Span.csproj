@@ -63,6 +63,13 @@
     </Content>
   </ItemGroup>
 
+  <!-- Onboarding assets — WebView2가 virtual host로 로드 -->
+  <ItemGroup>
+    <Content Include="Assets\Onboarding\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
   <ItemGroup>
     <Manifest Include="$(ApplicationManifest)" />
   </ItemGroup>

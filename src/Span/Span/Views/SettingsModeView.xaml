@@ -1838,6 +1838,28 @@
                                 </Grid>
                             </Border>
 
+                            <!-- 로그 폴더 열기 (트러블슈팅) -->
+                            <Border Style="{StaticResource SettingsCardBorder}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Style="{StaticResource CardIconContainer}">
+                                        <FontIcon Glyph="&#xE8DA;" Style="{StaticResource CardIconStyle}" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock x:Name="OpenLogsLabel" Text="로그 폴더 열기" Style="{StaticResource SettingsCardLabel}" />
+                                        <TextBlock x:Name="OpenLogsDesc" Text="Span 디버그 로그가 저장된 폴더를 엽니다. 문제 보고 시 첨부에 사용하세요." Style="{StaticResource SettingsCardDesc}" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                        <Button x:Name="CopyLogsPathBtn" Content="경로 복사" MinWidth="80" Click="OnCopyLogsPath" />
+                                        <Button x:Name="OpenLogsBtn" Content="열기" MinWidth="60" Click="OnOpenLogsFolder" Style="{StaticResource AccentButtonStyle}" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
                             <!-- 썸네일 격리 워커 (UseIsolatedThumbnails) — v1.3.10부터 기본 ON -->
                             <Border Style="{StaticResource SettingsCardBorder}">
                                 <Grid>
@@ -2133,6 +2155,32 @@
                                         </Button>
                                     </Grid>
                                 </StackPanel>
+                            </Border>
+
+                            <!-- Onboarding replay -->
+                            <Border Style="{StaticResource SettingsCardBorder}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Border Style="{StaticResource CardIconContainer}">
+                                            <FontIcon Glyph="&#xE946;" Style="{StaticResource CardIconStyle}" />
+                                        </Border>
+                                        <StackPanel Spacing="2" VerticalAlignment="Center">
+                                            <TextBlock x:Name="OnboardingReplayLabel" Text="온보딩 다시 보기" Style="{StaticResource SettingsCardLabel}" />
+                                            <TextBlock x:Name="OnboardingReplayDesc" Text="Span의 핵심 기능을 다시 소개받습니다." Style="{StaticResource SettingsCardDesc}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                    <Button x:Name="OnboardingReplayButton" Grid.Column="1" VerticalAlignment="Center"
+                                            Click="OnboardingReplay_Click" Padding="12,8" CornerRadius="6">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <FontIcon Glyph="&#xE7E8;" FontSize="14" />
+                                            <TextBlock x:Name="OnboardingReplayButtonText" Text="다시 보기" />
+                                        </StackPanel>
+                                    </Button>
+                                </Grid>
                             </Border>
 
                             <!-- Copyright -->

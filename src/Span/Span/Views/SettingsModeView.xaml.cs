@@ -834,6 +834,25 @@ public sealed partial class SettingsModeView : UserControl
         _isLoading = prev;
     }
 
+    // ── Onboarding replay ──
+
+    private void OnboardingReplay_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            // 플래그 초기화 — OnboardingWindow 완료 시 다시 true로 세팅됨
+            _settings.OnboardingCompleted = false;
+
+            var loc = _loc ?? App.Current.Services.GetRequiredService<LocalizationService>();
+            var onboarding = new Span.Views.OnboardingWindow(_settings, loc);
+            onboarding.Activate();
+        }
+        catch (Exception ex)
+        {
+            Helpers.DebugLogger.Log($"[Onboarding] Replay failed: {ex.Message}");
+        }
+    }
+
     // ── Update check animation ──
 
     private void CheckForUpdates_Click(object sender, RoutedEventArgs e)
@@ -1845,6 +1864,30 @@ public sealed partial class SettingsModeView : UserControl
     private async void OnSupportGitHubClick(object sender, RoutedEventArgs e)
     {
         try { await Windows.System.Launcher.LaunchUriAsync(new Uri("https://github.com/sponsors/LumiBearStudio")); } catch { }
+    }
+
+    private async void OnOpenLogsFolder(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var dir = Helpers.DebugLogger.GetLogsDirectory();
+            System.IO.Directory.CreateDirectory(dir);
+            var folder = await Windows.Storage.StorageFolder.GetFolderFromPathAsync(dir);
+            await Windows.System.Launcher.LaunchFolderAsync(folder);
+        }
+        catch (Exception ex) { Helpers.DebugLogger.Log($"[SettingsView] OnOpenLogsFolder failed: {ex.Message}"); }
+    }
+
+    private void OnCopyLogsPath(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var dir = Helpers.DebugLogger.GetLogsDirectory();
+            var pkg = new Windows.ApplicationModel.DataTransfer.DataPackage();
+            pkg.SetText(dir);
+            Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(pkg);
+        }
+        catch (Exception ex) { Helpers.DebugLogger.Log($"[SettingsView] OnCopyLogsPath failed: {ex.Message}"); }
     }
 
     private async void OnSupportCoffeeClick(object sender, RoutedEventArgs e)

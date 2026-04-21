@@ -103,6 +103,8 @@ namespace Span.Helpers
 
         public static string GetLogFilePath() => LogFilePath;
 
+        public static string GetLogsDirectory() => LogsDir;
+
         /// <summary>
         /// 현재 세션을 제외한 가장 최근 로그 파일 경로 반환.
         /// 비정상 종료 감지(Phase 0)에서 사용 — 마지막 줄에 [Shutdown] clean exit 마커가 있는지 검사.
