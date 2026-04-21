@@ -167,18 +167,46 @@ namespace Span.Helpers
         /// Flush pending log entries. Call on app shutdown.
         /// 정상 종료 마커([Shutdown] clean exit)를 기록하여 다음 시작 시
         /// 비정상 종료 여부를 판별할 수 있게 한다 (Phase 0).
+        ///
+        /// 핵심: ConsumeLogsAsync가 StreamWriter(append: true, FileShare.Read)로 파일을
+        /// 잠시 잡고 있는 순간 File.AppendAllText(기본 FileShare.Read)가 IOException으로
+        /// 실패 → catch에 삼켜져 마커 누락 → 다음 실행 post-mortem 오탐. 이를 피하려고
+        /// FileShare.ReadWrite + 짧은 retry로 경합에 강하게 작성한다.
         /// </summary>
         public static void Shutdown()
         {
-            try
-            {
-                // 동기 마커 기록 — 채널 종료 전 직접 파일에 기록해야 누락 방지
-                var timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
-                File.AppendAllText(LogFilePath, $"[{timestamp}] [Shutdown] clean exit\n");
-            }
-            catch { /* 종료 직전 — 실패해도 진행 */ }
+            // 먼저 채널을 닫아 consumer가 남은 메시지를 drain 후 종료하도록 유도
+            try { _channel.Writer.TryComplete(); } catch { }
 
-            _channel.Writer.TryComplete();
+            var timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
+            var marker = $"[{timestamp}] [Shutdown] clean exit\n";
+            var bytes = System.Text.Encoding.UTF8.GetBytes(marker);
+
+            // FileShare.ReadWrite로 오픈해 consumer StreamWriter와 공존 가능.
+            // 드물게 OS 레벨 경합이 있어도 10ms 간격 최대 10회 재시도 (약 100ms 이내 성공).
+            for (int attempt = 0; attempt < 10; attempt++)
+            {
+                try
+                {
+                    using var fs = new FileStream(
+                        LogFilePath,
+                        FileMode.Append,
+                        FileAccess.Write,
+                        FileShare.ReadWrite);
+                    fs.Write(bytes, 0, bytes.Length);
+                    fs.Flush(true);  // OS 버퍼까지 flush — Process.Kill 전 확정
+                    return;
+                }
+                catch (IOException)
+                {
+                    try { System.Threading.Thread.Sleep(10); } catch { }
+                }
+                catch
+                {
+                    // 다른 예외(ACL/디스크 등)는 종료 직전이므로 포기
+                    return;
+                }
+            }
         }
 
         /// <summary>
