@@ -413,7 +413,7 @@ namespace Span
             //   → 스택트레이스 없거나, WinUI/WinRT 내부 프레임만 있는 경우 모두 포함
             bool isXamlRenderingNoise =
                 (e.Exception is ArgumentException && e.Exception.HResult == unchecked((int)0x80070057)
-                    && string.IsNullOrEmpty(e.Exception.StackTrace))
+                    && IsWinUIInternalOnly(e.Exception))
                 || (e.Exception is System.Runtime.InteropServices.COMException && e.Exception.HResult == unchecked((int)0x80004005)
                     && IsWinUIInternalOnly(e.Exception))
                 || (e.Exception is System.Runtime.InteropServices.COMException && e.Exception.HResult == unchecked((int)0x80070490)
