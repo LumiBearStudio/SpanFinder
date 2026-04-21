@@ -346,24 +346,51 @@ namespace Span.ViewModels
                 if (uri == null) return false;
                 if (!_thumbnailLoading || ct.IsCancellationRequested) return true;  // true 반환해도 OK — 폴백 안 함
 
-                var bitmap = new BitmapImage();
-                bitmap.DecodePixelWidth = decodePixelWidth;
-                bitmap.DecodePixelType = DecodePixelType.Logical;
-
-                // 회귀-ImageFailed: 디코딩 실패 시 silent breakage 방지
-                // (cache 파일이 사용자에 의해 삭제되거나 PNG가 손상된 케이스)
-                bitmap.ImageFailed += (s, args) =>
+                // v1.4.3: 이슈 #23 회귀 대응 — BitmapImage 대신 SoftwareBitmapSource(IDisposable) 사용.
+                // 기존 BitmapImage는 UnloadThumbnail의 DeferDispose 분기를 못 타서 파이널라이저 큐 적체 →
+                // D3D/DirectComposition surface 누적 → STATUS_STOWED_EXCEPTION.
+                // PNG 캐시는 워커가 이미 정제한 소형 파일이라 메인 디코드 안전 (원본 비디오/대형 이미지 아님).
+                SoftwareBitmap? softwareBitmap = null;
+                try
                 {
-                    Helpers.DebugLogger.Log($"[Thumbnail] Isolated path ImageFailed for {Name}: {args.ErrorMessage}");
-                    // 다음 visible-trigger에서 재시도 가능하게 플래그 되돌림
+                    softwareBitmap = await Task.Run(async () =>
+                    {
+                        if (ct.IsCancellationRequested) return null;
+                        using var fileStream = new System.IO.FileStream(
+                            uri.LocalPath, System.IO.FileMode.Open, System.IO.FileAccess.Read,
+                            System.IO.FileShare.Read);
+                        using var ras = fileStream.AsRandomAccessStream();
+                        var decoder = await BitmapDecoder.CreateAsync(ras);
+                        if (ct.IsCancellationRequested) return null;
+                        return await decoder.GetSoftwareBitmapAsync(
+                            BitmapPixelFormat.Bgra8, BitmapAlphaMode.Premultiplied);
+                    });
+                }
+                catch (Exception ex)
+                {
+                    // cache 파일 손상/삭제 등 — 다음 visible-trigger에 재시도
+                    Helpers.DebugLogger.Log($"[Thumbnail] Isolated PNG decode failed for {Name}: {ex.Message}");
                     _thumbnailLoaded = false;
-                };
+                    return true;  // 격리 시도는 했음 → 인프로세스 폴백 안 함
+                }
 
-                bitmap.UriSource = uri;
+                if (softwareBitmap == null || !_thumbnailLoading || ct.IsCancellationRequested)
+                {
+                    softwareBitmap?.Dispose();
+                    return true;
+                }
 
-                if (!_thumbnailLoading || ct.IsCancellationRequested) return true;
+                var source = new SoftwareBitmapSource();
+                await source.SetBitmapAsync(softwareBitmap);
+                softwareBitmap.Dispose();
 
-                ThumbnailSource = bitmap;
+                if (!_thumbnailLoading || ct.IsCancellationRequested)
+                {
+                    source.Dispose();
+                    return true;
+                }
+
+                ThumbnailSource = source;
                 _thumbnailLoaded = true;
                 return true;
             }
@@ -407,30 +434,46 @@ namespace Span.ViewModels
                     await Task.Yield();
                     if (!_thumbnailLoading || ct.IsCancellationRequested) return;
 
-                    var bitmap = new BitmapImage();
-                    bitmap.DecodePixelWidth = decodePixelWidth;
-                    bitmap.DecodePixelType = DecodePixelType.Logical;
-                    bitmap.ImageFailed += (s, args) =>
+                    // v1.4.3: 이슈 #23 회귀 대응 — BitmapImage 대신 SoftwareBitmapSource 사용.
+                    // 격리 경로와 동일한 이유: IDisposable 체인으로 DeferDispose 방어선 복원.
+                    Helpers.DebugLogger.Log($"[Thumbnail] Shell Decode START: {Name}");
+                    SoftwareBitmap? softwareBitmap;
+                    try
                     {
-                        var msg = args.ErrorMessage;
-                        Helpers.DebugLogger.Log($"[Thumbnail] ImageFailed.Shell({Name}): {msg}");
-                        if (msg != null && (msg.Contains("NETWORK") || msg.Contains("0x80072") || msg.Contains("0x80070005")))
-                            return;
-                        var ex = msg != null ? new InvalidOperationException(msg) : null;
-                        if (ex != null)
-                        {
-                            try { (App.Current.Services.GetService(typeof(Services.CrashReportingService)) as Services.CrashReportingService)?.CaptureException(ex, $"BitmapImage.ImageFailed.Shell({Name})"); } catch { }
-                        }
-                    };
+                        var decoder = await BitmapDecoder.CreateAsync(thumbnail).AsTask(ct);
+                        if (!_thumbnailLoading || ct.IsCancellationRequested) return;
+                        softwareBitmap = await decoder.GetSoftwareBitmapAsync(
+                            BitmapPixelFormat.Bgra8, BitmapAlphaMode.Premultiplied).AsTask(ct);
+                    }
+                    catch (OperationCanceledException) { return; }
+                    catch (Exception ex)
+                    {
+                        var msg = ex.Message ?? "";
+                        Helpers.DebugLogger.Log($"[Thumbnail] Shell decode failed({Name}): {msg}");
+                        // 네트워크/권한 에러는 Sentry 필터링 (기존 ImageFailed 필터와 동일 정책)
+                        if (msg.Contains("NETWORK") || msg.Contains("0x80072") || msg.Contains("0x80070005")) return;
+                        try { (App.Current.Services.GetService(typeof(Services.CrashReportingService)) as Services.CrashReportingService)?.CaptureException(ex, $"Shell.Decode({Name})"); } catch { }
+                        return;
+                    }
+                    Helpers.DebugLogger.Log($"[Thumbnail] Shell Decode OK: {Name}");
 
-                    Helpers.DebugLogger.Log($"[Thumbnail] Shell SetSourceAsync START: {Name}");
-                    await bitmap.SetSourceAsync(thumbnail).AsTask(ct);
-                    Helpers.DebugLogger.Log($"[Thumbnail] Shell SetSourceAsync OK: {Name}");
+                    if (!_thumbnailLoading || ct.IsCancellationRequested)
+                    {
+                        softwareBitmap.Dispose();
+                        return;
+                    }
 
-                    // 비동기 디코드 후 취소 여부 재확인
-                    if (!_thumbnailLoading || ct.IsCancellationRequested) return;
+                    var source = new SoftwareBitmapSource();
+                    await source.SetBitmapAsync(softwareBitmap);
+                    softwareBitmap.Dispose();
 
-                    ThumbnailSource = bitmap;
+                    if (!_thumbnailLoading || ct.IsCancellationRequested)
+                    {
+                        source.Dispose();
+                        return;
+                    }
+
+                    ThumbnailSource = source;
                     _thumbnailLoaded = true;
                 }
             }
@@ -459,7 +502,12 @@ namespace Span.ViewModels
             // ThumbnailSource = null 직후 Dispose하면 아직 사용 중인 D3D surface를 해제할 수 있음.
             // Low 우선순위 큐잉으로 Normal(렌더링) 작업 완료 후 Close → 안전하게 D3D 리소스 회수.
             // GC finalizer에만 의존하면 finalization 큐 적체(3790+) → D3D 고갈 → 크래시.
-            if (old is IDisposable disposable)
+            //
+            // v1.4.3: 이슈 #23 회귀 대응 — GIF 경로의 BitmapImage도 UriSource=null로 내부 참조 즉시 끊음.
+            // BitmapImage는 IDisposable이 아니지만 UriSource 해제로 composition surface GC 가능 상태 전환.
+            if (old is BitmapImage bi)
+                bi.UriSource = null;
+            else if (old is IDisposable disposable)
                 DeferDispose(disposable);
         }
 
