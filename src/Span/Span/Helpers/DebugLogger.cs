@@ -24,10 +24,22 @@ namespace Span.Helpers
 
         private static string InitLogsDir()
         {
-            // MSIX 패키지 앱은 AppContext.BaseDirectory(Program Files\WindowsApps)가 읽기 전용.
-            // LocalApplicationData로 변경하여 Store 배포에서도 로그 파일 생성 보장.
-            var baseDir = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            var dir = Path.Combine(baseDir, "Span", "Logs");
+            // MSIX Packaged: ApplicationData.Current.LocalFolder.Path 가 실제 packaged LocalState 경로를 반환.
+            //   예: C:\Users\{user}\AppData\Local\Packages\LumiBearStudio.SPANFinder_*\LocalState\Logs
+            // Environment.SpecialFolder.LocalApplicationData는 virtualize되지 않은 논리 경로를 주므로
+            //   탐색기로 열었을 때 "없는 폴더"로 보이는 문제 발생 → Packaged API 우선.
+            string dir;
+            try
+            {
+                var localState = Windows.Storage.ApplicationData.Current.LocalFolder.Path;
+                dir = Path.Combine(localState, "Logs");
+            }
+            catch
+            {
+                // UnPackaged fallback (개발 실행 등)
+                var baseDir = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                dir = Path.Combine(baseDir, "Span", "Logs");
+            }
             try { Directory.CreateDirectory(dir); } catch { }
             return dir;
         }
