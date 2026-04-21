@@ -840,9 +840,10 @@ public sealed partial class SettingsModeView : UserControl
     {
         try
         {
-            // 플래그 초기화 — OnboardingWindow 완료 시 다시 true로 세팅됨
-            _settings.OnboardingCompleted = false;
-
+            // 주의: 여기서 OnboardingCompleted=false로 리셋하지 않음.
+            //   창을 띄운 직후 사용자가 앱을 강제 종료하면 CompleteOnboarding()이 안 불려
+            //   플래그가 false로 남아 다음 실행 시 첫 실행으로 오인됨.
+            //   OnboardingWindow는 플래그 값을 보지 않으니 그냥 띄우기만 하면 충분 (true 유지).
             var loc = _loc ?? App.Current.Services.GetRequiredService<LocalizationService>();
             var onboarding = new Span.Views.OnboardingWindow(_settings, loc);
             onboarding.Activate();
