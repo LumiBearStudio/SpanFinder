@@ -4783,7 +4783,7 @@ namespace Span
             var signature = string.Join("|",
                 highlightMap.OrderBy(kv => kv.Key)
                             .Select(kv => $"{kv.Key}={(kv.Value == null ? "null" : kv.Value.GetHashCode().ToString())}"));
-            if (_lastPathIndicatorSignature.TryGetValue(paneLabel, out var prev) && prev == signature)
+            if (_lastPathIndicatorSignature.TryGetValue(paneLabel, out var prevSig) && prevSig == signature)
             {
                 // 중복 호출 — 스킵 (native visual tree 접근 race surface 축소)
                 return;
