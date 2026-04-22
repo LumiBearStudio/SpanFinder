@@ -995,7 +995,12 @@ namespace Span.ViewModels
                     folder.LoadError -= OnColumnLoadError;
                     folder.PropertyChanged += FolderVm_PropertyChanged;
                     folder.LoadError += OnColumnLoadError;
-                    Columns[nextIndex] = folder;
+
+                    // v1.4.3: 이슈 #23 버그 B 수정 — HandleFolderSelectionAsync와 동일 패턴.
+                    // Replace → Remove+Yield+Insert로 WinUI virtualizer race 방지.
+                    Columns.RemoveAt(nextIndex);
+                    await Task.Yield();
+                    Columns.Insert(nextIndex, folder);
                 }
                 else
                 {
@@ -1434,20 +1439,18 @@ namespace Span.ViewModels
             _selectionDebounce = new CancellationTokenSource();
             var token = _selectionDebounce.Token;
 
-            // Debounce: large cached folders get short delay to avoid UI stutter during rapid keyboard navigation.
-            // Small/uncached folders get full debounce to wait for disk I/O.
-            int debounceMs = selectedFolder.IsAlreadyLoaded
-                ? (selectedFolder.TotalChildCount > 2000 ? 50 : 0)
-                : SelectionDebounceMs;
-            if (debounceMs > 0)
+            // v1.4.3: 이슈 #23 버그 B 수정 — debounce를 SelectionDebounceMs(150ms)로 통일.
+            // 이전 로직: IsAlreadyLoaded + <2000 items면 debounceMs=0 → 즉시 Column Replace.
+            // 빠른 Miller column 반복 전환 시 WinUI ItemsControl virtualizer가 이전 ListView
+            // tear-down 완료 전에 새 ListView 생성 → Microsoft.UI.Xaml.dll 내부 STATUS_STOWED_EXCEPTION.
+            // 150ms debounce로 race surface 대폭 축소 (사용자 체감 지연 최소, OS 탐색기와 유사).
+            int debounceMs = SelectionDebounceMs;
+            try
             {
-                try
-                {
-                    await Task.Delay(debounceMs, token);
-                }
-                catch (OperationCanceledException) { return; }
-                if (token.IsCancellationRequested) return;
+                await Task.Delay(debounceMs, token);
             }
+            catch (OperationCanceledException) { return; }
+            if (token.IsCancellationRequested) return;
 
             try
             {
@@ -1475,7 +1478,17 @@ namespace Span.ViewModels
                     selectedFolder.LoadError -= OnColumnLoadError;
                     selectedFolder.PropertyChanged += FolderVm_PropertyChanged;
                     selectedFolder.LoadError += OnColumnLoadError;
-                    Columns[nextIndex] = selectedFolder;
+
+                    // v1.4.3: 이슈 #23 버그 B 수정 — ObservableCollection Replace 대신 Remove+Yield+Insert.
+                    // Replace notification은 WinUI ItemsControl에서 ListView tear-down/build-up을
+                    // 한 프레임 안에 강제 → virtualizer race → Microsoft.UI.Xaml.dll native 크래시.
+                    // Remove 후 Yield로 composition thread 처리 기회 제공, 그 뒤 Insert.
+                    Columns.RemoveAt(nextIndex);
+                    await Task.Yield();
+                    if (token.IsCancellationRequested) return;
+                    if (Columns.IndexOf(parentFolder) != parentIndex) return;
+                    if (parentFolder.SelectedChild != selectedFolder) return;
+                    Columns.Insert(nextIndex, selectedFolder);
                 }
                 else
                 {
