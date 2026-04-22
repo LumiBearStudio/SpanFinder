@@ -213,40 +213,6 @@ namespace Span.ViewModels
         }
 
         /// <summary>
-        /// Animated GIF용 BitmapImage fallback.
-        /// BitmapDecoder는 첫 프레임만 디코딩하므로, GIF는 BitmapImage로 애니메이션 유지.
-        /// </summary>
-        private async Task LoadBitmapImageFallbackAsync(string filePath, int decodePixelWidth, CancellationTokenSource cts)
-        {
-            try
-            {
-                byte[]? fileBytes = await Task.Run(() =>
-                {
-                    var fi = new FileInfo(filePath);
-                    if (fi.Length > 10 * 1024 * 1024) return null;
-                    return File.ReadAllBytes(filePath);
-                });
-                if (fileBytes == null || !_thumbnailLoading || cts.IsCancellationRequested) return;
-
-                await Task.Yield(); // UI 스레드 양보
-                if (!_thumbnailLoading || cts.IsCancellationRequested) return;
-
-                var bitmap = new BitmapImage { DecodePixelWidth = decodePixelWidth, DecodePixelType = DecodePixelType.Logical };
-                using var memStream = new MemoryStream(fileBytes);
-                await bitmap.SetSourceAsync(memStream.AsRandomAccessStream()).AsTask(cts.Token);
-
-                if (!_thumbnailLoading || cts.IsCancellationRequested) return;
-                ThumbnailSource = bitmap;
-                _thumbnailLoaded = true;
-            }
-            catch (OperationCanceledException) { }
-            catch (Exception ex)
-            {
-                Helpers.DebugLogger.Log($"[FileViewModel] GIF fallback failed for {Name}: {ex.Message}");
-            }
-        }
-
-        /// <summary>
         /// Phase 1 — 격리 워커 경로로 썸네일 로딩 시도.
         /// 성공: BitmapImage(file://cache.png) 설정 후 true 반환.
         /// 실패/비활성화: false 반환 → 호출자가 인프로세스 경로 폴백.
@@ -261,9 +227,8 @@ namespace Span.ViewModels
                 var settings = App.Current.Services.GetService(typeof(Services.SettingsService)) as Services.SettingsService;
                 if (settings == null || !settings.UseIsolatedThumbnails) return false;
 
-                // 회귀-GIF: 격리 경로는 PNG 첫 프레임만 굽기 → 애니메이션 멈춤.
-                // 인프로세스 LoadBitmapImageFallbackAsync가 BitmapImage로 GIF 애니메이션 유지하므로
-                // .gif는 즉시 인프로세스 폴백 강제.
+                // GIF: 격리 경로는 PNG 첫 프레임만 굽기 → 애니메이션 멈춤.
+                // 인프로세스 BitmapImage 경로가 GIF 애니메이션 유지하므로 .gif는 인프로세스 폴백 강제.
                 var ext = System.IO.Path.GetExtension(filePath);
                 if (string.Equals(ext, ".gif", StringComparison.OrdinalIgnoreCase)) return false;
 
