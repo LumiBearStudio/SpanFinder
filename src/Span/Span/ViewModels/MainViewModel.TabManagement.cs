@@ -196,30 +196,19 @@ namespace Span.ViewModels
         }
 
         /// <summary>
-        /// Close a tab by index. If it's the last tab, resets to a new Home tab.
+        /// Close a tab by index. If it's the last tab, fires LastTabClosed so the window can close.
         /// </summary>
         public event EventHandler? LastTabClosed;
 
         public void CloseTab(int index)
         {
-            Helpers.DebugLogger.Log($"[CloseTab] index={index}, Tabs.Count={Tabs.Count}, CurrentViewMode={CurrentViewMode}, _viewModeBeforeHome={_viewModeBeforeHome}, _lastClosedViewMode={_lastClosedViewMode}");
+            Helpers.DebugLogger.Log($"[CloseTab] index={index}, Tabs.Count={Tabs.Count}, CurrentViewMode={CurrentViewMode}");
             if (Tabs.Count <= 1)
             {
-                // 마지막 탭 닫기 전에 현재 ViewMode 저장 (새로 생성되는 Home 탭에서 드라이브 클릭 시 복원용).
-                // Home 상태에서 닫는 경우: Home 전환 전에 저장해둔 _viewModeBeforeHome을 사용
-                //   (예: Details 모드 → Home 전환 → 탭 닫기 → 새 탭에서 드라이브 클릭 시 Details 복원)
-                // 탐색기 상태에서 닫는 경우: 현재 ViewMode를 그대로 사용
-                _lastClosedViewMode = (CurrentViewMode == ViewMode.Home)
-                    ? _viewModeBeforeHome
-                    : CurrentViewMode;
-                Helpers.DebugLogger.Log($"[CloseTab] SAVED _lastClosedViewMode={_lastClosedViewMode}");
-
-                // Last tab — reset to Home tab instead of closing window
+                // Last tab — cleanup and signal window close (matches browser/Explorer behavior)
                 Tabs[0].Explorer?.Cleanup();
-                Tabs.RemoveAt(0);
-                _activeTabIndex = -1;
-                AddNewTab();
-                Helpers.DebugLogger.Log("[MainViewModel] Last tab closed — reset to Home");
+                LastTabClosed?.Invoke(this, EventArgs.Empty);
+                Helpers.DebugLogger.Log("[MainViewModel] Last tab closed — signaling window close");
                 return;
             }
             if (index < 0 || index >= Tabs.Count) return;
