@@ -12,7 +12,15 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWindowsForms>false</UseWindowsForms>
     <UseWPF>false</UseWPF>
-    <!-- 메인 앱이 같은 폴더에 self-contained로 배포 → 워커는 deps 공유 (디스크 절약) -->
+    <!-- v1.4.5: 이슈 #23 최종 수정 — Span.Thumbs를 self-contained로 전환.
+         이전엔 framework-dependent(WindowsAppSDKSelfContained=false)로 빌드되어
+         MSIX 설치 후 워커가 .NET 런타임을 못 찾고 즉사 → 무한 spawn 재시도 →
+         Process/Pipe 객체가 파이널라이저 큐에 수천 개 적체 → D3D 회수 지연 →
+         WinUI composition STATUS_STOWED_EXCEPTION 크래시 (이슈 #23 근본 원인).
+         self-contained로 .NET 런타임 포함 → 패키지 크기 +30MB, 격리 기능 정상 작동. -->
+    <SelfContained>true</SelfContained>
+    <PublishSelfContained>true</PublishSelfContained>
+    <!-- WinAppSDK만 deps 공유 (메인과 같은 폴더) — .NET core 런타임은 self-contained -->
     <WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained>
     <!-- Worker는 console 동작 — UI 없음 -->
     <DisableWinExeOutputInference>true</DisableWinExeOutputInference>

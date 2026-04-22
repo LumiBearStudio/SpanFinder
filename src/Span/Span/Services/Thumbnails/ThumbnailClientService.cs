@@ -27,7 +27,12 @@ public sealed class ThumbnailClientService : IDisposable
 {
     private const int PoolSize = 2;
     private const int FolderFailureThreshold = 3;       // 같은 폴더 N회 실패 시 해당 폴더 인프로세스 폴백
-    private const int SessionFailureThreshold = 20;     // 누적 실패 N회 → 세션 동안 영구 비활성
+    // v1.4.5: 이슈 #23 최종 수정 — threshold 20→3으로 대폭 축소.
+    // .NET 런타임 누락 같은 영구적 실패는 재시도해도 절대 성공 불가 →
+    // 매 spawn마다 Process/Pipe/Stream 객체 수백 개가 파이널라이저 큐로 적체 →
+    // D3D surface 회수 지연 → WinUI composition 크래시 (STATUS_STOWED_EXCEPTION).
+    // 3회면 충분히 환경 문제임을 확정할 수 있음.
+    private const int SessionFailureThreshold = 3;     // 누적 실패 N회 → 세션 동안 영구 비활성
 
     private readonly object _lock = new();
     private readonly ThumbnailDiskCache _cache = new();

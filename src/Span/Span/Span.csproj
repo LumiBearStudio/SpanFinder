@@ -15,9 +15,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
     <!-- Sentry release 정확도 — Package.appxmanifest와 동기화 필요 (수동) -->
-    <Version>1.4.4</Version>
-    <AssemblyVersion>1.4.4.0</AssemblyVersion>
-    <FileVersion>1.4.4.0</FileVersion>
+    <Version>1.4.5</Version>
+    <AssemblyVersion>1.4.5.0</AssemblyVersion>
+    <FileVersion>1.4.5.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -87,39 +87,32 @@
     </ProjectReference>
   </ItemGroup>
 
-  <!-- v1.4.3: 이슈 #23 추가 수정 — Span.Thumbs.* 를 MSIX 패키지에 실제로 포함.
-       기존 CopyThumbsWorker는 두 가지 버그가 있었음:
-         1) $(TargetFramework) 변수가 Span의 TF(17763)를 참조 → 실제 파일(19041) 경로 불일치로 Copy가 silent skip
-         2) Copy만으로는 MSIX 패키저가 파일 인식 안 함 → Content/PackagingOutputs 아이템 등록 필요
-       수정: Content 아이템을 동적으로 추가 (Span.Thumbs TF는 19041로 명시).
-       BeforeTargets: AssignTargetPaths / GetCopyToOutputDirectoryItems 전에 Content 등록되어야 함. -->
+  <!-- v1.4.5: 이슈 #23 최종 수정 — Span.Thumbs self-contained 전체를 MSIX 패키지 포함.
+       이전 (v1.4.3/4): Span.Thumbs.* 4개 파일만 복사 → framework-dependent라 .NET 런타임 없어 spawn 즉사 →
+                      파이널라이저 큐 적체 → D3D 크래시.
+       수정 (v1.4.5): Span.Thumbs를 self-contained(런타임 포함)로 빌드하고, 전체 폴더(227개)를
+                    'Span.Thumbs/' 서브디렉토리로 패키징. ThumbnailClientService가 baseDir/Span.Thumbs/ 경로
+                    자동 탐색(line 70-71)하므로 코드 변경 없이 서브폴더 배치 가능.
+                    메인 앱 DLL과 네임 충돌 없음 (격리된 서브디렉토리).
+
+       경로: net8.0-windows10.0.19041.0/win-$(platform)/ (self-contained는 RID 서브폴더에 생성됨).
+       .pdb는 패키지 크기 절감 차원에서 제외. -->
   <Target Name="IncludeThumbsInPackage"
           BeforeTargets="AssignTargetPaths;GetCopyToOutputDirectoryItems"
           DependsOnTargets="ResolveProjectReferences">
     <PropertyGroup>
-      <_ThumbsBinDir>$(MSBuildThisFileDirectory)..\Span.Thumbs\bin\$(Platform)\$(Configuration)\net8.0-windows10.0.19041.0\</_ThumbsBinDir>
+      <_ThumbsRid Condition="'$(Platform)' == 'x64'">win-x64</_ThumbsRid>
+      <_ThumbsRid Condition="'$(Platform)' == 'x86'">win-x86</_ThumbsRid>
+      <_ThumbsRid Condition="'$(Platform)' == 'ARM64'">win-arm64</_ThumbsRid>
+      <_ThumbsBinDir>$(MSBuildThisFileDirectory)..\Span.Thumbs\bin\$(Platform)\$(Configuration)\net8.0-windows10.0.19041.0\$(_ThumbsRid)\</_ThumbsBinDir>
     </PropertyGroup>
-    <ItemGroup>
-      <Content Include="$(_ThumbsBinDir)Span.Thumbs.exe"
-               Link="Span.Thumbs.exe"
+    <ItemGroup Condition="Exists('$(_ThumbsBinDir)Span.Thumbs.exe')">
+      <!-- Span.Thumbs self-contained 전체를 'Span.Thumbs/' 서브디렉토리로 포함 (pdb 제외) -->
+      <_ThumbsAllFiles Include="$(_ThumbsBinDir)**\*.*" Exclude="$(_ThumbsBinDir)**\*.pdb" />
+      <Content Include="@(_ThumbsAllFiles)"
+               Link="Span.Thumbs\%(RecursiveDir)%(Filename)%(Extension)"
                CopyToOutputDirectory="Always"
-               Visible="false"
-               Condition="Exists('$(_ThumbsBinDir)Span.Thumbs.exe')" />
-      <Content Include="$(_ThumbsBinDir)Span.Thumbs.dll"
-               Link="Span.Thumbs.dll"
-               CopyToOutputDirectory="Always"
-               Visible="false"
-               Condition="Exists('$(_ThumbsBinDir)Span.Thumbs.dll')" />
-      <Content Include="$(_ThumbsBinDir)Span.Thumbs.deps.json"
-               Link="Span.Thumbs.deps.json"
-               CopyToOutputDirectory="Always"
-               Visible="false"
-               Condition="Exists('$(_ThumbsBinDir)Span.Thumbs.deps.json')" />
-      <Content Include="$(_ThumbsBinDir)Span.Thumbs.runtimeconfig.json"
-               Link="Span.Thumbs.runtimeconfig.json"
-               CopyToOutputDirectory="Always"
-               Visible="false"
-               Condition="Exists('$(_ThumbsBinDir)Span.Thumbs.runtimeconfig.json')" />
+               Visible="false" />
     </ItemGroup>
   </Target>
 

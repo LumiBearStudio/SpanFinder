@@ -80,6 +80,20 @@ internal sealed class WorkerProcess : IDisposable
                 return false;
             }
 
+            // v1.4.5: 이슈 #23 수정 — 프로세스 즉사 감지 (.NET 런타임 누락 등).
+            // 기존엔 pipe connect 5초 타임아웃까지 기다려야 실패 감지 → 그 동안 finalizer 누적.
+            // 100ms 짧은 대기 후 HasExited 체크 → 대부분의 apphost 실패는 이 안에 발생.
+            try { await Task.Delay(100, ct).ConfigureAwait(false); }
+            catch (OperationCanceledException) { SafeKill(); return false; }
+            if (_process.HasExited)
+            {
+                int exitCode = 0;
+                try { exitCode = _process.ExitCode; } catch { }
+                DebugLogger.Log($"[WorkerProcess#{_workerId}] Process exited immediately (exitCode=0x{exitCode:X8}) — likely .NET runtime missing or apphost failure");
+                SafeKill();
+                return false;
+            }
+
             // JobObject 등록 — 메인 종료 시 워커도 자동 종료 (orphan 방지)
             // C-LK2: 실패 시 abort — orphan 워커 위험 차단 (메인 강제종료 시 워커 30초 살아남음)
             // I7: _jobObject가 null이면 ClientService에서 _disabled로 차단됐을 것이지만 방어
