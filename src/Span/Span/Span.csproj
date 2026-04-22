@@ -77,8 +77,7 @@
   <ItemGroup Condition="'$(DisableMsixProjectCapabilityAddedByProject)'!='true' and '$(EnableMsixTooling)'=='true'">
     <ProjectCapability Include="Msix" />
   </ItemGroup>
-  <!-- Phase 1: 썸네일 격리 워커 — 빌드 의존성만 ProjectReference로,
-       출력 복사는 별도 target(CopyThumbsWorker)이 처리 -->
+  <!-- Phase 1: 썸네일 격리 워커 — 빌드 의존성 + MSIX 패키지 포함 -->
   <ItemGroup>
     <ProjectReference Include="..\Span.Thumbs\Span.Thumbs.csproj">
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
@@ -88,34 +87,40 @@
     </ProjectReference>
   </ItemGroup>
 
-  <!-- 워커 .exe + .dll + 메타 파일을 메인 출력 폴더 + AppX staging 폴더 둘 다 복사.
-       MSIX 실행 시 메인은 AppX/ 하위에서 실행되므로 워커도 같은 위치에 있어야 함.
-       (이전 PackagingOutputs 등록은 DEP1000 상대경로 오해석으로 제거 — Content 방식으로 대체) -->
-  <Target Name="CopyThumbsWorker"
-          AfterTargets="Build"
+  <!-- v1.4.3: 이슈 #23 추가 수정 — Span.Thumbs.* 를 MSIX 패키지에 실제로 포함.
+       기존 CopyThumbsWorker는 두 가지 버그가 있었음:
+         1) $(TargetFramework) 변수가 Span의 TF(17763)를 참조 → 실제 파일(19041) 경로 불일치로 Copy가 silent skip
+         2) Copy만으로는 MSIX 패키저가 파일 인식 안 함 → Content/PackagingOutputs 아이템 등록 필요
+       수정: Content 아이템을 동적으로 추가 (Span.Thumbs TF는 19041로 명시).
+       BeforeTargets: AssignTargetPaths / GetCopyToOutputDirectoryItems 전에 Content 등록되어야 함. -->
+  <Target Name="IncludeThumbsInPackage"
+          BeforeTargets="AssignTargetPaths;GetCopyToOutputDirectoryItems"
           DependsOnTargets="ResolveProjectReferences">
     <PropertyGroup>
-      <_ThumbsBinDir>$(MSBuildThisFileDirectory)..\Span.Thumbs\bin\$(Platform)\$(Configuration)\$(TargetFramework)\</_ThumbsBinDir>
-      <_AppXDir>$(OutDir)AppX\</_AppXDir>
+      <_ThumbsBinDir>$(MSBuildThisFileDirectory)..\Span.Thumbs\bin\$(Platform)\$(Configuration)\net8.0-windows10.0.19041.0\</_ThumbsBinDir>
     </PropertyGroup>
     <ItemGroup>
-      <_ThumbsFiles Include="$(_ThumbsBinDir)Span.Thumbs.exe" />
-      <_ThumbsFiles Include="$(_ThumbsBinDir)Span.Thumbs.dll" />
-      <_ThumbsFiles Include="$(_ThumbsBinDir)Span.Thumbs.deps.json" />
-      <_ThumbsFiles Include="$(_ThumbsBinDir)Span.Thumbs.runtimeconfig.json" />
-      <_ThumbsFiles Include="$(_ThumbsBinDir)Span.Thumbs.pdb" Condition="'$(Configuration)' == 'Debug'" />
+      <Content Include="$(_ThumbsBinDir)Span.Thumbs.exe"
+               Link="Span.Thumbs.exe"
+               CopyToOutputDirectory="Always"
+               Visible="false"
+               Condition="Exists('$(_ThumbsBinDir)Span.Thumbs.exe')" />
+      <Content Include="$(_ThumbsBinDir)Span.Thumbs.dll"
+               Link="Span.Thumbs.dll"
+               CopyToOutputDirectory="Always"
+               Visible="false"
+               Condition="Exists('$(_ThumbsBinDir)Span.Thumbs.dll')" />
+      <Content Include="$(_ThumbsBinDir)Span.Thumbs.deps.json"
+               Link="Span.Thumbs.deps.json"
+               CopyToOutputDirectory="Always"
+               Visible="false"
+               Condition="Exists('$(_ThumbsBinDir)Span.Thumbs.deps.json')" />
+      <Content Include="$(_ThumbsBinDir)Span.Thumbs.runtimeconfig.json"
+               Link="Span.Thumbs.runtimeconfig.json"
+               CopyToOutputDirectory="Always"
+               Visible="false"
+               Condition="Exists('$(_ThumbsBinDir)Span.Thumbs.runtimeconfig.json')" />
     </ItemGroup>
-    <!-- 1) bin/{config}/ 직속 (직접 실행 케이스) -->
-    <Copy SourceFiles="@(_ThumbsFiles)"
-          DestinationFolder="$(OutDir)"
-          SkipUnchangedFiles="true"
-          Condition="Exists('%(Identity)')" />
-    <!-- 2) AppX/ 하위 (MSIX staging 케이스 — 사용자 baseDir이 여기) -->
-    <MakeDir Directories="$(_AppXDir)" Condition="!Exists('$(_AppXDir)')" />
-    <Copy SourceFiles="@(_ThumbsFiles)"
-          DestinationFolder="$(_AppXDir)"
-          SkipUnchangedFiles="true"
-          Condition="Exists('%(Identity)')" />
   </Target>
 
   <ItemGroup>
