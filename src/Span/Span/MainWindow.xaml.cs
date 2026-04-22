@@ -289,6 +289,10 @@ namespace Span
         private readonly Dictionary<string, (ScrollViewer scroller, ItemsControl items)> _tabMillerPanels = new();
         private string? _activeMillerTabId;
 
+        // v1.4.3 rc2 진단 — PathIndicator 중복 호출 차단용 캐시 (pane별 last applied).
+        // 크래시 직전 동일 highlight map으로 3~6회 연속 호출되는 현상 차단 → native visual tree 접근 surface 축소.
+        private readonly Dictionary<string, string> _lastPathIndicatorSignature = new();
+
         // ── Per-Tab Details/Icon/List Panels (Show/Hide pattern — Miller와 동일 패턴) ──
         private readonly Dictionary<string, Views.DetailsModeView> _tabDetailsPanels = new();
         private readonly Dictionary<string, Views.IconModeView> _tabIconPanels = new();
@@ -4774,7 +4778,21 @@ namespace Span
                 control = MillerColumnsControl;
                 paneLabel = "Left(fallback)";
             }
-            Helpers.DebugLogger.Log($"[PathIndicator] ApplyPathIndicators pane={paneLabel}, controlNull={control == null}, highlightCount={highlightMap.Count}, controlName={control?.Name}");
+            // v1.4.3 rc2: dedup — 동일 highlight state면 visual tree 재접근 스킵.
+            // Signature: "col1=vmHash|col2=vmHash|..."
+            var signature = string.Join("|",
+                highlightMap.OrderBy(kv => kv.Key)
+                            .Select(kv => $"{kv.Key}={(kv.Value == null ? "null" : kv.Value.GetHashCode().ToString())}"));
+            if (_lastPathIndicatorSignature.TryGetValue(paneLabel, out var prev) && prev == signature)
+            {
+                // 중복 호출 — 스킵 (native visual tree 접근 race surface 축소)
+                return;
+            }
+            _lastPathIndicatorSignature[paneLabel] = signature;
+
+            // v1.4.3 rc2 진단 — 크래시 직전 GC/finalizer 상태 확보
+            var gcInfo = GC.GetGCMemoryInfo();
+            Helpers.DebugLogger.Log($"[PathIndicator] ApplyPathIndicators pane={paneLabel}, controlNull={control == null}, highlightCount={highlightMap.Count}, controlName={control?.Name}, finalizerPending={gcInfo.FinalizationPendingCount}, heap={gcInfo.HeapSizeBytes / 1024 / 1024}MB");
             if (control == null) return;
 
             foreach (var (colIndex, onPathItem) in highlightMap)

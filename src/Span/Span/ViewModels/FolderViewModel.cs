@@ -1324,7 +1324,9 @@ namespace Span.ViewModels
             ErrorIcon = null;
             await EnsureChildrenLoadedAsync();
 
-            Helpers.DebugLogger.Log($"[FolderViewModel.ReloadAsync] ===== COMPLETE =====");
+            // v1.4.3 rc2 진단 — ReloadAsync 완료 시점 GC/finalizer 상태
+            var gcInfo = System.GC.GetGCMemoryInfo();
+            Helpers.DebugLogger.Log($"[FolderViewModel.ReloadAsync] ===== COMPLETE ===== [Diag] finalizerPending={gcInfo.FinalizationPendingCount} heap={gcInfo.HeapSizeBytes / 1024 / 1024}MB frag={gcInfo.FragmentedBytes / 1024 / 1024}MB");
         }
 
         partial void OnSelectedChildChanged(FileSystemViewModel? value)

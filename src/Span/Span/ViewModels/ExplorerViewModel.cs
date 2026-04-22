@@ -996,10 +996,10 @@ namespace Span.ViewModels
                     folder.PropertyChanged += FolderVm_PropertyChanged;
                     folder.LoadError += OnColumnLoadError;
 
-                    // v1.4.3: 이슈 #23 버그 B 수정 — HandleFolderSelectionAsync와 동일 패턴.
-                    // Replace → Remove+Yield+Insert로 WinUI virtualizer race 방지.
+                    // v1.4.3 rc2: Task.Yield()는 dispatcher queue 1회 양보만 → UI 프레임 보장 안 됨.
+                    // Task.Delay(32)로 최소 2 프레임(60fps 기준) 경계 확보 → virtualizer tear-down 완료 대기.
                     Columns.RemoveAt(nextIndex);
-                    await Task.Yield();
+                    await Task.Delay(32);
                     Columns.Insert(nextIndex, folder);
                 }
                 else
@@ -1479,12 +1479,12 @@ namespace Span.ViewModels
                     selectedFolder.PropertyChanged += FolderVm_PropertyChanged;
                     selectedFolder.LoadError += OnColumnLoadError;
 
-                    // v1.4.3: 이슈 #23 버그 B 수정 — ObservableCollection Replace 대신 Remove+Yield+Insert.
+                    // v1.4.3: 이슈 #23 버그 B 수정 — ObservableCollection Replace 대신 Remove+Delay+Insert.
                     // Replace notification은 WinUI ItemsControl에서 ListView tear-down/build-up을
                     // 한 프레임 안에 강제 → virtualizer race → Microsoft.UI.Xaml.dll native 크래시.
-                    // Remove 후 Yield로 composition thread 처리 기회 제공, 그 뒤 Insert.
+                    // rc2: Task.Yield() → Task.Delay(32)로 최소 2 프레임 경계 확보 (Yield는 queue 양보만).
                     Columns.RemoveAt(nextIndex);
-                    await Task.Yield();
+                    await Task.Delay(32);
                     if (token.IsCancellationRequested) return;
                     if (Columns.IndexOf(parentFolder) != parentIndex) return;
                     if (parentFolder.SelectedChild != selectedFolder) return;
