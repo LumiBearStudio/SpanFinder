@@ -164,6 +164,7 @@ namespace Span.Services
         public void Initialize(DispatcherQueue uiDispatcher)
         {
             _uiDispatcher = uiDispatcher;
+            Helpers.DebugLogger.Log($"[FolderIconSvc] Initialized (dispatcher set)");
         }
 
         /// <summary>
@@ -171,8 +172,13 @@ namespace Span.Services
         /// </summary>
         public Task<ImageSource?> GetCustomIconAsync(string folderPath, CancellationToken ct = default)
         {
-            if (string.IsNullOrEmpty(folderPath) || _uiDispatcher == null)
+            if (string.IsNullOrEmpty(folderPath))
                 return Task.FromResult<ImageSource?>(null);
+            if (_uiDispatcher == null)
+            {
+                Helpers.DebugLogger.Log($"[FolderIconSvc] SKIP dispatcher-null: {folderPath}");
+                return Task.FromResult<ImageSource?>(null);
+            }
 
             // 캐시 조회 (이미 처리된 경로면 즉시 반환, 실패 경로는 null 캐싱됨)
             lock (_cacheLock)
@@ -180,6 +186,7 @@ namespace Span.Services
                 if (_cache.TryGetValue(folderPath, out var cached))
                 {
                     TouchLru(folderPath);
+                    Helpers.DebugLogger.Log($"[FolderIconSvc] CACHE-HIT {(cached != null ? "OK" : "null")}: {folderPath}");
                     return Task.FromResult(cached);
                 }
             }
@@ -190,9 +197,11 @@ namespace Span.Services
             try
             {
                 _queue.Add(item, _disposeCts.Token);
+                Helpers.DebugLogger.Log($"[FolderIconSvc] QUEUED: {folderPath}");
             }
-            catch
+            catch (Exception ex)
             {
+                Helpers.DebugLogger.Log($"[FolderIconSvc] QUEUE-FAIL: {folderPath} — {ex.Message}");
                 tcs.TrySetResult(null);
             }
 
@@ -281,10 +290,12 @@ namespace Span.Services
                         var (pixels, w, h) = ExtractShellIcon(item.Path);
                         if (pixels == null || w <= 0 || h <= 0)
                         {
+                            Helpers.DebugLogger.Log($"[FolderIconSvc] EXTRACT-null: {item.Path}");
                             AddToCache(item.Path, null);
                             item.Tcs.TrySetResult(null);
                             continue;
                         }
+                        Helpers.DebugLogger.Log($"[FolderIconSvc] EXTRACT-ok {w}x{h}: {item.Path}");
 
                         // UI 스레드로 마샬링해서 SoftwareBitmapSource 생성
                         var dispatcher = _uiDispatcher;
@@ -301,11 +312,12 @@ namespace Span.Services
                             {
                                 var source = await CreateBitmapSourceAsync(pixels, w, h);
                                 AddToCache(localItem.Path, source);
+                                Helpers.DebugLogger.Log($"[FolderIconSvc] UI-CONVERT-ok: {localItem.Path}");
                                 localItem.Tcs.TrySetResult(source);
                             }
                             catch (Exception ex)
                             {
-                                Helpers.DebugLogger.Log($"[FolderIconService] UI convert failed for {localItem.Path}: {ex.Message}");
+                                Helpers.DebugLogger.Log($"[FolderIconSvc] UI-CONVERT-fail {localItem.Path}: {ex.Message}");
                                 AddToCache(localItem.Path, null);
                                 localItem.Tcs.TrySetResult(null);
                             }

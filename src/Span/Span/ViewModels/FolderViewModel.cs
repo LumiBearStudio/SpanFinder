@@ -294,25 +294,34 @@ namespace Span.ViewModels
         /// </summary>
         public void RequestCustomIconLoad()
         {
-            if (_customIconRequested) return;
-            if (!_folderModel.MaybeHasCustomIcon) return;
+            if (_customIconRequested) { Helpers.DebugLogger.Log($"[CustomIcon] SKIP already-requested: {Path}"); return; }
+            if (!_folderModel.MaybeHasCustomIcon) { return; /* 대부분 폴더 — 로그 노이즈 방지 */ }
             if (string.IsNullOrEmpty(Path)) return;
 
             try
             {
                 var settings = App.Current.Services.GetService(typeof(SettingsService)) as SettingsService;
-                if (settings == null || !settings.FolderCustomIconsEnabled) return;
+                if (settings == null || !settings.FolderCustomIconsEnabled)
+                {
+                    Helpers.DebugLogger.Log($"[CustomIcon] SKIP setting-off: {Path}");
+                    return;
+                }
 
                 var iconSvc = App.Current.Services.GetService(typeof(FolderIconService)) as FolderIconService;
-                if (iconSvc == null) return;
+                if (iconSvc == null)
+                {
+                    Helpers.DebugLogger.Log($"[CustomIcon] SKIP no-service: {Path}");
+                    return;
+                }
 
                 _customIconRequested = true;
+                Helpers.DebugLogger.Log($"[CustomIcon] REQUEST: {Path}");
 
                 _ = LoadCustomIconAsync(iconSvc);
             }
             catch (Exception ex)
             {
-                Helpers.DebugLogger.Log($"[FolderViewModel] RequestCustomIconLoad failed: {ex.Message}");
+                Helpers.DebugLogger.Log($"[CustomIcon] RequestCustomIconLoad failed: {ex.Message}");
             }
         }
 
@@ -321,18 +330,31 @@ namespace Span.ViewModels
             try
             {
                 var icon = await iconSvc.GetCustomIconAsync(Path);
-                if (icon == null) return;
+                if (icon == null)
+                {
+                    Helpers.DebugLogger.Log($"[CustomIcon] RESULT-null: {Path}");
+                    return;
+                }
 
                 // 레이스 방지: 로드 중 설정이 OFF로 바뀌었거나 ClearCustomIcon 호출된 경우 무시
                 var settings = App.Current.Services.GetService(typeof(SettingsService)) as SettingsService;
-                if (settings == null || !settings.FolderCustomIconsEnabled) return;
-                if (!_customIconRequested) return;
+                if (settings == null || !settings.FolderCustomIconsEnabled)
+                {
+                    Helpers.DebugLogger.Log($"[CustomIcon] DISCARD setting-off-during-load: {Path}");
+                    return;
+                }
+                if (!_customIconRequested)
+                {
+                    Helpers.DebugLogger.Log($"[CustomIcon] DISCARD requested-false: {Path}");
+                    return;
+                }
 
                 CustomIcon = icon;
+                Helpers.DebugLogger.Log($"[CustomIcon] APPLIED: {Path}");
             }
             catch (Exception ex)
             {
-                Helpers.DebugLogger.Log($"[FolderViewModel] LoadCustomIconAsync failed for {Path}: {ex.Message}");
+                Helpers.DebugLogger.Log($"[CustomIcon] LoadCustomIconAsync failed for {Path}: {ex.Message}");
             }
         }
 
