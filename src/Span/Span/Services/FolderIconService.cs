@@ -294,21 +294,29 @@ namespace Span.Services
                             item.Tcs.TrySetResult(null);
                             continue;
                         }
-                        dispatcher.TryEnqueue(async () =>
+                        var localItem = item; // 클로저 캡처용
+                        bool queued = dispatcher.TryEnqueue(async () =>
                         {
                             try
                             {
                                 var source = await CreateBitmapSourceAsync(pixels, w, h);
-                                AddToCache(item.Path, source);
-                                item.Tcs.TrySetResult(source);
+                                AddToCache(localItem.Path, source);
+                                localItem.Tcs.TrySetResult(source);
                             }
                             catch (Exception ex)
                             {
-                                Helpers.DebugLogger.Log($"[FolderIconService] UI convert failed for {item.Path}: {ex.Message}");
-                                AddToCache(item.Path, null);
-                                item.Tcs.TrySetResult(null);
+                                Helpers.DebugLogger.Log($"[FolderIconService] UI convert failed for {localItem.Path}: {ex.Message}");
+                                AddToCache(localItem.Path, null);
+                                localItem.Tcs.TrySetResult(null);
                             }
                         });
+                        if (!queued)
+                        {
+                            // UI thread shutting down → TCS hangs forever if we skip
+                            Helpers.DebugLogger.Log($"[FolderIconService] TryEnqueue failed (UI shutdown) for {item.Path}");
+                            AddToCache(item.Path, null);
+                            item.Tcs.TrySetResult(null);
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -321,6 +329,18 @@ namespace Span.Services
             catch (Exception ex)
             {
                 Helpers.DebugLogger.Log($"[FolderIconService] Worker loop fatal: {ex.Message}");
+            }
+            finally
+            {
+                // 워커 종료 시 대기 중인 모든 항목 완료 처리 (caller 데드락 방지)
+                try
+                {
+                    while (_queue.TryTake(out var pending))
+                    {
+                        pending.Tcs.TrySetResult(null);
+                    }
+                }
+                catch { }
             }
         }
 
@@ -362,12 +382,9 @@ namespace Span.Services
             }
             finally
             {
-                if (hBitmap != IntPtr.Zero)
-                    DeleteObject(hBitmap);
-                if (imageFactory != null)
-                    Marshal.ReleaseComObject(imageFactory);
-                if (shellItem != null)
-                    Marshal.ReleaseComObject(shellItem);
+                try { if (hBitmap != IntPtr.Zero) DeleteObject(hBitmap); } catch { }
+                try { if (imageFactory != null) Marshal.ReleaseComObject(imageFactory); } catch { }
+                try { if (shellItem != null) Marshal.ReleaseComObject(shellItem); } catch { }
             }
         }
 
@@ -453,13 +470,24 @@ namespace Span.Services
             {
                 _disposeCts.Cancel();
                 _queue.CompleteAdding();
+
+                // 대기 중인 항목들 즉시 완료 처리 (worker thread가 못 꺼내는 경우 방지)
+                try
+                {
+                    while (_queue.TryTake(out var pending))
+                    {
+                        pending.Tcs.TrySetResult(null);
+                    }
+                }
+                catch { }
+
                 _worker.Join(TimeSpan.FromSeconds(2));
             }
             catch { }
             finally
             {
-                _disposeCts.Dispose();
-                _queue.Dispose();
+                try { _disposeCts.Dispose(); } catch { }
+                try { _queue.Dispose(); } catch { }
             }
         }
     }

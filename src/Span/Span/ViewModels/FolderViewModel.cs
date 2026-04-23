@@ -321,8 +321,14 @@ namespace Span.ViewModels
             try
             {
                 var icon = await iconSvc.GetCustomIconAsync(Path);
-                if (icon != null)
-                    CustomIcon = icon;
+                if (icon == null) return;
+
+                // 레이스 방지: 로드 중 설정이 OFF로 바뀌었거나 ClearCustomIcon 호출된 경우 무시
+                var settings = App.Current.Services.GetService(typeof(SettingsService)) as SettingsService;
+                if (settings == null || !settings.FolderCustomIconsEnabled) return;
+                if (!_customIconRequested) return;
+
+                CustomIcon = icon;
             }
             catch (Exception ex)
             {

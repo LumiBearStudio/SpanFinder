@@ -64,13 +64,13 @@ namespace Span.ViewModels
         [ObservableProperty]
         private ImageSource? _customIcon;
 
-        public bool HasCustomIcon => _customIcon != null;
+        public bool HasCustomIcon => CustomIcon != null;
 
         public Microsoft.UI.Xaml.Visibility CustomIconVisibility =>
-            _customIcon != null ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+            CustomIcon != null ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
 
         public Microsoft.UI.Xaml.Visibility GlyphVisibility =>
-            _customIcon != null ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible;
+            CustomIcon != null ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible;
 
         partial void OnCustomIconChanged(ImageSource? value)
         {
