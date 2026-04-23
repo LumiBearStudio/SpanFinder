@@ -329,7 +329,7 @@ namespace Span.ViewModels
         {
             try
             {
-                var icon = await iconSvc.GetCustomIconAsync(Path);
+                var icon = await iconSvc.GetCustomIconAsync(Path).ConfigureAwait(false);
                 if (icon == null)
                 {
                     Helpers.DebugLogger.Log($"[CustomIcon] RESULT-null: {Path}");
@@ -349,12 +349,36 @@ namespace Span.ViewModels
                     return;
                 }
 
-                CustomIcon = icon;
-                Helpers.DebugLogger.Log($"[CustomIcon] APPLIED: {Path}");
+                // ★ 핵심 수정: 생성자가 백그라운드 스레드에서 호출된 경우 continuation도 백그라운드.
+                // WinUI는 ObservableProperty PropertyChanged를 UI 스레드에서만 처리 가능 → 명시 마샬링 필수.
+                var iconSvcAsService = App.Current.Services.GetService(typeof(FolderIconService)) as FolderIconService;
+                var dispatcher = iconSvcAsService?.GetUiDispatcher();
+                if (dispatcher == null)
+                {
+                    Helpers.DebugLogger.Log($"[CustomIcon] DISCARD no-dispatcher: {Path}");
+                    return;
+                }
+
+                var iconToSet = icon;
+                bool queued = dispatcher.TryEnqueue(() =>
+                {
+                    try
+                    {
+                        if (!_customIconRequested) return; // 2차 재확인
+                        CustomIcon = iconToSet;
+                        Helpers.DebugLogger.Log($"[CustomIcon] APPLIED: {Path}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Helpers.DebugLogger.Log($"[CustomIcon] APPLY-fail {Path}: {ex.Message}");
+                    }
+                });
+                if (!queued)
+                    Helpers.DebugLogger.Log($"[CustomIcon] APPLY-enqueue-fail: {Path}");
             }
             catch (Exception ex)
             {
-                Helpers.DebugLogger.Log($"[CustomIcon] LoadCustomIconAsync failed for {Path}: {ex.Message}");
+                Helpers.DebugLogger.Log($"[CustomIcon] LoadCustomIconAsync failed for {Path}: {ex.Message} ({ex.GetType().Name})");
             }
         }
 

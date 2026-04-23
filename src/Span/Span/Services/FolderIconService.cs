@@ -168,6 +168,11 @@ namespace Span.Services
         }
 
         /// <summary>
+        /// UI DispatcherQueue 접근자 (FolderViewModel에서 백그라운드→UI 마샬링 시 사용).
+        /// </summary>
+        public DispatcherQueue? GetUiDispatcher() => _uiDispatcher;
+
+        /// <summary>
         /// 커스텀 아이콘을 비동기로 가져온다. 없거나 실패 시 null 반환.
         /// </summary>
         public Task<ImageSource?> GetCustomIconAsync(string folderPath, CancellationToken ct = default)
