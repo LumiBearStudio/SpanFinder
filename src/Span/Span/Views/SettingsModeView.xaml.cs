@@ -222,6 +222,8 @@ public sealed partial class SettingsModeView : UserControl
                 _ => 0
             };
 
+            FolderCustomIconsToggle.IsOn = _settings.FolderCustomIconsEnabled;
+
             var font = _settings.FontFamily;
             var fontIdx = Array.IndexOf(FontOptions, font);
             FontCombo.SelectedIndex = fontIdx >= 0 ? fontIdx : 0;
@@ -407,6 +409,8 @@ public sealed partial class SettingsModeView : UserControl
             var idx = FontCombo.SelectedIndex;
             _settings.FontFamily = idx >= 0 && idx < FontOptions.Length ? FontOptions[idx] : FontOptions[0];
         };
+
+        FolderCustomIconsToggle.Toggled += (s, e) => { if (!_isLoading) _settings.FolderCustomIconsEnabled = FolderCustomIconsToggle.IsOn; };
 
         ShowHiddenToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowHiddenFiles = ShowHiddenToggle.IsOn; };
         ShowExtensionsToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowFileExtensions = ShowExtensionsToggle.IsOn; };
@@ -683,6 +687,8 @@ public sealed partial class SettingsModeView : UserControl
             IconPackLabel.Text = _loc.Get("Settings_IconPack");
             IconPackDesc.Text = _loc.Get("Settings_IconPackDesc");
             IconPackRestartText.Text = _loc.Get("Settings_IconPackRestart");
+            FolderCustomIconsLabel.Text = _loc.Get("Settings_FolderCustomIcons");
+            FolderCustomIconsDesc.Text = _loc.Get("Settings_FolderCustomIconsDesc");
             FontLabel.Text = _loc.Get("Settings_Font");
             FontDesc.Text = _loc.Get("Settings_FontDesc");
             // Custom themes

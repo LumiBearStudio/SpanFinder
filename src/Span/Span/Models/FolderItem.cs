@@ -42,6 +42,12 @@ namespace Span.Models
         public bool IsHidden { get; set; }
 
         /// <summary>
+        /// Read-Only 또는 System 속성 여부. Windows 탐색기가 desktop.ini를 해석하는 트리거.
+        /// true일 때만 FolderIconService가 커스텀 아이콘 추출을 시도한다 (false는 즉시 글리프).
+        /// </summary>
+        public bool MaybeHasCustomIcon { get; set; }
+
+        /// <summary>
         /// 하위 항목(파일/폴더) 존재 여부. 열거 시점에 경량 체크.
         /// Miller 컬럼 셰브론(▶) 표시 판단에 사용.
         /// </summary>

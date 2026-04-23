@@ -501,6 +501,7 @@ namespace Span
             services.AddSingleton<Services.ShellService>();
             services.AddSingleton<Services.LocalizationService>();
             services.AddSingleton<Services.ContextMenuService>();
+            services.AddSingleton<Services.FolderIconService>();
             services.AddSingleton<Services.ActionLogService>();
             services.AddSingleton<Services.SettingsService>();
             services.AddSingleton<Services.FolderContentCache>();

@@ -979,7 +979,16 @@
                                                                                         <ColumnDefinition Width="Auto"/>
                                                                                     </Grid.ColumnDefinitions>
                                                                                     <!-- Col0: reserved for layout alignment (indicator handled by floating overlay) -->
-                                                                                    <FontIcon Grid.Column="1" FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Folder}" FontSize="{Binding IconFontSize, Source={StaticResource FontScale}}" Foreground="{x:Bind IconBrush}" Margin="0,0,12,0"/>
+                                                                                    <Grid Grid.Column="1" Margin="0,0,12,0" VerticalAlignment="Center">
+                                                                                        <Image Source="{x:Bind CustomIcon, Mode=OneWay}" Stretch="Uniform"
+                                                                                               Width="{Binding IconFontSize, Source={StaticResource FontScale}}"
+                                                                                               Height="{Binding IconFontSize, Source={StaticResource FontScale}}"
+                                                                                               Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfTrue(HasCustomIcon), Mode=OneWay}"
+                                                                                               IsHitTestVisible="False"/>
+                                                                                        <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Folder}" FontSize="{Binding IconFontSize, Source={StaticResource FontScale}}" Foreground="{x:Bind IconBrush}"
+                                                                                                  Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfFalse(HasCustomIcon), Mode=OneWay}"
+                                                                                                  IsHitTestVisible="False"/>
+                                                                                    </Grid>
                                                                                     <TextBlock Grid.Column="2" Text="{x:Bind TruncatedDisplayName, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontSize="{Binding ItemFontSize, Source={StaticResource FontScale}}"
                                                                                                Visibility="{x:Bind viewmodels:FileSystemViewModel.NotRenaming(IsRenaming), Mode=OneWay}"/>
                                                                                     <TextBox Grid.Column="2" Text="{x:Bind EditableName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
@@ -1397,7 +1406,16 @@
                                                                                         <ColumnDefinition Width="Auto"/>
                                                                                     </Grid.ColumnDefinitions>
                                                                                     <!-- Col0: reserved for layout alignment (indicator handled by floating overlay) -->
-                                                                                    <FontIcon Grid.Column="1" FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Folder}" FontSize="{Binding IconFontSize, Source={StaticResource FontScale}}" Foreground="{x:Bind IconBrush}" Margin="0,0,12,0"/>
+                                                                                    <Grid Grid.Column="1" Margin="0,0,12,0" VerticalAlignment="Center">
+                                                                                        <Image Source="{x:Bind CustomIcon, Mode=OneWay}" Stretch="Uniform"
+                                                                                               Width="{Binding IconFontSize, Source={StaticResource FontScale}}"
+                                                                                               Height="{Binding IconFontSize, Source={StaticResource FontScale}}"
+                                                                                               Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfTrue(HasCustomIcon), Mode=OneWay}"
+                                                                                               IsHitTestVisible="False"/>
+                                                                                        <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Folder}" FontSize="{Binding IconFontSize, Source={StaticResource FontScale}}" Foreground="{x:Bind IconBrush}"
+                                                                                                  Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfFalse(HasCustomIcon), Mode=OneWay}"
+                                                                                                  IsHitTestVisible="False"/>
+                                                                                    </Grid>
                                                                                     <TextBlock Grid.Column="2" Text="{x:Bind TruncatedDisplayName, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontSize="{Binding ItemFontSize, Source={StaticResource FontScale}}"
                                                                                                Visibility="{x:Bind viewmodels:FileSystemViewModel.NotRenaming(IsRenaming), Mode=OneWay}"/>
                                                                                     <TextBox Grid.Column="2" Text="{x:Bind EditableName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"

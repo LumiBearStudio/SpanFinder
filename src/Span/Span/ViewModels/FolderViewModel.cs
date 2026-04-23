@@ -285,6 +285,60 @@ namespace Span.ViewModels
         public override string IconGlyph => Services.IconService.Current?.FolderIcon ?? "\uED53";
         public override Microsoft.UI.Xaml.Media.Brush IconBrush => Services.IconService.Current?.FolderBrush;
 
+        private bool _customIconRequested;
+
+        /// <summary>
+        /// 설정이 ON이고 폴더에 Read-Only/System 속성이 있으면 커스텀 아이콘 비동기 로드.
+        /// 중복 호출 방지 (_customIconRequested 플래그).
+        /// 실패 시 CustomIcon은 null로 유지되어 기본 글리프 표시.
+        /// </summary>
+        public void RequestCustomIconLoad()
+        {
+            if (_customIconRequested) return;
+            if (!_folderModel.MaybeHasCustomIcon) return;
+            if (string.IsNullOrEmpty(Path)) return;
+
+            try
+            {
+                var settings = App.Current.Services.GetService(typeof(SettingsService)) as SettingsService;
+                if (settings == null || !settings.FolderCustomIconsEnabled) return;
+
+                var iconSvc = App.Current.Services.GetService(typeof(FolderIconService)) as FolderIconService;
+                if (iconSvc == null) return;
+
+                _customIconRequested = true;
+
+                _ = LoadCustomIconAsync(iconSvc);
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[FolderViewModel] RequestCustomIconLoad failed: {ex.Message}");
+            }
+        }
+
+        private async Task LoadCustomIconAsync(FolderIconService iconSvc)
+        {
+            try
+            {
+                var icon = await iconSvc.GetCustomIconAsync(Path);
+                if (icon != null)
+                    CustomIcon = icon;
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[FolderViewModel] LoadCustomIconAsync failed for {Path}: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 설정 OFF 시 호출되어 캐시된 커스텀 아이콘을 초기화.
+        /// </summary>
+        public void ClearCustomIcon()
+        {
+            _customIconRequested = false;
+            CustomIcon = null;
+        }
+
         /// <summary>
         /// 폴더 크기: 백그라운드 계산 완료 시 표시, 미완료 시 빈칸.
         /// </summary>
@@ -401,6 +455,10 @@ namespace Span.ViewModels
             _folderModel = model;
             _fileService = fileService;
             // DO NOT load children here. Lazy loading only.
+
+            // 커스텀 아이콘 로드 요청 (설정 OFF이면 내부에서 즉시 return, Read-Only 없으면 skip).
+            // 결과는 비동기로 CustomIcon 속성에 반영되며 실패 시 기본 글리프 유지.
+            RequestCustomIconLoad();
         }
 
         private System.Threading.CancellationTokenSource? _cts;
@@ -646,7 +704,7 @@ namespace Span.ViewModels
                         try { hasChild = System.IO.Directory.EnumerateFileSystemEntries(d.FullName).Any(); }
                         catch { hasChild = true; }
 
-                        var folderItem = new FolderItem { Name = d.Name, Path = d.FullName, DateModified = d.LastWriteTime, IsHidden = (attrs & System.IO.FileAttributes.Hidden) != 0, HasChildEntries = hasChild };
+                        var folderItem = new FolderItem { Name = d.Name, Path = d.FullName, DateModified = d.LastWriteTime, IsHidden = (attrs & System.IO.FileAttributes.Hidden) != 0, MaybeHasCustomIcon = (attrs & (System.IO.FileAttributes.ReadOnly | System.IO.FileAttributes.System)) != 0, HasChildEntries = hasChild };
                         folders.Add(folderItem);
                         result.Add(new FolderViewModel(folderItem, _fileService));
                     }

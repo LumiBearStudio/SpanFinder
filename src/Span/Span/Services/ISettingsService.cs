@@ -11,6 +11,7 @@ namespace Span.Services
         string Density { get; set; }
         string FontFamily { get; set; }
         string IconPack { get; set; }
+        bool FolderCustomIconsEnabled { get; set; }
     }
 
     /// <summary>

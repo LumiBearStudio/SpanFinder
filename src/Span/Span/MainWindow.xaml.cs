@@ -409,6 +409,14 @@ namespace Span
             _loc = App.Current.Services.GetRequiredService<Services.LocalizationService>();
             _settings = App.Current.Services.GetRequiredService<Services.SettingsService>();
 
+            // Folder custom icon service: UI dispatcher 주입 (설정 OFF이면 호출 없으니 무시됨)
+            try
+            {
+                var folderIconSvc = App.Current.Services.GetService(typeof(Services.FolderIconService)) as Services.FolderIconService;
+                folderIconSvc?.Initialize(this.DispatcherQueue);
+            }
+            catch (Exception ex) { Helpers.DebugLogger.Log($"[MainWindow] FolderIconService init failed: {ex.Message}"); }
+
             // Workspace button
             WorkspaceButton.Click += async (s, e) => await ShowWorkspacePaletteAsync();
 

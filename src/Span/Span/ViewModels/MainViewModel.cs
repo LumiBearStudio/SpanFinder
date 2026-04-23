@@ -274,12 +274,74 @@ namespace Span.ViewModels
             {
                 if (key == "UndoHistorySize" && value is int size)
                     _operationHistory.MaxHistorySize = size;
+
+                // 폴더 커스텀 아이콘 토글: ON → 새로 보이는 폴더부터 로드 트리거,
+                // OFF → 캐시 초기화 + 이미 로드된 CustomIcon 즉시 글리프로 복귀
+                if (key == "FolderCustomIconsEnabled" && value is bool enabled)
+                {
+                    var iconSvc = App.Current.Services.GetService(typeof(Services.FolderIconService)) as Services.FolderIconService;
+                    if (!enabled)
+                    {
+                        iconSvc?.ClearCache();
+                        foreach (var tab in Tabs)
+                        {
+                            ClearFolderCustomIconsRecursive(tab.Explorer?.CurrentFolder);
+                        }
+                    }
+                    else
+                    {
+                        foreach (var tab in Tabs)
+                        {
+                            RequestFolderCustomIconsRecursive(tab.Explorer?.CurrentFolder);
+                        }
+                    }
+                }
             };
             settings.SettingChanged += _settingChangedHandler;
 
             _operationHistory.HistoryChanged += OnHistoryChanged;
 
             Initialize();
+        }
+
+        /// <summary>
+        /// 현재 폴더의 하위 FolderViewModel 전체에 커스텀 아이콘 클리어. 설정 OFF 시 호출.
+        /// </summary>
+        private static void ClearFolderCustomIconsRecursive(FolderViewModel? folder)
+        {
+            if (folder == null) return;
+            try
+            {
+                foreach (var child in folder.Children)
+                {
+                    if (child is FolderViewModel fv)
+                        fv.ClearCustomIcon();
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[MainViewModel] ClearFolderCustomIconsRecursive failed: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 현재 폴더의 하위 FolderViewModel 전체에 커스텀 아이콘 로드 요청. 설정 ON 시 호출.
+        /// </summary>
+        private static void RequestFolderCustomIconsRecursive(FolderViewModel? folder)
+        {
+            if (folder == null) return;
+            try
+            {
+                foreach (var child in folder.Children)
+                {
+                    if (child is FolderViewModel fv)
+                        fv.RequestCustomIconLoad();
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[MainViewModel] RequestFolderCustomIconsRecursive failed: {ex.Message}");
+            }
         }
 
         /// <summary>

@@ -1296,6 +1296,25 @@
                                 </StackPanel>
                             </Border>
 
+                            <!-- Folder Custom Icons (desktop.ini) -->
+                            <Border Style="{StaticResource SettingsCardBorder}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Style="{StaticResource CardIconContainer}">
+                                        <FontIcon Glyph="&#xE8B7;" Style="{StaticResource CardIconStyle}" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock x:Name="FolderCustomIconsLabel" Text="폴더 커스텀 아이콘 (desktop.ini)" Style="{StaticResource SettingsCardLabel}" />
+                                        <TextBlock x:Name="FolderCustomIconsDesc" Text="desktop.ini로 설정된 Windows 커스텀 폴더 아이콘 표시" Style="{StaticResource SettingsCardDesc}" />
+                                    </StackPanel>
+                                    <ToggleSwitch x:Name="FolderCustomIconsToggle" Grid.Column="2" IsOn="False" OnContent="" OffContent="" VerticalAlignment="Center" />
+                                </Grid>
+                            </Border>
+
                             <!-- Font -->
                             <Border Style="{StaticResource SettingsCardBorder}">
                                 <Grid>

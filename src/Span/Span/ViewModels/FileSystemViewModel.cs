@@ -58,6 +58,28 @@ namespace Span.ViewModels
         private ImageSource? _thumbnailSource;
 
         /// <summary>
+        /// 폴더 커스텀 아이콘(desktop.ini 기반). FolderViewModel에서만 설정되며, 파일은 항상 null.
+        /// 베이스에 선언한 이유: DetailsModeView 등 공통 DataTemplate(x:DataType=FileSystemViewModel)에서 x:Bind 접근 필요.
+        /// </summary>
+        [ObservableProperty]
+        private ImageSource? _customIcon;
+
+        public bool HasCustomIcon => _customIcon != null;
+
+        public Microsoft.UI.Xaml.Visibility CustomIconVisibility =>
+            _customIcon != null ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+
+        public Microsoft.UI.Xaml.Visibility GlyphVisibility =>
+            _customIcon != null ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible;
+
+        partial void OnCustomIconChanged(ImageSource? value)
+        {
+            OnPropertyChanged(nameof(HasCustomIcon));
+            OnPropertyChanged(nameof(CustomIconVisibility));
+            OnPropertyChanged(nameof(GlyphVisibility));
+        }
+
+        /// <summary>
         /// ContainerContentChanging에서 Cloud/Git 상태 주입 완료 플래그.
         /// 스크롤 중 동일 아이템 재주입을 방지하여 PropertyChanged 폭포를 줄인다.
         /// </summary>
@@ -560,6 +582,13 @@ namespace Span.ViewModels
         /// </summary>
         public static Microsoft.UI.Xaml.Visibility ShowIfFalse(bool value)
             => value ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible;
+
+        /// <summary>
+        /// XAML x:Bind: show default glyph only when both HasThumbnail and HasCustomIcon are false.
+        /// Details 뷰 등 3-레이어(Thumbnail/CustomIcon/Glyph) 폴백에 사용.
+        /// </summary>
+        public static Microsoft.UI.Xaml.Visibility ShowIfFalseAndFalse(bool a, bool b)
+            => (!a && !b) ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
 
         /// <summary>
         /// XAML x:Bind: Opacity 1 when true, 0 when false.
