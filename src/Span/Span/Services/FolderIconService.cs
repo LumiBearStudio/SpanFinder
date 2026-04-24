@@ -122,8 +122,11 @@ namespace Span.Services
 
         // ── 캐시 + 워커 ──
 
-        private const int CacheCapacity = 512;
-        private const int IconPixelSize = 48; // 일반 폴더 아이콘 크기
+        // 이슈 #26: 가장 큰 뷰(IconExtraLarge=256)에 맞춰 요청하고, 작은 뷰는 WinUI가 다운스케일.
+        // .ico 다중해상도 중 256 변종이 있으면 그대로 반환되어 업스케일 블러 방지.
+        // 항목당 메모리 증가(9KB→256KB)에 맞춰 캐시 상한 축소(512→128, 최악 ~32MB).
+        private const int CacheCapacity = 128;
+        private const int IconPixelSize = 256;
 
         private static readonly Guid IID_IShellItem = new("43826d1e-e718-42ee-bc55-a1e261c37bfe");
 
