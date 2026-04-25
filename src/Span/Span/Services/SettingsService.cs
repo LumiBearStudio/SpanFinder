@@ -129,14 +129,13 @@ public class SettingsService : ISettingsService
     }
 
     /// <summary>
-    /// 심미적 애니메이션(새 Miller 컬럼 슬라이드-인, on-path 인디케이터 이동) 비활성화.
-    /// 기본 OFF. ON 시 최종 상태로 즉시 전환되어 빠른 탐색 시 snappy 동작.
-    /// 접근성 또는 선호도 설정 (macOS Finder 유사 동작).
+    /// 심미적 애니메이션(새 Miller 컬럼 슬라이드-인, on-path 인디케이터 이동) 사용 여부.
+    /// 기본 ON. OFF 시 최종 상태로 즉시 전환되어 빠른 탐색 시 snappy 동작 (macOS Finder 유사).
     /// </summary>
-    public bool ReduceMotion
+    public bool AnimationsEnabled
     {
-        get => Get("ReduceMotion", false);
-        set => Set("ReduceMotion", value);
+        get => Get("AnimationsEnabled", true);
+        set => Set("AnimationsEnabled", value);
     }
 
     // ── Browsing ──

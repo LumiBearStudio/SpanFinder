@@ -1315,7 +1315,7 @@
                                 </Grid>
                             </Border>
 
-                            <!-- Reduce Motion (disable aesthetic animations) -->
+                            <!-- Animations (panel slide-in + selection indicator movement) -->
                             <Border Style="{StaticResource SettingsCardBorder}">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
@@ -1327,10 +1327,10 @@
                                         <FontIcon Glyph="&#xE916;" Style="{StaticResource CardIconStyle}" />
                                     </Border>
                                     <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                                        <TextBlock x:Name="ReduceMotionLabel" Text="애니메이션 줄이기" Style="{StaticResource SettingsCardLabel}" />
-                                        <TextBlock x:Name="ReduceMotionDesc" Text="새 패널 슬라이드 및 선택 인디케이터 이동 효과 비활성화" Style="{StaticResource SettingsCardDesc}" />
+                                        <TextBlock x:Name="AnimationsEnabledLabel" Text="애니메이션" Style="{StaticResource SettingsCardLabel}" />
+                                        <TextBlock x:Name="AnimationsEnabledDesc" Text="패널 슬라이드 및 선택 인디케이터 이동 효과" Style="{StaticResource SettingsCardDesc}" />
                                     </StackPanel>
-                                    <ToggleSwitch x:Name="ReduceMotionToggle" Grid.Column="2" IsOn="False" OnContent="" OffContent="" VerticalAlignment="Center" />
+                                    <ToggleSwitch x:Name="AnimationsEnabledToggle" Grid.Column="2" IsOn="True" OnContent="" OffContent="" VerticalAlignment="Center" />
                                 </Grid>
                             </Border>
 

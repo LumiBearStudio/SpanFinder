@@ -1691,12 +1691,12 @@ namespace Span
 
         /// <summary>
         /// 새 컬럼 요소를 즉시 숨긴 뒤 다음 프레임에서 슬라이드-인 애니메이션을 시작한다.
-        /// ReduceMotion=ON 시 Opacity=0 설정 자체를 스킵하여 컬럼이 기본 상태로 즉시 표시되도록 한다.
+        /// AnimationsEnabled=OFF 시 Opacity=0 설정 자체를 스킵하여 컬럼이 기본 상태로 즉시 표시되도록 한다.
         /// </summary>
         private void HideAndAnimateColumn(UIElement element)
         {
-            // Reduce Motion: 슬라이드/페이드 전 과정 스킵 — 컬럼은 기본 상태(Opacity=1)로 즉시 노출
-            if (_settings.ReduceMotion) return;
+            // 애니메이션 OFF: 슬라이드/페이드 전 과정 스킵 — 컬럼은 기본 상태(Opacity=1)로 즉시 노출
+            if (!_settings.AnimationsEnabled) return;
 
             var visual = ElementCompositionPreview.GetElementVisual(element);
             visual.Opacity = 0f;
@@ -4832,12 +4832,12 @@ namespace Span
                 // Get or create indicator for this content grid
                 var indicator = GetOrCreateIndicator(contentGrid);
 
-                bool reduceMotion = _settings.ReduceMotion;
+                bool animationsEnabled = _settings.AnimationsEnabled;
 
                 if (onPathItem == null)
                 {
-                    if (reduceMotion) SetIndicatorImmediate(indicator, 0, null);
-                    else AnimateIndicator(indicator, 0, null, null);
+                    if (animationsEnabled) AnimateIndicator(indicator, 0, null, null);
+                    else SetIndicatorImmediate(indicator, 0, null);
                     continue;
                 }
 
@@ -4846,8 +4846,8 @@ namespace Span
                 if (itemContainer == null)
                 {
                     Helpers.DebugLogger.Log($"[PathIndicator] col={colIndex}: ContainerFromItem returned NULL for '{onPathItem.Name}', listView.Items.Count={listView.Items.Count}");
-                    if (reduceMotion) SetIndicatorImmediate(indicator, 0, null);
-                    else AnimateIndicator(indicator, 0, null, null);
+                    if (animationsEnabled) AnimateIndicator(indicator, 0, null, null);
+                    else SetIndicatorImmediate(indicator, 0, null);
                     continue;
                 }
                 Helpers.DebugLogger.Log($"[PathIndicator] col={colIndex}: indicator SHOWN for '{onPathItem.Name}' at pane={paneLabel}");
@@ -4867,8 +4867,8 @@ namespace Span
                 double? fromY = _prevIndicatorY.TryGetValue(key, out var prev) ? prev : null;
                 _prevIndicatorY[key] = targetY;
 
-                if (reduceMotion) SetIndicatorImmediate(indicator, 1, targetY);
-                else AnimateIndicator(indicator, 1, targetY, fromY);
+                if (animationsEnabled) AnimateIndicator(indicator, 1, targetY, fromY);
+                else SetIndicatorImmediate(indicator, 1, targetY);
             }
         }
 
@@ -4969,7 +4969,7 @@ namespace Span
         }
 
         /// <summary>
-        /// ReduceMotion=ON 경로. 애니메이션 없이 인디케이터의 최종 상태를 즉시 적용.
+        /// AnimationsEnabled=OFF 경로. 애니메이션 없이 인디케이터의 최종 상태를 즉시 적용.
         /// 진행 중인 애니메이션을 명시적으로 중단(StopAnimation)하여 후속 대입이 덮이지 않도록 보장.
         /// </summary>
         private static void SetIndicatorImmediate(Border indicator, double opacity, double? targetY)
