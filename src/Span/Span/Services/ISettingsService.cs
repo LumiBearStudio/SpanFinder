@@ -12,6 +12,7 @@ namespace Span.Services
         string FontFamily { get; set; }
         string IconPack { get; set; }
         bool FolderCustomIconsEnabled { get; set; }
+        bool ReduceMotion { get; set; }
     }
 
     /// <summary>

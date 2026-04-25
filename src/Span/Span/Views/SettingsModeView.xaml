@@ -1315,6 +1315,25 @@
                                 </Grid>
                             </Border>
 
+                            <!-- Reduce Motion (disable aesthetic animations) -->
+                            <Border Style="{StaticResource SettingsCardBorder}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Style="{StaticResource CardIconContainer}">
+                                        <FontIcon Glyph="&#xE916;" Style="{StaticResource CardIconStyle}" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock x:Name="ReduceMotionLabel" Text="애니메이션 줄이기" Style="{StaticResource SettingsCardLabel}" />
+                                        <TextBlock x:Name="ReduceMotionDesc" Text="새 패널 슬라이드 및 선택 인디케이터 이동 효과 비활성화" Style="{StaticResource SettingsCardDesc}" />
+                                    </StackPanel>
+                                    <ToggleSwitch x:Name="ReduceMotionToggle" Grid.Column="2" IsOn="False" OnContent="" OffContent="" VerticalAlignment="Center" />
+                                </Grid>
+                            </Border>
+
                             <!-- Font -->
                             <Border Style="{StaticResource SettingsCardBorder}">
                                 <Grid>

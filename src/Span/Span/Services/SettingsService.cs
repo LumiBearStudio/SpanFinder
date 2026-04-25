@@ -128,6 +128,17 @@ public class SettingsService : ISettingsService
         set => Set("FolderCustomIconsEnabled", value);
     }
 
+    /// <summary>
+    /// 심미적 애니메이션(새 Miller 컬럼 슬라이드-인, on-path 인디케이터 이동) 비활성화.
+    /// 기본 OFF. ON 시 최종 상태로 즉시 전환되어 빠른 탐색 시 snappy 동작.
+    /// 접근성 또는 선호도 설정 (macOS Finder 유사 동작).
+    /// </summary>
+    public bool ReduceMotion
+    {
+        get => Get("ReduceMotion", false);
+        set => Set("ReduceMotion", value);
+    }
+
     // ── Browsing ──
 
     public bool ShowHiddenFiles
