@@ -258,6 +258,12 @@ namespace Span
             ToolTipService.SetToolTip(SplitViewButton, _loc.Get("Tooltip_SplitView"));
             ToolTipService.SetToolTip(PreviewToggleButton, _loc.Get("Tooltip_Preview"));
 
+            // RecycleBin mode toolbar tooltips (Issue #28)
+            ToolTipService.SetToolTip(ToolbarRestoreButton, _loc.Get("RecycleBin_Restore") + " (Ctrl+Z)");
+            ToolTipService.SetToolTip(ToolbarDeletePermButton, _loc.Get("RecycleBin_DeletePermanently") + " (Delete)");
+            ToolTipService.SetToolTip(ToolbarEmptyBinButton, _loc.Get("RecycleBin_Empty"));
+            ToolTipService.SetToolTip(ToolbarRefreshButton, _loc.Get("Refresh") + " (F5)");
+
             // View mode button tooltip (all three: main, left, right)
             var vmTip = _loc.Get("ViewModeSwitch");
             ToolTipService.SetToolTip(ViewModeButton, vmTip);
@@ -267,6 +273,7 @@ namespace Span
             // Sidebar bottom bar tooltips
             ToolTipService.SetToolTip(HelpButton, _loc.Get("Tooltip_Help"));
             ToolTipService.SetToolTip(LogButton, _loc.Get("Tooltip_Log"));
+            ToolTipService.SetToolTip(WorkspaceButton, _loc.Get("Cmd_Cat_Workspace"));
             ToolTipService.SetToolTip(SettingsButton, _loc.Get("Tooltip_Settings"));
 
             // --- Search placeholder ---
