@@ -436,10 +436,18 @@ namespace Span.ViewModels
             var dq = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
             _toastTimer = new System.Threading.Timer(_ =>
             {
-                if (dq != null)
-                    Helpers.DispatcherHelper.SafeEnqueue(dq, () => { IsToastVisible = false; });
-                else
-                    IsToastVisible = false;
+                // v1.4.15: ThreadPool Timer callback throw → AppDomain unhandled. 봉인.
+                try
+                {
+                    if (dq != null)
+                        Helpers.DispatcherHelper.SafeEnqueue(dq, () => { IsToastVisible = false; });
+                    else
+                        IsToastVisible = false;
+                }
+                catch (Exception ex)
+                {
+                    Helpers.DebugLogger.Log($"[ToastTimer] {ex.Message}");
+                }
             }, null, durationMs, System.Threading.Timeout.Infinite);
         }
 

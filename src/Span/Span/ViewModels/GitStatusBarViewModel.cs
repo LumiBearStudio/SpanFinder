@@ -101,8 +101,16 @@ namespace Span.ViewModels
             _debounceTimer?.Dispose();
             _debounceTimer = new System.Threading.Timer(_ =>
             {
-                if (_disposed) return;
-                Helpers.DispatcherHelper.SafeEnqueue(_dispatcherQueue, () => _ = ExecuteUpdateAsync(ct));
+                // v1.4.15: ThreadPool Timer callback throw → AppDomain unhandled. 봉인.
+                try
+                {
+                    if (_disposed) return;
+                    Helpers.DispatcherHelper.SafeEnqueue(_dispatcherQueue, () => _ = ExecuteUpdateAsync(ct));
+                }
+                catch (Exception ex)
+                {
+                    Helpers.DebugLogger.Log($"[GitStatusBar.DebounceTimer] {ex.Message}");
+                }
             }, null, DebounceMs, Timeout.Infinite);
 
             return Task.CompletedTask;

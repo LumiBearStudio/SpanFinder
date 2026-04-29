@@ -37,9 +37,25 @@ internal sealed class WorkerProcess : IDisposable
 
     private DateTime _lastPongUtc = DateTime.UtcNow;
 
-    public bool IsAlive => _process is { HasExited: false } && _pipe?.IsConnected == true;
+    // v1.4.15: Process.HasExited는 Dispose 후 InvalidOperationException("No process associated")을 throw할 수 있음.
+    // CTS callback 등에서 호출되면 unhandled로 메인 크래시 (Sentry 1.4.14 이슈) → throw-free로 가드.
+    public bool IsAlive
+    {
+        get
+        {
+            try
+            {
+                if (System.Threading.Volatile.Read(ref _disposed) != 0) return false;
+                return _process is { HasExited: false } && _pipe?.IsConnected == true;
+            }
+            catch { return false; }
+        }
+    }
     public int WorkerId => _workerId;
-    public int? Pid => _process?.Id;
+    public int? Pid
+    {
+        get { try { return _process?.Id; } catch { return null; } }
+    }
     public string? PipeName { get; private set; }
 
     public WorkerProcess(int workerId, string exePath, string cacheDir, JobObjectHelper? sharedJob)
@@ -193,11 +209,18 @@ internal sealed class WorkerProcess : IDisposable
 
         using var reg = ct.Register(() =>
         {
-            if (_pending.TryRemove(request.Id, out var t))
-                t.TrySetCanceled(ct);
-            // 워커에 cancel 요청 — 살아있을 때만 (죽은 워커에 보내봐야 ObjectDisposedException 노이즈)
-            if (IsAlive && System.Threading.Volatile.Read(ref _disposed) == 0)
-                _ = SendAsync(new IpcEnvelope { Type = IpcMessageTypes.Cancel, Id = request.Id });
+            // v1.4.15: CTS callback에서 throw하면 AggregateException이 ThreadPool 위로 unwrap돼 AppDomain unhandled → 메인 크래시.
+            // 어떤 예외도 외부로 새지 않도록 outer try/catch로 봉인.
+            try
+            {
+                if (_pending.TryRemove(request.Id, out var t))
+                    t.TrySetCanceled(ct);
+                // 워커에 cancel 요청 — 살아있을 때만 (죽은 워커에 보내봐야 ObjectDisposedException 노이즈)
+                // 단축평가: _disposed 먼저 체크해야 IsAlive 진입 자체를 우회 가능
+                if (System.Threading.Volatile.Read(ref _disposed) == 0 && IsAlive)
+                    _ = SendAsync(new IpcEnvelope { Type = IpcMessageTypes.Cancel, Id = request.Id });
+            }
+            catch { /* CTS callback 내부 throw 절대 금지 — 메인 크래시 방지 */ }
         });
 
         return await tcs.Task;
@@ -356,6 +379,9 @@ internal sealed class WorkerProcess : IDisposable
             catch { }
 
             try { _process?.Dispose(); } catch { }
+            // v1.4.15: detach된 Process 객체 참조 잔존 방지 — IsAlive의 `_process is { HasExited: false }` 패턴이
+            // null check만 통과하고 throw하는 race 차단. _disposed 가드와 이중 안전망.
+            _process = null;
         }
         finally
         {

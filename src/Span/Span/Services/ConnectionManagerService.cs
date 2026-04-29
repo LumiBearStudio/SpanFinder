@@ -224,7 +224,7 @@ namespace Span.Services
 
             SavedConnections.Add(connection);
             _isDirty = true;
-            _ = SaveConnectionsAsync();
+            SaveConnectionsAsync().FireAndForget("SaveConnections");
         }
 
         public void UpdateConnection(ConnectionInfo updated)
@@ -249,7 +249,7 @@ namespace Span.Services
 
             SavedConnections[index] = updated;
             _isDirty = true;
-            _ = SaveConnectionsAsync();
+            SaveConnectionsAsync().FireAndForget("SaveConnections");
             DebugLogger.Log($"[ConnectionManager] Connection updated: {updated.DisplayName}");
         }
 
@@ -260,7 +260,7 @@ namespace Span.Services
             {
                 SavedConnections.Remove(existing);
                 _isDirty = true;
-                _ = SaveConnectionsAsync();
+                SaveConnectionsAsync().FireAndForget("SaveConnections");
 
                 // Also remove stored credential
                 RemoveCredential(id);

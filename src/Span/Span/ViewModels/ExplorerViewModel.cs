@@ -9,6 +9,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using Span.Helpers;
 using Span.Models;
 using Span.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -553,7 +554,8 @@ namespace Span.ViewModels
                     as Services.Thumbnails.ThumbnailClientService;
                 if (thumbClient != null)
                 {
-                    _ = thumbClient.CancelAllInflightAsync();
+                    // v1.4.15: IPC cancel 중 워커 죽음 시 ObjectDisposedException 흐름 방지
+                    thumbClient.CancelAllInflightAsync().FireAndForget("CancelAllInflight");
                     thumbClient.PrewarmWorker();
                 }
             }

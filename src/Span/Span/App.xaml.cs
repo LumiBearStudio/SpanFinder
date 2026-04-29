@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.Windows.AppLifecycle;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Span.ViewModels;
 
@@ -483,6 +484,19 @@ namespace Span
 
         private void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
         {
+            // v1.4.15: 정상 cancel 흐름(OperationCanceled)은 Sentry 노이즈만 만들고 의미 없음 → 로그만 남기고 swallow.
+            // 두 번째 Sentry 이슈(FluentFTP/SshNet 내부 socket cancel)의 직접 원인.
+            // 라이브러리 내부 ValueTask가 fire-and-forget으로 처리되며 cancel 시 finalizer로 재던져짐.
+            bool isCancellationOnly = e.Exception != null
+                && e.Exception.InnerExceptions.All(ix => ix is OperationCanceledException);
+
+            if (isCancellationOnly)
+            {
+                Helpers.DebugLogger.Log($"[Task.UnobservedException:Cancel] swallowed ({e.Exception?.InnerExceptions.Count} cancel(s))");
+                e.SetObserved();
+                return;
+            }
+
             Helpers.DebugLogger.LogCrash("Task.UnobservedException", e.Exception);
             try { Services.GetRequiredService<Services.CrashReportingService>().CaptureException(e.Exception, "Task.UnobservedException"); }
             catch { Span.Services.CrashReportingService.CaptureFatalException(e.Exception, "Task.UnobservedException"); }

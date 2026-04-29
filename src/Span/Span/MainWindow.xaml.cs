@@ -709,6 +709,9 @@ namespace Span
             _loc.Language = _settings.Language;
             LocalizeViewModeTooltips();
             _loc.LanguageChanged += LocalizeViewModeTooltips;
+            // v1.4.15: 드라이브 표시명("로컬 디스크" 등)이 LoadDrivesAsync 시점 언어로 캐시되어
+            // 언어 전환 후 이전 언어로 남는 버그 — 언어 변경 시 재생성.
+            _loc.LanguageChanged += () => ViewModel?.RefreshDrives();
 
             // Restore split view state and preview state from persisted settings
             if (this.Content is FrameworkElement rootElement)
@@ -2832,7 +2835,8 @@ namespace Span
             string? selectedPath = null;
 
             // Load computers asynchronously
-            _ = LoadNetworkComputersAsync();
+            // v1.4.15: SMB 네트워크 → Socket OperationCanceledException 시 UnobservedTaskException 방지
+            LoadNetworkComputersAsync().FireAndForget("LoadNetworkComputers");
 
             async Task LoadNetworkComputersAsync()
             {

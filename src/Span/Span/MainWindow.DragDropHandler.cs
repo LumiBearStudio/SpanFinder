@@ -821,23 +821,31 @@ namespace Span
 
         private void OnModifierPollTick(object? state)
         {
-            if (!IsDragInProgress) return;
-
-            var snapshot = GetModifierSnapshot();
-            if (snapshot != _lastModifierSnapshot)
+            // v1.4.15: ThreadPool Timer callback throw → AppDomain unhandled. outer try/catch로 봉인.
+            try
             {
-                _lastModifierSnapshot = snapshot;
-                _nudgeCountdown = 3; // 변경 감지 → 3회 연속 nudge로 DragOver 확실히 트리거
+                if (!IsDragInProgress) return;
+
+                var snapshot = GetModifierSnapshot();
+                if (snapshot != _lastModifierSnapshot)
+                {
+                    _lastModifierSnapshot = snapshot;
+                    _nudgeCountdown = 3; // 변경 감지 → 3회 연속 nudge로 DragOver 확실히 트리거
+                }
+
+                if (_nudgeCountdown > 0)
+                {
+                    _nudgeCountdown--;
+                    // SetCursorPos를 동일 좌표로 호출 → 커서 이동 없이 WM_MOUSEMOVE 발생.
+                    // Windows는 좌표 변경 여부와 무관하게 항상 WM_MOUSEMOVE를 생성하므로
+                    // OLE 드래그 모달 루프에서도 DragOver가 재발생한다.
+                    Helpers.NativeMethods.GetCursorPos(out var pt);
+                    Helpers.NativeMethods.SetCursorPos(pt.X, pt.Y);
+                }
             }
-
-            if (_nudgeCountdown > 0)
+            catch (Exception ex)
             {
-                _nudgeCountdown--;
-                // SetCursorPos를 동일 좌표로 호출 → 커서 이동 없이 WM_MOUSEMOVE 발생.
-                // Windows는 좌표 변경 여부와 무관하게 항상 WM_MOUSEMOVE를 생성하므로
-                // OLE 드래그 모달 루프에서도 DragOver가 재발생한다.
-                Helpers.NativeMethods.GetCursorPos(out var pt);
-                Helpers.NativeMethods.SetCursorPos(pt.X, pt.Y);
+                Helpers.DebugLogger.Log($"[ModifierPollTimer] {ex.Message}");
             }
         }
 

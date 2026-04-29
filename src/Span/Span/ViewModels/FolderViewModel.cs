@@ -1087,7 +1087,8 @@ namespace Span.ViewModels
 
                 if (_isGitFolder && _gitSvc != null && !token.IsCancellationRequested)
                 {
-                    _ = WarmGitCacheAsync(token);
+                    // v1.4.15: git child process 실패 시 UnobservedTaskException 방지
+                    Span.Helpers.TaskExtensions.FireAndForget(WarmGitCacheAsync(token), "WarmGitCache");
                 }
             });
         }

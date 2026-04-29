@@ -182,10 +182,19 @@ namespace Span.Services
 
         private void TimerCallback(object? state)
         {
-            if (state is not string folderPath) return;
-            if (_debounceTimers.TryRemove(folderPath, out var removed))
-                removed.Dispose();
-            PathChanged?.Invoke(folderPath);
+            // v1.4.15: ThreadPool Timer callback throw → AppDomain unhandled.
+            // PathChanged 구독자 throw가 메인 크래시로 번지지 않도록 봉인.
+            try
+            {
+                if (state is not string folderPath) return;
+                if (_debounceTimers.TryRemove(folderPath, out var removed))
+                    removed.Dispose();
+                PathChanged?.Invoke(folderPath);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[FileSystemWatcherService.TimerCallback] {ex.Message}");
+            }
         }
 
         private static bool IsLocalPath(string path)
