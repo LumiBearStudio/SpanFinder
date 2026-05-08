@@ -90,6 +90,11 @@ public sealed partial class OnboardingWindow : Window
         _onCompleted = onCompleted;
         _hwnd = WindowNative.GetWindowHandle(this);
 
+        // 온보딩 창이 한 번이라도 떴으면 즉시 플래그 저장.
+        // 어떤 경로(Alt+F4, 강제종료, 크래시 등)로 닫혀도 다음 실행에서 자동으로 안 뜨게 보장.
+        // 사용자는 Settings의 "온보딩 다시 보기"로 재시청 가능.
+        _settings.OnboardingCompleted = true;
+
         // OverlappedPresenter: resize/maximize/caption 비활성
         AppWindow.Resize(new global::Windows.Graphics.SizeInt32(WIN_W, WIN_H));
         if (AppWindow.Presenter is OverlappedPresenter p)
