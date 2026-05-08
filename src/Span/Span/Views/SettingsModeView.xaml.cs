@@ -1015,6 +1015,21 @@ public sealed partial class SettingsModeView : UserControl
         ["QuickLook"]  = "\uE7B3",  // eye
     };
 
+    // 단축키 리매핑 화면에서 숨길 카테고리.
+    // 커맨드 팔레트 전용 명령(테마/언어/설정 토글 등)은 키보드 단축키로 노출할 가치가 없어 UI에서만 가린다.
+    // 데이터(_categories, _displayNameKeys)는 그대로 유지 — 사용자가 직접 키 할당 시 즉시 동작.
+    private static readonly HashSet<string> _hiddenShortcutCategories = new()
+    {
+        "CommandPalette",
+        "Settings",
+        "Sidebar",
+        "Theme",
+        "Density",
+        "Language",
+        "IconPack",
+        "SettingsSection",
+    };
+
     private void RebuildShortcutItemsUI()
     {
         if (ShortcutItemsPanel == null || _editingBindings == null) return;
@@ -1024,6 +1039,8 @@ public sealed partial class SettingsModeView : UserControl
 
         foreach (var category in categories)
         {
+            if (_hiddenShortcutCategories.Contains(category)) continue;
+
             _shortcutRowIndex = 0;
             var commands = Models.ShortcutCommands.GetCommandsByCategory(category);
             if (commands == null || !commands.Any()) continue;

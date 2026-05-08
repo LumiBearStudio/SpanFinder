@@ -845,7 +845,18 @@ namespace Span.Services
             ("Shortcuts_View", "View", "보기", "表示", "查看", "檢視", "Ansicht", "Vista", "Affichage", "Exibição"),
             ("Shortcuts_Window", "Window", "창", "ウィンドウ", "窗口", "視窗", "Fenster", "Ventana", "Fenêtre", "Janela"),
             ("Shortcuts_Tab", "Tab", "탭", "タブ", "标签页", "分頁", "Tab", "Pestaña", "Onglet", "Aba"),
+            ("Shortcuts_Help", "Help", "도움말", "ヘルプ", "帮助", "說明", "Hilfe", "Ayuda", "Aide", "Ajuda"),
             ("Shortcuts_QuickLook", "Quick Look", "빠른 보기", "クイックルック", "快速查看", "快速預覽", "Schnellansicht", "Vista rápida", "Aperçu rapide", "Visualização rápida"),
+            ("Shortcuts_Workspace", "Workspace", "워크스페이스", "ワークスペース", "工作区", "工作區", "Arbeitsbereich", "Espacio de trabajo", "Espace de travail", "Área de trabalho"),
+            ("Shortcuts_Shelf", "Shelf", "Shelf", "シェルフ", "收集架", "收集架", "Ablage", "Estante", "Étagère", "Prateleira"),
+            ("Shortcuts_CommandPalette", "Command Palette", "커맨드 팔레트", "コマンドパレット", "命令面板", "命令面板", "Befehlspalette", "Paleta de comandos", "Palette de commandes", "Paleta de comandos"),
+            ("Shortcuts_Settings", "Settings", "설정", "設定", "设置", "設定", "Einstellungen", "Configuración", "Paramètres", "Configurações"),
+            ("Shortcuts_Sidebar", "Sidebar", "사이드바", "サイドバー", "侧边栏", "側邊欄", "Seitenleiste", "Barra lateral", "Barre latérale", "Barra lateral"),
+            ("Shortcuts_Theme", "Theme", "테마", "テーマ", "主题", "佈景主題", "Design", "Tema", "Thème", "Tema"),
+            ("Shortcuts_Density", "Density", "밀도", "密度", "密度", "密度", "Dichte", "Densidad", "Densité", "Densidade"),
+            ("Shortcuts_Language", "Language", "언어", "言語", "语言", "語言", "Sprache", "Idioma", "Langue", "Idioma"),
+            ("Shortcuts_IconPack", "Icon Pack", "아이콘 팩", "アイコンパック", "图标包", "圖示包", "Symbolpaket", "Paquete de iconos", "Pack d'icônes", "Pacote de ícones"),
+            ("Shortcuts_SettingsSection", "Settings Sections", "설정 섹션", "設定セクション", "设置分区", "設定分區", "Einstellungsbereiche", "Secciones de configuración", "Sections des paramètres", "Seções de configurações"),
 
             // ── Shortcut command display names ─────────────────────────────
             ("Shortcut_NavigateBack", "Back", "뒤로 가기", "戻る", "后退", "返回", "Zurück", "Atrás", "Retour", "Voltar"),
