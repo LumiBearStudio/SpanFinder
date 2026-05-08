@@ -3431,7 +3431,9 @@ namespace Span
             catch (Exception ex)
             {
                 Helpers.DebugLogger.Log($"[NetworkShortcutFtp] Error: {ex.Message}");
-                ViewModel.ShowToast($"FTP URL 파싱 실패: {ex.Message}");
+                var loc = App.Current.Services.GetService(typeof(Services.LocalizationService)) as Services.LocalizationService;
+                var fmt = loc?.Get("Toast_FtpUrlParseFailed") ?? "FTP URL parse failed: {0}";
+                ViewModel.ShowToast(string.Format(fmt, ex.Message));
             }
         }
 

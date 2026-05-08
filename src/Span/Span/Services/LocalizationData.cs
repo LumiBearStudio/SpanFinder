@@ -1077,6 +1077,9 @@ namespace Span.Services
 
             // ── AddressBar (주소창) ──
             ("AddressBar_Placeholder", "Enter path...", "경로 입력...", "パスを入力...", "输入路径...", "輸入路徑...", "Pfad eingeben...", "Introduce ruta...", "Saisir un chemin...", "Inserir caminho..."),
+
+            // ── Toast: 네트워크 연결 오류 ──
+            ("Toast_FtpUrlParseFailed", "FTP URL parse failed: {0}", "FTP URL 파싱 실패: {0}", "FTP URLの解析に失敗しました: {0}", "FTP URL 解析失败: {0}", "FTP URL 解析失敗: {0}", "FTP-URL-Analyse fehlgeschlagen: {0}", "Error al analizar URL FTP: {0}", "Échec d'analyse de l'URL FTP : {0}", "Falha ao analisar URL FTP: {0}"),
         };
     }
 }
