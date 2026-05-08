@@ -2,6 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using Span.Services;
 using System;
 using System.Collections;
 using System.Linq;
@@ -16,10 +17,36 @@ namespace Span.Controls
     {
         private bool _isEditMode;
         private string? _lastUserInput;
+        private LocalizationService? _loc;
 
         public AddressBarControl()
         {
             this.InitializeComponent();
+
+            // 다국어: AutoSuggestBox PlaceholderText 동적 갱신.
+            this.Loaded += (s, e) =>
+            {
+                _loc = App.Current.Services.GetService(typeof(LocalizationService)) as LocalizationService;
+                if (_loc != null) _loc.LanguageChanged += LocalizeUI;
+                LocalizeUI();
+            };
+            this.Unloaded += (s, e) =>
+            {
+                if (_loc != null) _loc.LanguageChanged -= LocalizeUI;
+            };
+        }
+
+        private void LocalizeUI()
+        {
+            if (_loc == null) return;
+            try
+            {
+                AutoSuggest.PlaceholderText = _loc.Get("AddressBar_Placeholder");
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[AddressBarControl] LocalizeUI error: {ex.Message}");
+            }
         }
 
         // 폰트 스케일은 FontScaleService + XAML {Binding} 으로 자동 반영됨 (Phase B-7).

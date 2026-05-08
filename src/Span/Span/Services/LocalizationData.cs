@@ -1074,6 +1074,9 @@ namespace Span.Services
             ("Settings_OnboardingReplayDesc", "Reintroduce Span's core features.", "Span의 핵심 기능을 다시 소개받습니다.", "Spanの主な機能を再度紹介します。", "重新介绍 Span 的核心功能。", "重新介紹 Span 的核心功能。", "Spans Hauptfunktionen erneut vorstellen.", "Vuelve a presentar las funciones principales de Span.", "Présente à nouveau les fonctionnalités principales de Span.", "Reapresenta os principais recursos do Span."),
             ("Settings_OnboardingReplayBtn", "Replay", "다시 보기", "再生", "重新播放", "重新播放", "Wiederholen", "Reproducir", "Rejouer", "Reproduzir"),
             ("Settings_PreviewFolderInfoDesc", "Show folder icon and item count in the preview panel when a folder is selected", "폴더 선택 시 미리보기 패널에 폴더 아이콘과 항목 수를 표시합니다", "フォルダー選択時にプレビューパネルにフォルダーアイコンと項目数を表示します", "选择文件夹时在预览面板显示文件夹图标和项目数", "選取資料夾時在預覽窗格顯示資料夾圖示和項目數", "Beim Auswählen eines Ordners Symbol und Anzahl der Elemente im Vorschaubereich anzeigen", "Mostrar icono de carpeta y número de elementos en el panel de vista previa al seleccionar una carpeta", "Afficher l'icône du dossier et le nombre d'éléments dans le panneau d'aperçu lors de la sélection d'un dossier", "Mostrar ícone da pasta e contagem de itens no painel de visualização ao selecionar uma pasta"),
+
+            // ── AddressBar (주소창) ──
+            ("AddressBar_Placeholder", "Enter path...", "경로 입력...", "パスを入力...", "输入路径...", "輸入路徑...", "Pfad eingeben...", "Introduce ruta...", "Saisir un chemin...", "Inserir caminho..."),
         };
     }
 }
