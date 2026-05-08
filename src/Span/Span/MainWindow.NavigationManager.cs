@@ -307,15 +307,6 @@ namespace Span
                         double totalWidth = GetTotalColumnsActualWidth(control, columns.Count);
                         double viewportWidth = scrollViewer.ViewportWidth;
                         double targetScroll = Math.Max(0, totalWidth - viewportWidth);
-                        // v1.4.19 진단 로그
-                        var widths = new System.Text.StringBuilder();
-                        for (int i = 0; i < columns.Count; i++)
-                        {
-                            var c = control?.ContainerFromIndex(i) as FrameworkElement;
-                            widths.Append(c == null ? "null" : c.ActualWidth.ToString("F0"));
-                            if (i < columns.Count - 1) widths.Append(",");
-                        }
-                        Helpers.DebugLogger.Log($"[Diag-Miller] ScrollToLast.lambda count={columns.Count} actualWidths=[{widths}] total={totalWidth:F1} VP={viewportWidth:F1} target={targetScroll:F1} disableAnim={disableAnimation} HOBefore={scrollViewer.HorizontalOffset:F1} ExtBefore={scrollViewer.ExtentWidth:F1}");
                         scrollViewer.ChangeView(targetScroll, null, null, disableAnimation);
                     }
                     catch (System.Runtime.InteropServices.COMException)
@@ -339,15 +330,6 @@ namespace Span
                 double totalWidth = GetTotalColumnsActualWidth(control, columns.Count);
                 double viewportWidth = scrollViewer.ViewportWidth;
                 double targetScroll = Math.Max(0, totalWidth - viewportWidth);
-                // v1.4.19 진단 로그
-                var widths = new System.Text.StringBuilder();
-                for (int i = 0; i < columns.Count; i++)
-                {
-                    var c = control?.ContainerFromIndex(i) as FrameworkElement;
-                    widths.Append(c == null ? "null" : c.ActualWidth.ToString("F0"));
-                    if (i < columns.Count - 1) widths.Append(",");
-                }
-                Helpers.DebugLogger.Log($"[Diag-Miller] ScrollToLastSync count={columns.Count} actualWidths=[{widths}] total={totalWidth:F1} VP={viewportWidth:F1} target={targetScroll:F1} disableAnim={disableAnimation} HOBefore={scrollViewer.HorizontalOffset:F1} ExtBefore={scrollViewer.ExtentWidth:F1}");
                 scrollViewer.ChangeView(targetScroll, null, null, disableAnimation);
             }
             catch (System.Runtime.InteropServices.COMException)

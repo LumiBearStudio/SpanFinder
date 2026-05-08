@@ -1524,25 +1524,18 @@ namespace Span.ViewModels
                     // ItemsControl 뒤에 같은 폭의 spacer Border를 펼치도록 신호 → ExtentWidth가
                     // RemoveAt → Insert 사이에 변동하지 않음 → 가로 스크롤바 thumb 박동 + 자동
                     // HorizontalOffset 클램프(컬럼 좌측 점프) 모두 원천 차단.
-                    int beforeSubs = BeforeReplaceLastColumn?.GetInvocationList()?.Length ?? 0;
-                    int afterSubs = AfterReplaceLastColumn?.GetInvocationList()?.Length ?? 0;
-                    Helpers.DebugLogger.Log($"[Diag-Miller] VM:Begin instance={GetHashCode():X} BeforeSubs={beforeSubs} AfterSubs={afterSubs} nextIndex={nextIndex} count={Columns.Count} parent='{parentFolder.Name}' selected='{selectedFolder.Name}'");
                     IsReplacingLastColumn = true;
                     BeforeReplaceLastColumn?.Invoke();
                     AnyBeforeReplaceLastColumn?.Invoke(this);
                     bool insertedOk = false;
                     try
                     {
-                        Helpers.DebugLogger.Log($"[Diag-Miller] VM:BeforeRemoveAt count={Columns.Count}");
                         Columns.RemoveAt(nextIndex);
-                        Helpers.DebugLogger.Log($"[Diag-Miller] VM:AfterRemoveAt count={Columns.Count}");
                         await Task.Delay(32);
                         if (token.IsCancellationRequested) return;
                         if (Columns.IndexOf(parentFolder) != parentIndex) return;
                         if (parentFolder.SelectedChild != selectedFolder) return;
-                        Helpers.DebugLogger.Log($"[Diag-Miller] VM:BeforeInsert count={Columns.Count}");
                         Columns.Insert(nextIndex, selectedFolder);
-                        Helpers.DebugLogger.Log($"[Diag-Miller] VM:AfterInsert count={Columns.Count}");
                         insertedOk = true;
                     }
                     finally
@@ -1550,7 +1543,6 @@ namespace Span.ViewModels
                         IsReplacingLastColumn = false;
                         AfterReplaceLastColumn?.Invoke();
                         AnyAfterReplaceLastColumn?.Invoke(this, insertedOk);
-                        Helpers.DebugLogger.Log($"[Diag-Miller] VM:End count={Columns.Count} insertedOk={insertedOk}");
                     }
                 }
                 else

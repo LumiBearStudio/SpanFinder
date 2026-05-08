@@ -491,7 +491,6 @@ namespace Span
             // 정적 이벤트로 forward 받아 sender 비교로 라우팅 (인스턴스 무관 보장).
             ViewModels.ExplorerViewModel.AnyBeforeReplaceLastColumn += OnAnyBeforeReplaceLastColumn;
             ViewModels.ExplorerViewModel.AnyAfterReplaceLastColumn += OnAnyAfterReplaceLastColumn;
-            Helpers.DebugLogger.Log($"[Diag-Miller] L:Subscribed.init.static (instance-agnostic forward)");
             ViewModel.RightExplorer.Columns.CollectionChanged += OnRightColumnsChanged;
             ViewModel.RightExplorer.NavigationError += OnNavigationError;
             ViewModel.RightExplorer.PathHighlightsUpdated += OnPathHighlightsUpdated;
@@ -1585,7 +1584,6 @@ namespace Span
             // → ↑/↓ 토글마다 ChangeView 애니메이션이 좌→우로 휙 이동하는 현상 차단.
             // 깊이 진입(Replace 아님) 시는 정상 ScrollTo + 슬라이드-인.
             bool isReplacingLeft = ViewModel.LeftExplorer?.IsReplacingLastColumn == true;
-            Helpers.DebugLogger.Log($"[Diag-Miller] L:ColumnsChanged action={e.Action} isReplacing={isReplacingLeft} {DiagSv(GetActiveMillerScrollViewer())}");
 
             if (e.Action == NotifyCollectionChangedAction.Add ||
                 e.Action == NotifyCollectionChangedAction.Replace)
@@ -1669,28 +1667,18 @@ namespace Span
 
         private void OnLeftBeforeReplaceLastColumn()
         {
-            var sv = GetActiveMillerScrollViewer();
-            Helpers.DebugLogger.Log($"[Diag-Miller] L:BeforeReplace.entry {DiagSv(sv)} spacer={MillerColumnSpacerLeft?.Width:F1}");
             SetMillerSpacerWidth(MillerColumnSpacerLeft, GetActiveMillerColumnsControl());
-            Helpers.DebugLogger.Log($"[Diag-Miller] L:BeforeReplace.exit  {DiagSv(sv)} spacer={MillerColumnSpacerLeft?.Width:F1}");
         }
         private void OnLeftAfterReplaceLastColumn(bool insertedOk)
         {
-            var sv = GetActiveMillerScrollViewer();
-            Helpers.DebugLogger.Log($"[Diag-Miller] L:AfterReplace.entry insertedOk={insertedOk} {DiagSv(sv)} spacer={MillerColumnSpacerLeft?.Width:F1}");
-
             // v1.4.19: insertedOk=false (RemoveAt 후 빠른 cancel로 Insert 미실행) 시 spacer를
             // 그대로 유지하여 ItemsControl 폭 손실을 보상 → ExtentWidth 박동 + HO 자동 클램프
             // 좌측 점프 차단. 다음 BeforeReplace 또는 새 ScrollToLastColumn 호출 시 자연 정리.
-            if (!insertedOk)
-            {
-                Helpers.DebugLogger.Log($"[Diag-Miller] L:AfterReplace.skip-spacer-reset (Insert canceled, spacer 유지)");
-                return;
-            }
+            if (!insertedOk) return;
 
             try { MillerColumnSpacerLeft.Width = 0; } catch { }
-            Helpers.DebugLogger.Log($"[Diag-Miller] L:AfterReplace.spacer0 {DiagSv(sv)} spacer={MillerColumnSpacerLeft?.Width:F1}");
             if (_isClosed || ViewModel?.LeftExplorer == null) return;
+            var sv = GetActiveMillerScrollViewer();
             if (sv == null) return;
             // Insert 직후 새 컨테이너가 measure 전이라도 GetTotalColumnsActualWidth가 ColumnWidth
             // 폴백으로 정확한 totalWidth 계산. ScrollToLastColumn은 자체 Low queue 큐잉.
@@ -1699,9 +1687,7 @@ namespace Span
             sv.DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
                 () => {
                     if (_isClosed || ViewModel?.LeftExplorer == null) return;
-                    Helpers.DebugLogger.Log($"[Diag-Miller] L:AfterReplace.lowQueueSync.before {DiagSv(sv)} spacer={MillerColumnSpacerLeft?.Width:F1}");
                     ScrollToLastColumnSync(ViewModel.LeftExplorer, sv, disableAnimation: true);
-                    Helpers.DebugLogger.Log($"[Diag-Miller] L:AfterReplace.lowQueueSync.after  {DiagSv(sv)} spacer={MillerColumnSpacerLeft?.Width:F1}");
                 });
         }
 
@@ -1717,14 +1703,6 @@ namespace Span
                 () => { if (!_isClosed && ViewModel?.RightExplorer != null) ScrollToLastColumnSync(ViewModel.RightExplorer, MillerScrollViewerRight, disableAnimation: true); });
         }
 
-        /// <summary>v1.4.19 진단 로그용: ScrollViewer 상태 한 줄 포맷.</summary>
-        private static string DiagSv(ScrollViewer? sv)
-        {
-            if (sv == null) return "sv=null";
-            try { return $"HO={sv.HorizontalOffset:F1} Ext={sv.ExtentWidth:F1} VP={sv.ViewportWidth:F1} ScrW={sv.ScrollableWidth:F1}"; }
-            catch { return "sv=err"; }
-        }
-
         /// <summary>
         /// v1.4.19: 정적 forward 이벤트로부터 들어온 sender를 ViewModel.Left/RightExplorer 와
         /// 비교해 좌/우 spacer 핸들러에 라우팅. 인스턴스 단위 구독이 _leftExplorer 직접 할당으로
@@ -1733,7 +1711,6 @@ namespace Span
         private void OnAnyBeforeReplaceLastColumn(ViewModels.ExplorerViewModel sender)
         {
             if (_isClosed || ViewModel == null) return;
-            Helpers.DebugLogger.Log($"[Diag-Miller] L:AnyBefore sender={sender.GetHashCode():X} Left={ViewModel.LeftExplorer?.GetHashCode():X} Right={ViewModel.RightExplorer?.GetHashCode():X}");
             if (ReferenceEquals(sender, ViewModel.LeftExplorer)) OnLeftBeforeReplaceLastColumn();
             else if (ReferenceEquals(sender, ViewModel.RightExplorer)) OnRightBeforeReplaceLastColumn();
         }
