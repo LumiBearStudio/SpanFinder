@@ -821,6 +821,21 @@ public sealed partial class SettingsModeView : UserControl
             AvailableText2.Text = _loc.Get("OpenSource_Available");
             FontsLabel.Text = _loc.Get("OpenSource_Fonts");
             BundledText.Text = _loc.Get("OpenSource_Bundled");
+
+            // Browsing — Preview folder info (라벨/설명)
+            PreviewFolderInfoLabel.Text = _loc.Get("Settings_PreviewFolderInfo");
+            PreviewFolderInfoDesc.Text = _loc.Get("Settings_PreviewFolderInfoDesc");
+
+            // Tools — 로그 폴더 / 썸네일 격리 / 온보딩 다시보기
+            OpenLogsLabel.Text = _loc.Get("Settings_OpenLogs");
+            OpenLogsDesc.Text = _loc.Get("Settings_OpenLogsDesc");
+            CopyLogsPathBtn.Content = _loc.Get("CopyPath");
+            OpenLogsBtn.Content = _loc.Get("Open");
+            IsolatedThumbsLabel.Text = _loc.Get("Settings_IsolatedThumbs");
+            IsolatedThumbsDesc.Text = _loc.Get("Settings_IsolatedThumbsDesc");
+            OnboardingReplayLabel.Text = _loc.Get("Settings_OnboardingReplay");
+            OnboardingReplayDesc.Text = _loc.Get("Settings_OnboardingReplayDesc");
+            OnboardingReplayButtonText.Text = _loc.Get("Settings_OnboardingReplayBtn");
         }
         catch (Exception ex)
         {
