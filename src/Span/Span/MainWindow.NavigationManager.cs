@@ -289,7 +289,9 @@ namespace Span
         /// 마지막 컬럼이 보이도록 Miller Column ScrollViewer를 스크롤한다.
         /// DispatcherQueue Low 우선순위로 지연 실행하여 레이아웃 계산 완료 후 스크롤한다.
         /// </summary>
-        private void ScrollToLastColumn(ExplorerViewModel explorer, ScrollViewer scrollViewer)
+        /// <param name="disableAnimation">true면 애니메이션 없이 즉시 점프 (v1.4.19: 형제 폴더
+        /// Replace 사이클에서 위치 보정 시 사용).</param>
+        private void ScrollToLastColumn(ExplorerViewModel explorer, ScrollViewer scrollViewer, bool disableAnimation = false)
         {
             var columns = explorer.Columns;
             if (columns.Count == 0) return;
@@ -301,10 +303,20 @@ namespace Span
                     try
                     {
                         if (_isClosed) return;
-                        double totalWidth = GetTotalColumnsActualWidth(columns.Count);
+                        var control = scrollViewer == MillerScrollViewerRight ? (ItemsControl)MillerColumnsControlRight : GetActiveMillerColumnsControl();
+                        double totalWidth = GetTotalColumnsActualWidth(control, columns.Count);
                         double viewportWidth = scrollViewer.ViewportWidth;
                         double targetScroll = Math.Max(0, totalWidth - viewportWidth);
-                        scrollViewer.ChangeView(targetScroll, null, null, false);
+                        // v1.4.19 진단 로그
+                        var widths = new System.Text.StringBuilder();
+                        for (int i = 0; i < columns.Count; i++)
+                        {
+                            var c = control?.ContainerFromIndex(i) as FrameworkElement;
+                            widths.Append(c == null ? "null" : c.ActualWidth.ToString("F0"));
+                            if (i < columns.Count - 1) widths.Append(",");
+                        }
+                        Helpers.DebugLogger.Log($"[Diag-Miller] ScrollToLast.lambda count={columns.Count} actualWidths=[{widths}] total={totalWidth:F1} VP={viewportWidth:F1} target={targetScroll:F1} disableAnim={disableAnimation} HOBefore={scrollViewer.HorizontalOffset:F1} ExtBefore={scrollViewer.ExtentWidth:F1}");
+                        scrollViewer.ChangeView(targetScroll, null, null, disableAnimation);
                     }
                     catch (System.Runtime.InteropServices.COMException)
                     {
@@ -316,17 +328,27 @@ namespace Span
         /// <summary>
         /// ScrollToLastColumn의 동기 버전 — 이미 DispatcherQueue Low 내부에서 호출될 때 사용.
         /// </summary>
-        private void ScrollToLastColumnSync(ExplorerViewModel explorer, ScrollViewer? scrollViewer)
+        private void ScrollToLastColumnSync(ExplorerViewModel explorer, ScrollViewer? scrollViewer, bool disableAnimation = false)
         {
             if (scrollViewer == null) return;
             try
             {
                 var columns = explorer.Columns;
                 if (columns.Count == 0) return;
-                double totalWidth = GetTotalColumnsActualWidth(columns.Count);
+                var control = scrollViewer == MillerScrollViewerRight ? (ItemsControl)MillerColumnsControlRight : GetActiveMillerColumnsControl();
+                double totalWidth = GetTotalColumnsActualWidth(control, columns.Count);
                 double viewportWidth = scrollViewer.ViewportWidth;
                 double targetScroll = Math.Max(0, totalWidth - viewportWidth);
-                scrollViewer.ChangeView(targetScroll, null, null, false);
+                // v1.4.19 진단 로그
+                var widths = new System.Text.StringBuilder();
+                for (int i = 0; i < columns.Count; i++)
+                {
+                    var c = control?.ContainerFromIndex(i) as FrameworkElement;
+                    widths.Append(c == null ? "null" : c.ActualWidth.ToString("F0"));
+                    if (i < columns.Count - 1) widths.Append(",");
+                }
+                Helpers.DebugLogger.Log($"[Diag-Miller] ScrollToLastSync count={columns.Count} actualWidths=[{widths}] total={totalWidth:F1} VP={viewportWidth:F1} target={targetScroll:F1} disableAnim={disableAnimation} HOBefore={scrollViewer.HorizontalOffset:F1} ExtBefore={scrollViewer.ExtentWidth:F1}");
+                scrollViewer.ChangeView(targetScroll, null, null, disableAnimation);
             }
             catch (System.Runtime.InteropServices.COMException)
             {
@@ -336,18 +358,38 @@ namespace Span
 
         /// <summary>
         /// 렌더링된 컬럼의 실제 너비 합산 (리사이즈 반영).
+        /// 좌측 Miller(현재 활성 탭) 기준.
         /// </summary>
-        private double GetTotalColumnsActualWidth(int columnCount)
+        private double GetTotalColumnsActualWidth(int columnCount) => GetTotalColumnsActualWidth(GetActiveMillerColumnsControl(), columnCount);
+
+        /// <summary>
+        /// 명시 ItemsControl 기준 컬럼 너비 합산. 새 컨테이너가 measure 전이라 ActualWidth=0이면
+        /// 다른 컬럼의 측정폭(또는 ColumnWidth 폴백)을 사용 → Insert 직후에도 정확한 totalWidth 보장.
+        /// v1.4.19: FontScale level이 0이 아니면 실제 폭(220 + level*6)이 ColumnWidth 상수와 다르므로
+        /// 측정된 다른 컬럼의 ActualWidth를 폴백으로 우선 사용 (오차 0).
+        /// </summary>
+        private double GetTotalColumnsActualWidth(ItemsControl? control, int columnCount)
         {
-            var control = GetActiveMillerColumnsControl();
+            // 측정 완료된 임의의 컬럼 폭을 폴백 기준으로 추정 (FontScale 적용 폭).
+            double fallbackWidth = ColumnWidth;
+            for (int i = 0; i < columnCount; i++)
+            {
+                var c = control?.ContainerFromIndex(i) as FrameworkElement;
+                if (c != null && c.ActualWidth > 0)
+                {
+                    fallbackWidth = c.ActualWidth;
+                    break;
+                }
+            }
+
             double total = 0;
             for (int i = 0; i < columnCount; i++)
             {
-                var container = control.ContainerFromIndex(i) as FrameworkElement;
+                var container = control?.ContainerFromIndex(i) as FrameworkElement;
                 if (container != null && container.ActualWidth > 0)
                     total += container.ActualWidth;
                 else
-                    total += ColumnWidth;
+                    total += fallbackWidth;
             }
             return total;
         }

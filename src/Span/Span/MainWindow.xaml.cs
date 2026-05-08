@@ -486,9 +486,22 @@ namespace Span
             ViewModel.Explorer.Columns.CollectionChanged += OnColumnsChanged;
             ViewModel.Explorer.NavigationError += OnNavigationError;
             ViewModel.Explorer.PathHighlightsUpdated += OnPathHighlightsUpdated;
+            // v1.4.19: spacer 펼치기/접기로 ExtentWidth 박동 차단
+            // 인스턴스 단위 구독은 backing field 직접 할당 케이스에서 새 인스턴스로 안 따라감 →
+            // 정적 이벤트로 forward 받아 sender 비교로 라우팅 (인스턴스 무관 보장).
+            ViewModels.ExplorerViewModel.AnyBeforeReplaceLastColumn += OnAnyBeforeReplaceLastColumn;
+            ViewModels.ExplorerViewModel.AnyAfterReplaceLastColumn += OnAnyAfterReplaceLastColumn;
+            Helpers.DebugLogger.Log($"[Diag-Miller] L:Subscribed.init.static (instance-agnostic forward)");
             ViewModel.RightExplorer.Columns.CollectionChanged += OnRightColumnsChanged;
             ViewModel.RightExplorer.NavigationError += OnNavigationError;
             ViewModel.RightExplorer.PathHighlightsUpdated += OnPathHighlightsUpdated;
+            // v1.4.19: 좌/우 모두 정적 forward 이벤트로 통합 → 인스턴스 단위 구독 불필요
+
+            // v1.4.19: 자식 컨트롤(ListView 등)의 자동 BringIntoView 요청을 부모 ScrollViewer가
+            // 가로 스크롤로 처리하지 않도록 차단. 가로 스크롤은 ScrollToLastColumn / ChangeView
+            // 명시 호출로만 제어 → 형제 폴더 토글 시 위치 점프·어중간 정렬 등 자동 동작 원천 차단.
+            MillerScrollViewer.BringIntoViewRequested += OnMillerBringIntoViewRequested;
+            MillerScrollViewerRight.BringIntoViewRequested += OnMillerBringIntoViewRequested;
 
             // ── Per-Tab Miller Panel 초기화 ──
             // XAML에서 ItemsSource가 제거되었으므로 코드에서 설정
@@ -762,6 +775,7 @@ namespace Span
                         _subscribedLeftExplorer = ViewModel.Explorer;
                         ViewModel.Explorer.Columns.CollectionChanged += OnColumnsChanged;
                         ViewModel.Explorer.PathHighlightsUpdated += OnPathHighlightsUpdated;
+                        // v1.4.19: spacer 이벤트는 정적 forward로 통합되어 별도 재구독 불필요
 
                         _previousViewMode = ViewModel.CurrentViewMode;
                         SetViewModeVisibility(ViewModel.CurrentViewMode);
@@ -1328,6 +1342,12 @@ namespace Span
                     _subscribedLeftExplorer.PathHighlightsUpdated -= OnPathHighlightsUpdated;
                     _subscribedLeftExplorer = null;
                 }
+                // v1.4.19: BringIntoView 핸들러 해제
+                try { MillerScrollViewer.BringIntoViewRequested -= OnMillerBringIntoViewRequested; } catch { }
+                try { MillerScrollViewerRight.BringIntoViewRequested -= OnMillerBringIntoViewRequested; } catch { }
+                // v1.4.19: 정적 forward 이벤트 해제 (메모리 누수 방지)
+                try { ViewModels.ExplorerViewModel.AnyBeforeReplaceLastColumn -= OnAnyBeforeReplaceLastColumn; } catch { }
+                try { ViewModels.ExplorerViewModel.AnyAfterReplaceLastColumn -= OnAnyAfterReplaceLastColumn; } catch { }
                 if (ViewModel?.RightExplorer != null)
                 {
                     ViewModel.RightExplorer.Columns.CollectionChanged -= OnRightColumnsChanged;
@@ -1559,11 +1579,22 @@ namespace Span
             // ContainerFromIndex/ScrollToLastColumn이 AccessViolationException을 일으킬 수 있음
             if (ViewModel == null || ViewModel.CurrentViewMode != ViewMode.MillerColumns) return;
 
+            // v1.4.19: 마지막 컬럼 RemoveAt+Delay+Insert 사이클 동안에는 ScrollToLastColumn /
+            // 슬라이드-인 둘 다 skip. spacer Border가 ExtentWidth를 보존하므로 자동 좌측 클램프
+            // 위험이 없어 ScrollTo를 호출하지 않아도 위치가 유지됨.
+            // → ↑/↓ 토글마다 ChangeView 애니메이션이 좌→우로 휙 이동하는 현상 차단.
+            // 깊이 진입(Replace 아님) 시는 정상 ScrollTo + 슬라이드-인.
+            bool isReplacingLeft = ViewModel.LeftExplorer?.IsReplacingLastColumn == true;
+            Helpers.DebugLogger.Log($"[Diag-Miller] L:ColumnsChanged action={e.Action} isReplacing={isReplacingLeft} {DiagSv(GetActiveMillerScrollViewer())}");
+
             if (e.Action == NotifyCollectionChangedAction.Add ||
                 e.Action == NotifyCollectionChangedAction.Replace)
             {
-                Helpers.DebugLogger.Log($"[OnColumnsChanged] ScrollToLastColumn for left explorer");
-                ScrollToLastColumn(ViewModel.LeftExplorer, GetActiveMillerScrollViewer());
+                if (!isReplacingLeft)
+                {
+                    Helpers.DebugLogger.Log($"[OnColumnsChanged] ScrollToLastColumn for left explorer");
+                    ScrollToLastColumn(ViewModel.LeftExplorer, GetActiveMillerScrollViewer());
+                }
                 if (_millerSelectionMode != ListViewSelectionMode.Extended)
                 {
                     DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
@@ -1571,9 +1602,11 @@ namespace Span
                 }
             }
 
-            // Column slide-in animation: only for Add when not the root column
+            // Column slide-in animation: only for Add when not the root column,
+            // and only when this is a genuine depth change (not a Replace cycle).
             if (e.Action == NotifyCollectionChangedAction.Add &&
-                ViewModel.LeftExplorer.Columns.Count > 1)
+                ViewModel.LeftExplorer.Columns.Count > 1 &&
+                !isReplacingLeft)
             {
                 Helpers.DebugLogger.Log($"[OnColumnsChanged] PrepareAndAnimateNewColumn for left");
                 PrepareAndAnimateNewColumn(GetActiveMillerColumnsControl());
@@ -1594,11 +1627,18 @@ namespace Span
             // ContainerFromIndex/ScrollToLastColumn이 AccessViolation을 일으킬 수 있음
             if (ViewModel.RightViewMode != ViewMode.MillerColumns) return;
 
+            // v1.4.19: 좌측과 동일 — Replace 사이클 동안 ScrollTo / 슬라이드-인 둘 다 skip.
+            // spacer Border가 ExtentWidth를 보존하므로 좌측 클램프 위험 없음.
+            bool isReplacingRight = ViewModel.RightExplorer?.IsReplacingLastColumn == true;
+
             if (e.Action == NotifyCollectionChangedAction.Add ||
                 e.Action == NotifyCollectionChangedAction.Replace)
             {
-                Helpers.DebugLogger.Log($"[OnRightColumnsChanged] ScrollToLastColumn for right explorer");
-                ScrollToLastColumn(ViewModel.RightExplorer, MillerScrollViewerRight);
+                if (!isReplacingRight)
+                {
+                    Helpers.DebugLogger.Log($"[OnRightColumnsChanged] ScrollToLastColumn for right explorer");
+                    ScrollToLastColumn(ViewModel.RightExplorer, MillerScrollViewerRight);
+                }
                 if (_millerSelectionMode != ListViewSelectionMode.Extended)
                 {
                     DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
@@ -1606,13 +1646,136 @@ namespace Span
                 }
             }
 
-            // Column slide-in animation for right pane
+            // Column slide-in animation for right pane (skip during Replace cycle)
             if (e.Action == NotifyCollectionChangedAction.Add &&
-                ViewModel.RightExplorer.Columns.Count > 1)
+                ViewModel.RightExplorer.Columns.Count > 1 &&
+                !isReplacingRight)
             {
                 Helpers.DebugLogger.Log($"[OnRightColumnsChanged] PrepareAndAnimateNewColumn for right");
                 PrepareAndAnimateNewColumn(MillerColumnsControlRight);
             }
+        }
+
+        // =================================================================
+        //  v1.4.19: ExtentWidth 박동 + 자동 BringIntoView 차단을 위한 spacer + 우측 끝 즉시 정렬
+        // =================================================================
+        // 1) RemoveAt 직전에 spacer를 마지막 컬럼 폭만큼 펼치고, Insert 직후 0으로 접는다.
+        //    → ItemsControl 폭 변동을 spacer가 흡수하여 ScrollViewer ExtentWidth 일정 유지
+        //    → thumb 박동·자동 클램프 차단.
+        // 2) AfterReplace 단계에서 ExtentWidth - ViewportWidth로 즉시 정렬(disableAnimation=true).
+        //    형제 폴더 토글은 본질적으로 마지막 컬럼이 보이는 상태에서 일어나므로 우측 끝
+        //    정렬이 자연스럽다. ChangeView를 즉시 + Low 큐 두 번 호출하여 WinUI 자동
+        //    BringIntoView가 layout pass 이후에 끼어드는 케이스도 무력화.
+
+        private void OnLeftBeforeReplaceLastColumn()
+        {
+            var sv = GetActiveMillerScrollViewer();
+            Helpers.DebugLogger.Log($"[Diag-Miller] L:BeforeReplace.entry {DiagSv(sv)} spacer={MillerColumnSpacerLeft?.Width:F1}");
+            SetMillerSpacerWidth(MillerColumnSpacerLeft, GetActiveMillerColumnsControl());
+            Helpers.DebugLogger.Log($"[Diag-Miller] L:BeforeReplace.exit  {DiagSv(sv)} spacer={MillerColumnSpacerLeft?.Width:F1}");
+        }
+        private void OnLeftAfterReplaceLastColumn(bool insertedOk)
+        {
+            var sv = GetActiveMillerScrollViewer();
+            Helpers.DebugLogger.Log($"[Diag-Miller] L:AfterReplace.entry insertedOk={insertedOk} {DiagSv(sv)} spacer={MillerColumnSpacerLeft?.Width:F1}");
+
+            // v1.4.19: insertedOk=false (RemoveAt 후 빠른 cancel로 Insert 미실행) 시 spacer를
+            // 그대로 유지하여 ItemsControl 폭 손실을 보상 → ExtentWidth 박동 + HO 자동 클램프
+            // 좌측 점프 차단. 다음 BeforeReplace 또는 새 ScrollToLastColumn 호출 시 자연 정리.
+            if (!insertedOk)
+            {
+                Helpers.DebugLogger.Log($"[Diag-Miller] L:AfterReplace.skip-spacer-reset (Insert canceled, spacer 유지)");
+                return;
+            }
+
+            try { MillerColumnSpacerLeft.Width = 0; } catch { }
+            Helpers.DebugLogger.Log($"[Diag-Miller] L:AfterReplace.spacer0 {DiagSv(sv)} spacer={MillerColumnSpacerLeft?.Width:F1}");
+            if (_isClosed || ViewModel?.LeftExplorer == null) return;
+            if (sv == null) return;
+            // Insert 직후 새 컨테이너가 measure 전이라도 GetTotalColumnsActualWidth가 ColumnWidth
+            // 폴백으로 정확한 totalWidth 계산. ScrollToLastColumn은 자체 Low queue 큐잉.
+            // 두 번 호출하여 다음 layout pass 후에도 위치가 흔들리지 않도록 보강.
+            ScrollToLastColumn(ViewModel.LeftExplorer, sv, disableAnimation: true);
+            sv.DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+                () => {
+                    if (_isClosed || ViewModel?.LeftExplorer == null) return;
+                    Helpers.DebugLogger.Log($"[Diag-Miller] L:AfterReplace.lowQueueSync.before {DiagSv(sv)} spacer={MillerColumnSpacerLeft?.Width:F1}");
+                    ScrollToLastColumnSync(ViewModel.LeftExplorer, sv, disableAnimation: true);
+                    Helpers.DebugLogger.Log($"[Diag-Miller] L:AfterReplace.lowQueueSync.after  {DiagSv(sv)} spacer={MillerColumnSpacerLeft?.Width:F1}");
+                });
+        }
+
+        private void OnRightBeforeReplaceLastColumn() => SetMillerSpacerWidth(MillerColumnSpacerRight, MillerColumnsControlRight);
+        private void OnRightAfterReplaceLastColumn(bool insertedOk)
+        {
+            // v1.4.19: 좌측과 동일 - Insert 미실행 시 spacer 유지
+            if (!insertedOk) return;
+            try { MillerColumnSpacerRight.Width = 0; } catch { }
+            if (_isClosed || ViewModel?.RightExplorer == null) return;
+            ScrollToLastColumn(ViewModel.RightExplorer, MillerScrollViewerRight, disableAnimation: true);
+            MillerScrollViewerRight.DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+                () => { if (!_isClosed && ViewModel?.RightExplorer != null) ScrollToLastColumnSync(ViewModel.RightExplorer, MillerScrollViewerRight, disableAnimation: true); });
+        }
+
+        /// <summary>v1.4.19 진단 로그용: ScrollViewer 상태 한 줄 포맷.</summary>
+        private static string DiagSv(ScrollViewer? sv)
+        {
+            if (sv == null) return "sv=null";
+            try { return $"HO={sv.HorizontalOffset:F1} Ext={sv.ExtentWidth:F1} VP={sv.ViewportWidth:F1} ScrW={sv.ScrollableWidth:F1}"; }
+            catch { return "sv=err"; }
+        }
+
+        /// <summary>
+        /// v1.4.19: 정적 forward 이벤트로부터 들어온 sender를 ViewModel.Left/RightExplorer 와
+        /// 비교해 좌/우 spacer 핸들러에 라우팅. 인스턴스 단위 구독이 _leftExplorer 직접 할당으로
+        /// 끊어지는 케이스를 모두 cover.
+        /// </summary>
+        private void OnAnyBeforeReplaceLastColumn(ViewModels.ExplorerViewModel sender)
+        {
+            if (_isClosed || ViewModel == null) return;
+            Helpers.DebugLogger.Log($"[Diag-Miller] L:AnyBefore sender={sender.GetHashCode():X} Left={ViewModel.LeftExplorer?.GetHashCode():X} Right={ViewModel.RightExplorer?.GetHashCode():X}");
+            if (ReferenceEquals(sender, ViewModel.LeftExplorer)) OnLeftBeforeReplaceLastColumn();
+            else if (ReferenceEquals(sender, ViewModel.RightExplorer)) OnRightBeforeReplaceLastColumn();
+        }
+
+        private void OnAnyAfterReplaceLastColumn(ViewModels.ExplorerViewModel sender, bool insertedOk)
+        {
+            if (_isClosed || ViewModel == null) return;
+            if (ReferenceEquals(sender, ViewModel.LeftExplorer)) OnLeftAfterReplaceLastColumn(insertedOk);
+            else if (ReferenceEquals(sender, ViewModel.RightExplorer)) OnRightAfterReplaceLastColumn(insertedOk);
+        }
+
+        /// <summary>
+        /// spacer Border의 폭을 ItemsControl의 마지막 컬럼 컨테이너 ActualWidth로 설정.
+        /// 컨테이너가 아직 measure 전이거나 가져올 수 없으면 ColumnWidth(220) 폴백.
+        /// </summary>
+        private void SetMillerSpacerWidth(Border spacer, ItemsControl? control)
+        {
+            if (spacer == null) return;
+            try
+            {
+                double w = ColumnWidth;
+                if (control != null && control.Items != null && control.Items.Count > 0)
+                {
+                    int lastIdx = control.Items.Count - 1;
+                    if (control.ContainerFromIndex(lastIdx) is FrameworkElement last && last.ActualWidth > 0)
+                    {
+                        w = last.ActualWidth;
+                    }
+                }
+                spacer.Width = w;
+            }
+            catch { /* defensive: spacer 조정 실패는 무시 (회귀 위험 0 우선) */ }
+        }
+
+        /// <summary>
+        /// v1.4.19: Miller ScrollViewer의 자식 컨트롤(ListView/SelectedItem/포커스 등)이 발생시키는
+        /// 자동 BringIntoView 요청을 차단한다. 가로 스크롤은 ScrollToLastColumn 명시 호출로만 제어.
+        /// </summary>
+        private void OnMillerBringIntoViewRequested(UIElement sender, BringIntoViewRequestedEventArgs args)
+        {
+            // BringIntoView가 ScrollViewer 자체를 가로로 흔드는 경우만 차단 (Vertical은 Disabled라 무영향).
+            args.Handled = true;
         }
 
         // =================================================================

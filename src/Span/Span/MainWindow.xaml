@@ -916,7 +916,7 @@
                                 </Grid.ColumnDefinitions>
                                 <!-- 첫 번째 탭 전용 (XAML 정의) — 추가 탭은 코드에서 동적 생성 -->
                                 <ScrollViewer x:Name="MillerScrollViewer" Grid.Column="0"
-                                              HorizontalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Visible"
                                               VerticalScrollBarVisibility="Disabled"
                                               VerticalScrollMode="Disabled"
                                               AllowDrop="True"
@@ -1102,6 +1102,10 @@
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
+                                    <!-- v1.4.19: 마지막 컬럼 Replace 사이클 동안 같은 폭으로 펼쳐
+                                         ItemsControl의 ExtentWidth를 일정하게 유지 → 가로 스크롤바
+                                         thumb 박동·자동 클램프 차단. 평소엔 Width=0. -->
+                                    <Border x:Name="MillerColumnSpacerLeft" Width="0" />
                                     </StackPanel>
                                 </ScrollViewer>
 
@@ -1345,12 +1349,14 @@
                         <Grid Grid.Column="0">
                             <!-- Miller Columns View (Right) -->
                             <ScrollViewer x:Name="MillerScrollViewerRight"
-                                          HorizontalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Visible"
                                           VerticalScrollBarVisibility="Disabled"
                                           Visibility="{x:Bind IsMillerColumnsMode(ViewModel.RightViewMode), Mode=OneWay}"
                                           AllowDrop="True"
                                           DragOver="OnMillerEmptyAreaDragOver"
                                           DragLeave="OnMillerEmptyAreaDragLeave">
+                                <!-- v1.4.19: ItemsControl을 StackPanel로 감싸 spacer Border와 함께 배치 (좌측과 동일 패턴) -->
+                                <StackPanel Orientation="Horizontal">
                                 <ItemsControl x:Name="MillerColumnsControlRight" ItemsSource="{x:Bind ViewModel.RightExplorer.Columns, Mode=OneWay}">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>
@@ -1529,6 +1535,9 @@
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
+                                <!-- v1.4.19: 우측 spacer (좌측과 동일 패턴) -->
+                                <Border x:Name="MillerColumnSpacerRight" Width="0" />
+                                </StackPanel>
                             </ScrollViewer>
 
                             <!-- Home View (Right) -->

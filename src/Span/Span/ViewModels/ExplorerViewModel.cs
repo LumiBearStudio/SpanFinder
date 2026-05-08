@@ -27,6 +27,36 @@ namespace Span.ViewModels
         // Columns for Miller View
         public ObservableCollection<FolderViewModel> Columns { get; }
 
+        /// <summary>
+        /// v1.4.19: 마지막 컬럼을 RemoveAt+Delay+Insert 패턴(v1.4.3 native crash 회피용)으로 교체하는 동안 true.
+        /// MainWindow.OnColumnsChanged 가 이 플래그를 보고 슬라이드-인(PrepareAndAnimateNewColumn)만 skip
+        /// 한다 (ScrollToLastColumn은 정상 호출). 형제 폴더 ↑/↓ 토글 시 컬럼이 좌우로 튀는 jitter 차단.
+        /// 깊이 변경(=신규 컬럼 추가) 시는 false → 정상 슬라이드-인 보존.
+        /// </summary>
+        public bool IsReplacingLastColumn { get; private set; }
+
+        /// <summary>
+        /// v1.4.19: 마지막 컬럼 RemoveAt 직전에 발화. View가 동일 폭의 spacer Border를 펼쳐
+        /// ItemsControl의 ExtentWidth가 변동하지 않게 유지 → 가로 스크롤바 thumb 박동 차단.
+        /// </summary>
+        public event Action? BeforeReplaceLastColumn;
+
+        /// <summary>
+        /// v1.4.19: Insert 직후(정상 / 취소 / 예외 모두) 발화. View가 spacer Border 폭을 0으로 복귀.
+        /// </summary>
+        public event Action? AfterReplaceLastColumn;
+
+        // v1.4.19: 정적(인스턴스 무관) forward 이벤트.
+        // MainViewModel이 _leftExplorer 백킹 필드를 직접 할당하는 케이스(setter 우회)에서
+        // 인스턴스 단위 구독이 새 인스턴스로 따라가지 않아 spacer가 펼쳐지지 않는 문제 해결.
+        // View는 이 정적 이벤트를 한 번만 구독해 sender와 ViewModel.LeftExplorer/RightExplorer
+        // 비교로 라우팅한다.
+        // bool 인자: Insert가 정상 완료되었는지(true) / 빠른 cancel로 RemoveAt만 일어났는지(false).
+        // false 시 View는 spacer를 그대로 유지하여 ExtentWidth가 한 컬럼 폭만큼 줄어드는 좌측
+        // 클램프(HO 0 점프)를 방지 → 다음 BeforeReplace에서 자연 정리.
+        public static event Action<ExplorerViewModel>? AnyBeforeReplaceLastColumn;
+        public static event Action<ExplorerViewModel, bool>? AnyAfterReplaceLastColumn;
+
         // 브레드크럼 세그먼트 (주소 표시줄)
         public ObservableCollection<PathSegment> PathSegments { get; } = new();
 
@@ -1485,12 +1515,43 @@ namespace Span.ViewModels
                     // Replace notification은 WinUI ItemsControl에서 ListView tear-down/build-up을
                     // 한 프레임 안에 강제 → virtualizer race → Microsoft.UI.Xaml.dll native 크래시.
                     // rc2: Task.Yield() → Task.Delay(32)로 최소 2 프레임 경계 확보 (Yield는 queue 양보만).
-                    Columns.RemoveAt(nextIndex);
-                    await Task.Delay(32);
-                    if (token.IsCancellationRequested) return;
-                    if (Columns.IndexOf(parentFolder) != parentIndex) return;
-                    if (parentFolder.SelectedChild != selectedFolder) return;
-                    Columns.Insert(nextIndex, selectedFolder);
+                    //
+                    // v1.4.19: IsReplacingLastColumn 플래그로 OnColumnsChanged 가 슬라이드-인 애니메이션
+                    // (PrepareAndAnimateNewColumn)만 skip 하도록 신호. ScrollToLastColumn은 정상 호출.
+                    // 형제 폴더 ↑/↓ 토글 시 30px Translation 누적으로 컬럼이 좌우로 튀는 jitter 차단.
+                    //
+                    // v1.4.19+: BeforeReplaceLastColumn / AfterReplaceLastColumn 이벤트로 View가
+                    // ItemsControl 뒤에 같은 폭의 spacer Border를 펼치도록 신호 → ExtentWidth가
+                    // RemoveAt → Insert 사이에 변동하지 않음 → 가로 스크롤바 thumb 박동 + 자동
+                    // HorizontalOffset 클램프(컬럼 좌측 점프) 모두 원천 차단.
+                    int beforeSubs = BeforeReplaceLastColumn?.GetInvocationList()?.Length ?? 0;
+                    int afterSubs = AfterReplaceLastColumn?.GetInvocationList()?.Length ?? 0;
+                    Helpers.DebugLogger.Log($"[Diag-Miller] VM:Begin instance={GetHashCode():X} BeforeSubs={beforeSubs} AfterSubs={afterSubs} nextIndex={nextIndex} count={Columns.Count} parent='{parentFolder.Name}' selected='{selectedFolder.Name}'");
+                    IsReplacingLastColumn = true;
+                    BeforeReplaceLastColumn?.Invoke();
+                    AnyBeforeReplaceLastColumn?.Invoke(this);
+                    bool insertedOk = false;
+                    try
+                    {
+                        Helpers.DebugLogger.Log($"[Diag-Miller] VM:BeforeRemoveAt count={Columns.Count}");
+                        Columns.RemoveAt(nextIndex);
+                        Helpers.DebugLogger.Log($"[Diag-Miller] VM:AfterRemoveAt count={Columns.Count}");
+                        await Task.Delay(32);
+                        if (token.IsCancellationRequested) return;
+                        if (Columns.IndexOf(parentFolder) != parentIndex) return;
+                        if (parentFolder.SelectedChild != selectedFolder) return;
+                        Helpers.DebugLogger.Log($"[Diag-Miller] VM:BeforeInsert count={Columns.Count}");
+                        Columns.Insert(nextIndex, selectedFolder);
+                        Helpers.DebugLogger.Log($"[Diag-Miller] VM:AfterInsert count={Columns.Count}");
+                        insertedOk = true;
+                    }
+                    finally
+                    {
+                        IsReplacingLastColumn = false;
+                        AfterReplaceLastColumn?.Invoke();
+                        AnyAfterReplaceLastColumn?.Invoke(this, insertedOk);
+                        Helpers.DebugLogger.Log($"[Diag-Miller] VM:End count={Columns.Count} insertedOk={insertedOk}");
+                    }
                 }
                 else
                 {
