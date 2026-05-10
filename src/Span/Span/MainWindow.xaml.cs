@@ -1020,7 +1020,12 @@ namespace Span
                     // ── 첫 실행 시 온보딩 창 표시 ──
                     // Tear-off 윈도우는 대상 아님 (위 _pendingTearOff 분기에서 return됨)
                     // v1.5.2 (Discussion #30): OnboardingDisabled 옵션 켜져 있으면 첫 실행에도 차단
-                    if (!_settings.OnboardingCompleted && !_settings.OnboardingDisabled)
+                    // 보강 B: 가드 결과를 로그에 남겨 사용자가 "토글 켰는데도 떴다" 보고 시 어떤
+                    //         플래그 상태였는지 즉시 파악 가능하게 함.
+                    bool _obCompleted = _settings.OnboardingCompleted;
+                    bool _obDisabled = _settings.OnboardingDisabled;
+                    Helpers.DebugLogger.Log($"[Onboarding] gate check: completed={_obCompleted}, disabled={_obDisabled} → show={!_obCompleted && !_obDisabled}");
+                    if (!_obCompleted && !_obDisabled)
                     {
                         DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
                         {

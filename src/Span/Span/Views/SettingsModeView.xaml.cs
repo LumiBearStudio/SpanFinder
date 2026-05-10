@@ -355,7 +355,17 @@ public sealed partial class SettingsModeView : UserControl
         PreviewFolderInfoToggle.Toggled += (s, e) => { if (!_isLoading) _settings.PreviewShowFolderInfo = PreviewFolderInfoToggle.IsOn; };
 
         // v1.5.2 (Discussion #30): 온보딩 표시 안 함 토글
-        DisableOnboardingToggle.Toggled += (s, e) => { if (!_isLoading) _settings.OnboardingDisabled = DisableOnboardingToggle.IsOn; };
+        // 보강 A: 토글 ON 시 OnboardingCompleted도 동시에 true → 두 플래그 중 하나가 손실돼도
+        //         나머지가 차단 가드를 통과시킴 (fail-safe 이중 보호).
+        // 보강 B: 토글 상태 변경을 로그에 남김 → 재발 보고 시 사용자가 정말 켰는지 데이터로 확인.
+        DisableOnboardingToggle.Toggled += (s, e) =>
+        {
+            if (_isLoading) return;
+            bool on = DisableOnboardingToggle.IsOn;
+            _settings.OnboardingDisabled = on;
+            if (on) _settings.OnboardingCompleted = true;
+            Helpers.DebugLogger.Log($"[Onboarding] DisableOnboardingToggle changed: disabled={on}, completed={_settings.OnboardingCompleted}");
+        };
 
         FavoritesTreeToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowFavoritesTree = FavoritesTreeToggle.IsOn; };
         SystemTrayToggle.Toggled += (s, e) => { if (!_isLoading) _settings.MinimizeToTray = SystemTrayToggle.IsOn; };
