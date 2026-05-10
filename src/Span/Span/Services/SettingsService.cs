@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Windows.Storage;
 
 namespace Span.Services;
@@ -14,6 +15,19 @@ public class SettingsService : ISettingsService
 
     public event Action<string, object?>? SettingChanged;
 
+    /// <summary>
+    /// v1.5.2 (Discussion #30): LocalSettings corrupt 감지 후 Values.Clear()로 wipe 할 때
+    /// 손실되면 안 되는 핵심 사용자 키 화이트리스트. Clear 직전 백업 → 직후 복원.
+    /// 이전: corrupt → Wipe → OnboardingCompleted=false → 매 실행마다 온보딩 재표시.
+    /// </summary>
+    private static readonly string[] _criticalKeysToPreserve = new[]
+    {
+        "OnboardingCompleted",
+        "OnboardingDisabled",
+        "Theme",
+        "Language",
+    };
+
     public SettingsService()
     {
         try
@@ -25,15 +39,37 @@ public class SettingsService : ISettingsService
         }
         catch (Exception ex)
         {
-            Helpers.DebugLogger.Log($"[SettingsService] LocalSettings corrupted, clearing: {ex.Message}");
+            Helpers.DebugLogger.Log($"[SettingsService] LocalSettings corrupted, attempting selective recovery: {ex.Message}");
             try
             {
                 _localSettings = ApplicationData.Current.LocalSettings;
+
+                // v1.5.2 (Discussion #30): 핵심 키 백업 → Clear → 복원.
+                // 이전 동작은 Wipe 후 모든 사용자 설정(온보딩 완료 플래그 포함)을 잃어
+                // 다음 실행에서 OnboardingCompleted=false → 온보딩 무한 재표시 유발.
+                var preserved = new Dictionary<string, object?>();
+                foreach (var key in _criticalKeysToPreserve)
+                {
+                    try
+                    {
+                        if (_localSettings.Values.TryGetValue(key, out var v) && v != null)
+                            preserved[key] = v;
+                    }
+                    catch { /* 키 read 실패 — 해당 키만 건너뜀 */ }
+                }
+
                 _localSettings.Values.Clear();
+
+                foreach (var kvp in preserved)
+                {
+                    try { _localSettings.Values[kvp.Key] = kvp.Value; } catch { }
+                }
+                Helpers.DebugLogger.Log($"[SettingsService] Restored {preserved.Count}/{_criticalKeysToPreserve.Length} critical keys after wipe");
             }
-            catch
+            catch (Exception innerEx)
             {
                 // Last resort — settings will be empty but app won't crash
+                Helpers.DebugLogger.Log($"[SettingsService] Selective recovery failed: {innerEx.Message}");
             }
         }
     }
@@ -441,6 +477,17 @@ public class SettingsService : ISettingsService
     {
         get => Get("OnboardingCompleted", false);
         set => Set("OnboardingCompleted", value);
+    }
+
+    /// <summary>
+    /// v1.5.2 (Discussion #30): 사용자가 온보딩을 영구 비활성화.
+    /// true면 첫 실행에도 OnboardingWindow가 자동으로 열리지 않음.
+    /// "온보딩 다시 보기" 버튼은 이 토글과 무관하게 동작 (수동 호출).
+    /// </summary>
+    public bool OnboardingDisabled
+    {
+        get => Get("OnboardingDisabled", false);
+        set => Set("OnboardingDisabled", value);
     }
 
     // ── Command Palette ──

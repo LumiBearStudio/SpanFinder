@@ -1019,7 +1019,8 @@ namespace Span
 
                     // ── 첫 실행 시 온보딩 창 표시 ──
                     // Tear-off 윈도우는 대상 아님 (위 _pendingTearOff 분기에서 return됨)
-                    if (!_settings.OnboardingCompleted)
+                    // v1.5.2 (Discussion #30): OnboardingDisabled 옵션 켜져 있으면 첫 실행에도 차단
+                    if (!_settings.OnboardingCompleted && !_settings.OnboardingDisabled)
                     {
                         DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
                         {

@@ -2195,6 +2195,26 @@
                                 </StackPanel>
                             </Border>
 
+                            <!-- v1.5.2 (Discussion #30): 온보딩 표시 안 함 토글 -->
+                            <Border Style="{StaticResource SettingsCardBorder}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Border Style="{StaticResource CardIconContainer}">
+                                            <FontIcon Glyph="&#xE711;" Style="{StaticResource CardIconStyle}" />
+                                        </Border>
+                                        <StackPanel Spacing="2" VerticalAlignment="Center">
+                                            <TextBlock x:Name="DisableOnboardingLabel" Text="온보딩 표시 안 함" Style="{StaticResource SettingsCardLabel}" />
+                                            <TextBlock x:Name="DisableOnboardingDesc" Text="첫 실행 시에도 온보딩 화면을 띄우지 않습니다." Style="{StaticResource SettingsCardDesc}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                    <ToggleSwitch x:Name="DisableOnboardingToggle" Grid.Column="1" VerticalAlignment="Center" IsOn="False" OnContent="" OffContent="" />
+                                </Grid>
+                            </Border>
+
                             <!-- Onboarding replay -->
                             <Border Style="{StaticResource SettingsCardBorder}">
                                 <Grid>

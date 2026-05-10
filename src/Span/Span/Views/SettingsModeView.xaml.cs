@@ -165,6 +165,8 @@ public sealed partial class SettingsModeView : UserControl
             FavoritesTreeToggle.IsOn = _settings.ShowFavoritesTree;
             SystemTrayToggle.IsOn = _settings.MinimizeToTray;
             WindowPositionToggle.IsOn = _settings.RememberWindowPosition;
+            // v1.5.2 (Discussion #30): 온보딩 표시 안 함 토글
+            DisableOnboardingToggle.IsOn = _settings.OnboardingDisabled;
 
             // Appearance
             var theme = _settings.Theme;
@@ -351,6 +353,9 @@ public sealed partial class SettingsModeView : UserControl
 
         // Preview: show folder info
         PreviewFolderInfoToggle.Toggled += (s, e) => { if (!_isLoading) _settings.PreviewShowFolderInfo = PreviewFolderInfoToggle.IsOn; };
+
+        // v1.5.2 (Discussion #30): 온보딩 표시 안 함 토글
+        DisableOnboardingToggle.Toggled += (s, e) => { if (!_isLoading) _settings.OnboardingDisabled = DisableOnboardingToggle.IsOn; };
 
         FavoritesTreeToggle.Toggled += (s, e) => { if (!_isLoading) _settings.ShowFavoritesTree = FavoritesTreeToggle.IsOn; };
         SystemTrayToggle.Toggled += (s, e) => { if (!_isLoading) _settings.MinimizeToTray = SystemTrayToggle.IsOn; };
@@ -833,6 +838,9 @@ public sealed partial class SettingsModeView : UserControl
             OpenLogsBtn.Content = _loc.Get("Open");
             IsolatedThumbsLabel.Text = _loc.Get("Settings_IsolatedThumbs");
             IsolatedThumbsDesc.Text = _loc.Get("Settings_IsolatedThumbsDesc");
+            // v1.5.2 (Discussion #30): 온보딩 표시 안 함 카드 다국어
+            DisableOnboardingLabel.Text = _loc.Get("Settings_DisableOnboarding");
+            DisableOnboardingDesc.Text = _loc.Get("Settings_DisableOnboardingDesc");
             OnboardingReplayLabel.Text = _loc.Get("Settings_OnboardingReplay");
             OnboardingReplayDesc.Text = _loc.Get("Settings_OnboardingReplayDesc");
             OnboardingReplayButtonText.Text = _loc.Get("Settings_OnboardingReplayBtn");
