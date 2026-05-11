@@ -624,13 +624,27 @@ namespace Span.Services
                     // STA 스레드 유지: InvokeCommand/Dispose 작업 처리
                     if (result != null)
                     {
-                        foreach (var action in workQueue.GetConsumingEnumerable())
+                        try
                         {
-                            try { action(); }
-                            catch (Exception ex)
+                            foreach (var action in workQueue.GetConsumingEnumerable())
                             {
-                                Helpers.DebugLogger.Log($"[ShellContextMenu] STA work item error: {ex.Message}");
+                                try { action(); }
+                                catch (Exception ex)
+                                {
+                                    Helpers.DebugLogger.Log($"[ShellContextMenu] STA work item error: {ex.Message}");
+                                }
                             }
+                        }
+                        catch (Exception ex)
+                        {
+                            Helpers.DebugLogger.Log($"[ShellContextMenu] STA loop error: {ex.Message}");
+                        }
+
+                        // Work loop 종료 후 STA 스레드 자신이 result를 정리 (CreateSessionAsync와 대칭).
+                        try { result.DisposeOnSta(); }
+                        catch (Exception ex)
+                        {
+                            Helpers.DebugLogger.Log($"[ShellContextMenu] STA final DisposeOnSta error: {ex.Message}");
                         }
                     }
                 });
@@ -642,8 +656,13 @@ namespace Span.Services
                 if (!completed)
                 {
                     Helpers.DebugLogger.Log($"[ShellContextMenu] CreateBackgroundSession timed out ({timeoutMs}ms) for: {folderPath}");
-                    workQueue.CompleteAdding();
-                    _ = Task.Run(() => { staThread.Join(5000); result?.Dispose(); });
+                    // Bug fix: CreateSessionAsync와 동일 — STA가 result를 만든 후에만 queue를 닫아
+                    // STA가 자기 result를 DisposeOnSta로 안전하게 정리하도록 함.
+                    _ = Task.Run(() =>
+                    {
+                        creationDone.Wait(30000);
+                        try { workQueue.CompleteAdding(); } catch { }
+                    });
                     return null;
                 }
 
@@ -695,13 +714,30 @@ namespace Span.Services
                     // STA 스레드 유지: InvokeCommand/Dispose 작업 처리
                     if (result != null)
                     {
-                        foreach (var action in workQueue.GetConsumingEnumerable())
+                        try
                         {
-                            try { action(); }
-                            catch (Exception ex)
+                            foreach (var action in workQueue.GetConsumingEnumerable())
                             {
-                                Helpers.DebugLogger.Log($"[ShellContextMenu] STA work item error: {ex.Message}");
+                                try { action(); }
+                                catch (Exception ex)
+                                {
+                                    Helpers.DebugLogger.Log($"[ShellContextMenu] STA work item error: {ex.Message}");
+                                }
                             }
+                        }
+                        catch (Exception ex)
+                        {
+                            Helpers.DebugLogger.Log($"[ShellContextMenu] STA loop error: {ex.Message}");
+                        }
+
+                        // Work loop 종료 후 STA 스레드 자신이 result를 정리.
+                        // 정상 Dispose 경로: 호출자의 Dispose가 이미 _disposed=true로 설정 → 여기선 no-op.
+                        // Timeout 경로: 호출자는 result를 받지 못함 → 여기서 STA 내부 정리 발생.
+                        // 어느 경우든 COM 객체는 STA에서만 release되므로 cross-apartment 위반 없음.
+                        try { result.DisposeOnSta(); }
+                        catch (Exception ex)
+                        {
+                            Helpers.DebugLogger.Log($"[ShellContextMenu] STA final DisposeOnSta error: {ex.Message}");
                         }
                     }
                 });
@@ -715,8 +751,19 @@ namespace Span.Services
                 if (!completed)
                 {
                     Helpers.DebugLogger.Log($"[ShellContextMenu] CreateSession timed out ({timeoutMs}ms) for: {path}");
-                    workQueue.CompleteAdding();
-                    _ = Task.Run(() => { staThread.Join(5000); result?.Dispose(); });
+                    // Bug fix: workQueue.CompleteAdding()을 즉시 호출하지 않음.
+                    // 이전 코드는 STA가 result를 만들기 전에 queue를 닫아 STA가 빈 foreach로 즉시 종료,
+                    // worker 스레드가 result?.Dispose()를 호출하면서 STA 객체를 다른 어퍼트먼트에서 release →
+                    // E_INVALIDARG (0x80070057) / E_UNEXPECTED (0x8000FFFF) 발생.
+                    //
+                    // 새 흐름: STA가 creationDone을 set한 뒤에 CompleteAdding을 호출 → STA가 빈 foreach 빠져나가며
+                    // 자신의 result를 DisposeOnSta로 정리. 호출자는 즉시 null 리턴.
+                    _ = Task.Run(() =>
+                    {
+                        // STA가 CreateSession을 끝낼 때까지 대기 (셸 확장이 정말로 행이면 30초까지)
+                        creationDone.Wait(30000);
+                        try { workQueue.CompleteAdding(); } catch { }
+                    });
                     return null;
                 }
 
@@ -1258,6 +1305,21 @@ namespace Span.Services
                 {
                     Helpers.DebugLogger.Log($"[ShellContextMenu.Session] Dispose error: {ex.Message}");
                 }
+            }
+
+            /// <summary>
+            /// STA 스레드 내부에서만 호출. workQueue를 거치지 않고 DisposeCore를 직접 실행.
+            /// CreateSessionAsync timeout 경로에서 STA 스레드가 자기 자신의 result를 정리할 때 사용.
+            /// idempotent — 이미 dispose된 경우 no-op.
+            /// </summary>
+            internal void DisposeOnSta()
+            {
+                lock (_lock)
+                {
+                    if (_disposed) return;
+                    _disposed = true;
+                }
+                DisposeCore();
             }
         }
     }
