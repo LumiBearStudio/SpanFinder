@@ -230,6 +230,7 @@
                           ItemsSource="{x:Bind Favorites, Mode=OneWay}"
                           IsItemClickEnabled="True"
                           ItemClick="OnFavoriteItemClick"
+                          ContainerContentChanging="OnFavoriteContainerContentChanging"
                           SelectionMode="None">
                     <GridView.ItemsPanel>
                         <ItemsPanelTemplate>
@@ -252,11 +253,18 @@
                                   BorderThickness="1"
                                   RightTapped="OnFavoriteRightTapped">
                                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="6">
-                                    <FontIcon FontFamily="{StaticResource RemixIcons}"
-                                              Glyph="{x:Bind IconGlyph}"
-                                              Foreground="{x:Bind IconBrush}"
-                                              FontSize="24"
-                                              HorizontalAlignment="Center"/>
+                                    <Grid HorizontalAlignment="Center">
+                                        <!-- desktop.ini 커스텀 아이콘 (Issue #39 a) -->
+                                        <Image Source="{x:Bind CustomIcon, Mode=OneWay}"
+                                               Visibility="{x:Bind CustomIconVisibility, Mode=OneWay}"
+                                               Width="24" Height="24"/>
+                                        <!-- 기본 글리프 -->
+                                        <FontIcon FontFamily="{StaticResource RemixIcons}"
+                                                  Glyph="{x:Bind IconGlyph}"
+                                                  Foreground="{x:Bind IconBrush}"
+                                                  FontSize="24"
+                                                  Visibility="{x:Bind GlyphVisibility, Mode=OneWay}"/>
+                                    </Grid>
                                     <TextBlock Text="{x:Bind Name}"
                                                FontSize="12"
                                                TextAlignment="Center"

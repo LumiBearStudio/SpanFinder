@@ -4134,6 +4134,8 @@ namespace Span
                     HasUnrealizedChildren = HasSubfolders(fav.Path)
                 };
                 FavoritesTreeView.RootNodes.Add(node);
+                // Issue #39 a: desktop.ini 커스텀 아이콘 lazy 로드 (트리 뷰)
+                fav.RequestCustomIconLoad();
             }
         }
 
@@ -4193,17 +4195,20 @@ namespace Span
                         if ((info.Attributes & System.IO.FileAttributes.Hidden) != 0) continue;
                         if ((info.Attributes & System.IO.FileAttributes.System) != 0) continue;
 
+                        var childContent = new SidebarFolderNode
+                        {
+                            Name = info.Name,
+                            Path = dir,
+                            IconGlyph = Services.IconService.Current?.FolderGlyph ?? "\uED53"
+                        };
                         var childNode = new TreeViewNode
                         {
-                            Content = new SidebarFolderNode
-                            {
-                                Name = info.Name,
-                                Path = dir,
-                                IconGlyph = Services.IconService.Current?.FolderGlyph ?? "\uED53"
-                            },
+                            Content = childContent,
                             HasUnrealizedChildren = true // Assume subfolders may exist; checked lazily on next expand
                         };
                         args.Node.Children.Add(childNode);
+                        // Issue #39 a: desktop.ini \uCEE4\uC2A4\uD140 \uC544\uC774\uCF58 lazy \uB85C\uB4DC (\uC790\uC2DD \uB178\uB4DC)
+                        childContent.RequestCustomIconLoad();
                     }
                     catch { /* Skip inaccessible directories */ }
                 }
@@ -4398,7 +4403,10 @@ namespace Span
         /// </summary>
         private void OnSidebarContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
         {
-            // No-op: 스케일은 XAML 바인딩이 처리.
+            // Issue #39 a: 사이드바 즐겨찾기에 desktop.ini 커스텀 아이콘 lazy 로드 트리거.
+            // FolderCustomIconsEnabled 설정 ON일 때만 실제 로드 (모델 내부에서 게이트).
+            if (args.Item is FavoriteItem favorite)
+                favorite.RequestCustomIconLoad();
         }
 
         /// <summary>

@@ -440,11 +440,20 @@
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
+                                        <!-- desktop.ini 커스텀 아이콘 (있을 때만, Issue #39 a) -->
+                                        <Image Grid.Column="0"
+                                               Source="{x:Bind CustomIcon, Mode=OneWay}"
+                                               Visibility="{x:Bind CustomIconVisibility, Mode=OneWay}"
+                                               Width="16" Height="16"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,12,0"/>
+                                        <!-- 기본 글리프 (CustomIcon 없을 때) -->
                                         <TextBlock Grid.Column="0"
                                                    Text="{x:Bind IconGlyph}"
                                                    FontFamily="{StaticResource RemixIcons}"
                                                    FontSize="{Binding IconFontSize, Source={StaticResource FontScale}}"
                                                    Foreground="{x:Bind IconBrush}"
+                                                   Visibility="{x:Bind GlyphVisibility, Mode=OneWay}"
                                                    VerticalAlignment="Center"
                                                    Margin="0,0,12,0"/>
                                         <TextBlock Grid.Column="1"
@@ -478,11 +487,20 @@
                                 <DataTemplate x:DataType="TreeViewNode">
                                     <StackPanel Orientation="Horizontal" Spacing="8"
                                                 ToolTipService.ToolTip="{Binding Content.Path}">
-                                        <TextBlock Text="{Binding Content.IconGlyph}"
-                                                   FontFamily="{StaticResource RemixIcons}"
-                                                   FontSize="{Binding IconFontSize, Source={StaticResource FontScale}}"
-                                                   Foreground="{Binding Content.IconBrush}"
+                                        <Grid>
+                                            <!-- desktop.ini 커스텀 아이콘 (Issue #39 a) -->
+                                            <Image Source="{Binding Content.CustomIcon, Mode=OneWay}"
+                                                   Visibility="{Binding Content.CustomIconVisibility, Mode=OneWay}"
+                                                   Width="16" Height="16"
                                                    VerticalAlignment="Center"/>
+                                            <!-- 기본 글리프 (CustomIcon 없을 때) -->
+                                            <TextBlock Text="{Binding Content.IconGlyph}"
+                                                       FontFamily="{StaticResource RemixIcons}"
+                                                       FontSize="{Binding IconFontSize, Source={StaticResource FontScale}}"
+                                                       Foreground="{Binding Content.IconBrush}"
+                                                       Visibility="{Binding Content.GlyphVisibility, Mode=OneWay}"
+                                                       VerticalAlignment="Center"/>
+                                        </Grid>
                                         <TextBlock Text="{Binding Content.Name}"
                                                    FontSize="{Binding ItemFontSize, Source={StaticResource FontScale}}"
                                                    VerticalAlignment="Center"

@@ -142,6 +142,17 @@ namespace Span.Views
             }
         }
 
+        /// <summary>
+        /// Issue #39 a: 홈 즐겨찾기 컨테이너가 가시화될 때 desktop.ini 커스텀 아이콘 lazy 로드.
+        /// </summary>
+        private void OnFavoriteContainerContentChanging(
+            Microsoft.UI.Xaml.Controls.ListViewBase sender,
+            Microsoft.UI.Xaml.Controls.ContainerContentChangingEventArgs args)
+        {
+            if (args.Item is FavoriteItem favorite)
+                favorite.RequestCustomIconLoad();
+        }
+
         private void OnFavoriteRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
         {
             if (_settings != null && !_settings.ShowContextMenu) return;
