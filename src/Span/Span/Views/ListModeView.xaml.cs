@@ -28,6 +28,11 @@ namespace Span.Views
         public bool IsRightPane { get; set; }
         public bool IsManualViewModel { get; set; }
 
+        /// <summary>
+        /// 외부(MainWindow)에서 rename TextBox 포커스를 위해 컨테이너에 접근할 수 있도록 노출.
+        /// </summary>
+        internal Microsoft.UI.Xaml.Controls.ListViewBase ItemsHost => ListGridView;
+
         private ExplorerViewModel? _viewModel;
 
         /// <summary>hit-test 기반 D&amp;D에서 마지막으로 하이라이트된 Grid 추적</summary>

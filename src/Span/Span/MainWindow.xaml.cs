@@ -6173,24 +6173,58 @@ namespace Span
             {
                 System.IO.Directory.CreateDirectory(newPath);
 
-                // Find and refresh the column for this parent
                 var columns = ViewModel.ActiveExplorer?.Columns; if (columns == null) return;
                 var parentColumn = columns.FirstOrDefault(c =>
                     c.Path.Equals(parentFolderPath, StringComparison.OrdinalIgnoreCase));
-                if (parentColumn != null)
+                if (parentColumn == null) return;
+
+                await parentColumn.ReloadAsync();
+
+                // Children polling — SyncChildren race 대비
+                Span.ViewModels.FileSystemViewModel? newFolder = null;
+                for (int i = 0; i < 10; i++)
                 {
-                    await parentColumn.ReloadAsync();
-                    var newFolder = parentColumn.Children.FirstOrDefault(c =>
+                    newFolder = parentColumn.Children.FirstOrDefault(c =>
                         c.Path.Equals(newPath, StringComparison.OrdinalIgnoreCase));
-                    if (newFolder != null)
+                    if (newFolder != null) break;
+                    await System.Threading.Tasks.Task.Delay(50);
+                }
+                if (newFolder == null)
+                {
+                    Helpers.DebugLogger.Log($"[ContextMenu] PerformNewFolder: new folder not found after polling ({newPath})");
+                    return;
+                }
+
+                int colIndex = columns.IndexOf(parentColumn);
+                var explorer = ViewModel.ActiveExplorer!;
+
+                // 컨텍스트 메뉴 닫힘 → 컬럼 GotFocus → CancelAnyActiveRename 호출 차단.
+                // _renamePendingFocus = true 상태에서는 CancelAnyActiveRename과
+                // OnRenameTextBoxLostFocus가 첫 줄에서 return하여 rename이 죽지 않음.
+                _renamePendingFocus = true;
+                try
+                {
+                    using (explorer.SuppressAutoNavigationScope())
                     {
                         parentColumn.SelectedChild = newFolder;
                         newFolder.BeginRename();
-                        await System.Threading.Tasks.Task.Delay(100);
-                        int colIndex = columns.IndexOf(parentColumn);
-                        if (colIndex >= 0)
-                            FocusRenameTextBox(colIndex);
+                        _renameTargetPath = newFolder.Path;
+                        _renameSelectionCycle = 0;
+
+                        var itemsHost = colIndex >= 0 ? GetListViewForColumn(colIndex) : null;
+                        if (itemsHost != null)
+                            await FocusRenameTextBoxWithPollingAsync(itemsHost, newFolder);
+                        else
+                            Helpers.DebugLogger.Log($"[ContextMenu] PerformNewFolder: no ListView for col={colIndex}");
+
+                        // 큐된 SelectionChanged / GotFocus 이벤트 흡수
+                        await System.Threading.Tasks.Task.Delay(200);
                     }
+                }
+                finally
+                {
+                    _renamePendingFocus = false;
+                    Helpers.DebugLogger.Log($"[ContextMenu] PerformNewFolder: cleared _renamePendingFocus, final IsRenaming={newFolder.IsRenaming}");
                 }
             }
             catch (Exception ex)
@@ -6219,24 +6253,53 @@ namespace Span
                 var result = await op.ExecuteAsync();
                 if (!result.Success) return;
 
-                // Refresh column and start rename
                 var columns = ViewModel.ActiveExplorer?.Columns; if (columns == null) return;
                 var parentColumn = columns.FirstOrDefault(c =>
                     c.Path.Equals(parentFolderPath, StringComparison.OrdinalIgnoreCase));
-                if (parentColumn != null)
+                if (parentColumn == null) return;
+
+                await parentColumn.ReloadAsync();
+
+                Span.ViewModels.FileSystemViewModel? newFile = null;
+                for (int i = 0; i < 10; i++)
                 {
-                    await parentColumn.ReloadAsync();
-                    var newFile = parentColumn.Children.FirstOrDefault(c =>
+                    newFile = parentColumn.Children.FirstOrDefault(c =>
                         c.Path.Equals(newPath, StringComparison.OrdinalIgnoreCase));
-                    if (newFile != null)
+                    if (newFile != null) break;
+                    await System.Threading.Tasks.Task.Delay(50);
+                }
+                if (newFile == null)
+                {
+                    Helpers.DebugLogger.Log($"[ContextMenu] PerformNewFile: new file not found after polling ({newPath})");
+                    return;
+                }
+
+                int colIndex = columns.IndexOf(parentColumn);
+                var explorer = ViewModel.ActiveExplorer!;
+
+                _renamePendingFocus = true;
+                try
+                {
+                    using (explorer.SuppressAutoNavigationScope())
                     {
                         parentColumn.SelectedChild = newFile;
                         newFile.BeginRename();
-                        await System.Threading.Tasks.Task.Delay(100);
-                        int colIndex = columns.IndexOf(parentColumn);
-                        if (colIndex >= 0)
-                            FocusRenameTextBox(colIndex);
+                        _renameTargetPath = newFile.Path;
+                        _renameSelectionCycle = 0;
+
+                        var itemsHost = colIndex >= 0 ? GetListViewForColumn(colIndex) : null;
+                        if (itemsHost != null)
+                            await FocusRenameTextBoxWithPollingAsync(itemsHost, newFile);
+                        else
+                            Helpers.DebugLogger.Log($"[ContextMenu] PerformNewFile: no ListView for col={colIndex}");
+
+                        await System.Threading.Tasks.Task.Delay(200);
                     }
+                }
+                finally
+                {
+                    _renamePendingFocus = false;
+                    Helpers.DebugLogger.Log($"[ContextMenu] PerformNewFile: cleared _renamePendingFocus, final IsRenaming={newFile.IsRenaming}");
                 }
             }
             catch (Exception ex)
@@ -6256,24 +6319,53 @@ namespace Span
 
                 if (newPath == null) return; // Command 타입 — 외부 프로세스가 처리
 
-                // Refresh column and start rename
                 var columns = ViewModel.ActiveExplorer?.Columns; if (columns == null) return;
                 var parentColumn = columns.FirstOrDefault(c =>
                     c.Path.Equals(parentFolderPath, StringComparison.OrdinalIgnoreCase));
-                if (parentColumn != null)
+                if (parentColumn == null) return;
+
+                await parentColumn.ReloadAsync();
+
+                Span.ViewModels.FileSystemViewModel? newFile = null;
+                for (int i = 0; i < 10; i++)
                 {
-                    await parentColumn.ReloadAsync();
-                    var newFile = parentColumn.Children.FirstOrDefault(c =>
+                    newFile = parentColumn.Children.FirstOrDefault(c =>
                         c.Path.Equals(newPath, StringComparison.OrdinalIgnoreCase));
-                    if (newFile != null)
+                    if (newFile != null) break;
+                    await System.Threading.Tasks.Task.Delay(50);
+                }
+                if (newFile == null)
+                {
+                    Helpers.DebugLogger.Log($"[ContextMenu] PerformNewFileFromShellNew: new file not found after polling ({newPath})");
+                    return;
+                }
+
+                int colIndex = columns.IndexOf(parentColumn);
+                var explorer = ViewModel.ActiveExplorer!;
+
+                _renamePendingFocus = true;
+                try
+                {
+                    using (explorer.SuppressAutoNavigationScope())
                     {
                         parentColumn.SelectedChild = newFile;
                         newFile.BeginRename();
-                        await System.Threading.Tasks.Task.Delay(100);
-                        int colIndex = columns.IndexOf(parentColumn);
-                        if (colIndex >= 0)
-                            FocusRenameTextBox(colIndex);
+                        _renameTargetPath = newFile.Path;
+                        _renameSelectionCycle = 0;
+
+                        var itemsHost = colIndex >= 0 ? GetListViewForColumn(colIndex) : null;
+                        if (itemsHost != null)
+                            await FocusRenameTextBoxWithPollingAsync(itemsHost, newFile);
+                        else
+                            Helpers.DebugLogger.Log($"[ContextMenu] PerformNewFileFromShellNew: no ListView for col={colIndex}");
+
+                        await System.Threading.Tasks.Task.Delay(200);
                     }
+                }
+                finally
+                {
+                    _renamePendingFocus = false;
+                    Helpers.DebugLogger.Log($"[ContextMenu] PerformNewFileFromShellNew: cleared _renamePendingFocus, final IsRenaming={newFile.IsRenaming}");
                 }
             }
             catch (Exception ex)

@@ -26,6 +26,11 @@ namespace Span.Views
         public bool IsRightPane { get; set; }
 
         /// <summary>
+        /// 외부(MainWindow)에서 rename TextBox 포커스를 위해 컨테이너에 접근할 수 있도록 노출.
+        /// </summary>
+        internal Microsoft.UI.Xaml.Controls.ListViewBase ItemsHost => IconGridView;
+
+        /// <summary>
         /// true면 Loaded에서 auto-resolve 건너뜀 (코드에서 ViewModel을 직접 설정한 인스턴스).
         /// XAML 정의 인스턴스(첫 번째 탭)는 false (기본값) → 기존 동작 유지.
         /// </summary>
