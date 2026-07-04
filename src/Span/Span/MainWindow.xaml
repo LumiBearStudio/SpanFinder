@@ -74,6 +74,9 @@
                                       PointerMoved="OnTabItemPointerMoved"
                                       PointerReleased="OnTabItemPointerReleased"
                                       RightTapped="OnTabRightTapped"
+                                      AllowDrop="True"
+                                      DragOver="OnTabDragOver"
+                                      DragLeave="OnTabDragLeave"
                                       Tag="{x:Bind}">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>

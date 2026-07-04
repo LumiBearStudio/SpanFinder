@@ -883,6 +883,109 @@ namespace Span
             catch { }
         }
 
+        // =================================================================
+        //  Issue #50 (b): 파일을 다른 탭 위로 드래그 시 해당 탭 활성화
+        //  (브라우저/탐색기 동작 — hover 지연 후 전환하여 그 탭의 폴더에 드롭 가능)
+        // =================================================================
+
+        private DispatcherTimer? _tabHoverTimer;
+        private Models.TabItem? _tabHoverTarget;
+        private const int TAB_HOVER_ACTIVATE_MS = 700;
+
+        /// <summary>
+        /// 파일 드래그가 탭 위에 오면 hover 지연 후 그 탭으로 전환할 타이머를 시작한다.
+        /// 탭 자체는 드롭 타겟이 아니며(전환만 수행), 전환 후 그 탭의 폴더에 드롭할 수 있다.
+        /// </summary>
+        private void OnTabDragOver(object sender, DragEventArgs e)
+        {
+            if (sender is not FrameworkElement fe || fe.Tag is not Models.TabItem tab) return;
+
+            // 이미 활성 탭이면 타이머 불필요
+            if (tab == ViewModel.ActiveTab)
+            {
+                StopTabHoverTimer();
+                return;
+            }
+
+            // 새 탭 위로 진입 시 타이머 재시작
+            if (_tabHoverTarget != tab)
+            {
+                StopTabHoverTimer();
+                _tabHoverTarget = tab;
+                StartTabHoverTimer();
+            }
+
+            e.Handled = true;
+        }
+
+        /// <summary>
+        /// 탭에서 드래그가 벗어나면 hover 타이머를 취소한다.
+        /// </summary>
+        private void OnTabDragLeave(object sender, DragEventArgs e)
+        {
+            if (sender is FrameworkElement fe && fe.Tag is Models.TabItem tab && tab == _tabHoverTarget)
+                StopTabHoverTimer();
+        }
+
+        private void StartTabHoverTimer()
+        {
+            _tabHoverTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(TAB_HOVER_ACTIVATE_MS)
+            };
+            _tabHoverTimer.Tick += OnTabHoverTimerTick;
+            _tabHoverTimer.Start();
+        }
+
+        private void StopTabHoverTimer()
+        {
+            if (_tabHoverTimer != null)
+            {
+                _tabHoverTimer.Stop();
+                _tabHoverTimer.Tick -= OnTabHoverTimerTick;
+                _tabHoverTimer = null;
+            }
+            _tabHoverTarget = null;
+        }
+
+        /// <summary>
+        /// hover 지연 만료 시 대상 탭으로 전환. one-shot.
+        /// 드래그 중이므로 FocusActiveView는 호출하지 않는다(드래그 세션 방해 방지).
+        /// </summary>
+        private void OnTabHoverTimerTick(object? sender, object e)
+        {
+            var tab = _tabHoverTarget;
+            StopTabHoverTimer();
+
+            if (tab == null || _isClosed) return;
+            int index = ViewModel.Tabs.IndexOf(tab);
+            if (index < 0 || tab == ViewModel.ActiveTab) return;
+
+            try
+            {
+                // 탭 전환 시퀀스 (OnTabItemPointerPressed와 동일, FocusActiveView 제외)
+                if (tab.ViewMode != ViewMode.Settings && tab.ViewMode != ViewMode.ActionLog)
+                {
+                    if (tab.Explorer is ViewModels.ExplorerViewModel newExpl)
+                        newExpl.TabSwitchSuppressionTicks = Environment.TickCount64 + 500;
+
+                    SwitchMillerPanel(tab.Id);
+                    SwitchDetailsPanel(tab.Id, tab.ViewMode == ViewMode.Details);
+                    SwitchListPanel(tab.Id, tab.ViewMode == ViewMode.List);
+                    SwitchIconPanel(tab.Id, Helpers.ViewModeExtensions.IsIconMode(tab.ViewMode));
+                }
+                ViewModel.SwitchToTab(index);
+                ResubscribeLeftExplorer();
+                UpdateViewModeVisibility();
+                UpdateToolbarButtonStates();
+                Helpers.DebugLogger.Log($"[TabHover] Activated tab '{tab.Header}' via drag-hover");
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[TabHover] Switch failed: {ex.Message}");
+            }
+        }
+
         #endregion
 
         // =================================================================
