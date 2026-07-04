@@ -152,6 +152,9 @@ public sealed partial class SettingsModeView : UserControl
             Tab1ViewModeCombo.SelectedIndex = Math.Clamp(_settings.Tab1StartupViewMode, 0, 3);
             Tab2ViewModeCombo.SelectedIndex = Math.Clamp(_settings.Tab2StartupViewMode, 0, 3);
 
+            // Default view mode (Issue #43)
+            DefaultViewModeCombo.SelectedIndex = Math.Clamp(_settings.DefaultViewMode, 0, 3);
+
             // Default preview
             DefaultPreviewToggle.IsOn = _settings.DefaultPreviewEnabled;
 
@@ -333,6 +336,9 @@ public sealed partial class SettingsModeView : UserControl
         // Per-tab startup view mode
         Tab1ViewModeCombo.SelectionChanged += (s, e) => { if (!_isLoading) _settings.Tab1StartupViewMode = Tab1ViewModeCombo.SelectedIndex; };
         Tab2ViewModeCombo.SelectionChanged += (s, e) => { if (!_isLoading) _settings.Tab2StartupViewMode = Tab2ViewModeCombo.SelectedIndex; };
+
+        // Default view mode (Issue #43)
+        DefaultViewModeCombo.SelectionChanged += (s, e) => { if (!_isLoading) _settings.DefaultViewMode = DefaultViewModeCombo.SelectedIndex; };
 
         // Default preview
         DefaultPreviewToggle.Toggled += (s, e) => { if (!_isLoading) _settings.DefaultPreviewEnabled = DefaultPreviewToggle.IsOn; };

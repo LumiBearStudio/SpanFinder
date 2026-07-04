@@ -349,6 +349,27 @@ public class SettingsService : ISettingsService
         set => Set("StartupBehavior", value);
     }
 
+    /// <summary>
+    /// Issue #43: Home에서 폴더 진입 시 기본 뷰 모드 (fallback).
+    /// _lastClosedViewMode / preferred / _viewModeBeforeHome이 모두 없을 때 사용.
+    /// 값은 Models.ViewMode 캐스팅 (0=MillerColumns, 1=Details, 3=IconMedium, 8=List).
+    /// </summary>
+    public int DefaultViewMode
+    {
+        get => Get("DefaultViewMode", 0); // 0 = MillerColumns
+        set => Set("DefaultViewMode", value);
+    }
+
+    /// <summary>
+    /// Issue #41: 실행 파일(.exe/.lnk 등)의 자체 리소스 아이콘 표시 여부.
+    /// OFF 시 기본 파일 글리프 표시. 대용량 실행 파일 폴더에서 성능 우려 시 OFF.
+    /// </summary>
+    public bool ExecutableIconsEnabled
+    {
+        get => Get("ExecutableIconsEnabled", true);
+        set => Set("ExecutableIconsEnabled", value);
+    }
+
     // ── Per-tab startup settings ──
 
     public int Tab1StartupBehavior

@@ -61,10 +61,19 @@ namespace Span.ViewModels
             }
 
             // 좌측 패인: 기존 우선순위
-            // _lastClosedViewMode > ActiveTab.PreferredViewMode > _viewModeBeforeHome > MillerColumns
+            // _lastClosedViewMode > ActiveTab.PreferredViewMode > _viewModeBeforeHome > DefaultViewMode 설정 (Issue #43)
+            // DefaultViewMode 매핑: 0=Miller, 1=Details, 2=List, 3=IconMedium (Tab2StartupViewMode와 동일)
             var preferred = ActiveTab?.PreferredViewMode;
-            Helpers.DebugLogger.Log($"[ResolveViewModeFromHome] _lastClosedViewMode={_lastClosedViewMode}, preferred={preferred}, _viewModeBeforeHome={_viewModeBeforeHome}");
-            var mode = _lastClosedViewMode ?? preferred ?? _viewModeBeforeHome ?? ViewMode.MillerColumns;
+            var settingsSvc = App.Current.Services.GetService(typeof(Services.SettingsService)) as Services.SettingsService;
+            var defaultMode = settingsSvc != null ? settingsSvc.DefaultViewMode switch
+            {
+                1 => ViewMode.Details,
+                2 => ViewMode.List,
+                3 => ViewMode.IconMedium,
+                _ => ViewMode.MillerColumns
+            } : ViewMode.MillerColumns;
+            Helpers.DebugLogger.Log($"[ResolveViewModeFromHome] _lastClosedViewMode={_lastClosedViewMode}, preferred={preferred}, _viewModeBeforeHome={_viewModeBeforeHome}, default={defaultMode}");
+            var mode = _lastClosedViewMode ?? preferred ?? _viewModeBeforeHome ?? defaultMode;
             Helpers.DebugLogger.Log($"[ResolveViewModeFromHome] → resolved={mode}");
             _lastClosedViewMode = null;
             _viewModeBeforeHome = null;

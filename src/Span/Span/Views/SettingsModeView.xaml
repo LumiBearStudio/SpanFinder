@@ -504,6 +504,34 @@
                                 </StackPanel>
                             </Border>
 
+                            <!-- Default View Mode (Issue #43) -->
+                            <Border Style="{StaticResource SettingsCardBorder}">
+                                <StackPanel Spacing="10">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Style="{StaticResource CardIconContainer}">
+                                            <FontIcon Glyph="&#xE8A9;" Style="{StaticResource CardIconStyle}" />
+                                        </Border>
+                                        <StackPanel Spacing="2" VerticalAlignment="Center">
+                                            <TextBlock x:Name="DefaultViewModeLabel" Text="기본 뷰 모드" Style="{StaticResource SettingsCardLabel}" />
+                                            <TextBlock x:Name="DefaultViewModeDesc" Text="폴더 진입 시 사용할 기본 뷰. 이전에 열었던 뷰가 없을 때 적용됩니다." Style="{StaticResource SettingsCardDesc}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                    <Grid Margin="48,0,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <ComboBox x:Name="DefaultViewModeCombo" Grid.Column="2" MinWidth="180" SelectedIndex="0">
+                                            <ComboBoxItem x:Name="DefaultViewMiller" Content="밀러 컬럼" />
+                                            <ComboBoxItem x:Name="DefaultViewDetails" Content="상세 정보" />
+                                            <ComboBoxItem x:Name="DefaultViewList" Content="리스트" />
+                                            <ComboBoxItem x:Name="DefaultViewIcon" Content="아이콘" />
+                                        </ComboBox>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
                             <!-- Split View Settings (Left/Right side-by-side) -->
                             <Border Style="{StaticResource SettingsCardBorder}">
                                 <StackPanel Spacing="12">
