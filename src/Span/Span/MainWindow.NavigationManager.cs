@@ -296,6 +296,9 @@ namespace Span
             var columns = explorer.Columns;
             if (columns.Count == 0) return;
 
+            // Issue #47: AnimationsEnabled 설정이 OFF면 강제로 즉시 점프
+            if (!_settings.AnimationsEnabled) disableAnimation = true;
+
             scrollViewer.DispatcherQueue.TryEnqueue(
                 Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
                 () =>
@@ -326,6 +329,10 @@ namespace Span
             {
                 var columns = explorer.Columns;
                 if (columns.Count == 0) return;
+
+                // Issue #47: AnimationsEnabled 설정이 OFF면 강제로 즉시 점프
+                if (!_settings.AnimationsEnabled) disableAnimation = true;
+
                 var control = scrollViewer == MillerScrollViewerRight ? (ItemsControl)MillerColumnsControlRight : GetActiveMillerColumnsControl();
                 double totalWidth = GetTotalColumnsActualWidth(control, columns.Count);
                 double viewportWidth = scrollViewer.ViewportWidth;
