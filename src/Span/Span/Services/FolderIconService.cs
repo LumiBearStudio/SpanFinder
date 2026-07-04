@@ -142,6 +142,8 @@ namespace Span.Services
         private class WorkItem
         {
             public string Path = string.Empty;
+            public string CacheKey = string.Empty;
+            public int SizePx = IconPixelSize;
             public TaskCompletionSource<ImageSource?> Tcs = null!;
             public CancellationToken Token;
         }
@@ -178,7 +180,10 @@ namespace Span.Services
         /// <summary>
         /// 커스텀 아이콘을 비동기로 가져온다. 없거나 실패 시 null 반환.
         /// </summary>
-        public Task<ImageSource?> GetCustomIconAsync(string folderPath, CancellationToken ct = default)
+        /// <param name="sizePx">요청 픽셀 크기. 기본 256(폴더 desktop.ini 등 고해상도).
+        /// Issue #41: 레거시 exe는 256(jumbo) 요청 시 셸이 '창 프레임+작은 아이콘' 합성을
+        /// 반환하므로, 실행 파일은 48로 요청해 실제 아이콘 프레임을 받는다.</param>
+        public Task<ImageSource?> GetCustomIconAsync(string folderPath, int sizePx = IconPixelSize, CancellationToken ct = default)
         {
             if (string.IsNullOrEmpty(folderPath))
                 return Task.FromResult<ImageSource?>(null);
@@ -188,28 +193,32 @@ namespace Span.Services
                 return Task.FromResult<ImageSource?>(null);
             }
 
+            // 캐시 키: 기본 크기는 기존 그대로 path (InvalidateCache 하위호환),
+            // 커스텀 크기는 path|size 로 구분.
+            var cacheKey = sizePx == IconPixelSize ? folderPath : $"{folderPath}|{sizePx}";
+
             // 캐시 조회 (이미 처리된 경로면 즉시 반환, 실패 경로는 null 캐싱됨)
             lock (_cacheLock)
             {
-                if (_cache.TryGetValue(folderPath, out var cached))
+                if (_cache.TryGetValue(cacheKey, out var cached))
                 {
-                    TouchLru(folderPath);
-                    Helpers.DebugLogger.Log($"[FolderIconSvc] CACHE-HIT {(cached != null ? "OK" : "null")}: {folderPath}");
+                    TouchLru(cacheKey);
+                    Helpers.DebugLogger.Log($"[FolderIconSvc] CACHE-HIT {(cached != null ? "OK" : "null")}: {cacheKey}");
                     return Task.FromResult(cached);
                 }
             }
 
             var tcs = new TaskCompletionSource<ImageSource?>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var item = new WorkItem { Path = folderPath, Tcs = tcs, Token = ct };
+            var item = new WorkItem { Path = folderPath, CacheKey = cacheKey, SizePx = sizePx, Tcs = tcs, Token = ct };
 
             try
             {
                 _queue.Add(item, _disposeCts.Token);
-                Helpers.DebugLogger.Log($"[FolderIconSvc] QUEUED: {folderPath}");
+                Helpers.DebugLogger.Log($"[FolderIconSvc] QUEUED: {cacheKey}");
             }
             catch (Exception ex)
             {
-                Helpers.DebugLogger.Log($"[FolderIconSvc] QUEUE-FAIL: {folderPath} — {ex.Message}");
+                Helpers.DebugLogger.Log($"[FolderIconSvc] QUEUE-FAIL: {cacheKey} — {ex.Message}");
                 tcs.TrySetResult(null);
             }
 
@@ -295,21 +304,21 @@ namespace Span.Services
 
                     try
                     {
-                        var (pixels, w, h) = ExtractShellIcon(item.Path);
+                        var (pixels, w, h) = ExtractShellIcon(item.Path, item.SizePx);
                         if (pixels == null || w <= 0 || h <= 0)
                         {
-                            Helpers.DebugLogger.Log($"[FolderIconSvc] EXTRACT-null: {item.Path}");
-                            AddToCache(item.Path, null);
+                            Helpers.DebugLogger.Log($"[FolderIconSvc] EXTRACT-null: {item.CacheKey}");
+                            AddToCache(item.CacheKey, null);
                             item.Tcs.TrySetResult(null);
                             continue;
                         }
-                        Helpers.DebugLogger.Log($"[FolderIconSvc] EXTRACT-ok {w}x{h}: {item.Path}");
+                        Helpers.DebugLogger.Log($"[FolderIconSvc] EXTRACT-ok {w}x{h}: {item.CacheKey}");
 
                         // UI 스레드로 마샬링해서 SoftwareBitmapSource 생성
                         var dispatcher = _uiDispatcher;
                         if (dispatcher == null)
                         {
-                            AddToCache(item.Path, null);
+                            AddToCache(item.CacheKey, null);
                             item.Tcs.TrySetResult(null);
                             continue;
                         }
@@ -319,29 +328,29 @@ namespace Span.Services
                             try
                             {
                                 var source = await CreateBitmapSourceAsync(pixels, w, h);
-                                AddToCache(localItem.Path, source);
-                                Helpers.DebugLogger.Log($"[FolderIconSvc] UI-CONVERT-ok: {localItem.Path}");
+                                AddToCache(localItem.CacheKey, source);
+                                Helpers.DebugLogger.Log($"[FolderIconSvc] UI-CONVERT-ok: {localItem.CacheKey}");
                                 localItem.Tcs.TrySetResult(source);
                             }
                             catch (Exception ex)
                             {
-                                Helpers.DebugLogger.Log($"[FolderIconSvc] UI-CONVERT-fail {localItem.Path}: {ex.Message}");
-                                AddToCache(localItem.Path, null);
+                                Helpers.DebugLogger.Log($"[FolderIconSvc] UI-CONVERT-fail {localItem.CacheKey}: {ex.Message}");
+                                AddToCache(localItem.CacheKey, null);
                                 localItem.Tcs.TrySetResult(null);
                             }
                         });
                         if (!queued)
                         {
                             // UI thread shutting down → TCS hangs forever if we skip
-                            Helpers.DebugLogger.Log($"[FolderIconService] TryEnqueue failed (UI shutdown) for {item.Path}");
-                            AddToCache(item.Path, null);
+                            Helpers.DebugLogger.Log($"[FolderIconService] TryEnqueue failed (UI shutdown) for {item.CacheKey}");
+                            AddToCache(item.CacheKey, null);
                             item.Tcs.TrySetResult(null);
                         }
                     }
                     catch (Exception ex)
                     {
-                        Helpers.DebugLogger.Log($"[FolderIconService] Worker error for {item.Path}: {ex.Message}");
-                        AddToCache(item.Path, null);
+                        Helpers.DebugLogger.Log($"[FolderIconService] Worker error for {item.CacheKey}: {ex.Message}");
+                        AddToCache(item.CacheKey, null);
                         item.Tcs.TrySetResult(null);
                     }
                 }
@@ -368,7 +377,7 @@ namespace Span.Services
         /// IShellItemImageFactory로 폴더 아이콘 HBITMAP을 추출하고 BGRA8 픽셀로 변환.
         /// STA 워커 스레드에서 호출됨.
         /// </summary>
-        private (byte[]? pixels, int width, int height) ExtractShellIcon(string folderPath)
+        private (byte[]? pixels, int width, int height) ExtractShellIcon(string folderPath, int sizePx = IconPixelSize)
         {
             IShellItem? shellItem = null;
             IShellItemImageFactory? imageFactory = null;
@@ -376,7 +385,8 @@ namespace Span.Services
 
             try
             {
-                if (!Directory.Exists(folderPath))
+                // Issue #41: 폴더(desktop.ini)뿐 아니라 파일(.exe/.lnk 등 shell-associated 아이콘)도 허용
+                if (!Directory.Exists(folderPath) && !File.Exists(folderPath))
                     return (null, 0, 0);
 
                 var riid = IID_IShellItem;
@@ -388,12 +398,22 @@ namespace Span.Services
                 if (imageFactory == null)
                     return (null, 0, 0);
 
-                var size = new SIZE { cx = IconPixelSize, cy = IconPixelSize };
-                int hr = imageFactory.GetImage(size, (int)(SIIGBF.IconOnly | SIIGBF.BiggerSizeOk), out hBitmap);
+                // Issue #41: SIIGBF_SCALEUP(공식 문서: "stretch the bitmap so that the height and
+                // width fit the given size") — 48px 프레임만 가진 exe도 256으로 stretch되어 캔버스를
+                // 꽉 채운다. BiggerSizeOk는 작은 프레임을 키우지 않아 '큰 투명 캔버스 중앙의 작은
+                // 아이콘'으로 반환됨(알려진 동작) → 슬롯 축소 시 극소 렌더링되는 원인이었음.
+                var size = new SIZE { cx = sizePx, cy = sizePx };
+                int hr = imageFactory.GetImage(size, (int)(SIIGBF.IconOnly | SIIGBF.ScaleUp), out hBitmap);
                 if (hr != 0 || hBitmap == IntPtr.Zero)
                     return (null, 0, 0);
 
-                return ExtractBitmapPixels(hBitmap);
+                // Issue #41: exe 등 작은 아이콘은 큰 캔버스(256) 중앙에 배치되고 나머지가
+                // 투명 패딩으로 채워져 반환됨. 슬롯에 Uniform 축소 시 실제 콘텐츠가 극소 렌더링되는 문제.
+                // 투명 여백을 트리밍하여 실제 콘텐츠만 남기면 슬롯을 꽉 채운다(폴더 ico는 이미 꽉 차 무영향).
+                var extracted = ExtractBitmapPixels(hBitmap);
+                if (extracted.pixels != null)
+                    return TrimTransparentBorder(extracted.pixels, extracted.width, extracted.height);
+                return extracted;
             }
             catch (Exception ex)
             {
@@ -406,6 +426,53 @@ namespace Span.Services
                 try { if (imageFactory != null) Marshal.ReleaseComObject(imageFactory); } catch { }
                 try { if (shellItem != null) Marshal.ReleaseComObject(shellItem); } catch { }
             }
+        }
+
+        /// <summary>
+        /// Issue #41: BGRA8 픽셀에서 투명 여백(알파≈0)을 잘라내어 실제 콘텐츠 영역만 남긴다.
+        /// exe 아이콘이 큰 캔버스 중앙에 작게 배치되어 반환되는 경우를 정규화한다.
+        /// 전부 불투명(폴더 ico 등)이면 원본 그대로 반환하여 무영향.
+        /// </summary>
+        private static (byte[]? pixels, int width, int height) TrimTransparentBorder(byte[] pixels, int w, int h)
+        {
+            const byte AlphaThreshold = 8;
+            int minX = w, minY = h, maxX = -1, maxY = -1;
+
+            for (int y = 0; y < h; y++)
+            {
+                int rowBase = y * w * 4;
+                for (int x = 0; x < w; x++)
+                {
+                    byte alpha = pixels[rowBase + x * 4 + 3];
+                    if (alpha > AlphaThreshold)
+                    {
+                        if (x < minX) minX = x;
+                        if (x > maxX) maxX = x;
+                        if (y < minY) minY = y;
+                        if (y > maxY) maxY = y;
+                    }
+                }
+            }
+
+            // 콘텐츠 없음(전부 투명) → 원본 반환
+            if (maxX < minX || maxY < minY)
+                return (pixels, w, h);
+
+            int nw = maxX - minX + 1;
+            int nh = maxY - minY + 1;
+
+            // 크롭 불필요(이미 꽉 참) → 원본 반환
+            if (nw >= w && nh >= h)
+                return (pixels, w, h);
+
+            var cropped = new byte[nw * nh * 4];
+            for (int y = 0; y < nh; y++)
+            {
+                int srcOffset = ((minY + y) * w + minX) * 4;
+                int dstOffset = y * nw * 4;
+                System.Array.Copy(pixels, srcOffset, cropped, dstOffset, nw * 4);
+            }
+            return (cropped, nw, nh);
         }
 
         /// <summary>

@@ -1034,13 +1034,17 @@
                                                                                     </Grid.ColumnDefinitions>
                                                                                     <!-- Col0: path indicator placeholder (matches FolderTemplate column structure) -->
                                                                                     <Border Grid.Column="0" Width="1" CornerRadius="0.5" Margin="-8,2,0,2" Visibility="Collapsed"/>
-                                                                                    <Grid Grid.Column="1" Width="16" Height="16" Margin="0,0,12,0" VerticalAlignment="Center">
+                                                                                    <Grid Grid.Column="1" Width="{Binding IconFontSize, Source={StaticResource FontScale}}" Height="{Binding IconFontSize, Source={StaticResource FontScale}}" Margin="0,0,12,0" VerticalAlignment="Center">
                                                                                         <!-- Opacity 전환: Visibility→Opacity로 레이아웃 패스 없이 렌더링만 전환 (14K 스크롤 지터 방지) -->
                                                                                         <Image Source="{x:Bind ThumbnailSource, Mode=OneWay}" Stretch="UniformToFill"
                                                                                                Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfTrue(HasThumbnail), Mode=OneWay}"
                                                                                                IsHitTestVisible="False" x:Phase="1"/>
+                                                                                        <!-- Issue #41: CustomIcon 레이어 — exe/lnk 자체 리소스 아이콘 -->
+                                                                                        <Image Source="{x:Bind CustomIcon, Mode=OneWay}" Stretch="Uniform"
+                                                                                               Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfTrueAndFalse(HasCustomIcon, HasThumbnail), Mode=OneWay}"
+                                                                                               IsHitTestVisible="False" x:Phase="1"/>
                                                                                         <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{x:Bind IconGlyph}" FontSize="{Binding IconFontSize, Source={StaticResource FontScale}}" Foreground="{x:Bind IconBrush}"
-                                                                                                  Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfFalse(HasThumbnail), Mode=OneWay}"
+                                                                                                  Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfBothFalse(HasThumbnail, HasCustomIcon), Mode=OneWay}"
                                                                                                   IsHitTestVisible="False"/>
                                                                                         <Border Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfTrue(HasCloudBadge), Mode=OneWay}"
                                                                                                 HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-4,-4"
@@ -1467,13 +1471,17 @@
                                                                                     </Grid.ColumnDefinitions>
                                                                                     <!-- Col0: path indicator placeholder (matches FolderTemplate column structure) -->
                                                                                     <Border Grid.Column="0" Width="1" CornerRadius="0.5" Margin="-8,2,0,2" Visibility="Collapsed"/>
-                                                                                    <Grid Grid.Column="1" Width="16" Height="16" Margin="0,0,12,0" VerticalAlignment="Center">
+                                                                                    <Grid Grid.Column="1" Width="{Binding IconFontSize, Source={StaticResource FontScale}}" Height="{Binding IconFontSize, Source={StaticResource FontScale}}" Margin="0,0,12,0" VerticalAlignment="Center">
                                                                                         <!-- Opacity 전환: Visibility→Opacity로 레이아웃 패스 없이 렌더링만 전환 (14K 스크롤 지터 방지) -->
                                                                                         <Image Source="{x:Bind ThumbnailSource, Mode=OneWay}" Stretch="UniformToFill"
                                                                                                Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfTrue(HasThumbnail), Mode=OneWay}"
                                                                                                IsHitTestVisible="False" x:Phase="1"/>
+                                                                                        <!-- Issue #41: CustomIcon 레이어 — exe/lnk 자체 리소스 아이콘 -->
+                                                                                        <Image Source="{x:Bind CustomIcon, Mode=OneWay}" Stretch="Uniform"
+                                                                                               Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfTrueAndFalse(HasCustomIcon, HasThumbnail), Mode=OneWay}"
+                                                                                               IsHitTestVisible="False" x:Phase="1"/>
                                                                                         <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{x:Bind IconGlyph}" FontSize="{Binding IconFontSize, Source={StaticResource FontScale}}" Foreground="{x:Bind IconBrush}"
-                                                                                                  Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfFalse(HasThumbnail), Mode=OneWay}"
+                                                                                                  Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfBothFalse(HasThumbnail, HasCustomIcon), Mode=OneWay}"
                                                                                                   IsHitTestVisible="False"/>
                                                                                         <Border Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfTrue(HasCloudBadge), Mode=OneWay}"
                                                                                                 HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-4,-4"

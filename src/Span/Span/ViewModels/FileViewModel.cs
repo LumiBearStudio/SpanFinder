@@ -30,6 +30,15 @@ namespace Span.ViewModels
         };
 
         /// <summary>
+        /// Issue #41: 자체 리소스 아이콘을 표시할 실행형 파일 확장자.
+        /// FolderIconService(IShellItemImageFactory)가 shell-associated 아이콘을 반환.
+        /// </summary>
+        private static readonly HashSet<string> _executableExtensions = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".exe", ".lnk", ".msi", ".bat", ".cmd", ".ps1"
+        };
+
+        /// <summary>
         /// 동시 썸네일 로딩 제한 (디스크 I/O + 메모리 과부하 방지).
         /// SoftwareBitmapSource 사용으로 UI 스레드 부하는 극소 (~0.5ms).
         /// 백그라운드 디코딩 병렬도를 6으로 설정.
@@ -42,6 +51,84 @@ namespace Span.ViewModels
 
         public FileViewModel(FileItem model) : base(model)
         {
+            // Issue #41: 실행형 파일(.exe/.lnk 등)은 shell-associated 아이콘 로드 요청.
+            // FolderIconService를 재사용 — 파일 형식과 무관하게 IShellItemImageFactory가
+            // 적절한 아이콘을 반환한다. 실패/OFF 시 기본 글리프 유지.
+            RequestExecutableIconLoad();
+        }
+
+        private bool _executableIconRequested;
+
+        /// <summary>
+        /// Issue #41: .exe/.lnk 등의 자체 리소스 아이콘을 shell API로 lazy 로드.
+        /// 중복 호출 방지 (_executableIconRequested 플래그).
+        /// </summary>
+        public void RequestExecutableIconLoad()
+        {
+            if (_executableIconRequested) return;
+            if (string.IsNullOrEmpty(Path)) return;
+
+            var ext = System.IO.Path.GetExtension(Name);
+            if (string.IsNullOrEmpty(ext) || !_executableExtensions.Contains(ext)) return;
+
+            try
+            {
+                var settings = App.Current.Services.GetService(typeof(Services.SettingsService)) as Services.SettingsService;
+                if (settings == null || !settings.ExecutableIconsEnabled) return;
+
+                var iconSvc = App.Current.Services.GetService(typeof(Services.FolderIconService)) as Services.FolderIconService;
+                if (iconSvc == null) return;
+
+                _executableIconRequested = true;
+                _ = LoadExecutableIconAsync(iconSvc);
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[ExeIcon] RequestExecutableIconLoad failed for {Path}: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Issue #41: 실행 파일은 48px로 요청. 256(jumbo)으로 요청하면 레거시 exe에서 셸이
+        /// '창 프레임+작은 아이콘' 합성을 반환하지만, 48은 실제 아이콘 프레임을 반환하고
+        /// ScaleUp이 캔버스를 꽉 채운다. 표시 슬롯(16~40px)에도 충분한 해상도.
+        /// </summary>
+        private const int ExecutableIconSizePx = 48;
+
+        private async Task LoadExecutableIconAsync(Services.FolderIconService iconSvc)
+        {
+            try
+            {
+                var icon = await iconSvc.GetCustomIconAsync(Path, ExecutableIconSizePx).ConfigureAwait(false);
+                if (icon == null) return;
+
+                var settings = App.Current.Services.GetService(typeof(Services.SettingsService)) as Services.SettingsService;
+                if (settings == null || !settings.ExecutableIconsEnabled) return;
+                if (!_executableIconRequested) return;
+
+                var dispatcher = iconSvc.GetUiDispatcher();
+                if (dispatcher == null) return;
+
+                var iconToSet = icon;
+                dispatcher.TryEnqueue(() =>
+                {
+                    if (!_executableIconRequested) return;
+                    CustomIcon = iconToSet;
+                });
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[ExeIcon] LoadExecutableIconAsync failed for {Path}: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 설정 OFF 시 호출되어 캐시된 실행형 아이콘을 초기화.
+        /// </summary>
+        public void ClearExecutableIcon()
+        {
+            _executableIconRequested = false;
+            CustomIcon = null;
         }
 
         /// <summary>

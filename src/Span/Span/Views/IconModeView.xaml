@@ -22,6 +22,7 @@
                     <Image Source="{x:Bind ThumbnailSource, Mode=OneWay}" Stretch="UniformToFill"
                            Visibility="{x:Bind vm:FileSystemViewModel.ShowIfTrue(HasThumbnail), Mode=OneWay}"/>
                     <Image Source="{x:Bind CustomIcon, Mode=OneWay}" Stretch="Uniform"
+                           Width="14" Height="14"
                            Visibility="{x:Bind CustomIconVisibility, Mode=OneWay}"/>
                     <FontIcon FontFamily="{StaticResource RemixIcons}"
                               Glyph="{x:Bind IconGlyph, Mode=OneWay}"
@@ -70,6 +71,7 @@
                     <Image Source="{x:Bind ThumbnailSource, Mode=OneWay}" Stretch="UniformToFill"
                            Visibility="{x:Bind vm:FileSystemViewModel.ShowIfTrue(HasThumbnail), Mode=OneWay}"/>
                     <Image Source="{x:Bind CustomIcon, Mode=OneWay}" Stretch="Uniform"
+                           Width="40" Height="40"
                            Visibility="{x:Bind CustomIconVisibility, Mode=OneWay}"/>
                     <FontIcon FontFamily="{StaticResource RemixIcons}"
                               Glyph="{x:Bind IconGlyph, Mode=OneWay}"
@@ -120,6 +122,7 @@
                     <Image Source="{x:Bind ThumbnailSource, Mode=OneWay}" Stretch="Uniform"
                            Visibility="{x:Bind vm:FileSystemViewModel.ShowIfTrue(HasThumbnail), Mode=OneWay}"/>
                     <Image Source="{x:Bind CustomIcon, Mode=OneWay}" Stretch="Uniform"
+                           Width="80" Height="80"
                            Visibility="{x:Bind CustomIconVisibility, Mode=OneWay}"/>
                     <FontIcon FontFamily="{StaticResource RemixIcons}"
                               Glyph="{x:Bind IconGlyph, Mode=OneWay}"
@@ -175,6 +178,7 @@
                     <Image Source="{x:Bind ThumbnailSource, Mode=OneWay}" Stretch="Uniform"
                            Visibility="{x:Bind vm:FileSystemViewModel.ShowIfTrue(HasThumbnail), Mode=OneWay}"/>
                     <Image Source="{x:Bind CustomIcon, Mode=OneWay}" Stretch="Uniform"
+                           Width="200" Height="200"
                            Visibility="{x:Bind CustomIconVisibility, Mode=OneWay}"/>
                     <FontIcon FontFamily="{StaticResource RemixIcons}"
                               Glyph="{x:Bind IconGlyph, Mode=OneWay}"

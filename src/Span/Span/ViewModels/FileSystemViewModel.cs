@@ -597,6 +597,12 @@ namespace Span.ViewModels
         /// </summary>
         public static double OpacityIfTrue(bool value) => value ? 1.0 : 0.0;
 
+        /// <summary>Opacity 1 when both false, else 0. Miller의 3-layer(Thumbnail/CustomIcon/Glyph) 폴백용.</summary>
+        public static double OpacityIfBothFalse(bool a, bool b) => (!a && !b) ? 1.0 : 0.0;
+
+        /// <summary>Opacity 1 when first true and second false, else 0. Miller의 3-layer용 CustomIcon 레이어.</summary>
+        public static double OpacityIfTrueAndFalse(bool a, bool b) => (a && !b) ? 1.0 : 0.0;
+
         /// <summary>
         /// XAML x:Bind: Opacity 1 when false, 0 when true.
         /// </summary>

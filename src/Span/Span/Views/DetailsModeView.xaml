@@ -232,7 +232,7 @@
                         </Grid.ColumnDefinitions>
 
                         <!-- Icon / Thumbnail / Custom Folder Icon -->
-                        <Grid Grid.Column="0" Width="16" Height="16"
+                        <Grid Grid.Column="0" Width="{Binding IconFontSize, Source={StaticResource FontScale}}" Height="{Binding IconFontSize, Source={StaticResource FontScale}}"
                               HorizontalAlignment="Center" VerticalAlignment="Center">
                             <Image Source="{x:Bind ThumbnailSource, Mode=OneWay}" Stretch="UniformToFill"
                                    Visibility="{x:Bind vm:FileSystemViewModel.ShowIfTrue(HasThumbnail), Mode=OneWay}"/>
