@@ -181,18 +181,38 @@ namespace Span
         {
             var explorer = ViewModel?.ActiveExplorer;
             if (explorer == null) return;
-            await explorer.NavigateTo(folder);
 
-            // 로딩 완료 후 파일 선택 시도
-            await Task.Delay(300); // 폴더 로드 대기
-            var lastCol = explorer.Columns.LastOrDefault();
-            if (lastCol == null) return;
-
-            var target = lastCol.Children.FirstOrDefault(
-                i => string.Equals(i.Name, fileName, StringComparison.OrdinalIgnoreCase));
-            if (target != null)
+            // Issue #44: NavigateTo 후 auto-navigation이 첫 항목을 자동 선택하며 자식 컬럼을 생성
+            // 하는 것을 방지. 억제 없이 Columns.LastOrDefault()를 쓰면 잘못된 자식 컬럼을 잡아
+            // 파일이 선택되지 않고 첫 항목이 남는 현상이 발생 (Chrome/Opera "Show in folder" 등).
+            using (explorer.SuppressAutoNavigationScope())
             {
-                target.IsSelected = true;
+                await explorer.NavigateTo(folder);
+
+                // Children 로드 완료를 이벤트가 아닌 polling으로 흡수 (최대 ~2초)
+                FolderViewModel? targetCol = null;
+                FileSystemViewModel? target = null;
+                for (int i = 0; i < 40; i++)
+                {
+                    if (_isClosed) return;
+                    targetCol = explorer.Columns.FirstOrDefault(c =>
+                        c.Path.Equals(folder.Path, StringComparison.OrdinalIgnoreCase));
+                    target = targetCol?.Children.FirstOrDefault(
+                        x => string.Equals(x.Name, fileName, StringComparison.OrdinalIgnoreCase));
+                    if (target != null) break;
+                    await Task.Delay(50);
+                }
+
+                if (targetCol != null && target != null)
+                {
+                    targetCol.SelectedChild = target;
+                    target.IsSelected = true;
+                    Helpers.DebugLogger.Log($"[NavigateAndSelectFile] Selected '{fileName}' in '{folder.Path}'");
+                }
+                else
+                {
+                    Helpers.DebugLogger.Log($"[NavigateAndSelectFile] File '{fileName}' NOT found in '{folder.Path}' after polling");
+                }
             }
         }
 
