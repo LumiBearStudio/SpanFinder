@@ -521,8 +521,25 @@ namespace Span
                 if (activeIndex < 0 || activeIndex >= columns.Count) return;
 
                 var col = columns[activeIndex];
-                destDir = col.Path;
-                targetFolder = col;
+
+                // Issue #49: 선택된 항목이 폴더면 그 폴더가 붙여넣기 대상 (Windows Explorer 동작).
+                // Column View에서 부모 컬럼의 폴더를 선택 → 자식 컬럼에 내용 표시 상태에서
+                // Ctrl+V는 부모 폴더가 아닌 선택된 자식 폴더에 붙여넣어야 자연스러움.
+                if (col.SelectedChild is FolderViewModel selectedFolder
+                    && !string.IsNullOrEmpty(selectedFolder.Path)
+                    && System.IO.Directory.Exists(selectedFolder.Path))
+                {
+                    destDir = selectedFolder.Path;
+                    targetFolder = selectedFolder;
+                    // targetColumnIndex는 자식 컬럼(activeIndex + 1)이 있으면 그쪽을 리프레시
+                    if (activeIndex + 1 < columns.Count && columns[activeIndex + 1].Path.Equals(destDir, StringComparison.OrdinalIgnoreCase))
+                        activeIndex = activeIndex + 1;
+                }
+                else
+                {
+                    destDir = col.Path;
+                    targetFolder = col;
+                }
                 Helpers.DebugLogger.Log($"[HandlePaste] FINAL destDir={destDir}");
             }
 
