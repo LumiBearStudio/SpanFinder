@@ -4466,6 +4466,49 @@ namespace Span
                 }
                 catch { /* ignore */ }
             });
+
+            // Issue #45: 컬럼 너비 자동 조정 옵션이 켜져 있으면 내용에 맞춰 fit.
+            if (_settings.AutoFitColumnWidth)
+                _ = AutoFitColumnWhenReadyAsync(grid);
+        }
+
+        /// <summary>
+        /// Issue #45: 콘텐츠 Grid에서 폭 Grid(MillerColumnWidth 바인딩)를 찾아,
+        /// Children 로드 완료 후 내용에 맞춘 폭으로 자동 조정한다.
+        /// 폭 Grid.Width에 로컬 값을 세팅하면 바인딩보다 우선 적용된다
+        /// (설정 OFF 후 재네비게이션 시 새 Grid가 바인딩을 복원).
+        /// </summary>
+        private async System.Threading.Tasks.Task AutoFitColumnWhenReadyAsync(Grid contentGrid)
+        {
+            try
+            {
+                // contentGrid → Border → 폭 Grid (line 953: Width 바인딩)
+                var border = VisualTreeHelper.GetParent(contentGrid) as FrameworkElement;
+                var widthGrid = VisualTreeHelper.GetParent(border) as Grid;
+                if (widthGrid == null) return;
+
+                var column = contentGrid.DataContext as FolderViewModel;
+                if (column == null) return;
+
+                // Children 로드 완료 대기 (컬럼 가시화 시 EnsureChildrenLoadedAsync가 비동기 populate)
+                for (int i = 0; i < 20; i++)
+                {
+                    if (_isClosed) return;
+                    if (!_settings.AutoFitColumnWidth) return; // 로딩 중 설정 OFF 시 중단
+                    if (column.Children.Count > 0)
+                    {
+                        double fitted = MeasureColumnContentWidth(column);
+                        widthGrid.Width = fitted;
+                        return;
+                    }
+                    await System.Threading.Tasks.Task.Delay(50);
+                }
+                // 빈 폴더 등: 기본 폭 유지
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[AutoFitColumn] failed: {ex.Message}");
+            }
         }
 
         /// <summary>

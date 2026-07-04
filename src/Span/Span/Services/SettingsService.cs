@@ -370,6 +370,17 @@ public class SettingsService : ISettingsService
         set => Set("ExecutableIconsEnabled", value);
     }
 
+    /// <summary>
+    /// Issue #45: Miller 컬럼 너비를 내용(가장 긴 이름)에 맞춰 자동 조정할지 여부.
+    /// 기본 OFF — 기존 고정 폭(MillerColumnWidth) 동작 유지. ON이면 컬럼 로드 시
+    /// 내용에 맞춰 자동 fit (XtraFinder 스타일). 사용자가 수동 리사이즈하면 그 컬럼은 존중.
+    /// </summary>
+    public bool AutoFitColumnWidth
+    {
+        get => Get("AutoFitColumnWidth", false);
+        set => Set("AutoFitColumnWidth", value);
+    }
+
     // ── Per-tab startup settings ──
 
     public int Tab1StartupBehavior

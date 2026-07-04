@@ -155,6 +155,9 @@ public sealed partial class SettingsModeView : UserControl
             // Default view mode (Issue #43)
             DefaultViewModeCombo.SelectedIndex = Math.Clamp(_settings.DefaultViewMode, 0, 3);
 
+            // Auto-fit column width (Issue #45)
+            AutoFitColumnToggle.IsOn = _settings.AutoFitColumnWidth;
+
             // Default preview
             DefaultPreviewToggle.IsOn = _settings.DefaultPreviewEnabled;
 
@@ -339,6 +342,9 @@ public sealed partial class SettingsModeView : UserControl
 
         // Default view mode (Issue #43)
         DefaultViewModeCombo.SelectionChanged += (s, e) => { if (!_isLoading) _settings.DefaultViewMode = DefaultViewModeCombo.SelectedIndex; };
+
+        // Auto-fit column width (Issue #45)
+        AutoFitColumnToggle.Toggled += (s, e) => { if (!_isLoading) _settings.AutoFitColumnWidth = AutoFitColumnToggle.IsOn; };
 
         // Default preview
         DefaultPreviewToggle.Toggled += (s, e) => { if (!_isLoading) _settings.DefaultPreviewEnabled = DefaultPreviewToggle.IsOn; };

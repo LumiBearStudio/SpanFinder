@@ -532,6 +532,25 @@
                                 </StackPanel>
                             </Border>
 
+                            <!-- Auto-fit column width (Issue #45) -->
+                            <Border Style="{StaticResource SettingsCardBorder}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Style="{StaticResource CardIconContainer}">
+                                        <FontIcon Glyph="&#xE73F;" Style="{StaticResource CardIconStyle}" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock x:Name="AutoFitColumnLabel" Text="컬럼 너비 자동 조정" Style="{StaticResource SettingsCardLabel}" />
+                                        <TextBlock x:Name="AutoFitColumnDesc" Text="밀러 컬럼을 폴더/파일 이름 길이에 맞춰 자동으로 넓힙니다 (Column View)." Style="{StaticResource SettingsCardDesc}" />
+                                    </StackPanel>
+                                    <ToggleSwitch x:Name="AutoFitColumnToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="False" OnContent="" OffContent="" />
+                                </Grid>
+                            </Border>
+
                             <!-- Split View Settings (Left/Right side-by-side) -->
                             <Border Style="{StaticResource SettingsCardBorder}">
                                 <StackPanel Spacing="12">
