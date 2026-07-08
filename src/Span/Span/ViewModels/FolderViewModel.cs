@@ -749,8 +749,11 @@ namespace Span.ViewModels
                     {
                         if (token.IsCancellationRequested) return (new List<FileSystemViewModel>(), folders, files, (string?)null, (string?)null);
                         var attrs = d.Attributes;
-                        if (!showHidden && (attrs & System.IO.FileAttributes.Hidden) != 0) continue;
-                        if ((attrs & System.IO.FileAttributes.System) != 0) continue;
+                        // Issue #51: 숨김 파일 표시(ShowHiddenFiles)를 켜면 System 속성 항목도 표시.
+                        // System 폴더(예: C:\ProgramData\Microsoft)는 Hidden이 아니라 System만 있어
+                        // 이전에는 showHidden ON이어도 무조건 숨겨졌음. Windows 탐색기의 "보호된 OS 파일"
+                        // 표시와 동일하게, 숨김 표시 옵션에 통합.
+                        if (!showHidden && (attrs & (System.IO.FileAttributes.Hidden | System.IO.FileAttributes.System)) != 0) continue;
 
                         bool hasChild;
                         try { hasChild = System.IO.Directory.EnumerateFileSystemEntries(d.FullName).Any(); }
@@ -765,8 +768,11 @@ namespace Span.ViewModels
                     {
                         if (token.IsCancellationRequested) return (new List<FileSystemViewModel>(), folders, files, (string?)null, (string?)null);
                         var attrs = f.Attributes;
-                        if (!showHidden && (attrs & System.IO.FileAttributes.Hidden) != 0) continue;
-                        if ((attrs & System.IO.FileAttributes.System) != 0) continue;
+                        // Issue #51: 숨김 파일 표시(ShowHiddenFiles)를 켜면 System 속성 항목도 표시.
+                        // System 폴더(예: C:\ProgramData\Microsoft)는 Hidden이 아니라 System만 있어
+                        // 이전에는 showHidden ON이어도 무조건 숨겨졌음. Windows 탐색기의 "보호된 OS 파일"
+                        // 표시와 동일하게, 숨김 표시 옵션에 통합.
+                        if (!showHidden && (attrs & (System.IO.FileAttributes.Hidden | System.IO.FileAttributes.System)) != 0) continue;
 
                         var fileItem = new FileItem { Name = f.Name, Path = f.FullName, Size = f.Length, DateModified = f.LastWriteTime, FileType = f.Extension, IsHidden = (attrs & System.IO.FileAttributes.Hidden) != 0 };
                         files.Add(fileItem);
