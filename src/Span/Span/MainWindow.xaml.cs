@@ -809,8 +809,15 @@ namespace Span
                         this.SizeChanged += (_, __) => UpdateTitleBarRegions();
 
                         // Chrome-style dynamic tab width: recalculate on tab add/remove
+                        // Issue #48: 새 탭 추가 후 passthrough 영역을 갱신하지 않으면 새 탭이
+                        // 캡션(드래그) 영역으로 남아 middle-click 등 pointer 이벤트를 못 받음
+                        // (탭 전환 전까지). RecalculateTabWidths 후 UpdateTitleBarRegions 명시 호출.
                         ViewModel.Tabs.CollectionChanged += (_, __) =>
-                            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, RecalculateTabWidths);
+                            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+                            {
+                                RecalculateTabWidths();
+                                UpdateTitleBarRegions();
+                            });
                         // Loaded 시점에는 레이아웃 미완료 → 지연 호출로 정확한 ActualWidth 사용
                         DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, RecalculateTabWidths);
 
@@ -980,8 +987,13 @@ namespace Span
                     this.SizeChanged += (_, __) => UpdateTitleBarRegions();
 
                     // Chrome-style dynamic tab width: recalculate on tab add/remove
+                    // Issue #48: 새 탭 passthrough 갱신 (위 상세 주석 참조)
                     ViewModel.Tabs.CollectionChanged += (_, __) =>
-                        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, RecalculateTabWidths);
+                        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+                        {
+                            RecalculateTabWidths();
+                            UpdateTitleBarRegions();
+                        });
                     RecalculateTabWidths();
 
                     // ViewMode Visibility 초기화 (x:Bind 제거 후 코드비하인드에서 관리)
