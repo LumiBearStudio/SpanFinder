@@ -3,6 +3,7 @@
   <PropertyGroup>
     <!-- Windows10.0 TFM은 Windows.System.VirtualKey 등 WinRT 프로젝션 접근에 필요 (KeyBindingService 테스트용) -->
     <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <DefineConstants>$(DefineConstants);SPAN_TESTS</DefineConstants>
     <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
     <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
     <ImplicitUsings>enable</ImplicitUsings>
