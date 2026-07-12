@@ -18,13 +18,18 @@ namespace Span.Services
         public event Action? LanguageChanged;
 
         // Supported language codes (order matches tuple fields in LocalizationData.cs)
-        public static readonly string[] LangCodes = { "en", "ko", "ja", "zh-Hans", "zh-Hant", "de", "es", "fr", "pt-BR" };
+        public static readonly string[] LangCodes =
+        {
+            "en", "ko", "ja", "zh-Hans", "zh-Hant",
+            "de", "es", "fr", "pt-BR", "pl"
+        };
 
         private static readonly Dictionary<string, Dictionary<string, string>> Strings = BuildStrings();
 
         private static Dictionary<string, Dictionary<string, string>> BuildStrings()
         {
             var result = new Dictionary<string, Dictionary<string, string>>();
+            var polish = GetPolishEntries();
             foreach (var code in LangCodes)
                 result[code] = new Dictionary<string, string>(Entries.Length);
 
@@ -39,6 +44,11 @@ namespace Span.Services
                 result["es"][e.key] = e.es;
                 result["fr"][e.key] = e.fr;
                 result["pt-BR"][e.key] = e.ptBR;
+
+                result["pl"][e.key] =
+                    polish.TryGetValue(e.key, out var polishText)
+                        ? polishText
+                        : e.en;
             }
             return result;
         }
@@ -158,6 +168,7 @@ namespace Span.Services
                     "es" => "es-ES",
                     "fr" => "fr-FR",
                     "pt-BR" => "pt-BR",
+                    "pl" => "pl-PL",
                     _ => "" // empty = use system default
                 };
             }
