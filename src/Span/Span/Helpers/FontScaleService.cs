@@ -39,8 +39,9 @@ namespace Span.Helpers
         {
             get
             {
-        #if !SPAN_TESTS
-                // Runtime: pobieramy instancję utworzoną przez App.xaml.
+#if !SPAN_TESTS
+                // 런타임: Application.Current.Resources 에서 가져옴.
+                // {StaticResource FontScale} 와 정확히 같은 객체를 보장.
                 try
                 {
                     if (Microsoft.UI.Xaml.Application.Current is { } app)
@@ -54,12 +55,11 @@ namespace Span.Helpers
                 }
                 catch
                 {
-                    // Jeśli dostęp do Application.Resources się nie powiedzie,
-                    // używamy lokalnej instancji zastępczej.
+                    // Application.Current.Resources 접근 실패 시 fallback 으로 내려감
                 }
-        #endif
+#endif
 
-                // Testy i awaryjny fallback.
+                // 테스트 / 초기 부팅 fallback
                 return _fallback ??= new FontScaleService();
             }
         }
