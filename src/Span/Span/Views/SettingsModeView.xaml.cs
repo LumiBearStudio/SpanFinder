@@ -132,6 +132,7 @@ public sealed partial class SettingsModeView : UserControl
                 "es" => 7,
                 "fr" => 8,
                 "pt-BR" => 9,
+                "pl" => 10,
                 _ => 0
             };
 
@@ -614,6 +615,7 @@ public sealed partial class SettingsModeView : UserControl
             7 => "es",
             8 => "fr",
             9 => "pt-BR",
+            10 => "pl",
             _ => "system"
         };
         _settings.Language = lang;
@@ -657,6 +659,20 @@ public sealed partial class SettingsModeView : UserControl
             LangDesc.Text = _loc.Get("Settings_LanguageDesc");
             LangSystem.Content = _loc.Get("Settings_SystemDefault");
             LangRestartText.Text = _loc.Get("Settings_RestartNotice");
+            // Default view mode
+            DefaultViewModeLabel.Text = _loc.Get("Settings_DefaultViewMode");
+            DefaultViewModeDesc.Text = _loc.Get("Settings_DefaultViewModeDesc");
+
+            DefaultViewMiller.Content = _loc.Get("Settings_ViewMiller");
+            DefaultViewDetails.Content = _loc.Get("Settings_ViewDetails");
+            DefaultViewList.Content = _loc.Get("Settings_ViewList");
+            DefaultViewIcon.Content = _loc.Get("Settings_ViewIcon");
+
+            RefreshComboDisplay(DefaultViewModeCombo);
+
+            // Auto-fit Miller columns
+            AutoFitColumnLabel.Text = _loc.Get("Settings_AutoFitColumn");
+            AutoFitColumnDesc.Text = _loc.Get("Settings_AutoFitColumnDesc");
             StartupLabel.Text = _loc.Get("Settings_StartupBehavior");
             StartupDesc.Text = _loc.Get("Settings_StartupBehaviorDesc");
             // Tab 1

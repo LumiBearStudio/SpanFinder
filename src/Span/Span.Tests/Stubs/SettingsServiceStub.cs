@@ -32,6 +32,8 @@ public class SettingsServiceStub : ISettingsService
     public string Density { get; set; } = "Normal";
     public string FontFamily { get; set; } = "Segoe UI";
     public string IconPack { get; set; } = "Remix";
+    public bool FolderCustomIconsEnabled { get; set; }
+    public bool AnimationsEnabled { get; set; } = true;
 
     // ── IBrowsingSettings ───────────────────────────
     public bool ShowHiddenFiles { get; set; }

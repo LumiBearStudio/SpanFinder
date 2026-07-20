@@ -490,6 +490,7 @@
                                             <ComboBoxItem Content="Español" />
                                             <ComboBoxItem Content="Français" />
                                             <ComboBoxItem Content="Português (BR)" />
+                                            <ComboBoxItem Content="Polski" />
                                         </ComboBox>
                                     </Grid>
                                     <!-- Restart Notice -->
