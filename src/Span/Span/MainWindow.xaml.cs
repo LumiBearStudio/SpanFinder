@@ -1629,7 +1629,17 @@ namespace Span
                 if (!isReplacingLeft)
                 {
                     Helpers.DebugLogger.Log($"[OnColumnsChanged] ScrollToLastColumn for left explorer");
-                    ScrollToLastColumn(ViewModel.LeftExplorer, GetActiveMillerScrollViewer());
+                    var sv = GetActiveMillerScrollViewer();
+                    ScrollToLastColumn(ViewModel.LeftExplorer, sv);
+                    // Issue #53: 화면이 컬럼으로 꽉 찬 상태에서 새 컬럼 추가 시, 첫 ChangeView가
+                    // ScrollViewer의 ExtentWidth 갱신 전에 실행되면 옛 ScrollableWidth로 clamp되어
+                    // 한 컬럼 부족(클릭한 폴더 컬럼까지만) 스크롤됨. Replace 경로와 동일하게
+                    // nested Low에서 재보정하여 extent 갱신 후 정확한 위치로 다시 적용.
+                    sv?.DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+                        () => {
+                            if (_isClosed || ViewModel?.LeftExplorer == null) return;
+                            ScrollToLastColumnSync(ViewModel.LeftExplorer, sv);
+                        });
                 }
                 if (_millerSelectionMode != ListViewSelectionMode.Extended)
                 {
@@ -1674,6 +1684,12 @@ namespace Span
                 {
                     Helpers.DebugLogger.Log($"[OnRightColumnsChanged] ScrollToLastColumn for right explorer");
                     ScrollToLastColumn(ViewModel.RightExplorer, MillerScrollViewerRight);
+                    // Issue #53: 좌측과 동일 — extent lag clamp 재보정 (nested Low에서 Sync 재적용)
+                    MillerScrollViewerRight.DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+                        () => {
+                            if (_isClosed || ViewModel?.RightExplorer == null) return;
+                            ScrollToLastColumnSync(ViewModel.RightExplorer, MillerScrollViewerRight);
+                        });
                 }
                 if (_millerSelectionMode != ListViewSelectionMode.Extended)
                 {
