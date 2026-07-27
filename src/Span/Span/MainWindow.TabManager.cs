@@ -192,18 +192,28 @@ namespace Span
                 true
             );
 
+            // Issue #57: XAML 기본 패널과 동일하게 StackPanel + spacer Border 구조로 생성.
+            // 기존(Content = ItemsControl 직접)에는 spacer가 없어 v1.4.19 Replace 사이클 보호와
+            // Issue #57 뷰 유지가 동적 탭 패널에서 동작하지 않았다.
+            var spacer = new Border { Width = 0 };
+            var panelStack = new StackPanel { Orientation = Orientation.Horizontal };
+            panelStack.Children.Add(itemsControl);
+            panelStack.Children.Add(spacer);
+
             var scrollViewer = new ScrollViewer
             {
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
                 VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
                 HorizontalScrollMode = ScrollMode.Auto,
                 VerticalScrollMode = ScrollMode.Disabled,
-                Content = itemsControl,
+                Content = panelStack,
                 Visibility = Visibility.Collapsed // 생성 시 숨김, 전환 시 표시
             };
 
             // 뷰포트 리사이즈 시 마지막 컬럼으로 자동 스크롤
             scrollViewer.SizeChanged += OnMillerScrollViewerSizeChanged;
+            // Issue #57: 스크롤 시 잔여 spacer 실시간 트리밍 (공백 구간 스크롤 차단)
+            scrollViewer.ViewChanged += OnMillerViewChangedTrimSpacer;
 
             // MillerTabsHost Grid에 추가
             MillerTabsHost.Children.Add(scrollViewer);
@@ -252,6 +262,7 @@ namespace Span
             {
                 // 이벤트 해제
                 panel.scroller.SizeChanged -= OnMillerScrollViewerSizeChanged;
+                panel.scroller.ViewChanged -= OnMillerViewChangedTrimSpacer;
                 panel.items.RemoveHandler(UIElement.KeyDownEvent, new KeyEventHandler(OnMillerKeyDown));
                 panel.items.RemoveHandler(UIElement.CharacterReceivedEvent,
                     new Windows.Foundation.TypedEventHandler<UIElement, Microsoft.UI.Xaml.Input.CharacterReceivedRoutedEventArgs>(OnMillerCharacterReceived));

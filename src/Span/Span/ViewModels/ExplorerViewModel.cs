@@ -51,10 +51,13 @@ namespace Span.ViewModels
         // 인스턴스 단위 구독이 새 인스턴스로 따라가지 않아 spacer가 펼쳐지지 않는 문제 해결.
         // View는 이 정적 이벤트를 한 번만 구독해 sender와 ViewModel.LeftExplorer/RightExplorer
         // 비교로 라우팅한다.
-        // bool 인자: Insert가 정상 완료되었는지(true) / 빠른 cancel로 RemoveAt만 일어났는지(false).
-        // false 시 View는 spacer를 그대로 유지하여 ExtentWidth가 한 컬럼 폭만큼 줄어드는 좌측
-        // 클램프(HO 0 점프)를 방지 → 다음 BeforeReplace에서 자연 정리.
-        public static event Action<ExplorerViewModel>? AnyBeforeReplaceLastColumn;
+        // Before의 int 인자 (Issue #57): 제거~Insert 구간에 잠시 사라지는 컬럼 수
+        // (= 뒤쪽 잘려나가는 컬럼들 + 교체되는 마지막 컬럼). View는 spacer를 이 폭만큼
+        // 펼쳐 ExtentWidth를 보존 → HO 자동 클램프로 인한 좌측 순간 점프 차단.
+        // After의 bool 인자: Insert가 정상 완료되었는지(true) / 빠른 cancel로 RemoveAt만
+        // 일어났는지(false). false 시 View는 spacer를 그대로 유지하여 ExtentWidth가 줄어드는
+        // 좌측 클램프(HO 점프)를 방지 → 다음 BeforeReplace에서 자연 정리.
+        public static event Action<ExplorerViewModel, int>? AnyBeforeReplaceLastColumn;
         public static event Action<ExplorerViewModel, bool>? AnyAfterReplaceLastColumn;
 
         // 브레드크럼 세그먼트 (주소 표시줄)
@@ -1527,42 +1530,59 @@ namespace Span.ViewModels
                 PushToHistory(selectedFolder.Path);
 
                 Helpers.DebugLogger.Log($"[HandleFolderSelectionAsync] folder='{selectedFolder.Name}', nextIndex={nextIndex}");
-                RemoveColumnsFrom(nextIndex + 1);
 
-                // 컬럼을 먼저 배치 → ProgressRing이 즉시 표시됨
-                if (nextIndex < Columns.Count)
+                // Issue #57: Replace 여부를 컬럼 제거 전에 판별.
+                // RemoveColumnsFrom(nextIndex + 1)은 nextIndex 항목 자체를 건드리지 않으므로
+                // 제거 전/후 어느 시점에 평가해도 결과가 같다.
+                bool willReplace = nextIndex < Columns.Count;
+
+                if (willReplace)
                 {
-                    var oldColumn = Columns[nextIndex];
-                    oldColumn.PropertyChanged -= FolderVm_PropertyChanged;
-                    oldColumn.LoadError -= OnColumnLoadError;
-                    oldColumn.CancelLoading();
-                    oldColumn.SelectedChild = null;
-
-                    // Defensive unsubscribe to prevent handler accumulation if folder instance is reused
-                    selectedFolder.PropertyChanged -= FolderVm_PropertyChanged;
-                    selectedFolder.LoadError -= OnColumnLoadError;
-                    selectedFolder.PropertyChanged += FolderVm_PropertyChanged;
-                    selectedFolder.LoadError += OnColumnLoadError;
-
                     // v1.4.3: 이슈 #23 버그 B 수정 — ObservableCollection Replace 대신 Remove+Delay+Insert.
                     // Replace notification은 WinUI ItemsControl에서 ListView tear-down/build-up을
                     // 한 프레임 안에 강제 → virtualizer race → Microsoft.UI.Xaml.dll native 크래시.
                     // rc2: Task.Yield() → Task.Delay(32)로 최소 2 프레임 경계 확보 (Yield는 queue 양보만).
                     //
                     // v1.4.19: IsReplacingLastColumn 플래그로 OnColumnsChanged 가 슬라이드-인 애니메이션
-                    // (PrepareAndAnimateNewColumn)만 skip 하도록 신호. ScrollToLastColumn은 정상 호출.
+                    // (PrepareAndAnimateNewColumn)과 ScrollToLastColumn을 skip 하도록 신호.
                     // 형제 폴더 ↑/↓ 토글 시 30px Translation 누적으로 컬럼이 좌우로 튀는 jitter 차단.
                     //
                     // v1.4.19+: BeforeReplaceLastColumn / AfterReplaceLastColumn 이벤트로 View가
                     // ItemsControl 뒤에 같은 폭의 spacer Border를 펼치도록 신호 → ExtentWidth가
-                    // RemoveAt → Insert 사이에 변동하지 않음 → 가로 스크롤바 thumb 박동 + 자동
-                    // HorizontalOffset 클램프(컬럼 좌측 점프) 모두 원천 차단.
+                    // 변동하지 않음 → 가로 스크롤바 thumb 박동 + 자동 HorizontalOffset 클램프
+                    // (컬럼 좌측 점프) 모두 원천 차단.
+                    //
+                    // Issue #57: Before 신호를 RemoveColumnsFrom(nextIndex + 1) 앞으로 이동.
+                    // 기존에는 RemoveAt 직전(뒤쪽 컬럼들이 이미 제거된 후)에 1컬럼 폭 spacer만
+                    // 펼쳤기 때문에, 이전 컬럼에서 폴더를 선택해 뒤 컬럼 여러 개가 잘려나가는
+                    // 경우 RemoveColumnsFrom 시점의 ExtentWidth 축소 → HO 자동 클램프로 뷰가
+                    // 왼쪽으로 순간 점프했다. 이제 "잠시 사라질 전체 컬럼 수"를 View에 전달해
+                    // 그 폭만큼 spacer를 먼저 펼친다.
                     IsReplacingLastColumn = true;
                     BeforeReplaceLastColumn?.Invoke();
-                    AnyBeforeReplaceLastColumn?.Invoke(this);
-                    bool insertedOk = false;
-                    try
+                    AnyBeforeReplaceLastColumn?.Invoke(this, Columns.Count - nextIndex);
+                }
+
+                bool insertedOk = false;
+                try
+                {
+                    RemoveColumnsFrom(nextIndex + 1);
+
+                    // 컬럼을 먼저 배치 → ProgressRing이 즉시 표시됨
+                    if (willReplace)
                     {
+                        var oldColumn = Columns[nextIndex];
+                        oldColumn.PropertyChanged -= FolderVm_PropertyChanged;
+                        oldColumn.LoadError -= OnColumnLoadError;
+                        oldColumn.CancelLoading();
+                        oldColumn.SelectedChild = null;
+
+                        // Defensive unsubscribe to prevent handler accumulation if folder instance is reused
+                        selectedFolder.PropertyChanged -= FolderVm_PropertyChanged;
+                        selectedFolder.LoadError -= OnColumnLoadError;
+                        selectedFolder.PropertyChanged += FolderVm_PropertyChanged;
+                        selectedFolder.LoadError += OnColumnLoadError;
+
                         Columns.RemoveAt(nextIndex);
                         await Task.Delay(32);
                         if (token.IsCancellationRequested) return;
@@ -1571,16 +1591,19 @@ namespace Span.ViewModels
                         Columns.Insert(nextIndex, selectedFolder);
                         insertedOk = true;
                     }
-                    finally
+                    else
+                    {
+                        AddColumn(selectedFolder);
+                    }
+                }
+                finally
+                {
+                    if (willReplace)
                     {
                         IsReplacingLastColumn = false;
                         AfterReplaceLastColumn?.Invoke();
                         AnyAfterReplaceLastColumn?.Invoke(this, insertedOk);
                     }
-                }
-                else
-                {
-                    AddColumn(selectedFolder);
                 }
 
                 CurrentPath = selectedFolder.Path;

@@ -511,6 +511,10 @@ namespace Span
             // 정적 이벤트로 forward 받아 sender 비교로 라우팅 (인스턴스 무관 보장).
             ViewModels.ExplorerViewModel.AnyBeforeReplaceLastColumn += OnAnyBeforeReplaceLastColumn;
             ViewModels.ExplorerViewModel.AnyAfterReplaceLastColumn += OnAnyAfterReplaceLastColumn;
+            // Issue #57: 잔여 spacer 실시간 트리밍 — XAML 기본 패널 좌/우 (동적 탭 패널은
+            // CreateMillerPanelForTab에서 구독)
+            MillerScrollViewer.ViewChanged += OnMillerViewChangedTrimSpacer;
+            MillerScrollViewerRight.ViewChanged += OnMillerViewChangedTrimSpacer;
             ViewModel.RightExplorer.Columns.CollectionChanged += OnRightColumnsChanged;
             ViewModel.RightExplorer.NavigationError += OnNavigationError;
             ViewModel.RightExplorer.PathHighlightsUpdated += OnPathHighlightsUpdated;
@@ -1623,6 +1627,20 @@ namespace Span
             // 깊이 진입(Replace 아님) 시는 정상 ScrollTo + 슬라이드-인.
             bool isReplacingLeft = ViewModel.LeftExplorer?.IsReplacingLastColumn == true;
 
+            // Issue #57 후속: Replace 사이클 밖의 컬렉션 변경(깊이 진입/브레드크럼/사이드바 등
+            // 일반 네비게이션)에서는 잔여 spacer를 즉시 접는다. 잔여 spacer가 살아남으면
+            // 콘텐츠가 줄어든 뒤에도 ExtentWidth가 부풀어 "빈 공간으로 스크롤되는" 증상이 남는다.
+            // (잔여 spacer는 이전-컬럼 재선택 시 뷰 유지용 — 연속 Replace 사이클 안에서만 유효)
+            if (!isReplacingLeft)
+            {
+                try
+                {
+                    var activeSpacer = GetMillerSpacer(GetActiveMillerScrollViewer()) ?? MillerColumnSpacerLeft;
+                    activeSpacer.Width = 0;
+                }
+                catch { }
+            }
+
             if (e.Action == NotifyCollectionChangedAction.Add ||
                 e.Action == NotifyCollectionChangedAction.Replace)
             {
@@ -1677,6 +1695,17 @@ namespace Span
             // spacer Border가 ExtentWidth를 보존하므로 좌측 클램프 위험 없음.
             bool isReplacingRight = ViewModel.RightExplorer?.IsReplacingLastColumn == true;
 
+            // Issue #57 후속: 좌측과 동일 — Replace 사이클 밖 일반 네비게이션에서 잔여 spacer 정리
+            if (!isReplacingRight)
+            {
+                try
+                {
+                    var activeSpacer = GetMillerSpacer(MillerScrollViewerRight) ?? MillerColumnSpacerRight;
+                    activeSpacer.Width = 0;
+                }
+                catch { }
+            }
+
             if (e.Action == NotifyCollectionChangedAction.Add ||
                 e.Action == NotifyCollectionChangedAction.Replace)
             {
@@ -1719,9 +1748,46 @@ namespace Span
         //    정렬이 자연스럽다. ChangeView를 즉시 + Low 큐 두 번 호출하여 WinUI 자동
         //    BringIntoView가 layout pass 이후에 끼어드는 케이스도 무력화.
 
-        private void OnLeftBeforeReplaceLastColumn()
+        /// <summary>
+        /// Issue #57: ScrollViewer의 Content(StackPanel)에서 spacer Border를 얻는다.
+        /// XAML 기본 패널과 동적 탭 패널(CreateMillerPanelForTab) 모두 동일 구조
+        /// (StackPanel = [ItemsControl, spacer Border])를 가지므로 공통으로 동작.
+        /// </summary>
+        private static Border? GetMillerSpacer(ScrollViewer? sv)
+            => (sv?.Content as StackPanel)?.Children.OfType<Border>().LastOrDefault();
+
+        /// <summary>동일 StackPanel에서 ItemsControl을 얻는다 (동적 패널 대응).</summary>
+        private static ItemsControl? GetMillerItems(ScrollViewer? sv)
+            => (sv?.Content as StackPanel)?.Children.OfType<ItemsControl>().FirstOrDefault();
+
+        /// <summary>
+        /// Issue #57: 스크롤 시 잔여 spacer 실시간 트리밍.
+        /// 잔여 spacer는 "이전 컬럼 재선택 직후 뷰 유지"용으로만 필요하다. 사용자가 스크롤하면
+        /// 현재 HO 유지에 필요한 만큼(needed)으로 즉시 줄여, 왼쪽으로 스크롤할수록 공백이
+        /// 사라지고 오른쪽으로는 현재 위치 이상 진입할 수 없게 한다 → "빈 공간이 스크롤되는"
+        /// 증상 차단. spacer=0이면 아무 것도 하지 않으므로 평상시 비용은 사실상 0.
+        /// </summary>
+        private void OnMillerViewChangedTrimSpacer(object? sender, ScrollViewerViewChangedEventArgs e)
         {
-            SetMillerSpacerWidth(MillerColumnSpacerLeft, GetActiveMillerColumnsControl());
+            try
+            {
+                if (sender is not ScrollViewer sv) return;
+                var spacer = GetMillerSpacer(sv);
+                if (spacer == null || double.IsNaN(spacer.Width) || spacer.Width <= 0) return;
+                var items = GetMillerItems(sv);
+                if (items == null) return;
+                double total = GetTotalColumnsActualWidth(items, items.Items?.Count ?? 0);
+                double needed = Math.Max(0, sv.HorizontalOffset + sv.ViewportWidth - total);
+                if (spacer.Width > needed + 0.5) spacer.Width = needed;
+            }
+            catch { /* 트리밍 실패는 무시 — 다음 스크롤/네비게이션에서 재시도 */ }
+        }
+
+        private void OnLeftBeforeReplaceLastColumn(int vanishingColumns)
+        {
+            var sv = GetActiveMillerScrollViewer();
+            var spacer = GetMillerSpacer(sv) ?? MillerColumnSpacerLeft;
+            SetMillerSpacerWidth(spacer, GetMillerItems(sv) ?? GetActiveMillerColumnsControl(), vanishingColumns);
         }
         private void OnLeftAfterReplaceLastColumn(bool insertedOk)
         {
@@ -1730,31 +1796,88 @@ namespace Span
             // 좌측 점프 차단. 다음 BeforeReplace 또는 새 ScrollToLastColumn 호출 시 자연 정리.
             if (!insertedOk) return;
 
-            try { MillerColumnSpacerLeft.Width = 0; } catch { }
             if (_isClosed || ViewModel?.LeftExplorer == null) return;
             var sv = GetActiveMillerScrollViewer();
-            if (sv == null) return;
-            // Insert 직후 새 컨테이너가 measure 전이라도 GetTotalColumnsActualWidth가 ColumnWidth
-            // 폴백으로 정확한 totalWidth 계산. ScrollToLastColumn은 자체 Low queue 큐잉.
-            // 두 번 호출하여 다음 layout pass 후에도 위치가 흔들리지 않도록 보강.
-            ScrollToLastColumn(ViewModel.LeftExplorer, sv, disableAnimation: true);
+            if (sv == null) { try { MillerColumnSpacerLeft.Width = 0; } catch { } return; }
+            // Issue #57: 판정·조정은 Low 큐에서 — Insert 직후에는 layout 전이라 HO/Extent가
+            // 낡은 값일 수 있음. 그동안 spacer가 ExtentWidth를 계속 보존하므로 점프 없음.
             sv.DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
                 () => {
                     if (_isClosed || ViewModel?.LeftExplorer == null) return;
-                    ScrollToLastColumnSync(ViewModel.LeftExplorer, sv, disableAnimation: true);
+                    AdjustSpacerAndScrollAfterReplace(
+                        ViewModel.LeftExplorer, sv,
+                        GetMillerSpacer(sv) ?? MillerColumnSpacerLeft,
+                        GetMillerItems(sv) ?? GetActiveMillerColumnsControl());
                 });
         }
 
-        private void OnRightBeforeReplaceLastColumn() => SetMillerSpacerWidth(MillerColumnSpacerRight, MillerColumnsControlRight);
+        private void OnRightBeforeReplaceLastColumn(int vanishingColumns)
+            => SetMillerSpacerWidth(GetMillerSpacer(MillerScrollViewerRight) ?? MillerColumnSpacerRight,
+                                    MillerColumnsControlRight, vanishingColumns);
         private void OnRightAfterReplaceLastColumn(bool insertedOk)
         {
             // v1.4.19: 좌측과 동일 - Insert 미실행 시 spacer 유지
             if (!insertedOk) return;
-            try { MillerColumnSpacerRight.Width = 0; } catch { }
             if (_isClosed || ViewModel?.RightExplorer == null) return;
-            ScrollToLastColumn(ViewModel.RightExplorer, MillerScrollViewerRight, disableAnimation: true);
             MillerScrollViewerRight.DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
-                () => { if (!_isClosed && ViewModel?.RightExplorer != null) ScrollToLastColumnSync(ViewModel.RightExplorer, MillerScrollViewerRight, disableAnimation: true); });
+                () => {
+                    if (_isClosed || ViewModel?.RightExplorer == null) return;
+                    AdjustSpacerAndScrollAfterReplace(
+                        ViewModel.RightExplorer, MillerScrollViewerRight,
+                        GetMillerSpacer(MillerScrollViewerRight) ?? MillerColumnSpacerRight,
+                        MillerColumnsControlRight);
+                });
+        }
+
+        /// <summary>
+        /// Issue #57: Replace 사이클 종료 후 spacer/스크롤 정리.
+        /// - 새(마지막) 컬럼이 현재 HorizontalOffset에서 이미 완전히 보이면: ChangeView를 호출하지
+        ///   않고 뷰를 그대로 유지한다. HO 유효성 보전에 필요한 만큼만 spacer를 남겨(HO+viewport-total)
+        ///   ExtentWidth 축소로 인한 자동 클램프 점프를 차단한다. 이전 컬럼에서 폴더를 다시 선택할 때
+        ///   뷰 전체가 우측 끝으로 재앵커되던 "teleport" 현상 제거. 잔여 spacer는 다음
+        ///   BeforeReplace(SetMillerSpacerWidth)에서 자연 정리 — insertedOk=false 유지 패턴과 동일 수명.
+        /// - 뷰포트 밖이면: 기존(v1.4.19) 동작 그대로 spacer를 접고 우측 끝 즉시 정렬 + Low 재보강.
+        ///   형제 폴더 토글(마지막 컬럼이 이미 보이는 상태)은 "보임" 판정이라 결과 위치가 기존과 동일.
+        /// </summary>
+        private void AdjustSpacerAndScrollAfterReplace(
+            ViewModels.ExplorerViewModel explorer, ScrollViewer sv, Border spacer, ItemsControl? control)
+        {
+            try
+            {
+                var columns = explorer.Columns;
+                if (columns.Count == 0) { spacer.Width = 0; return; }
+
+                double total = GetTotalColumnsActualWidth(control, columns.Count);
+                // 마지막 컬럼 폭 = total(n) - total(n-1) — 측정 전 폴백 로직을 그대로 공유
+                double lastWidth = total - GetTotalColumnsActualWidth(control, columns.Count - 1);
+                double ho = sv.HorizontalOffset;
+                double viewport = sv.ViewportWidth;
+
+                bool lastFullyVisible =
+                    ho <= (total - lastWidth) + 0.5 &&   // 왼쪽 경계 보임
+                    total <= ho + viewport + 0.5;        // 오른쪽 경계 보임
+
+                if (lastFullyVisible)
+                {
+                    // 뷰 유지: HO가 클램프되지 않도록 필요한 폭만 spacer로 보전
+                    double needed = Math.Max(0, ho + viewport - total);
+                    spacer.Width = needed;
+                    return; // ChangeView 없음 → 점프 없음
+                }
+
+                // 기존 동작: spacer 접고 우측 끝 즉시 정렬 (+ Low 재보강)
+                spacer.Width = 0;
+                ScrollToLastColumnSync(explorer, sv, disableAnimation: true);
+                sv.DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+                    () => {
+                        if (_isClosed) return;
+                        ScrollToLastColumnSync(explorer, sv, disableAnimation: true);
+                    });
+            }
+            catch
+            {
+                try { spacer.Width = 0; } catch { }
+            }
         }
 
         /// <summary>
@@ -1762,11 +1885,11 @@ namespace Span
         /// 비교해 좌/우 spacer 핸들러에 라우팅. 인스턴스 단위 구독이 _leftExplorer 직접 할당으로
         /// 끊어지는 케이스를 모두 cover.
         /// </summary>
-        private void OnAnyBeforeReplaceLastColumn(ViewModels.ExplorerViewModel sender)
+        private void OnAnyBeforeReplaceLastColumn(ViewModels.ExplorerViewModel sender, int vanishingColumns)
         {
             if (_isClosed || ViewModel == null) return;
-            if (ReferenceEquals(sender, ViewModel.LeftExplorer)) OnLeftBeforeReplaceLastColumn();
-            else if (ReferenceEquals(sender, ViewModel.RightExplorer)) OnRightBeforeReplaceLastColumn();
+            if (ReferenceEquals(sender, ViewModel.LeftExplorer)) OnLeftBeforeReplaceLastColumn(vanishingColumns);
+            else if (ReferenceEquals(sender, ViewModel.RightExplorer)) OnRightBeforeReplaceLastColumn(vanishingColumns);
         }
 
         private void OnAnyAfterReplaceLastColumn(ViewModels.ExplorerViewModel sender, bool insertedOk)
@@ -1777,24 +1900,29 @@ namespace Span
         }
 
         /// <summary>
-        /// spacer Border의 폭을 ItemsControl의 마지막 컬럼 컨테이너 ActualWidth로 설정.
-        /// 컨테이너가 아직 measure 전이거나 가져올 수 없으면 ColumnWidth(220) 폴백.
+        /// spacer Border의 폭을 "잠시 사라질 컬럼 폭 합"으로 설정 (Issue #57: 개수 × 컬럼 폭).
+        /// 단위 폭은 마지막 컬럼 컨테이너 ActualWidth, measure 전이면 ColumnWidth(220) 폴백.
+        /// 기존 spacer가 더 넓으면 유지 — 잔여 spacer를 줄이는 순간 ExtentWidth 축소로 HO가
+        /// 클램프되어 점프할 수 있으므로, 축소 정리는 AdjustSpacerAndScrollAfterReplace에 맡긴다.
         /// </summary>
-        private void SetMillerSpacerWidth(Border spacer, ItemsControl? control)
+        private void SetMillerSpacerWidth(Border spacer, ItemsControl? control, int vanishingColumns = 1)
         {
             if (spacer == null) return;
             try
             {
-                double w = ColumnWidth;
+                double unit = ColumnWidth;
                 if (control != null && control.Items != null && control.Items.Count > 0)
                 {
                     int lastIdx = control.Items.Count - 1;
                     if (control.ContainerFromIndex(lastIdx) is FrameworkElement last && last.ActualWidth > 0)
                     {
-                        w = last.ActualWidth;
+                        unit = last.ActualWidth;
                     }
                 }
-                spacer.Width = w;
+                double w = unit * Math.Max(1, vanishingColumns);
+                double cur = spacer.Width;
+                if (double.IsNaN(cur)) cur = 0;
+                spacer.Width = Math.Max(cur, w);
             }
             catch { /* defensive: spacer 조정 실패는 무시 (회귀 위험 0 우선) */ }
         }
