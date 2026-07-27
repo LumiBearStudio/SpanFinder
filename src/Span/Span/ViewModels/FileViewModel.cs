@@ -19,9 +19,18 @@ namespace Span.ViewModels
     /// </summary>
     public class FileViewModel : FileSystemViewModel
     {
+        // Issue #56: .jfif는 JPEG 별칭 → WIC 네이티브 디코딩(완전 지원).
+        // .psd는 "썸네일만" 지원 — 격리 워커(Span.Thumbs.exe)의 셸 썸네일 경로가
+        // 서드파티 PSD 핸들러(Photoshop/무료 코덱)를 크래시 격리하에 호출한다.
+        // .clip(CLIP STUDIO)은 격리 워커가 내장 SQLite 미리보기(CanvasPreview)를 직접
+        // 추출한다(ClipThumbnailExtractor) — 셸 핸들러 불필요, 전 사용자 동작.
+        // 핸들러/추출 실패 시 빈 아이콘(현상 유지)이라 손해 없음. 미리보기 패널
+        // (PreviewService.ImageExtensions)에는 .psd/.clip을 넣지 않음 — 그쪽은 인프로세스
+        // 경로라 서드파티 핸들러 크래시 리스크가 있어 격리된 썸네일 게이트에서만 연다.
         private static readonly HashSet<string> _imageExtensions = new(StringComparer.OrdinalIgnoreCase)
         {
-            ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".ico", ".tiff", ".tif"
+            ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".ico", ".tiff", ".tif",
+            ".jfif", ".psd", ".clip"
         };
 
         private static readonly HashSet<string> _videoExtensions = new(StringComparer.OrdinalIgnoreCase)

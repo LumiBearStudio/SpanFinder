@@ -34,6 +34,10 @@ internal sealed class ThumbnailGenerator
         bool applyExif,
         CancellationToken ct)
     {
+        // ── 0. Issue #56: .clip은 셸 썸네일 미지원 → 내장 SQLite 미리보기 추출 경로 ──
+        if (string.Equals(Path.GetExtension(filePath), ".clip", StringComparison.OrdinalIgnoreCase))
+            return await GenerateFromClipAsync(filePath, requestedSize, ct);
+
         // ── 1. StorageFile 획득 ──
         var storageFile = await StorageFile.GetFileFromPathAsync(filePath).AsTask(ct);
         ct.ThrowIfCancellationRequested();
@@ -114,6 +118,83 @@ internal sealed class ThumbnailGenerator
         {
             // P2-11: StorageItemThumbnail 즉시 해제 (RCW finalizer 의존 금지)
             thumbnail.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Issue #56: .clip 내장 미리보기 PNG(CanvasPreview)를 추출해 요청 크기로 축소 후 재인코딩.
+    /// 원본 미리보기(예: 930x1315)를 긴 변 기준 requestedSize로 비율 유지 다운스케일한다.
+    /// 셸 핸들러에 의존하지 않아 CSP 설치 여부와 무관하게 동작. 추출 실패 시 null(빈 아이콘).
+    /// </summary>
+    private static async Task<GenerateResult?> GenerateFromClipAsync(
+        string filePath,
+        int requestedSize,
+        CancellationToken ct)
+    {
+        byte[]? previewPng = ClipThumbnailExtractor.TryExtractPreviewPng(filePath, ct);
+        if (previewPng == null || previewPng.Length == 0) return null;
+        ct.ThrowIfCancellationRequested();
+
+        // 추출 PNG를 메모리 스트림에 실어 디코드
+        using var srcStream = new InMemoryRandomAccessStream();
+        using (var dw = new DataWriter(srcStream))
+        {
+            dw.WriteBytes(previewPng);
+            await dw.StoreAsync().AsTask(ct);
+            dw.DetachStream();
+        }
+        srcStream.Seek(0);
+
+        var decoder = await BitmapDecoder.CreateAsync(srcStream).AsTask(ct);
+        ct.ThrowIfCancellationRequested();
+        if (decoder.PixelWidth == 0 || decoder.PixelHeight == 0) return null;
+
+        // 긴 변을 requestedSize로 맞춰 비율 유지 축소 (원본이 더 작으면 원본 크기 유지)
+        uint w = decoder.PixelWidth, h = decoder.PixelHeight;
+        double scale = Math.Min(1.0, (double)requestedSize / Math.Max(w, h));
+        uint tw = Math.Max(1, (uint)Math.Round(w * scale));
+        uint th = Math.Max(1, (uint)Math.Round(h * scale));
+
+        var transform = new BitmapTransform
+        {
+            ScaledWidth = tw,
+            ScaledHeight = th,
+            InterpolationMode = BitmapInterpolationMode.Fant,
+        };
+        var softwareBitmap = await decoder.GetSoftwareBitmapAsync(
+            BitmapPixelFormat.Bgra8,
+            BitmapAlphaMode.Premultiplied,
+            transform,
+            ExifOrientationMode.IgnoreExifOrientation,
+            ColorManagementMode.DoNotColorManage).AsTask(ct);
+        ct.ThrowIfCancellationRequested();
+
+        try
+        {
+            // 기존 경로와 동일하게 PNG 바이트로 인코딩 → 호출자가 캐시에 저장
+            using var memStream = new InMemoryRandomAccessStream();
+            var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.PngEncoderId, memStream).AsTask(ct);
+            encoder.SetSoftwareBitmap(softwareBitmap);
+            await encoder.FlushAsync().AsTask(ct);
+
+            memStream.Seek(0);
+            var bytes = new byte[memStream.Size];
+            using (var reader = new DataReader(memStream.GetInputStreamAt(0)))
+            {
+                await reader.LoadAsync((uint)memStream.Size).AsTask(ct);
+                reader.ReadBytes(bytes);
+            }
+
+            return new GenerateResult(
+                bytes,
+                (int)softwareBitmap.PixelWidth,
+                (int)softwareBitmap.PixelHeight,
+                false);
+        }
+        finally
+        {
+            // P2-11: SoftwareBitmap 즉시 해제
+            softwareBitmap.Dispose();
         }
     }
 

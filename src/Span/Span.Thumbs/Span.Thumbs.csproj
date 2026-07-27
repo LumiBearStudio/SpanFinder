@@ -29,6 +29,8 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260209005" />
     <PackageReference Include="Sentry" Version="6.1.0" />
+    <!-- Issue #56: .clip(CLIP STUDIO) 내장 SQLite 미리보기 추출용. bundle_e_sqlite3 네이티브 포함(self-contained RID별). -->
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.10" />
   </ItemGroup>
 
 </Project>
