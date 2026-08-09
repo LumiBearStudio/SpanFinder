@@ -1189,17 +1189,19 @@ namespace Span
             }
             else if (properties.IsLeftButtonPressed)
             {
-                // 좌클릭: 빈 영역 클릭 시에도 진행 중인 리네임 취소
+                // Issue #59: 좌클릭(빈 영역 포함) 시 진행 중인 리네임을 커밋 — Windows 탐색기 표준.
                 // (SelectionChanged/GotFocus는 빈 영역에서 발생하지 않으므로 여기서 보완)
-                // 단, 리네임 TextBox 내부 클릭은 제외
+                // PointerPressed가 LostFocus보다 먼저 발화하므로, 여기서 취소하면 각 뷰의
+                // LostFocus 커밋 핸들러가 IsRenaming 가드에 걸려 편집이 유실됨 → 커밋으로 전환.
+                // 단, 리네임 TextBox 내부 클릭은 편집 계속이므로 제외.
                 var source = e.OriginalSource as DependencyObject;
                 while (source != null)
                 {
                     if (source is TextBox tb && tb.DataContext is ViewModels.FileSystemViewModel fsvm && fsvm.IsRenaming)
-                        return; // 리네임 TextBox 클릭 — 취소하지 않음
+                        return; // 리네임 TextBox 클릭 — 편집 유지
                     source = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(source);
                 }
-                CancelAnyActiveRename();
+                CommitAnyActiveRename();
             }
         }
 

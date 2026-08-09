@@ -1364,6 +1364,37 @@ namespace Span
             _renameTargetPath = null;
         }
 
+        /// <summary>
+        /// Issue #59: 활성 상태인 인라인 이름 변경을 커밋(저장)한다.
+        /// 빈 영역 좌클릭 시 Windows 탐색기 표준대로 변경 내용을 저장하기 위해 사용.
+        /// CancelAnyActiveRename과 동일 구조 — LostFocus를 "커밋"으로 바꾼 정책 전환
+        /// (커밋 eb083e0) 당시 전역 좌클릭 핸들러만 취소로 남아 편집이 유실되던 불일치 해소.
+        /// </summary>
+        private void CommitAnyActiveRename()
+        {
+            // 우클릭 메뉴에서 이름 바꾸기 실행 시, MenuFlyout 닫힘 → 컬럼 GotFocus → 여기 호출됨
+            // _renamePendingFocus가 true이면 PerformRename이 진행 중이므로 건드리지 않음 (Issue #37 보호)
+            if (_renamePendingFocus) return;
+
+            var explorer = ViewModel?.ActiveExplorer;
+            if (explorer == null) return;
+
+            bool committed = false;
+            foreach (var col in explorer.Columns)
+            {
+                if (col.SelectedChild?.IsRenaming == true)
+                {
+                    col.SelectedChild.CommitRename();
+                    committed = true;
+                }
+            }
+            if (committed)
+            {
+                _justFinishedRename = true;
+            }
+            _renameTargetPath = null;
+        }
+
         #endregion
 
         #region Delete Operations (Delete, Shift+Delete)
