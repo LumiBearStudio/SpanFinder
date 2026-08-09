@@ -1016,14 +1016,10 @@ namespace Span
 
             Helpers.DebugLogger.Log($"[MainWindow] Preview toggled (pane={targetPane}): Left={ViewModel.IsLeftPreviewEnabled}, Right={ViewModel.IsRightPreviewEnabled}");
 
-            // After preview toggle, the Miller columns viewport width changes.
-            // Scroll to keep the last column visible.
-            var explorer = ViewModel.ActiveExplorer;
-            if (explorer != null && explorer.Columns.Count > 0)
-            {
-                var scrollViewer = GetActiveMillerScrollViewer();
-                ScrollToLastColumn(explorer, scrollViewer);
-            }
+            // Issue #57 후속: 토글로 인한 뷰포트 폭 변경은 OnMillerScrollViewerSizeChanged 가드가
+            // 처리한다 (열림=축소: 직전 우측 끝 정렬이었을 때만 재정렬 / 닫힘=확대: 뷰 유지).
+            // 기존의 무조건 ScrollToLastColumn 호출은 가드를 우회해 "패널 토글 시 뷰가 우측 끝으로
+            // 점프"를 재현시키므로 제거.
         }
 
         /// <summary>

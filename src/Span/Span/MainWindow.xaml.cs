@@ -1957,8 +1957,34 @@ namespace Span
                 leftScrollViewer = panel.scroller;
             else
                 leftScrollViewer = MillerScrollViewer;
-            if (sender == leftScrollViewer)
+            if (sender != leftScrollViewer) return;
+
+            // 초기 표시(탭 전환/뷰모드 전환/앱 시작: Collapsed→Visible, 이전 폭 0):
+            // 기존 동작 그대로 마지막 컬럼 정렬 — 아래 가드의 "확대 스킵"에 걸리면 안 됨.
+            if (e.PreviousSize.Width < 1)
+            {
                 ScrollToLastColumn(ViewModel.LeftExplorer, leftScrollViewer);
+                return;
+            }
+
+            // Issue #57 후속 (미리보기 패널 열림/닫힘 등 뷰포트 폭 변경 시 재앵커):
+            // - 확대(패널 닫힘/창 확대): 재앵커 스킵. 우측 끝을 보던 중이었다면 ScrollViewer의
+            //   자연 clamp(HO > newMax)가 정렬을 유지해 주고, 앞쪽 컬럼을 보던 중이었다면
+            //   뷰가 그대로 유지된다 → "패널이 닫힐 때 뷰가 우측으로 점프" 차단.
+            // - 축소(패널 열림/창 축소): 직전에 우측 끝 정렬 상태였을 때만 재정렬(기존 UX 유지).
+            //   앞쪽 컬럼을 보던 중이었다면 뷰를 유지한다.
+            if (e.NewSize.Width > e.PreviousSize.Width) return;
+            if (e.NewSize.Width < 1) return; // Visible→Collapsed(W→0): 숨은 SV에 재앵커 불필요
+            double spacerW = GetMillerSpacer(leftScrollViewer)?.Width ?? 0;
+            if (double.IsNaN(spacerW)) spacerW = 0;
+            bool wasAtEnd = leftScrollViewer.HorizontalOffset + e.PreviousSize.Width
+                            >= leftScrollViewer.ExtentWidth - spacerW - 2;
+            if (!wasAtEnd) return;
+
+            // disableAnimation: 연속 드래그 축소 시 애니메이션 중간 HO 때문에 후속 이벤트의
+            // wasAtEnd 판정이 깨져 마지막 컬럼이 잘린 채 멈추는 체인 단절 방지 — 즉시 스냅이면
+            // 각 이벤트 후 "우측 끝 정렬" 불변식이 재성립해 최종 뷰포트로 수렴한다.
+            ScrollToLastColumn(ViewModel.LeftExplorer, leftScrollViewer, disableAnimation: true);
         }
 
         /// <summary>
@@ -1969,7 +1995,25 @@ namespace Span
         {
             if (_isClosed || ViewModel?.RightExplorer == null) return;
             if (Math.Abs(e.PreviousSize.Width - e.NewSize.Width) < 1) return;
-            ScrollToLastColumn(ViewModel.RightExplorer, MillerScrollViewerRight);
+
+            // 초기 표시(Split 열림 등: 이전 폭 0): 기존 동작 그대로 마지막 컬럼 정렬
+            if (e.PreviousSize.Width < 1)
+            {
+                ScrollToLastColumn(ViewModel.RightExplorer, MillerScrollViewerRight);
+                return;
+            }
+
+            // Issue #57 후속: 좌측과 동일 — 확대 시 스킵, 축소 시 직전 우측 끝 정렬 상태였을 때만 재정렬
+            if (e.NewSize.Width > e.PreviousSize.Width) return;
+            if (e.NewSize.Width < 1) return; // Visible→Collapsed(W→0): 숨은 SV에 재앵커 불필요
+            double spacerW = GetMillerSpacer(MillerScrollViewerRight)?.Width ?? 0;
+            if (double.IsNaN(spacerW)) spacerW = 0;
+            bool wasAtEnd = MillerScrollViewerRight.HorizontalOffset + e.PreviousSize.Width
+                            >= MillerScrollViewerRight.ExtentWidth - spacerW - 2;
+            if (!wasAtEnd) return;
+
+            // disableAnimation: 좌측과 동일 — 연속 축소 시 wasAtEnd 체인 단절 방지 (즉시 스냅)
+            ScrollToLastColumn(ViewModel.RightExplorer, MillerScrollViewerRight, disableAnimation: true);
         }
 
         /// <summary>
