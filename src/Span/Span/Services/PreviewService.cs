@@ -261,10 +261,22 @@ namespace Span.Services
                 var fi = new FileInfo(filePath);
                 if (fi.Length > MaxPreviewFileSize) return null;
 
-                var file = await StorageFile.GetFileFromPathAsync(filePath);
+                // Issue #60: PdfDocument.LoadFromFileAsync(StorageFile)는 파일 핸들을 문서 수명
+                // 동안 유지하는데 PdfDocument에는 Close API가 없어 GC 시점까지(비결정적) 락이
+                // 지속됨 → 미리보기 중인 PDF를 삭제/이동할 수 없었다. 파일을 읽고 즉시 닫은 뒤
+                // 메모리 스트림으로 로드하여 파일 핸들을 결정적으로 해제한다.
+                // (FileShare.Delete 포함 — 읽는 도중의 삭제도 허용)
+                byte[] pdfBytes;
+                using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read,
+                                               FileShare.ReadWrite | FileShare.Delete))
+                {
+                    pdfBytes = new byte[fs.Length];
+                    await fs.ReadExactlyAsync(pdfBytes, ct);
+                }
                 ct.ThrowIfCancellationRequested();
 
-                var pdfDoc = await PdfDocument.LoadFromFileAsync(file);
+                var pdfDoc = await PdfDocument.LoadFromStreamAsync(
+                    new MemoryStream(pdfBytes).AsRandomAccessStream());
                 if (pdfDoc.PageCount == 0) return null;
 
                 using var page = pdfDoc.GetPage(0);
