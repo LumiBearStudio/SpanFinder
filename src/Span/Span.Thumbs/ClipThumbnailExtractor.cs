@@ -29,71 +29,102 @@ internal static class ClipThumbnailExtractor
     private const long MaxSqliteBytes = 256L * 1024 * 1024; // 256MB
 
     /// <summary>.clip에서 CanvasPreview PNG 바이트를 추출. 실패 시 null.</summary>
+    /// <remarks>Issue #56 후속: 실환경(CSP 5.x 등) 실패 원인 파악을 위해 단계별 사유를 워커 로그에 남긴다.</remarks>
     public static byte[]? TryExtractPreviewPng(string filePath, CancellationToken ct)
     {
         try
         {
-            byte[]? sqliteBytes = ExtractSqliteSection(filePath, ct);
-            if (sqliteBytes == null) return null;
-            return ReadCanvasPreview(sqliteBytes, ct);
+            byte[]? sqliteBytes = ExtractSqliteSection(filePath, ct, out string stage);
+            if (sqliteBytes == null)
+            {
+                WorkerLogger.Log($"[ClipExtract] FAIL sqlite-section ({stage}): {System.IO.Path.GetFileName(filePath)}");
+                return null;
+            }
+            byte[]? png = ReadCanvasPreview(sqliteBytes, ct, out string dbStage);
+            if (png == null)
+                WorkerLogger.Log($"[ClipExtract] FAIL canvas-preview ({dbStage}): {System.IO.Path.GetFileName(filePath)}");
+            return png;
         }
-        catch
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex)
         {
-            return null; // 손상 파일 / 미지원 스키마 → 조용히 포기
+            WorkerLogger.Log($"[ClipExtract] EXCEPTION {ex.GetType().Name}: {ex.Message} — {System.IO.Path.GetFileName(filePath)}");
+            return null; // 손상 파일 / 미지원 스키마 → 썸네일 없음
         }
     }
 
-    /// <summary>청크를 순회해 CHNKSQLi 청크의 SQLite 바이트를 떼어낸다.</summary>
-    private static byte[]? ExtractSqliteSection(string filePath, CancellationToken ct)
+    /// <summary>청크를 순회해 CHNKSQLi 청크의 SQLite 바이트를 떼어낸다. stage에 실패 단계 기록.</summary>
+    private static byte[]? ExtractSqliteSection(string filePath, CancellationToken ct, out string stage)
     {
         using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
         Span<byte> hdr = stackalloc byte[16];
 
         // CSFCHUNK 매직
         if (!ReadExactly(fs, hdr.Slice(0, 8)) || !hdr.Slice(0, 8).SequenceEqual(Magic))
+        {
+            stage = $"no-CSFCHUNK-magic (head={ToAscii(hdr.Slice(0, 8))})";
             return null;
+        }
 
         // 파일길이(8B) skip → 첫 청크 오프셋(8B)
-        if (!ReadExactly(fs, hdr.Slice(0, 8))) return null; // 파일길이 (미사용)
-        if (!ReadExactly(fs, hdr.Slice(0, 8))) return null; // 첫 청크 오프셋
+        if (!ReadExactly(fs, hdr.Slice(0, 8))) { stage = "eof-at-filelen"; return null; }
+        if (!ReadExactly(fs, hdr.Slice(0, 8))) { stage = "eof-at-firstoffset"; return null; }
         long pos = ReadU64BE(hdr.Slice(0, 8));
-        if (pos < 24 || pos >= fs.Length) return null;
+        if (pos < 24 || pos >= fs.Length) { stage = $"bad-first-offset ({pos})"; return null; }
 
         while (pos + 16 <= fs.Length)
         {
             ct.ThrowIfCancellationRequested();
             fs.Position = pos;
-            if (!ReadExactly(fs, hdr)) return null;
+            if (!ReadExactly(fs, hdr)) { stage = $"eof-in-chunk-walk (pos={pos})"; return null; }
 
             long len = ReadU64BE(hdr.Slice(8, 8));
-            if (len < 0) return null; // 오버플로/손상
+            if (len < 0) { stage = $"negative-chunk-len (pos={pos})"; return null; }
 
             if (hdr.Slice(0, 8).SequenceEqual(SqliTag))
             {
-                if (len < 16 || len > MaxSqliteBytes) return null;
+                if (len < 16 || len > MaxSqliteBytes) { stage = $"sqli-len-out-of-range ({len})"; return null; }
                 var buf = new byte[len];
-                if (!ReadExactly(fs, buf)) return null;
+                if (!ReadExactly(fs, buf)) { stage = "eof-in-sqli-data"; return null; }
                 // SQLite 파일 매직 검증 ("SQLite format 3\0")
                 if (buf.Length < 16 || buf[0] != (byte)'S' || buf[1] != (byte)'Q' ||
                     buf[2] != (byte)'L' || buf[3] != (byte)'i')
+                {
+                    stage = "sqli-data-not-sqlite";
                     return null;
+                }
+                stage = "ok";
                 return buf;
             }
 
             if (hdr.Slice(0, 8).SequenceEqual(FootTag))
-                return null; // CHNKSQLi 없이 파일 끝
+            {
+                stage = "reached-CHNKFoot-without-CHNKSQLi";
+                return null;
+            }
 
             // 정상 청크 태그("CHNK...")가 아니면 손상으로 간주하고 중단
             if (hdr[0] != (byte)'C' || hdr[1] != (byte)'H' || hdr[2] != (byte)'N' || hdr[3] != (byte)'K')
+            {
+                stage = $"unknown-chunk-tag ({ToAscii(hdr.Slice(0, 8))} at {pos})";
                 return null;
+            }
 
             pos = pos + 16 + len; // 다음 청크로 점프
         }
+        stage = "walk-ran-past-eof";
         return null;
     }
 
-    /// <summary>추출한 SQLite 바이트를 열어 CanvasPreview.ImageData(PNG)를 읽는다.</summary>
-    private static byte[]? ReadCanvasPreview(byte[] sqliteBytes, CancellationToken ct)
+    private static string ToAscii(ReadOnlySpan<byte> b)
+    {
+        var sb = new System.Text.StringBuilder(b.Length);
+        foreach (var c in b) sb.Append(c >= 0x20 && c < 0x7F ? (char)c : '?');
+        return sb.ToString();
+    }
+
+    /// <summary>추출한 SQLite 바이트를 열어 CanvasPreview.ImageData(PNG)를 읽는다. dbStage에 실패 단계 기록.</summary>
+    private static byte[]? ReadCanvasPreview(byte[] sqliteBytes, CancellationToken ct, out string dbStage)
     {
         // Microsoft.Data.Sqlite는 파일 경로 기반 → 임시 파일에 쓰고 읽기 전용으로 연다.
         // (CanvasPreview 섹션은 대개 수 MB로 작다 — 레이어 원본은 CHNKExta에 별도 저장됨)
@@ -111,10 +142,23 @@ internal static class ClipThumbnailExtractor
             using var conn = new SqliteConnection(csb.ToString());
             conn.Open();
 
+            // CanvasPreview 테이블 존재 확인 (미존재 시 스키마 차이 진단용으로 테이블 목록 기록)
+            using (var check = conn.CreateCommand())
+            {
+                check.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name='CanvasPreview'";
+                if (check.ExecuteScalar() == null)
+                {
+                    using var list = conn.CreateCommand();
+                    list.CommandText = "SELECT group_concat(name, ',') FROM sqlite_master WHERE type='table'";
+                    dbStage = $"no-CanvasPreview-table (tables={list.ExecuteScalar()})";
+                    return null;
+                }
+            }
+
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "SELECT ImageData FROM CanvasPreview WHERE ImageData IS NOT NULL LIMIT 1";
             using var reader = cmd.ExecuteReader();
-            if (!reader.Read() || reader.IsDBNull(0)) return null;
+            if (!reader.Read() || reader.IsDBNull(0)) { dbStage = "CanvasPreview-empty"; return null; }
 
             using var blob = reader.GetStream(0);
             using var ms = new MemoryStream();
@@ -123,7 +167,11 @@ internal static class ClipThumbnailExtractor
 
             // PNG 시그니처 확인 (89 50 4E 47)
             if (png.Length < 8 || png[0] != 0x89 || png[1] != 0x50 || png[2] != 0x4E || png[3] != 0x47)
+            {
+                dbStage = $"ImageData-not-png (len={png.Length}, sig={(png.Length >= 4 ? Convert.ToHexString(png.AsSpan(0, 4)) : "short")})";
                 return null;
+            }
+            dbStage = "ok";
             return png;
         }
         finally

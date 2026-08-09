@@ -35,7 +35,10 @@ internal sealed class ThumbnailGenerator
         CancellationToken ct)
     {
         // ── 0. Issue #56: .clip은 셸 썸네일 미지원 → 내장 SQLite 미리보기 추출 경로 ──
-        if (string.Equals(Path.GetExtension(filePath), ".clip", StringComparison.OrdinalIgnoreCase))
+        // 클라우드 전용(OneDrive online-only) 파일은 FileStream open이 하이드레이션(다운로드)을
+        // 유발하므로 P2-4c 가드에 맞춰 커스텀 추출을 건너뛴다 (셸 캐시 경로로 폴백).
+        if (!isCloudOnly &&
+            string.Equals(Path.GetExtension(filePath), ".clip", StringComparison.OrdinalIgnoreCase))
             return await GenerateFromClipAsync(filePath, requestedSize, ct);
 
         // ── 1. StorageFile 획득 ──
