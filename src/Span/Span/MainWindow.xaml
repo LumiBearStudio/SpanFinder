@@ -1376,6 +1376,7 @@
                             <ScrollViewer x:Name="MillerScrollViewerRight"
                                           HorizontalScrollBarVisibility="Visible"
                                           VerticalScrollBarVisibility="Disabled"
+                                          VerticalScrollMode="Disabled"
                                           Visibility="{x:Bind IsMillerColumnsMode(ViewModel.RightViewMode), Mode=OneWay}"
                                           AllowDrop="True"
                                           DragOver="OnMillerEmptyAreaDragOver"
