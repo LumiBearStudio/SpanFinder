@@ -74,6 +74,9 @@ public class DeleteFileOperation : IFileOperation
         _router = router;
     }
 
+    /// <summary>Issue #61: FileOperationManager의 진행률 팝업 표시 휴리스틱용.</summary>
+    public IReadOnlyList<string> SourcePaths => _sourcePaths;
+
     /// <inheritdoc/>
     public string Description => _sourcePaths.Count == 1
         ? (_permanent
@@ -103,12 +106,14 @@ public class DeleteFileOperation : IFileOperation
                 var sourcePath = _sourcePaths[i];
                 var fileName = FileOperationHelpers.GetFileName(sourcePath);
 
+                // Issue #61: 항목 "시작" 시점 기준으로 보고 (기존 (i+1)*100은 작업 전에
+                // 이미 완료율로 표시되어 단일 항목이 시작 직후 100%로 보였음)
                 progress?.Report(new FileOperationProgress
                 {
                     CurrentFile = fileName,
                     CurrentFileIndex = i + 1,
                     TotalFileCount = _sourcePaths.Count,
-                    Percentage = (i + 1) * 100 / _sourcePaths.Count
+                    Percentage = i * 100 / _sourcePaths.Count
                 });
 
                 try
@@ -170,6 +175,14 @@ public class DeleteFileOperation : IFileOperation
                     errors.Add(string.Format(L("Op_FailedTo_Delete"), fileName, ex.Message));
                 }
             }
+
+            // Issue #61: 전 항목 처리 완료 → 100% 보고 (시작 시점 기준 보고의 마무리)
+            progress?.Report(new FileOperationProgress
+            {
+                CurrentFileIndex = _sourcePaths.Count,
+                TotalFileCount = _sourcePaths.Count,
+                Percentage = 100
+            });
 
             FileOperationHelpers.FinalizeResultWithErrors(result, errors, "Op_SomeNotDeleted");
         }

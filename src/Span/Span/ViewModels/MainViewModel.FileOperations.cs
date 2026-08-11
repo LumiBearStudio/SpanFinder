@@ -123,11 +123,17 @@ namespace Span.ViewModels
             Helpers.DebugLogger.Log($"[ExecuteFileOperationAsync] START - Operation: {operation.Description}, TargetColumnIndex: {targetColumnIndex}");
             Helpers.DebugLogger.Log($"[ExecuteFileOperationAsync] Columns: {string.Join(" > ", ActiveExplorer?.Columns?.Select(c => c.Name) ?? Array.Empty<string>())}");
 
-            // Copy/Move operations go through the FileOperationManager for concurrent execution
-            // with pause/resume/cancel support. Other operations use the legacy synchronous path.
-            if (operation is CopyFileOperation or MoveFileOperation or CompressOperation or ExtractOperation)
+            // Copy/Move/Delete operations go through the FileOperationManager for concurrent
+            // execution with progress UI + cancel support. Other operations use the legacy path.
+            // Issue #61: Delete 추가 — 기존 레거시 경로의 진행률 ViewModel은 화면에 바인딩되지
+            // 않은 고아 객체라 삭제 진행률이 전혀 표시되지 않았음. 매니저 경로로 옮겨 기존
+            // 진행률 패널(취소 버튼 포함)을 재사용한다. 단 삭제는 호출부가 완료 후 후처리
+            // (스마트 선택/컬럼 정리)를 하므로 완료까지 await한다 (Copy/Move는 기존대로 논블로킹).
+            if (operation is CopyFileOperation or MoveFileOperation or CompressOperation or ExtractOperation
+                or DeleteFileOperation)
             {
-                await ExecuteViaConcurrentManagerAsync(operation, targetColumnIndex);
+                await ExecuteViaConcurrentManagerAsync(operation, targetColumnIndex,
+                    awaitCompletion: operation is DeleteFileOperation);
                 return;
             }
 
@@ -175,12 +181,16 @@ namespace Span.ViewModels
         }
 
         /// <summary>
-        /// Copy/Move 작업을 FileOperationManager를 통해 백그라운드에서 동시 실행.
+        /// Copy/Move/Delete 작업을 FileOperationManager를 통해 백그라운드에서 동시 실행.
         /// 일시정지(Pause)/재개(Resume)/취소(Cancel) 지원.
         /// UI 스레드를 차단하지 않으며, 완료 시 DispatcherQueue로 콜백하여 결과 처리.
         /// Undo 지원: 성공 시 CompletedOperationWrapper로 히스토리에 추가 (Ctrl+Z 가능).
+        /// Issue #61: awaitCompletion=true(Delete)면 완료 콜백의 후처리까지 끝난 뒤 반환 —
+        /// 호출부의 삭제 후 스마트 선택/컬럼 정리 코드가 기존 await 의미를 그대로 유지한다.
+        /// (async await이므로 UI 스레드는 차단되지 않음)
         /// </summary>
-        private async Task ExecuteViaConcurrentManagerAsync(IFileOperation operation, int? targetColumnIndex)
+        private async Task ExecuteViaConcurrentManagerAsync(
+            IFileOperation operation, int? targetColumnIndex, bool awaitCompletion = false)
         {
             Helpers.DebugLogger.Log($"[ConcurrentManager] Starting: {operation.Description}");
 
@@ -190,13 +200,17 @@ namespace Span.ViewModels
             var entry = _fileOperationManager.StartOperation(operation, dispatcherQueue);
             entry.DispatcherQueue = dispatcherQueue;
 
+            var completionSource = awaitCompletion
+                ? new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously)
+                : null;
+
             // Subscribe to completion for this specific operation
             void OnCompleted(object? sender, OperationCompletedEventArgs e)
             {
                 if (e.Entry.Id != entry.Id) return;
                 _fileOperationManager.OperationCompleted -= OnCompleted;
 
-                dispatcherQueue.TryEnqueue(async () =>
+                bool enqueued = dispatcherQueue.TryEnqueue(async () =>
                 {
                     try
                     {
@@ -228,9 +242,22 @@ namespace Span.ViewModels
                             await RefreshCurrentFolderAsync(targetColumnIndex);
                         }
                         await RefreshOppositeExplorerAsync();
-                        ShowToast(string.Format(_loc.Get("Toast_Completed"), operation.Description));
+                        // Issue #61: 취소를 눌렀지만 이미 완료된 경우(예: 단일 폴더 삭제는
+                        // SHFileOperation 한 번으로 끝나 항목 경계 취소가 걸리지 않음) —
+                        // "완료" 대신 취소가 늦었음을 알린다.
+                        if (IsOperationCancelled(e.Entry))
+                        {
+                            ShowToast(_loc.Get("Toast_OperationCancelled"));
+                        }
+                        else
+                        {
+                            // 레거시 경로와 동일하게 Undo 가능 여부로 토스트 구분
+                            ShowToast(string.Format(
+                                _loc.Get(operation.CanUndo ? "Toast_CompletedUndo" : "Toast_Completed"),
+                                operation.Description));
+                        }
                     }
-                    else if (e.Entry.Status != Services.OperationStatus.Cancelled)
+                    else if (!IsOperationCancelled(e.Entry))
                     {
                         // Partial failure: still refresh to clean up ghost entries
                         HashSet<int>? failRefreshed = null;
@@ -247,16 +274,50 @@ namespace Span.ViewModels
 
                         ShowError(e.Result.ErrorMessage ?? _loc.Get("Toast_OperationFailed"));
                     }
+                    else
+                    {
+                        // Issue #61: 사용자 취소 — 이미 처리된 항목이 목록에 유령으로 남지 않도록
+                        // 정리하고, 에러가 아닌 중립 토스트로 안내한다.
+                        await RefreshCurrentFolderAsync(targetColumnIndex);
+                        await RefreshOppositeExplorerAsync();
+                        ShowToast(_loc.Get("Toast_OperationCancelled"));
+                    }
                     }
                     catch (Exception ex) { Helpers.DebugLogger.Log($"[FileOps] Post-operation dispatch failed: {ex.Message}"); }
+                    finally
+                    {
+                        completionSource?.TrySetResult();
+                    }
                 });
+                if (!enqueued)
+                {
+                    // DispatcherQueue 종료(창 닫힘) — 대기 중인 호출자를 영원히 매달지 않음
+                    completionSource?.TrySetResult();
+                }
             }
 
             _fileOperationManager.OperationCompleted += OnCompleted;
 
-            // Don't await the background task - the operation runs concurrently
             Helpers.DebugLogger.Log($"[ConcurrentManager] Operation started in background: ID={entry.Id}");
+
+            // Issue #61: Delete는 완료(후처리 포함)까지 대기 — 호출부 await 의미 유지.
+            // Copy/Move는 기존대로 논블로킹 (백그라운드 동시 실행).
+            if (completionSource != null)
+            {
+                await completionSource.Task;
+                Helpers.DebugLogger.Log($"[ConcurrentManager] Operation completed (awaited): ID={entry.Id}");
+            }
         }
+
+        /// <summary>
+        /// Issue #61: 작업이 사용자 취소로 끝났는지 판별.
+        /// 오퍼레이션들이 OperationCanceledException을 내부에서 삼켜 result.Success=false로
+        /// 변환하므로 Entry.Status는 Cancelled가 아닌 Failed가 된다. CTS 상태를 함께 확인해야
+        /// 취소를 에러로 오인해 빨간 토스트를 띄우는 것을 막을 수 있다.
+        /// </summary>
+        private static bool IsOperationCancelled(Services.FileOperationEntry entry)
+            => entry.Status == Services.OperationStatus.Cancelled
+               || entry.CancellationTokenSource?.IsCancellationRequested == true;
 
         private void LogOperationResult(IFileOperation operation, OperationResult result)
         {

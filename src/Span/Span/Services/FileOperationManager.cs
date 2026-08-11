@@ -1,5 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -73,19 +74,40 @@ public class FileOperationManager
             {
                 MoveFileOperation move => move.SourcePaths,
                 CopyFileOperation copy => copy.SourcePaths,
+                DeleteFileOperation del => del.SourcePaths,
                 _ => null
             };
-            if (sourcePaths != null && sourcePaths.Count <= 10)
+            // Issue #61: 원격(FTP/SFTP) 경로는 크기 조회가 불가능하고 가장 느린 경로라
+            // 항목 수와 무관하게 진행률+취소를 항상 노출한다.
+            if (sourcePaths != null && sourcePaths.Any(FileSystemRouter.IsRemotePath))
             {
+                showProgress = true;
+            }
+            else if (sourcePaths != null && sourcePaths.Count <= 10)
+            {
+                // Issue #61: 폴더는 실제 크기를 알 수 없으므로 무조건 팝업 표시.
+                // (기존 "50MB 가정 + 50MB 초과 비교"는 폴더 1개 선택 시 50MB==50MB로
+                //  항상 미표시되는 경계 버그 — 100GB 폴더 복사도 진행률이 안 떴음)
+                bool hasDirectory = false;
                 long totalSize = 0;
                 foreach (var path in sourcePaths)
                 {
                     if (System.IO.File.Exists(path))
                         totalSize += new System.IO.FileInfo(path).Length;
                     else if (System.IO.Directory.Exists(path))
-                        totalSize += 50 * 1024 * 1024; // 폴더는 보수적으로 50MB 가정
+                        hasDirectory = true;
                 }
-                showProgress = totalSize > 50 * 1024 * 1024; // 50MB 초과 시 팝업
+                if (operation is DeleteFileOperation)
+                {
+                    // 삭제 속도는 파일 크기와 무관(휴지통 이동=rename) — 폴더(재귀 삭제로
+                    // 오래 걸릴 수 있음)가 포함될 때만 팝업. 소수 파일 삭제는 즉발이라
+                    // 팝업이 떴다 바로 사라지는 깜빡임을 피한다.
+                    showProgress = hasDirectory;
+                }
+                else
+                {
+                    showProgress = hasDirectory || totalSize > 50 * 1024 * 1024; // 파일만이면 50MB 초과 시 팝업
+                }
             }
         }
         catch { }
@@ -108,7 +130,10 @@ public class FileOperationManager
                     // Marshal progress updates to UI thread
                     dispatcherQueue.TryEnqueue(() =>
                     {
-                        entry.CurrentFile = p.CurrentFile;
+                        // Issue #61: 최종 100% 보고 등 파일명 없는 진행 보고가 표시 중인
+                        // 파일명을 빈 값으로 덮어쓰지 않도록 한다 (완료 직전 공백 깜빡임 방지)
+                        if (!string.IsNullOrEmpty(p.CurrentFile))
+                            entry.CurrentFile = p.CurrentFile;
                         entry.Percentage = p.Percentage;
                         entry.CurrentFileIndex = p.CurrentFileIndex;
                         entry.TotalFileCount = p.TotalFileCount;
@@ -382,7 +407,13 @@ public partial class FileOperationEntry : ObservableObject
     public bool IsCancelling => Status == OperationStatus.Cancelling;
     public string PauseResumeIcon => IsPaused ? "\uE768" : "\uE769"; // Play : Pause (Segoe MDL2)
     public string PauseResumeTooltip => IsPaused ? LocalizationService.L("Progress_Resume") : LocalizationService.L("Progress_Pause");
-    public bool CanPauseOrResume => Status == OperationStatus.Running || Status == OperationStatus.Paused;
+    /// <summary>
+    /// Issue #61: 일시정지를 실제로 지원하는 작업인지 (IPausableOperation 구현 여부).
+    /// Delete는 미구현이므로 버튼을 눌러도 효과가 없다 — 되돌릴 수 없는 작업에서
+    /// "멈췄다"는 잘못된 신호를 주지 않도록 버튼 자체를 비활성화한다.
+    /// </summary>
+    public bool IsPausable => Operation is IPausableOperation;
+    public bool CanPauseOrResume => IsPausable && (Status == OperationStatus.Running || Status == OperationStatus.Paused);
     public bool CanCancel => Status == OperationStatus.Running || Status == OperationStatus.Paused;
     /// <summary>Cancelling 상태일 때 표시할 상태 텍스트 (로컬라이즈 가능)</summary>
     public string StatusText => IsCancelling ? _cancellingText : "";
