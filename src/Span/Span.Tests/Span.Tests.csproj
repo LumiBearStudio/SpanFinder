@@ -69,6 +69,7 @@
     <Compile Include="..\Span\Services\FileOperations\NewFileOperation.cs" Link="Sources\Services\NewFileOperation.cs" />
     <Compile Include="..\Span\Services\FileOperations\BatchRenameOperation.cs" Link="Sources\Services\BatchRenameOperation.cs" />
     <Compile Include="..\Span\Services\FileOperations\DeleteFileOperation.cs" Link="Sources\Services\DeleteFileOperation.cs" />
+    <Compile Include="..\Span\Services\FileOperations\ShellDeleteWithProgress.cs" Link="Sources\Services\ShellDeleteWithProgress.cs" />
     <Compile Include="..\Span\Services\FileOperations\CompressOperation.cs" Link="Sources\Services\CompressOperation.cs" />
     <Compile Include="..\Span\Services\FileOperations\ExtractOperation.cs" Link="Sources\Services\ExtractOperation.cs" />
     <!-- Services - folder size (pure C#) -->

@@ -99,11 +99,67 @@ public class DeleteFileOperation : IFileOperation
 
         try
         {
+            // Issue #61: 로컬 경로는 IFileOperation(탐색기와 동일 API)으로 일괄 처리 —
+            // 폴더 내부에서도 항목별 콜백이 오므로 실시간 진행률 + 즉시 취소가 가능하고,
+            // 휴지통에는 폴더가 통째로 들어가 기존 Undo(복원) 로직이 그대로 유지된다.
+            var localPaths = new List<string>();
+            foreach (var p in _sourcePaths)
+            {
+                if (!FileSystemRouter.IsRemotePath(p)) localPaths.Add(p);
+            }
+
+            if (localPaths.Count > 0)
+            {
+                var shellResult = await Task.Run(() => ShellDeleteWithProgress.Execute(
+                    localPaths,
+                    _permanent,
+                    (pct, name) => progress?.Report(new FileOperationProgress
+                    {
+                        CurrentFile = name,
+                        CurrentFileIndex = 1,
+                        TotalFileCount = localPaths.Count,
+                        Percentage = pct
+                    }),
+                    cancellationToken), cancellationToken);
+
+                foreach (var deletedPath in localPaths)
+                {
+                    // 애초에 없던 경로는 삭제 성공이 아니라 오류로 보고한다 (아래 MissingPaths)
+                    if (shellResult.MissingPaths.Contains(deletedPath)) continue;
+
+                    // 삭제 성공 여부는 실제 존재 여부로 판정 (취소 시 일부만 삭제될 수 있음)
+                    if (!FileExistsWin32(deletedPath) && !Directory.Exists(deletedPath))
+                    {
+                        result.AffectedPaths.Add(deletedPath);
+                        if (!_permanent) _recycledPaths[deletedPath] = deletedPath;
+                    }
+                }
+
+                if (shellResult.Cancelled)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = L("Op_Cancelled_Delete");
+                    return result;
+                }
+                if (shellResult.Error != null)
+                {
+                    errors.Add(shellResult.Error);
+                }
+                // 존재하지 않던 경로는 기존 동작대로 오류로 보고
+                foreach (var missingPath in shellResult.MissingPaths)
+                {
+                    errors.Add(string.Format(L("Op_PathNotFound"),
+                        FileOperationHelpers.GetFileName(missingPath)));
+                }
+            }
+
+            // 원격(FTP/SFTP) 경로는 기존 항목별 경로로 처리
             for (int i = 0; i < _sourcePaths.Count; i++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
                 var sourcePath = _sourcePaths[i];
+                if (!FileSystemRouter.IsRemotePath(sourcePath)) continue;
                 var fileName = FileOperationHelpers.GetFileName(sourcePath);
 
                 // Issue #61: 항목 "시작" 시점 기준으로 보고 (기존 (i+1)*100은 작업 전에
@@ -118,51 +174,16 @@ public class DeleteFileOperation : IFileOperation
 
                 try
                 {
-                    if (FileSystemRouter.IsRemotePath(sourcePath))
+                    // ── 원격 삭제 (로컬은 위 IFileOperation 경로에서 이미 처리됨) ──
+                    var provider = _router?.GetConnectionForPath(sourcePath);
+                    if (provider == null)
                     {
-                        // ── 원격 삭제 ──
-                        var provider = _router?.GetConnectionForPath(sourcePath);
-                        if (provider == null)
-                        {
-                            errors.Add(string.Format(L("Op_NoRemoteRouter"), sourcePath));
-                            continue;
-                        }
-
-                        var remotePath = FileSystemRouter.ExtractRemotePath(sourcePath);
-                        await provider.DeleteAsync(remotePath, recursive: true, cancellationToken);
+                        errors.Add(string.Format(L("Op_NoRemoteRouter"), sourcePath));
+                        continue;
                     }
-                    else if (_permanent)
-                    {
-                        // ── 로컬 영구 삭제 (Task.Run으로 UI 스레드 블록 방지) ──
-                        var deleteError = await Task.Run(() => TryDeleteDirect(sourcePath), cancellationToken);
-                        if (deleteError != null)
-                        {
-                            errors.Add($"{deleteError}: {fileName}");
-                            continue;
-                        }
-                    }
-                    else
-                    {
-                        // ── 로컬 휴지통 삭제 (Task.Run으로 UI 스레드 블록 방지) ──
-                        var recycleError = await Task.Run(() =>
-                        {
-                            if (!FileExistsWin32(sourcePath) && !Directory.Exists(sourcePath))
-                                return (string?)null; // Already gone — treat as successful delete
 
-                            var err = TryRecycle(sourcePath);
-                            if (err != null)
-                                return $"{err}: {fileName}";
-
-                            return (string?)null;
-                        }, cancellationToken);
-
-                        if (recycleError != null)
-                        {
-                            errors.Add(recycleError);
-                            continue;
-                        }
-                        _recycledPaths[sourcePath] = sourcePath;
-                    }
+                    var remotePath = FileSystemRouter.ExtractRemotePath(sourcePath);
+                    await provider.DeleteAsync(remotePath, recursive: true, cancellationToken);
 
                     result.AffectedPaths.Add(sourcePath);
                 }
