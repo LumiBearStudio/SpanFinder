@@ -1,4 +1,4 @@
-namespace Span.Services
+﻿namespace Span.Services
 {
     public partial class LocalizationService
     {
@@ -760,6 +760,10 @@ namespace Span.Services
             ("Progress_FileCount", "{0} / {1} files", "{0} / {1} 파일", "{0} / {1} ファイル", "{0} / {1} 个文件", "{0} / {1} 個檔案", "{0} / {1} Dateien", "{0} / {1} archivos", "{0} / {1} fichiers", "{0} / {1} arquivos"),
             ("Progress_Resume", "Resume", "재개", "再開", "恢复", "繼續", "Fortsetzen", "Reanudar", "Reprendre", "Retomar"),
             ("Progress_Pause", "Pause", "일시정지", "一時停止", "暂停", "暫停", "Pause", "Pausar", "Pause", "Pausar"),
+            ("Progress_UndoingItem", "Undoing: {0}", "실행 취소 중: {0}", "元に戻しています: {0}", "正在撤消: {0}", "正在復原: {0}", "Wird rückgängig gemacht: {0}", "Deshaciendo: {0}", "Annulation : {0}", "Desfazendo: {0}"),
+            ("Progress_Redoing", "Redoing...", "다시 실행 중...", "やり直しています...", "正在重做...", "正在取消復原...", "Wird wiederholt...", "Rehaciendo...", "Rétablissement...", "Refazendo..."),
+            ("Progress_RedoingItem", "Redoing: {0}", "다시 실행 중: {0}", "やり直しています: {0}", "正在重做: {0}", "正在取消復原: {0}", "Wird wiederholt: {0}", "Rehaciendo: {0}", "Rétablissement : {0}", "Refazendo: {0}"),
+            ("Progress_Undoing", "Undoing...", "실행 취소 중...", "元に戻しています...", "正在撤消...", "正在復原...", "Wird rückgängig gemacht...", "Deshaciendo...", "Annulation en cours...", "Desfazendo..."),
             ("Progress_Cancelling", "Cancelling...", "취소 중...", "キャンセル中...", "取消中...", "取消中...", "Abbrechen...", "Cancelando...", "Annulation...", "Cancelando..."),
             ("Progress_SecRemaining", "{0} sec remaining", "{0}초 남음", "残り{0}秒", "剩余{0}秒", "剩餘{0}秒", "Noch {0} Sek.", "Quedan {0} seg", "{0} sec restantes", "{0} seg restantes"),
             ("Progress_MinRemaining", "{0} min remaining", "{0}분 남음", "残り{0}分", "剩余{0}分钟", "剩餘{0}分鐘", "Noch {0} Min.", "Quedan {0} min", "{0} min restantes", "{0} min restantes"),

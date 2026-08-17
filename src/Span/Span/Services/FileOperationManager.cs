@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
@@ -195,6 +195,43 @@ public class FileOperationManager
         });
 
         return entry;
+    }
+
+    /// <summary>
+    /// Issue #61 후속: 임의의 비동기 작업(예: 실행 취소/다시 실행)을 진행률 패널에
+    /// "진행 중" 항목으로 표시하며 실행한다. 실제 진행률을 알 수 없는 작업이므로
+    /// 불확정(indeterminate) 표시이며 일시정지/취소 버튼은 노출되지 않는다.
+    /// (휴지통 복원처럼 수 초가 걸리는 작업이 아무 표시 없이 진행되던 문제 대응)
+    /// </summary>
+    public async Task<T> RunWithIndeterminateProgressAsync<T>(
+        string description,
+        Func<Task<T>> work,
+        Microsoft.UI.Dispatching.DispatcherQueue dispatcherQueue)
+    {
+        var id = Interlocked.Increment(ref _nextOperationId);
+        var entry = new FileOperationEntry
+        {
+            Id = id,
+            Description = description,
+            Status = OperationStatus.Running,
+            DispatcherQueue = dispatcherQueue,
+            IsIndeterminate = true
+        };
+
+        lock (_lock) { ActiveOperations.Add(entry); }
+
+        try
+        {
+            return await work();
+        }
+        finally
+        {
+            entry.Status = OperationStatus.Completed;
+            if (!dispatcherQueue.TryEnqueue(() => { lock (_lock) { ActiveOperations.Remove(entry); } }))
+            {
+                lock (_lock) { ActiveOperations.Remove(entry); }
+            }
+        }
     }
 
     /// <summary>
@@ -413,8 +450,18 @@ public partial class FileOperationEntry : ObservableObject
     /// "멈췄다"는 잘못된 신호를 주지 않도록 버튼 자체를 비활성화한다.
     /// </summary>
     public bool IsPausable => Operation is IPausableOperation;
-    public bool CanPauseOrResume => IsPausable && (Status == OperationStatus.Running || Status == OperationStatus.Paused);
-    public bool CanCancel => Status == OperationStatus.Running || Status == OperationStatus.Paused;
+    public bool CanPauseOrResume => IsPausable && !IsIndeterminate && (Status == OperationStatus.Running || Status == OperationStatus.Paused);
+    public bool CanCancel => !IsIndeterminate && (Status == OperationStatus.Running || Status == OperationStatus.Paused);
+
+    /// <summary>
+    /// Issue #61 후속: 진행률을 알 수 없는 작업(실행 취소 등). 퍼센트/속도 대신
+    /// 불확정 표시를 쓰고, 일시정지·취소 버튼은 노출하지 않는다.
+    /// </summary>
+    public bool IsIndeterminate { get; init; }
+
+    /// <summary>불확정이 아닐 때만 퍼센트 텍스트를 노출하기 위한 XAML 바인딩용.</summary>
+    public Microsoft.UI.Xaml.Visibility IsNotIndeterminate
+        => IsIndeterminate ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible;
     /// <summary>Cancelling 상태일 때 표시할 상태 텍스트 (로컬라이즈 가능)</summary>
     public string StatusText => IsCancelling ? _cancellingText : "";
 

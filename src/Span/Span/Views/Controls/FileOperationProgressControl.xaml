@@ -1,4 +1,4 @@
-<UserControl
+﻿<UserControl
     x:Class="Span.Views.Controls.FileOperationProgressControl"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -81,6 +81,7 @@
 
                                     <!-- Percentage text -->
                                     <TextBlock Grid.Column="1"
+                                               Visibility="{x:Bind IsNotIndeterminate, Mode=OneWay}"
                                                Text="{x:Bind PercentageText, Mode=OneWay}"
                                                FontSize="12"
                                                Foreground="{ThemeResource SpanAccentBrush}"
@@ -117,6 +118,7 @@
                                 <ProgressBar Grid.Row="1"
                                              Value="{x:Bind Percentage, Mode=OneWay}"
                                              Maximum="100"
+                                             IsIndeterminate="{x:Bind IsIndeterminate, Mode=OneWay}"
                                              ShowPaused="{x:Bind IsPaused, Mode=OneWay}"
                                              ShowError="{x:Bind IsCancelling, Mode=OneWay}"
                                              Height="6"

@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.Input;
+﻿using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.DependencyInjection;
 using Span.Models;
 using Span.Services;
@@ -74,7 +74,14 @@ namespace Span.ViewModels
         private async Task UndoAsync()
         {
             var desc = UndoDescription;
-            var result = await _operationHistory.UndoAsync();
+            // Issue #61 후속: 휴지통 복원은 수 초가 걸릴 수 있는데 아무 표시가 없어
+            // 진행 여부를 알 수 없었다 → 진행률 패널에 불확정 항목으로 표시.
+            // 진행 표시는 원래 작업 설명("...삭제")을 그대로 쓰면 복원 중인데 삭제로 보이므로
+            // "실행 취소 중: {원래 작업}" 형태로 감싼다.
+            var result = await _fileOperationManager.RunWithIndeterminateProgressAsync(
+                desc != null ? string.Format(_loc.Get("Progress_UndoingItem"), desc) : _loc.Get("Progress_Undoing"),
+                () => _operationHistory.UndoAsync(),
+                Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread());
             _actionLogService.LogOperation(new Models.ActionLogEntry
             {
                 OperationType = "Undo",
@@ -84,7 +91,10 @@ namespace Span.ViewModels
             });
             if (result.Success)
             {
-                await RefreshCurrentFolderAsync();
+                // Issue #61 후속: 복원된 항목이 어느 컬럼에 나타날지 알 수 없으므로
+                // (삭제된 위치가 마지막 컬럼이 아닐 수 있음) 0번부터 전체를 갱신한다.
+                // 기존의 인자 없는 호출은 마지막 컬럼만 갱신해 복원된 폴더가 보이지 않았다.
+                await RefreshCurrentFolderAsync(0);
                 await RefreshOppositeExplorerAsync();
                 ShowToast(string.Format(_loc.Get("Toast_Undone"), desc));
             }
@@ -98,7 +108,11 @@ namespace Span.ViewModels
         private async Task RedoAsync()
         {
             var desc = RedoDescription;
-            var result = await _operationHistory.RedoAsync();
+            // Issue #61 후속: Undo와 동일하게 진행 표시
+            var result = await _fileOperationManager.RunWithIndeterminateProgressAsync(
+                desc != null ? string.Format(_loc.Get("Progress_RedoingItem"), desc) : _loc.Get("Progress_Redoing"),
+                () => _operationHistory.RedoAsync(),
+                Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread());
             _actionLogService.LogOperation(new Models.ActionLogEntry
             {
                 OperationType = "Redo",
@@ -108,7 +122,8 @@ namespace Span.ViewModels
             });
             if (result.Success)
             {
-                await RefreshCurrentFolderAsync();
+                // Issue #61 후속: Undo와 동일 — 재실행 결과가 어느 컬럼에 반영될지 모르므로 전체 갱신
+                await RefreshCurrentFolderAsync(0);
                 await RefreshOppositeExplorerAsync();
                 ShowToast(string.Format(_loc.Get("Toast_Redone"), desc));
             }
