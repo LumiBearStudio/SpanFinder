@@ -264,6 +264,30 @@ public class DeleteFileOperation : IFileOperation
                     {
                         dynamic items = recycleBin.Items();
 
+                        // Issue #61 후속: 휴지통을 1회만 스캔해 (원래위치|이름) → 항목 인덱스를 만든다.
+                        // 기존에는 복원 대상마다 휴지통 전체를 순회하며 GetDetailsOf(COM)를 호출해
+                        // O(N×M)이었고, 휴지통에 항목이 많으면 복원이 눈에 띄게 느렸다.
+                        var recycleIndex = new Dictionary<string, dynamic>(StringComparer.OrdinalIgnoreCase);
+                        foreach (dynamic item in items)
+                        {
+                            cancellationToken.ThrowIfCancellationRequested();
+                            try
+                            {
+                                // Column 1 = "Original Location" (휴지통 항목의 원래 디렉토리)
+                                string? itemOriginalDir = recycleBin.GetDetailsOf(item, 1)?.ToString();
+                                string? itemName = item.Name?.ToString();
+                                if (itemOriginalDir != null && itemName != null)
+                                {
+                                    // 같은 경로가 여러 번 삭제된 경우 나중 항목(더 최근)이 우선
+                                    recycleIndex[itemOriginalDir + "|" + itemName] = item;
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                Debug.WriteLine($"[DeleteUndo] Error indexing Recycle Bin item: {ex.Message}");
+                            }
+                        }
+
                         foreach (var originalPath in _recycledPaths.Keys)
                         {
                             cancellationToken.ThrowIfCancellationRequested();
@@ -272,34 +296,24 @@ public class DeleteFileOperation : IFileOperation
                             string originalName = Path.GetFileName(originalPath);
                             bool found = false;
 
-                            foreach (dynamic item in items)
+                            if (recycleIndex.TryGetValue(originalDir + "|" + originalName, out dynamic? match))
                             {
                                 try
                                 {
-                                    // Column 1 = "Original Location" (휴지통 항목의 원래 디렉토리)
-                                    string? itemOriginalDir = recycleBin.GetDetailsOf(item, 1)?.ToString();
-                                    string? itemName = item.Name?.ToString();
-
-                                    if (itemName != null && itemOriginalDir != null &&
-                                        string.Equals(itemName, originalName, StringComparison.OrdinalIgnoreCase) &&
-                                        string.Equals(itemOriginalDir, originalDir, StringComparison.OrdinalIgnoreCase))
+                                    // 원래 디렉토리로 복원
+                                    dynamic? targetFolder = shell.NameSpace(originalDir);
+                                    if (targetFolder != null)
                                     {
-                                        // 원래 디렉토리로 복원
-                                        dynamic? targetFolder = shell.NameSpace(originalDir);
-                                        if (targetFolder != null)
-                                        {
-                                            // 0x0014 = FOF_NOCONFIRMATION (0x10) | FOF_SILENT (0x04)
-                                            targetFolder.MoveHere(item, 0x0014);
-                                            restored.Add(originalPath);
-                                            found = true;
-                                            Marshal.ReleaseComObject(targetFolder);
-                                        }
-                                        break;
+                                        // 0x0014 = FOF_NOCONFIRMATION (0x10) | FOF_SILENT (0x04)
+                                        targetFolder.MoveHere(match, 0x0014);
+                                        restored.Add(originalPath);
+                                        found = true;
+                                        Marshal.ReleaseComObject(targetFolder);
                                     }
                                 }
                                 catch (Exception ex)
                                 {
-                                    Debug.WriteLine($"[DeleteUndo] Error checking Recycle Bin item: {ex.Message}");
+                                    Debug.WriteLine($"[DeleteUndo] Error restoring item: {ex.Message}");
                                 }
                             }
 
