@@ -1,4 +1,4 @@
-<Window
+﻿<Window
     x:Class="Span.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -385,7 +385,7 @@
                         <Grid Height="28" Padding="12,0" Background="Transparent"
                               Tapped="OnHomeItemTapped"
                               PointerEntered="OnSidebarItemPointerEntered"
-                              PointerExited="OnSidebarItemPointerExited">
+                              PointerExited="OnSidebarItemPointerExited" PointerPressed="OnSidebarItemPointerPressed" PointerReleased="OnSidebarItemPointerReleased">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
@@ -438,7 +438,7 @@
                                           Background="Transparent"
                                           ToolTipService.ToolTip="{x:Bind Path}"
                                           PointerEntered="OnSidebarItemPointerEntered"
-                                          PointerExited="OnSidebarItemPointerExited">
+                                          PointerExited="OnSidebarItemPointerExited" PointerPressed="OnSidebarItemPointerPressed" PointerReleased="OnSidebarItemPointerReleased">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
@@ -519,7 +519,7 @@
                         <Rectangle Height="1" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="12,12"/>
                         <Grid Height="24" Padding="12,0" Background="Transparent"
                               Tapped="OnSidebarSectionHeaderTapped" Tag="Local"
-                              PointerEntered="OnSidebarItemPointerEntered" PointerExited="OnSidebarItemPointerExited">
+                              PointerEntered="OnSidebarItemPointerEntered" PointerExited="OnSidebarItemPointerExited" PointerPressed="OnSidebarItemPointerPressed" PointerReleased="OnSidebarItemPointerReleased">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
@@ -543,7 +543,7 @@
                                     <Grid Height="26" Padding="12,0,8,0" Background="Transparent"
                                           ToolTipService.ToolTip="{x:Bind TooltipText}"
                                           Tapped="OnDriveItemTapped" RightTapped="OnSidebarDriveRightTapped"
-                                          PointerEntered="OnSidebarItemPointerEntered" PointerExited="OnSidebarItemPointerExited">
+                                          PointerEntered="OnSidebarItemPointerEntered" PointerExited="OnSidebarItemPointerExited" PointerPressed="OnSidebarItemPointerPressed" PointerReleased="OnSidebarItemPointerReleased">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
@@ -567,7 +567,7 @@
                             <Rectangle Height="1" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="12,12"/>
                             <Grid Height="24" Padding="12,0" Background="Transparent"
                                   Tapped="OnSidebarSectionHeaderTapped" Tag="Cloud"
-                                  PointerEntered="OnSidebarItemPointerEntered" PointerExited="OnSidebarItemPointerExited">
+                                  PointerEntered="OnSidebarItemPointerEntered" PointerExited="OnSidebarItemPointerExited" PointerPressed="OnSidebarItemPointerPressed" PointerReleased="OnSidebarItemPointerReleased">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
@@ -591,7 +591,7 @@
                                         <Grid Height="26" Padding="12,0,8,0" Background="Transparent"
                                               ToolTipService.ToolTip="{x:Bind TooltipText}"
                                               Tapped="OnDriveItemTapped" RightTapped="OnSidebarDriveRightTapped"
-                                              PointerEntered="OnSidebarItemPointerEntered" PointerExited="OnSidebarItemPointerExited">
+                                              PointerEntered="OnSidebarItemPointerEntered" PointerExited="OnSidebarItemPointerExited" PointerPressed="OnSidebarItemPointerPressed" PointerReleased="OnSidebarItemPointerReleased">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto"/>
                                                 <ColumnDefinition Width="*"/>
@@ -614,7 +614,7 @@
                             <Rectangle Height="1" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="12,12"/>
                             <Grid Height="24" Padding="12,0" Background="Transparent"
                                   Tapped="OnSidebarSectionHeaderTapped" Tag="Network"
-                                  PointerEntered="OnSidebarItemPointerEntered" PointerExited="OnSidebarItemPointerExited">
+                                  PointerEntered="OnSidebarItemPointerEntered" PointerExited="OnSidebarItemPointerExited" PointerPressed="OnSidebarItemPointerPressed" PointerReleased="OnSidebarItemPointerReleased">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
@@ -638,7 +638,7 @@
                                         <Grid Height="26" Padding="12,0,8,0" Background="Transparent"
                                               ToolTipService.ToolTip="{x:Bind TooltipText}"
                                               Tapped="OnDriveItemTapped" RightTapped="OnSidebarDriveRightTapped"
-                                              PointerEntered="OnSidebarItemPointerEntered" PointerExited="OnSidebarItemPointerExited">
+                                              PointerEntered="OnSidebarItemPointerEntered" PointerExited="OnSidebarItemPointerExited" PointerPressed="OnSidebarItemPointerPressed" PointerReleased="OnSidebarItemPointerReleased">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto"/>
                                                 <ColumnDefinition Width="*"/>
@@ -675,7 +675,7 @@
                               DragOver="OnRecycleBinDragOver"
                               Drop="OnRecycleBinDrop"
                               PointerEntered="OnSidebarItemPointerEntered"
-                              PointerExited="OnSidebarItemPointerExited"
+                              PointerExited="OnSidebarItemPointerExited" PointerPressed="OnSidebarItemPointerPressed" PointerReleased="OnSidebarItemPointerReleased"
                               AutomationProperties.AutomationId="Sidebar_RecycleBin">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
