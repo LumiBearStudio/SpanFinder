@@ -537,6 +537,7 @@
             // ── Toast messages ──────────────────────────────────────────────
             ("Toast_PathCopied", "Path copied to clipboard", "경로가 클립보드에 복사됨", "パスをクリップボードにコピーしました", "路径已复制到剪贴板", "路徑已複製到剪貼簿", "Pfad in Zwischenablage kopiert", "Ruta copiada al portapapeles", "Chemin copié dans le presse-papiers", "Caminho copiado para a área de transferência"),
             ("Toast_TextCopied", "Text copied to clipboard", "텍스트가 클립보드에 복사됨", "テキストをクリップボードにコピーしました", "文本已复制到剪贴板", "文字已複製到剪貼簿", "Text in Zwischenablage kopiert", "Texto copiado al portapapeles", "Texte copié dans le presse-papiers", "Texto copiado para a área de transferência"),
+            ("Toast_ClipboardFailed", "Could not copy to clipboard", "클립보드에 복사하지 못했습니다", "クリップボードにコピーできませんでした", "无法复制到剪贴板", "無法複製到剪貼簿", "Kopieren in die Zwischenablage fehlgeschlagen", "No se pudo copiar al portapapeles", "Impossible de copier dans le presse-papiers", "Não foi possível copiar para a área de transferência"),
             ("Toast_Copied", "'{0}' copied", "'{0}' 복사됨", "'{0}'をコピーしました", "已复制\u201C{0}\u201D", "已複製「{0}」", "'{0}' kopiert", "'{0}' copiado", "« {0} » copié", "'{0}' copiado"),
             ("Toast_CopiedMultiple", "{0} items copied", "{0}개 항목 복사됨", "{0}個の項目をコピーしました", "已复制 {0} 个项目", "已複製 {0} 個項目", "{0} Elemente kopiert", "{0} elementos copiados", "{0} éléments copiés", "{0} itens copiados"),
             ("Toast_Cut", "'{0}' cut", "'{0}' 잘라내기", "'{0}'を切り取りました", "已剪切\u201C{0}\u201D", "已剪下「{0}」", "'{0}' ausgeschnitten", "'{0}' cortado", "« {0} » coupé", "'{0}' recortado"),

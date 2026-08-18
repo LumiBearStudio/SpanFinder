@@ -1,4 +1,4 @@
-using Microsoft.UI.Xaml;
+﻿using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.Extensions.DependencyInjection;
@@ -364,19 +364,11 @@ namespace Span
         /// 선택된 항목의 경로를 내부 _clipboardPaths에 저장하고 _isCutOperation=false로 설정한다.
         /// 시스템 클립보드에 StorageItems도 제공하여 Windows 탐색기와의 호환성을 보장한다.
         /// </summary>
-        private void HandleCopy()
+        private async void HandleCopy()
         {
+            // Issue #62: 선택이 없을 때 Children[0]을 대신 복사하던 fallback 제거.
+            // 사용자가 고르지 않은 '첫 번째 항목'이 복사되어 의도와 다른 결과를 냈다.
             var selectedItems = GetCurrentSelectedItems();
-            if (selectedItems.Count == 0)
-            {
-                // Fallback: auto-select first item if nothing is selected
-                var folder = GetCurrentViewFolder();
-                if (folder != null && folder.Children.Count > 0)
-                {
-                    folder.SelectedChild = folder.Children[0];
-                    selectedItems = new List<FileSystemViewModel> { folder.Children[0] };
-                }
-            }
             if (selectedItems.Count == 0) return;
 
             // 이전 잘라내기 항목의 반투명 효과 해제
@@ -387,19 +379,18 @@ namespace Span
                 _clipboardPaths.Add(item.Path);
             _isCutOperation = false;
 
-            var dataPackage = new DataPackage();
-            dataPackage.RequestedOperation = DataPackageOperation.Copy;
-            dataPackage.SetText(string.Join("\n", _clipboardPaths));
-
-            // Provide StorageItems for Windows Explorer compatibility
-            var capturedPaths = new List<string>(_clipboardPaths);
-            dataPackage.SetDataProvider(StandardDataFormats.StorageItems, request =>
+            // Issue #62: 즉시 렌더링 + Flush — 지연 렌더링 콜백이 빈 목록을 넘겨
+            // 탐색기에서 CLIPBRD_E_BAD_DATA가 발생하던 문제 해결.
+            _suppressNextClipboardChange = true;
+            if (!await Helpers.ClipboardInteropHelper.SetFilesAsync(_clipboardPaths, isCut: false))
             {
-                var deferral = request.GetDeferral();
-                _ = Helpers.ViewDragDropHelper.ProvideStorageItemsAsync(request, capturedPaths, deferral);
-            });
-
-            Clipboard.SetContent(dataPackage);
+                _suppressNextClipboardChange = false;
+                _clipboardPaths.Clear();
+                UpdateToolbarButtonStates();
+                ViewModel.ShowToast(_loc.Get("Toast_ClipboardFailed"));
+                return;
+            }
+            UpdateToolbarButtonStates();
 
             // Toast notification
             if (selectedItems.Count == 1)
@@ -421,18 +412,11 @@ namespace Span
         /// HandleCopy와 동일한 흐름이지만 _isCutOperation=true로 설정하고,
         /// DataPackage.RequestedOperation을 Move로 지정하여 붙여넣기 시 이동 동작을 수행한다.
         /// </summary>
-        private void HandleCut()
+        private async void HandleCut()
         {
+            // Issue #62: Children[0] 자동 선택 제거 — 고르지 않은 파일이 이동 대상이 되는
+            // 위험 동작이었다.
             var selectedItems = GetCurrentSelectedItems();
-            if (selectedItems.Count == 0)
-            {
-                var folder = GetCurrentViewFolder();
-                if (folder != null && folder.Children.Count > 0)
-                {
-                    folder.SelectedChild = folder.Children[0];
-                    selectedItems = new List<FileSystemViewModel> { folder.Children[0] };
-                }
-            }
             if (selectedItems.Count == 0) return;
 
             if (selectedItems.Any(i => Helpers.ArchivePathHelper.IsArchivePath(i.Path)))
@@ -449,19 +433,19 @@ namespace Span
                 _clipboardPaths.Add(item.Path);
             _isCutOperation = true;
 
-            var dataPackage = new DataPackage();
-            dataPackage.RequestedOperation = DataPackageOperation.Move;
-            dataPackage.SetText(string.Join("\n", _clipboardPaths));
-
-            // Provide StorageItems for Windows Explorer compatibility
-            var capturedCutPaths = new List<string>(_clipboardPaths);
-            dataPackage.SetDataProvider(StandardDataFormats.StorageItems, request =>
+            // Issue #62: 즉시 렌더링 + Flush (HandleCopy와 동일)
+            _suppressNextClipboardChange = true;
+            if (!await Helpers.ClipboardInteropHelper.SetFilesAsync(_clipboardPaths, isCut: true))
             {
-                var deferral = request.GetDeferral();
-                _ = Helpers.ViewDragDropHelper.ProvideStorageItemsAsync(request, capturedCutPaths, deferral);
-            });
-
-            Clipboard.SetContent(dataPackage);
+                _suppressNextClipboardChange = false;
+                ClearCutState();
+                _clipboardPaths.Clear();
+                _isCutOperation = false;
+                UpdateToolbarButtonStates();
+                ViewModel.ShowToast(_loc.Get("Toast_ClipboardFailed"));
+                return;
+            }
+            UpdateToolbarButtonStates();
 
             // Toast notification
             if (selectedItems.Count == 1)
@@ -564,6 +548,7 @@ namespace Span
                 // External clipboard (Windows Explorer → Span)
                 try
                 {
+                    sourcePaths = new List<string>();
                     var content = Clipboard.GetContent();
                     if (!content.Contains(StandardDataFormats.StorageItems))
                     {
@@ -594,26 +579,51 @@ namespace Span
 
                     // Bug 1: 클립보드 접근에 타임아웃 적용 (COM 교착 방지)
                     var clipTask = content.GetStorageItemsAsync().AsTask();
-                    if (await Task.WhenAny(clipTask, Task.Delay(5000)) != clipTask)
+                    if (await Task.WhenAny(clipTask, Task.Delay(5000)) == clipTask)
                     {
-                        Helpers.DebugLogger.Log("[Clipboard] GetStorageItemsAsync timed out (5s)");
+                        // await로 받아야 실제 예외가 드러난다 (.Result는 AggregateException으로 감쌈)
+                        var items = await clipTask;
+                        sourcePaths = items
+                            .Select(i => i.Path)
+                            .Where(p => !string.IsNullOrEmpty(p))
+                            .ToList();
+                    }
+                    else
+                    {
+                        Helpers.DebugLogger.Log("[Clipboard] GetStorageItemsAsync timed out (5s) — CF_HDROP 폴백");
+                    }
+
+                    // Issue #62: WinRT StorageItems 변환은 압축 폴더 내부·클라우드 placeholder·
+                    // 경로 없는 셸 아이템이 섞이면 통째로 실패한다. 탐색기는 항상 CF_HDROP를
+                    // 넣으므로 원본 형식을 직접 읽는 폴백을 둔다.
+                    if (sourcePaths.Count == 0)
+                    {
+                        var win32Paths = Helpers.Win32ClipboardHelper.GetFileDropList();
+                        if (win32Paths.Count > 0)
+                        {
+                            Helpers.DebugLogger.Log($"[Clipboard] CF_HDROP 폴백으로 {win32Paths.Count}개 항목 확보");
+                            sourcePaths = win32Paths;
+                        }
+                    }
+
+                    if (sourcePaths.Count == 0)
+                    {
+                        Helpers.DebugLogger.Log("[Clipboard] 붙여넣을 파일을 찾지 못함 (StorageItems/CF_HDROP 모두 없음)");
+                        ViewModel.ShowToast(_loc.Get("Toast_PasteFailed") ?? "Paste failed", 3000, isError: true);
                         return;
                     }
-                    var items = clipTask.Result;
-                    sourcePaths = items
-                        .Select(i => i.Path)
-                        .Where(p => !string.IsNullOrEmpty(p))
-                        .ToList();
-                    if (sourcePaths.Count == 0) return;
 
-                    // Detect Cut vs Copy from Windows clipboard
-                    isCut = content.RequestedOperation.HasFlag(DataPackageOperation.Move);
+                    // Issue #62: 잘라내기 여부는 탐색기가 "Preferred DropEffect"로 전달한다.
+                    // RequestedOperation만 보면 탐색기에서 Ctrl+X 한 항목도 복사로 처리됐다.
+                    isCut = Helpers.Win32ClipboardHelper.IsCutOperation()
+                            ?? content.RequestedOperation.HasFlag(DataPackageOperation.Move);
 
                     Helpers.DebugLogger.Log($"[Clipboard] External paste: {sourcePaths.Count} item(s), isCut={isCut}");
                 }
                 catch (Exception ex)
                 {
-                    Helpers.DebugLogger.Log($"[Clipboard] External paste error: {ex.Message}");
+                    Helpers.DebugLogger.Log($"[Clipboard] External paste error: {ex.GetType().Name}: {ex.Message}");
+                    ViewModel.ShowToast(_loc.Get("Toast_PasteFailed") ?? "Paste failed", 3000, isError: true);
                     return;
                 }
             }

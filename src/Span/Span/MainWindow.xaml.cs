@@ -324,6 +324,11 @@ namespace Span
         // Clipboard
         private readonly List<string> _clipboardPaths = new();
         private bool _isCutOperation = false;
+        /// <summary>
+        /// Issue #62: SPAN 자신이 클립보드에 쓴 직후 발생하는 ContentChanged를 무시하기 위한 플래그.
+        /// (자기 이벤트로 방금 넣은 내부 상태를 지우면 안 됨)
+        /// </summary>
+        private bool _suppressNextClipboardChange;
         private readonly List<ViewModels.FileSystemViewModel> _cutItems = new();
 
         // Rename 완료 직후 Enter가 파일 실행으로 이어지는 것을 방지
@@ -509,6 +514,10 @@ namespace Span
             // v1.4.19: spacer 펼치기/접기로 ExtentWidth 박동 차단
             // 인스턴스 단위 구독은 backing field 직접 할당 케이스에서 새 인스턴스로 안 따라감 →
             // 정적 이벤트로 forward 받아 sender 비교로 라우팅 (인스턴스 무관 보장).
+            // Issue #62: 다른 앱(탐색기 등)이 클립보드를 가져가면 내부 클립보드 상태를 무효화한다.
+            // 구독이 없어서, SPAN에서 한 번 복사하면 이후 탐색기 복사본이 영원히 무시됐다.
+            try { Windows.ApplicationModel.DataTransfer.Clipboard.ContentChanged += OnSystemClipboardChanged; }
+            catch (Exception ex) { Helpers.DebugLogger.Log($"[Clipboard] ContentChanged 구독 실패: {ex.Message}"); }
             ViewModels.ExplorerViewModel.AnyBeforeReplaceLastColumn += OnAnyBeforeReplaceLastColumn;
             ViewModels.ExplorerViewModel.AnyAfterReplaceLastColumn += OnAnyAfterReplaceLastColumn;
             // Issue #57: 잔여 spacer 실시간 트리밍 — XAML 기본 패널 좌/우 (동적 탭 패널은
@@ -1387,6 +1396,7 @@ namespace Span
                 try { MillerScrollViewer.BringIntoViewRequested -= OnMillerBringIntoViewRequested; } catch { }
                 try { MillerScrollViewerRight.BringIntoViewRequested -= OnMillerBringIntoViewRequested; } catch { }
                 // v1.4.19: 정적 forward 이벤트 해제 (메모리 누수 방지)
+                try { Windows.ApplicationModel.DataTransfer.Clipboard.ContentChanged -= OnSystemClipboardChanged; } catch { }
                 try { ViewModels.ExplorerViewModel.AnyBeforeReplaceLastColumn -= OnAnyBeforeReplaceLastColumn; } catch { }
                 try { ViewModels.ExplorerViewModel.AnyAfterReplaceLastColumn -= OnAnyAfterReplaceLastColumn; } catch { }
                 if (ViewModel?.RightExplorer != null)
@@ -1885,6 +1895,32 @@ namespace Span
         /// 비교해 좌/우 spacer 핸들러에 라우팅. 인스턴스 단위 구독이 _leftExplorer 직접 할당으로
         /// 끊어지는 케이스를 모두 cover.
         /// </summary>
+        /// <summary>
+        /// Issue #62: 시스템 클립보드가 바뀌면(다른 앱이 복사/잘라내기) 내부 클립보드 상태를 비운다.
+        /// 그래야 HandlePaste가 외부 분기로 진입하고, 붙여넣기 버튼/메뉴도 올바르게 활성화된다.
+        /// SPAN 자신이 쓴 직후의 이벤트는 _suppressNextClipboardChange로 건너뛴다.
+        /// </summary>
+        private void OnSystemClipboardChanged(object? sender, object e)
+        {
+            if (_isClosed) return;
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                if (_isClosed) return;
+                if (_suppressNextClipboardChange)
+                {
+                    _suppressNextClipboardChange = false;
+                    return;
+                }
+                if (_clipboardPaths.Count == 0 && _cutItems.Count == 0) return;
+
+                Helpers.DebugLogger.Log("[Clipboard] 외부 클립보드 변경 감지 — 내부 클립보드 상태 초기화");
+                ClearCutState();
+                _clipboardPaths.Clear();
+                _isCutOperation = false;
+                UpdateToolbarButtonStates();
+            });
+        }
+
         private void OnAnyBeforeReplaceLastColumn(ViewModels.ExplorerViewModel sender, int vanishingColumns)
         {
             if (_isClosed || ViewModel == null) return;
@@ -4458,12 +4494,16 @@ namespace Span
 
             if (!string.IsNullOrEmpty(path) && System.IO.Directory.Exists(path))
             {
-                // Switch away from Home mode if needed (ActionLog has its own sidebar, no navigation)
+                // Issue #62: Home뿐 아니라 RecycleBin에서도 벗어나야 한다. 가드에 RecycleBin이
+                // 없어서 휴지통 화면이 계속 덮여 있었고, 네비게이션은 실행되지만 보이지 않아
+                // 사용자에게는 완전 무반응으로 보였다.
+                // 뷰모드는 다른 진입점(NavigateToFavorite/OpenDrive)과 동일하게 직전 탐색기
+                // 뷰모드를 복원한다 (Miller 강제 전환 대신).
                 var activeViewMode = (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
                     ? ViewModel.RightViewMode : ViewModel.CurrentViewMode;
-                if (activeViewMode == ViewMode.Home)
+                if (activeViewMode == ViewMode.Home || activeViewMode == ViewMode.RecycleBin)
                 {
-                    ViewModel.SwitchViewMode(ViewMode.MillerColumns);
+                    ViewModel.SwitchViewMode(ViewModel.ResolveViewModeFromHome());
                 }
 
                 var folder = new FolderItem
@@ -4538,13 +4578,22 @@ namespace Span
                 {
                     if (System.IO.Directory.Exists(folderNode.Path))
                     {
+                        // Issue #62: 트리 클릭과 동일하게 Home/RecycleBin에서 벗어난다
+                        var vm = (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
+                            ? ViewModel.RightViewMode : ViewModel.CurrentViewMode;
+                        if (vm == ViewMode.Home || vm == ViewMode.RecycleBin)
+                        {
+                            ViewModel.SwitchViewMode(ViewModel.ResolveViewModeFromHome());
+                        }
+
                         var folder = new FolderItem
                         {
                             Name = folderNode.Name,
                             Path = folderNode.Path
                         };
                         _ = ViewModel.ActiveExplorer?.NavigateTo(folder);
-                        FocusColumnAsync(0);
+                        if (ViewModel.CurrentViewMode == ViewMode.MillerColumns) FocusColumnAsync(0);
+                        else FocusActiveView();
                     }
                 };
                 menu.Items.Add(openItem);
@@ -5595,7 +5644,10 @@ namespace Span
         private void UpdateToolbarButtonStates()
         {
             bool hasSelection = HasAnySelection();
-            bool hasClipboard = _clipboardPaths.Count > 0;
+            // Issue #62: 외부(탐색기 등)에서 복사한 파일도 붙여넣을 수 있으므로 시스템
+            // 클립보드의 파일 목록(CF_HDROP)까지 확인한다. 내부만 보면 탐색기에서 복사한
+            // 상태에서 붙여넣기 버튼이 비활성으로 보였다.
+            bool hasClipboard = _clipboardPaths.Count > 0 || Helpers.Win32ClipboardHelper.HasFileDrop();
 
             ToolbarCutButton.IsEnabled = hasSelection;
             ToolbarCopyButton.IsEnabled = hasSelection;
@@ -6036,7 +6088,9 @@ namespace Span
         //  IContextMenuHost Implementation
         // =================================================================
 
-        bool Services.IContextMenuHost.HasClipboardContent => _clipboardPaths.Count > 0;
+        // Issue #62: 우클릭 메뉴의 붙여넣기도 외부 클립보드를 인식해야 한다.
+        bool Services.IContextMenuHost.HasClipboardContent
+            => _clipboardPaths.Count > 0 || Helpers.Win32ClipboardHelper.HasFileDrop();
 
         void Services.IContextMenuHost.PerformCut(string path)
         {
