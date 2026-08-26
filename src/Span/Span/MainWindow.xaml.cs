@@ -6754,7 +6754,12 @@ namespace Span
                 }
 
                 var op = new Span.Services.FileOperations.ExtractOperation(zipPath, destPath);
-                var activeIndex = GetActiveColumnIndex();
+                // Issue #63: 컨텍스트 메뉴에서 호출되면 포커스가 MenuFlyoutItem에 있어
+                // GetActiveColumnIndex()가 -1을 반환한다. 그러면 갱신 대상이 "마지막 컬럼"으로
+                // 폴백하는데, zip을 열어 둔 상태에서는 그게 archive:// 컬럼이라 실제 폴더가
+                // 갱신되지 않아 추출 결과가 F5 전까지 보이지 않았다.
+                // PerformCompress가 이미 쓰는 경로 매칭 방식으로 통일한다(커밋 6a980ac 선례).
+                var activeIndex = GetColumnIndexForPath(zipPath);
                 await ViewModel.ExecuteFileOperationAsync(op, activeIndex >= 0 ? activeIndex : null);
             }
             catch (Exception ex)
@@ -6792,7 +6797,12 @@ namespace Span
                 }
 
                 var op = new Span.Services.FileOperations.ExtractOperation(zipPath, destPath);
-                var activeIndex = GetActiveColumnIndex();
+                // Issue #63: 컨텍스트 메뉴에서 호출되면 포커스가 MenuFlyoutItem에 있어
+                // GetActiveColumnIndex()가 -1을 반환한다. 그러면 갱신 대상이 "마지막 컬럼"으로
+                // 폴백하는데, zip을 열어 둔 상태에서는 그게 archive:// 컬럼이라 실제 폴더가
+                // 갱신되지 않아 추출 결과가 F5 전까지 보이지 않았다.
+                // PerformCompress가 이미 쓰는 경로 매칭 방식으로 통일한다(커밋 6a980ac 선례).
+                var activeIndex = GetColumnIndexForPath(zipPath);
                 await ViewModel.ExecuteFileOperationAsync(op, activeIndex >= 0 ? activeIndex : null);
             }
             catch (Exception ex)
