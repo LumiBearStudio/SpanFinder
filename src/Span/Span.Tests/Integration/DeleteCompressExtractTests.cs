@@ -1,4 +1,4 @@
-using System.IO.Compression;
+﻿using System.IO.Compression;
 using Span.Services.FileOperations;
 
 namespace Span.Tests.Integration;
@@ -365,6 +365,46 @@ public class ExtractOperationTests
             }
         }
     }
+
+    [TestMethod]
+    public async Task Execute_PathTraversalSiblingPrefix_DoesNotEscapeDestination()
+    {
+        // Issue #63 후속: 목적지 루트를 구분자 없이 StartsWith로 비교하면
+        // "…\extracted" 와 "…\extracted2\evil.txt" 가 매칭되어 대상 폴더 밖에 파일이 쓰인다.
+        var zipPath = Path.Combine(_tempDir, "traversal.zip");
+        CreateTestZip(zipPath,
+            ("safe.txt", "safe"),
+            ("../extracted2/evil.txt", "escaped!"));
+        var destPath = Path.Combine(_tempDir, "extracted");
+
+        var op = new ExtractOperation(zipPath, destPath);
+        var result = await op.ExecuteAsync();
+
+        // 안전한 항목은 정상 추출된다
+        Assert.IsTrue(File.Exists(Path.Combine(destPath, "safe.txt")), "Safe entry should be extracted");
+
+        // 목적지 밖(형제 폴더)에는 어떤 파일도 생기면 안 된다
+        var escaped = Path.Combine(_tempDir, "extracted2", "evil.txt");
+        Assert.IsFalse(File.Exists(escaped), "Entry must not escape the destination folder");
+    }
+
+    [TestMethod]
+    public async Task Execute_AllEntriesSkipped_DoesNotReportSuccess()
+    {
+        // Issue #63 후속: 모든 항목이 걸러졌는데도 성공으로 보고하면
+        // 사용자에게 "빈 폴더 + 완료 토스트"가 뜬다.
+        var zipPath = Path.Combine(_tempDir, "all-escaped.zip");
+        CreateTestZip(zipPath,
+            ("../outside1.txt", "x"),
+            ("../outside2.txt", "y"));
+        var destPath = Path.Combine(_tempDir, "extracted");
+
+        var op = new ExtractOperation(zipPath, destPath);
+        var result = await op.ExecuteAsync();
+
+        Assert.IsFalse(result.Success, "Extraction that produced no files must not report success");
+    }
+
 
     [TestMethod]
     public async Task Execute_ValidZip_ExtractsAllFiles()
