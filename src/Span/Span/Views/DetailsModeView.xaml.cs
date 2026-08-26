@@ -1,4 +1,4 @@
-using Microsoft.UI.Xaml;
+﻿using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Media;
@@ -356,6 +356,7 @@ namespace Span.Views
                         if (_gitColumnVisible)
                             currentFolder?.InjectGitStateIfNeeded(fsVm);
                         currentFolder?.InjectCloudStateIfNeeded(fsVm);
+                        currentFolder?.InjectTagIfNeeded(fsVm);
                     }
                     catch (Exception ex) { Helpers.DebugLogger.Log($"[Details.CCC] Inject failed: {ex.Message}"); }
                 }

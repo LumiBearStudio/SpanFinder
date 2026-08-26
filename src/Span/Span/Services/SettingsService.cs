@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Windows.Storage;
 
@@ -162,6 +162,16 @@ public class SettingsService : ISettingsService
     {
         get => Get("FolderCustomIconsEnabled", false);
         set => Set("FolderCustomIconsEnabled", value);
+    }
+
+    /// <summary>
+    /// Issue #58: 폴더 컬러 태그 표시/지정 여부. 기본 OFF —
+    /// 폴더 목록에 태그 조회가 추가되므로, 안정성이 확인될 때까지 옵트인으로 둔다.
+    /// </summary>
+    public bool FolderTagsEnabled
+    {
+        get => Get("FolderTagsEnabled", false);
+        set => Set("FolderTagsEnabled", value);
     }
 
     /// <summary>

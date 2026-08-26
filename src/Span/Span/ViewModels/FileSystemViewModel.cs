@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
@@ -77,6 +77,14 @@ namespace Span.ViewModels
             OnPropertyChanged(nameof(HasCustomIcon));
             OnPropertyChanged(nameof(CustomIconVisibility));
             OnPropertyChanged(nameof(GlyphVisibility));
+            // Issue #58: 커스텀 아이콘은 비동기로 나중에 로드된다. 그 시점에 태그 표현이
+            // "아이콘 색칠"에서 "좌상단 점"으로 바뀌어야 하므로 함께 알린다.
+            // (알림이 없으면 이미지가 글리프를 덮은 뒤 점도 뜨지 않아 태그가 사라져 보인다)
+            if (HasTag)
+            {
+                OnPropertyChanged(nameof(ShowTagDot));
+                OnPropertyChanged(nameof(IconBrush));
+            }
         }
 
         /// <summary>
@@ -84,6 +92,9 @@ namespace Span.ViewModels
         /// 스크롤 중 동일 아이템 재주입을 방지하여 PropertyChanged 폭포를 줄인다.
         /// </summary>
         internal bool CloudStateInjected;
+
+        /// <summary>Issue #58: 폴더 태그 지연 주입 완료 여부 (스크롤 시 재조회 방지).</summary>
+        internal bool TagInjected;
         internal bool GitStateInjected;
 
         /// <summary>
@@ -135,6 +146,68 @@ namespace Span.ViewModels
             Models.CloudState.Synced => _cloudGreenBrush,
             Models.CloudState.PendingUpload => _cloudOrangeBrush,
             Models.CloudState.Syncing => _cloudBlueBrush,
+            _ => TransparentBrush,
+        };
+
+        // --- Issue #58: 폴더 컬러 태그 ---
+
+        [ObservableProperty]
+        private Models.FolderTagColor _tagColor = Models.FolderTagColor.None;
+
+        partial void OnTagColorChanged(Models.FolderTagColor oldValue, Models.FolderTagColor value)
+        {
+            bool wasVisible = oldValue != Models.FolderTagColor.None;
+            bool isVisible = value != Models.FolderTagColor.None;
+            if (wasVisible != isVisible)
+            {
+                OnPropertyChanged(nameof(HasTag));
+                OnPropertyChanged(nameof(ShowTagDot));
+            }
+            if (wasVisible || isVisible)
+            {
+                OnPropertyChanged(nameof(TagBrush));
+                // 태그 색이 폴더 아이콘 색을 대체하므로 아이콘도 다시 그려야 한다
+                OnPropertyChanged(nameof(IconBrush));
+            }
+        }
+
+        /// <summary>태그 점 표시 여부.</summary>
+        public bool HasTag => TagColor != Models.FolderTagColor.None;
+
+        /// <summary>
+        /// Issue #58: 태그 점을 그릴지 여부.
+        /// 일반 폴더는 아이콘 자체를 태그 색으로 칠하므로(IconBrush) 점이 필요 없다.
+        /// 커스텀 아이콘(이미지)이 있는 폴더는 색을 입힐 수 없어 점으로 표시한다.
+        /// </summary>
+        public bool ShowTagDot => HasTag && HasCustomIcon;
+
+        // 태그 팔레트 (정적 캐싱 — 항목마다 브러시를 만들지 않는다).
+        // 라이트/다크 양쪽에서 대비가 확보되도록 중간 채도를 사용하고,
+        // XAML에서 배경색 링을 둘러 어떤 배경에서도 경계가 보이게 한다.
+        private static readonly Microsoft.UI.Xaml.Media.SolidColorBrush _tagRed
+            = new(Windows.UI.Color.FromArgb(255, 232, 72, 85));    // #E84855
+        private static readonly Microsoft.UI.Xaml.Media.SolidColorBrush _tagOrange
+            = new(Windows.UI.Color.FromArgb(255, 245, 146, 42));   // #F5922A
+        private static readonly Microsoft.UI.Xaml.Media.SolidColorBrush _tagYellow
+            = new(Windows.UI.Color.FromArgb(255, 226, 183, 20));   // #E2B714
+        private static readonly Microsoft.UI.Xaml.Media.SolidColorBrush _tagGreen
+            = new(Windows.UI.Color.FromArgb(255, 61, 170, 90));    // #3DAA5A
+        private static readonly Microsoft.UI.Xaml.Media.SolidColorBrush _tagBlue
+            = new(Windows.UI.Color.FromArgb(255, 47, 140, 224));   // #2F8CE0
+        private static readonly Microsoft.UI.Xaml.Media.SolidColorBrush _tagPurple
+            = new(Windows.UI.Color.FromArgb(255, 155, 108, 216));  // #9B6CD8
+        private static readonly Microsoft.UI.Xaml.Media.SolidColorBrush _tagGray
+            = new(Windows.UI.Color.FromArgb(255, 141, 148, 158));  // #8D949E
+
+        public Microsoft.UI.Xaml.Media.Brush TagBrush => TagColor switch
+        {
+            Models.FolderTagColor.Red => _tagRed,
+            Models.FolderTagColor.Orange => _tagOrange,
+            Models.FolderTagColor.Yellow => _tagYellow,
+            Models.FolderTagColor.Green => _tagGreen,
+            Models.FolderTagColor.Blue => _tagBlue,
+            Models.FolderTagColor.Purple => _tagPurple,
+            Models.FolderTagColor.Gray => _tagGray,
             _ => TransparentBrush,
         };
 

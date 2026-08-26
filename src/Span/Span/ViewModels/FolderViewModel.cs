@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -283,7 +283,15 @@ namespace Span.ViewModels
         }
 
         public override string IconGlyph => Services.IconService.Current?.FolderIcon ?? "\uED53";
-        public override Microsoft.UI.Xaml.Media.Brush IconBrush => Services.IconService.Current?.FolderBrush;
+        /// <summary>
+        /// Issue #58: 컬러 태그가 지정된 폴더는 폴더 아이콘 자체를 태그 색으로 칠한다
+        /// (macOS Finder의 컬러 폴더와 동일한 표현). 작은 점보다 색 인지가 쉽고
+        /// 아이콘을 가리지 않으며 레이아웃에도 영향이 없다.
+        /// 커스텀 아이콘(이미지)이 있는 폴더는 글리프가 표시되지 않으므로 색칠 대신
+        /// 좌상단 점(ShowTagDot)으로 표시한다.
+        /// </summary>
+        public override Microsoft.UI.Xaml.Media.Brush IconBrush
+            => HasTag && !HasCustomIcon ? TagBrush : Services.IconService.Current?.FolderBrush;
 
         private bool _customIconRequested;
 
@@ -1168,6 +1176,43 @@ namespace Span.ViewModels
             if (state.HasValue)
                 item.GitState = state.Value;
             item.GitStateInjected = true;
+        }
+
+        /// <summary>
+        /// Issue #58: 보이는 항목에만 폴더 태그를 주입한다 (Cloud/Git 주입과 동일 패턴).
+        /// 목록 열거 루프에 I/O를 추가하지 않기 위해 반드시 이 경로로만 조회한다.
+        /// 캐시에 없으면 백그라운드에서 읽고 UI 스레드로 돌아와 반영한다.
+        /// </summary>
+        public void InjectTagIfNeeded(FileSystemViewModel item)
+        {
+            if (item.TagInjected) return;      // 스크롤 시 재주입 방지
+            if (item is not FolderViewModel) { item.TagInjected = true; return; } // 폴더 전용
+
+            var settings = App.Current.Services.GetService(typeof(SettingsService)) as SettingsService;
+            if (settings?.FolderTagsEnabled != true) { item.TagInjected = true; return; }
+
+            var svc = App.Current.Services.GetService(typeof(FolderTagService)) as FolderTagService;
+            if (svc == null) { item.TagInjected = true; return; }
+
+            item.TagInjected = true;
+
+            // 캐시 hit이면 즉시 반영 (I/O 없음)
+            var cached = svc.GetCachedTag(item.Path);
+            if (cached.HasValue)
+            {
+                if (cached.Value != Models.FolderTagColor.None) item.TagColor = cached.Value;
+                return;
+            }
+
+            // 캐시 miss — 백그라운드에서 읽고 UI로 복귀
+            var dq = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
+            string path = item.Path;
+            _ = System.Threading.Tasks.Task.Run(() =>
+            {
+                var tag = svc.GetTag(path);
+                if (tag == Models.FolderTagColor.None) return;
+                dq?.TryEnqueue(() => { if (item.Path == path) item.TagColor = tag; });
+            });
         }
 
         /// <summary>

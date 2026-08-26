@@ -1,4 +1,4 @@
-using Span.Models;
+﻿using Span.Models;
 using Span.ViewModels;
 
 namespace Span.Services
@@ -43,6 +43,9 @@ namespace Span.Services
         void PerformOpenInNewTab(string folderPath);
         void PerformOpenTerminal(string folderPath);
         void PerformRefresh();
+
+        /// <summary>Issue #58: 폴더에 컬러 태그 지정/해제.</summary>
+        void PerformSetFolderTag(FolderViewModel folder, Models.FolderTagColor color);
         void PerformUndo();
         void PerformShowProperties(string path);
     }

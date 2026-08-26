@@ -455,7 +455,7 @@
                                                    Text="{x:Bind IconGlyph}"
                                                    FontFamily="{StaticResource RemixIcons}"
                                                    FontSize="{Binding IconFontSize, Source={StaticResource FontScale}}"
-                                                   Foreground="{x:Bind IconBrush}"
+                                                   Foreground="{x:Bind IconBrush, Mode=OneWay}"
                                                    Visibility="{x:Bind GlyphVisibility, Mode=OneWay}"
                                                    VerticalAlignment="Center"
                                                    Margin="0,0,12,0"/>
@@ -1006,9 +1006,16 @@
                                                                                                Height="{Binding IconFontSize, Source={StaticResource FontScale}}"
                                                                                                Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfTrue(HasCustomIcon), Mode=OneWay}"
                                                                                                IsHitTestVisible="False"/>
-                                                                                        <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Folder}" FontSize="{Binding IconFontSize, Source={StaticResource FontScale}}" Foreground="{x:Bind IconBrush}"
+                                                                                        <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Folder}" FontSize="{Binding IconFontSize, Source={StaticResource FontScale}}" Foreground="{x:Bind IconBrush, Mode=OneWay}"
                                                                                                   Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfFalse(HasCustomIcon), Mode=OneWay}"
                                                                                                   IsHitTestVisible="False"/>
+                                                                                        <!-- Issue #58: 폴더 컬러 태그 (좌상단 오버레이 — 레이아웃 영향 없음).
+                                                                                             Opacity 전환: Visibility는 레이아웃 패스를 유발해 14K 스크롤에서 지터 발생 -->
+                                                                                        <Border Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfTrue(ShowTagDot), Mode=OneWay}"
+                                                                                                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-3,-3,0,0"
+                                                                                                Width="9" Height="9" CornerRadius="4.5"
+                                                                                                Background="{x:Bind TagBrush, Mode=OneWay}"
+                                                                                                IsHitTestVisible="False"/>
                                                                                     </Grid>
                                                                                     <TextBlock Grid.Column="2" Text="{x:Bind TruncatedDisplayName, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontSize="{Binding ItemFontSize, Source={StaticResource FontScale}}"
                                                                                                Visibility="{x:Bind viewmodels:FileSystemViewModel.NotRenaming(IsRenaming), Mode=OneWay}"/>
@@ -1046,7 +1053,7 @@
                                                                                         <Image Source="{x:Bind CustomIcon, Mode=OneWay}" Stretch="Uniform"
                                                                                                Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfTrueAndFalse(HasCustomIcon, HasThumbnail), Mode=OneWay}"
                                                                                                IsHitTestVisible="False" x:Phase="1"/>
-                                                                                        <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{x:Bind IconGlyph}" FontSize="{Binding IconFontSize, Source={StaticResource FontScale}}" Foreground="{x:Bind IconBrush}"
+                                                                                        <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{x:Bind IconGlyph}" FontSize="{Binding IconFontSize, Source={StaticResource FontScale}}" Foreground="{x:Bind IconBrush, Mode=OneWay}"
                                                                                                   Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfBothFalse(HasThumbnail, HasCustomIcon), Mode=OneWay}"
                                                                                                   IsHitTestVisible="False"/>
                                                                                         <Border Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfTrue(HasCloudBadge), Mode=OneWay}"
@@ -1444,9 +1451,16 @@
                                                                                                Height="{Binding IconFontSize, Source={StaticResource FontScale}}"
                                                                                                Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfTrue(HasCustomIcon), Mode=OneWay}"
                                                                                                IsHitTestVisible="False"/>
-                                                                                        <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Folder}" FontSize="{Binding IconFontSize, Source={StaticResource FontScale}}" Foreground="{x:Bind IconBrush}"
+                                                                                        <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{StaticResource Icon_Folder}" FontSize="{Binding IconFontSize, Source={StaticResource FontScale}}" Foreground="{x:Bind IconBrush, Mode=OneWay}"
                                                                                                   Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfFalse(HasCustomIcon), Mode=OneWay}"
                                                                                                   IsHitTestVisible="False"/>
+                                                                                        <!-- Issue #58: 폴더 컬러 태그 (좌상단 오버레이 — 레이아웃 영향 없음).
+                                                                                             Opacity 전환: Visibility는 레이아웃 패스를 유발해 14K 스크롤에서 지터 발생 -->
+                                                                                        <Border Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfTrue(ShowTagDot), Mode=OneWay}"
+                                                                                                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-3,-3,0,0"
+                                                                                                Width="9" Height="9" CornerRadius="4.5"
+                                                                                                Background="{x:Bind TagBrush, Mode=OneWay}"
+                                                                                                IsHitTestVisible="False"/>
                                                                                     </Grid>
                                                                                     <TextBlock Grid.Column="2" Text="{x:Bind TruncatedDisplayName, Mode=OneWay}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontSize="{Binding ItemFontSize, Source={StaticResource FontScale}}"
                                                                                                Visibility="{x:Bind viewmodels:FileSystemViewModel.NotRenaming(IsRenaming), Mode=OneWay}"/>
@@ -1484,7 +1498,7 @@
                                                                                         <Image Source="{x:Bind CustomIcon, Mode=OneWay}" Stretch="Uniform"
                                                                                                Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfTrueAndFalse(HasCustomIcon, HasThumbnail), Mode=OneWay}"
                                                                                                IsHitTestVisible="False" x:Phase="1"/>
-                                                                                        <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{x:Bind IconGlyph}" FontSize="{Binding IconFontSize, Source={StaticResource FontScale}}" Foreground="{x:Bind IconBrush}"
+                                                                                        <FontIcon FontFamily="{StaticResource RemixIcons}" Glyph="{x:Bind IconGlyph}" FontSize="{Binding IconFontSize, Source={StaticResource FontScale}}" Foreground="{x:Bind IconBrush, Mode=OneWay}"
                                                                                                   Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfBothFalse(HasThumbnail, HasCustomIcon), Mode=OneWay}"
                                                                                                   IsHitTestVisible="False"/>
                                                                                         <Border Opacity="{x:Bind viewmodels:FileSystemViewModel.OpacityIfTrue(HasCloudBadge), Mode=OneWay}"
@@ -1799,7 +1813,7 @@
                                     <Grid VerticalAlignment="Center">
                                         <FontIcon FontFamily="{StaticResource RemixIcons}"
                                                   Glyph="{x:Bind IconGlyph}" FontSize="16"
-                                                  Foreground="{x:Bind IconBrush}"/>
+                                                  Foreground="{x:Bind IconBrush, Mode=OneWay}"/>
                                         <!-- 핀 인디케이터 (잠금 시만 표시) -->
                                         <FontIcon Glyph="&#xE840;" FontSize="7"
                                                   Foreground="{ThemeResource SpanAccentBrush}"

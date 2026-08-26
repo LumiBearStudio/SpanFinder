@@ -526,6 +526,8 @@ namespace Span
             services.AddSingleton<Services.NetworkBrowserService>();
             services.AddSingleton<Services.ConnectionManagerService>();
             services.AddSingleton<Services.GitStatusService>();
+            // Issue #58: 폴더 컬러 태그 (desktop.ini 저장/조회 + 캐시)
+            services.AddSingleton<Services.FolderTagService>();
             services.AddSingleton<Services.CrashReportingService>();
             services.AddSingleton<Services.Thumbnails.ThumbnailClientService>();
             services.AddSingleton<Services.JumpListService>();

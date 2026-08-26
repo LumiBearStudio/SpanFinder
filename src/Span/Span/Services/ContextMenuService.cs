@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -436,6 +436,13 @@ namespace Span.Services
             {
                 menu.Items.Add(CreateItem(_loc.Get("OpenInNewTab"), "\uE8A7", () => host.PerformOpenInNewTab(folder.Path), "T"));
                 menu.Items.Add(CreateItem(_loc.Get("OpenTerminal"), "\uE756", () => host.PerformOpenTerminal(folder.Path), "E"));
+
+                // Issue #58: folder colour tag - settings ON + local fixed drive only
+                var tagSettings = App.Current.Services.GetService(typeof(SettingsService)) as SettingsService;
+                if (tagSettings?.FolderTagsEnabled == true && FolderTagService.IsTaggable(folder.Path))
+                {
+                    menu.Items.Add(BuildFolderTagSubmenu(folder, host));
+                }
             }
             menu.Items.Add(new MenuFlyoutSeparator());
 
@@ -1515,6 +1522,74 @@ namespace Span.Services
         }
 
         private static readonly Microsoft.UI.Xaml.Thickness CompactPadding = new(10, 2, 10, 2);
+
+        /// <summary>
+        /// Issue #58: 폴더 컬러 태그 서브메뉴. 현재 태그에는 체크 표시를 단다.
+        /// </summary>
+        private MenuFlyoutSubItem BuildFolderTagSubmenu(FolderViewModel folder, IContextMenuHost host)
+        {
+            var sub = new MenuFlyoutSubItem { Text = _loc.Get("Menu_FolderTag") };
+
+            (Models.FolderTagColor color, string key)[] palette =
+            {
+                (Models.FolderTagColor.Red, "Tag_Red"),
+                (Models.FolderTagColor.Orange, "Tag_Orange"),
+                (Models.FolderTagColor.Yellow, "Tag_Yellow"),
+                (Models.FolderTagColor.Green, "Tag_Green"),
+                (Models.FolderTagColor.Blue, "Tag_Blue"),
+                (Models.FolderTagColor.Purple, "Tag_Purple"),
+                (Models.FolderTagColor.Gray, "Tag_Gray"),
+            };
+
+            var current = folder.TagColor;
+
+            foreach (var (color, key) in palette)
+            {
+                var item = new MenuFlyoutItem { Text = _loc.Get(key) };
+                // 색상 원형 미리보기 — 텍스트만으로는 어떤 색인지 즉시 알기 어렵다
+                item.Icon = new FontIcon
+                {
+                    Glyph = "", // filled circle
+                    Foreground = FolderTagBrush(color),
+                };
+                if (color == current)
+                    item.Text = _loc.Get(key) + "  ✓";
+                var captured = color;
+                item.Click += (_, _) => host.PerformSetFolderTag(folder, captured);
+                sub.Items.Add(item);
+            }
+
+            sub.Items.Add(new MenuFlyoutSeparator());
+            var none = new MenuFlyoutItem
+            {
+                Text = current == Models.FolderTagColor.None
+                    ? _loc.Get("Tag_None") + "  ✓"
+                    : _loc.Get("Tag_None"),
+            };
+            none.Click += (_, _) => host.PerformSetFolderTag(folder, Models.FolderTagColor.None);
+            sub.Items.Add(none);
+
+            return sub;
+        }
+
+        /// <summary>서브메뉴 미리보기용 태그 색 브러시.</summary>
+        private static Microsoft.UI.Xaml.Media.Brush FolderTagBrush(Models.FolderTagColor c)
+        {
+            var argb = c switch
+            {
+                Models.FolderTagColor.Red => (232, 72, 85),
+                Models.FolderTagColor.Orange => (245, 146, 42),
+                Models.FolderTagColor.Yellow => (226, 183, 20),
+                Models.FolderTagColor.Green => (61, 170, 90),
+                Models.FolderTagColor.Blue => (47, 140, 224),
+                Models.FolderTagColor.Purple => (155, 108, 216),
+                Models.FolderTagColor.Gray => (141, 148, 158),
+                _ => (0, 0, 0),
+            };
+            return new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                Windows.UI.Color.FromArgb(255, (byte)argb.Item1, (byte)argb.Item2, (byte)argb.Item3));
+        }
+
 
         private static MenuFlyoutItem CreateItem(string text, string? glyph, Action action, string? accessKey = null)
         {

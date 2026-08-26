@@ -1,4 +1,4 @@
-<UserControl
+﻿<UserControl
     x:Class="Span.Views.ListModeView"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -79,6 +79,12 @@
                                       Foreground="{x:Bind IconBrush, Mode=OneWay}"
                                       FontSize="{Binding IconFontSize, Source={StaticResource FontScale}}"
                                       Visibility="{x:Bind vm:FileSystemViewModel.ShowIfFalseAndFalse(HasThumbnail, HasCustomIcon), Mode=OneWay}"/>
+                            <!-- Issue #58: folder colour tag (top-left, overlay - no layout impact) -->
+                            <Border Visibility="{x:Bind vm:FileSystemViewModel.ShowIfTrue(ShowTagDot), Mode=OneWay}"
+                                    HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-3,-3,0,0"
+                                    Width="9" Height="9" CornerRadius="4.5"
+                                    Background="{x:Bind TagBrush, Mode=OneWay}"
+                                    IsHitTestVisible="False"/>
                             <!-- Cloud sync badge -->
                             <Border Visibility="{x:Bind vm:FileSystemViewModel.ShowIfTrue(HasCloudBadge), Mode=OneWay}"
                                     HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-4,-4"

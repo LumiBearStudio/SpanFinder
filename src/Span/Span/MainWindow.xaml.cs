@@ -4824,6 +4824,8 @@ namespace Span
                 {
                     try { folderVm.InjectCloudStateIfNeeded(fsVm); }
                     catch (Exception ex) { Helpers.DebugLogger.Log($"[OnMillerCCC] InjectCloud failed: {ex.Message}"); }
+                    try { folderVm.InjectTagIfNeeded(fsVm); }
+                    catch (Exception ex) { Helpers.DebugLogger.Log($"[OnMillerCCC] InjectTag failed: {ex.Message}"); }
                     try { folderVm.InjectGitStateIfNeeded(fsVm); }
                     catch (Exception ex) { Helpers.DebugLogger.Log($"[OnMillerCCC] InjectGit failed: {ex.Message}"); }
                 }
@@ -7081,6 +7083,47 @@ namespace Span
             var settings = App.Current.Services.GetRequiredService<Services.SettingsService>();
             shellService.OpenTerminal(folderPath, settings.DefaultTerminal);
         }
+
+        /// <summary>
+        /// Issue #58: 폴더에 컬러 태그를 지정/해제한다.
+        /// desktop.ini 쓰기는 백그라운드에서 수행하고, 결과를 UI에 즉시 반영한다.
+        /// </summary>
+        async void Services.IContextMenuHost.PerformSetFolderTag(
+            ViewModels.FolderViewModel folder, Models.FolderTagColor color)
+        {
+            if (folder == null) return;
+            var svc = App.Current.Services.GetService(typeof(Services.FolderTagService)) as Services.FolderTagService;
+            if (svc == null) return;
+
+            string path = folder.Path;
+            string? error = await System.Threading.Tasks.Task.Run(() => svc.SetTag(path, color));
+
+            if (error != null)
+            {
+                ViewModel.ShowToast(error, 3000, isError: true);
+                return;
+            }
+
+            // 화면에 보이는 동일 경로 항목들에 즉시 반영 (재로딩 없이)
+            folder.TagColor = color;
+            try
+            {
+                var explorer = ViewModel?.ActiveExplorer;
+                if (explorer?.Columns != null)
+                {
+                    foreach (var col in explorer.Columns)
+                    {
+                        foreach (var child in col.Children)
+                        {
+                            if (string.Equals(child.Path, path, StringComparison.OrdinalIgnoreCase))
+                                child.TagColor = color;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) { Helpers.DebugLogger.Log($"[FolderTag] UI 반영 실패: {ex.Message}"); }
+        }
+
 
         void Services.IContextMenuHost.PerformRefresh()
         {
