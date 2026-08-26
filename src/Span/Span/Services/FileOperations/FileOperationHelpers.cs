@@ -1,4 +1,4 @@
-using System.Threading;
+﻿using System.Threading;
 using static Span.Services.LocalizationService;
 
 namespace Span.Services.FileOperations;
@@ -93,6 +93,11 @@ internal static class FileOperationHelpers
         {
             try { pauseEvent.Wait(cancellationToken); }
             catch (OperationCanceledException) { /* caller checks IsCancellationRequested */ }
+            // Issue #63 후속: 실행취소 후 다시 실행하면 원본 오퍼레이션이 재사용되는데,
+            // 그 pauseEvent는 이전 실행이 끝날 때 FileOperationManager가 이미 Dispose했다.
+            // 일시정지 대기는 이 시점에 의미가 없으므로 무시하고 진행한다
+            // (미처리 시 "Cannot access a disposed object"로 작업 전체가 실패했다).
+            catch (ObjectDisposedException) { /* 재실행 시 폐기된 이벤트 — 대기 불필요 */ }
         }
     }
 
