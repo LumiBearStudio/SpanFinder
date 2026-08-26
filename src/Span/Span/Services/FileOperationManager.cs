@@ -301,10 +301,14 @@ public class FileOperationManager
         {
             foreach (var entry in ActiveOperations)
             {
+                // Issue #61 후속: 불확정 항목(실행취소/다시실행)은 CTS/PauseEvent가 없다.
+                // 취소를 지원하지 않으므로 건너뛴다 — 무조건 Cancel()하면 NRE로 크래시한다.
+                if (entry.IsIndeterminate || entry.CancellationTokenSource is null) continue;
+
                 if (entry.Status == OperationStatus.Running || entry.Status == OperationStatus.Paused)
                 {
                     if (entry.Status == OperationStatus.Paused)
-                        entry.PauseEvent.Set();
+                        entry.PauseEvent?.Set();
                     entry.CancellationTokenSource.Cancel();
                     entry.Status = OperationStatus.Cancelling;
                 }
