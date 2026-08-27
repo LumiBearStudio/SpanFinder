@@ -1,4 +1,5 @@
 ﻿using System.IO.Compression;
+using System.IO.Hashing;
 using System.Threading;
 
 namespace Span.Services.FileOperations;
@@ -38,7 +39,14 @@ public class ExtractOperation : IFileOperation, IPausableOperation
             {
                 Directory.CreateDirectory(_destinationPath);
 
-                using var archive = ZipFile.OpenRead(_zipPath);
+                // ZipFile.OpenRead는 인코딩을 지정할 수 없다. 한국 도구들이 만드는 ZIP은
+                // CP949 이름을 EFS 비트 없이 기록해 UTF-8로 오디코딩되므로
+                // (반디집·윈도우 탐색기 모두 해당, 실측 확인) 항목별 자동 판별을 쓴다.
+                using var archiveStream = new FileStream(
+                    _zipPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                using var archive = new ZipArchive(
+                    archiveStream, ZipArchiveMode.Read, leaveOpen: false,
+                    entryNameEncoding: Span.Helpers.ZipEntryNameEncoding.Instance);
 
                 // Calculate total bytes from entries
                 long totalBytes = 0;
@@ -75,6 +83,18 @@ public class ExtractOperation : IFileOperation, IPausableOperation
                     // 통째로 누락됐다.
                     try
                     {
+                        // 엔트리 이름의 ':'는 NTFS 대체 데이터 스트림(ADS)으로 해석된다.
+                        // "installer.exe:Zone.Identifier"는 경로가 대상 폴더 안이라 아래
+                        // traversal 검사를 통과하고, FileStream이 이를 ADS로 기록한다
+                        // (실측: 0바이트 본체 + 사용자에게 보이지 않는 스트림).
+                        // Windows에서 ':'는 파일명에 쓸 수 없으므로 정상 엔트리는 걸리지 않는다.
+                        if (entry.FullName.Contains(':'))
+                        {
+                            skipped++;
+                            Span.Helpers.DebugLogger.Log($"[Extract] skipped (alternate data stream): {entry.FullName}");
+                            continue;
+                        }
+
                         string fullPath;
                         try
                         {
@@ -103,31 +123,63 @@ public class ExtractOperation : IFileOperation, IPausableOperation
                         {
                             Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
 
-                            // Stream-based extraction with per-byte progress reporting
-                            using var entryStream = entry.Open();
-                            using var destStream = new FileStream(fullPath, FileMode.Create, FileAccess.Write,
-                                FileShare.None, BufferSize, FileOptions.SequentialScan);
+                            var crc = new Crc32();
 
-                            int bytesRead;
-                            while ((bytesRead = entryStream.Read(buffer, 0, buffer.Length)) > 0)
+                            // Stream-based extraction with per-byte progress reporting.
+                            // CRC 대조를 위해 파일을 닫은 뒤 판정해야 하므로 using 블록으로 감싼다.
+                            using (var entryStream = entry.Open())
+                            using (var destStream = new FileStream(fullPath, FileMode.Create, FileAccess.Write,
+                                FileShare.None, BufferSize, FileOptions.SequentialScan))
                             {
-                                FileOperationHelpers.WaitIfPaused(_pauseEvent, cancellationToken);
-                                cancellationToken.ThrowIfCancellationRequested();
-
-                                destStream.Write(buffer, 0, bytesRead);
-                                processedBytes += bytesRead;
-
-                                long now = Environment.TickCount64;
-                                if (now - lastReportTick >= FileOperationHelpers.ProgressReportIntervalMs)
+                                int bytesRead;
+                                while ((bytesRead = entryStream.Read(buffer, 0, buffer.Length)) > 0)
                                 {
-                                    FileOperationHelpers.ReportProgress(
-                                        progress, entry.FullName,
-                                        current, fileEntries.Count,
-                                        processedBytes, totalBytes, startTime);
-                                    lastReportTick = now;
+                                    FileOperationHelpers.WaitIfPaused(_pauseEvent, cancellationToken);
+                                    cancellationToken.ThrowIfCancellationRequested();
+
+                                    destStream.Write(buffer, 0, bytesRead);
+                                    crc.Append(buffer.AsSpan(0, bytesRead));
+                                    processedBytes += bytesRead;
+
+                                    long now = Environment.TickCount64;
+                                    if (now - lastReportTick >= FileOperationHelpers.ProgressReportIntervalMs)
+                                    {
+                                        FileOperationHelpers.ReportProgress(
+                                            progress, entry.FullName,
+                                            current, fileEntries.Count,
+                                            processedBytes, totalBytes, startTime);
+                                        lastReportTick = now;
+                                    }
                                 }
                             }
-                            extracted++;
+
+                            // .NET ZipArchive의 읽기 경로는 CRC32를 검증하지 않는다 — 비트 썩음이나
+                            // 다운로드 손상이 있는 ZIP을 예외 없이 "성공"으로 풀어버린다(실측 확인).
+                            // 중앙 디렉터리의 CRC와 대조해 손상을 잡는다.
+                            // 중앙 디렉터리 CRC가 0인 비정상 아카이브는 검증을 건너뛴다
+                            // (지금까지 정상적으로 풀리던 파일을 오탐으로 막지 않기 위함).
+                            bool crcOk = true;
+                            if (entry.Crc32 != 0 || entry.Length == 0)
+                            {
+                                uint actual = crc.GetCurrentHashAsUInt32();
+                                if (actual != entry.Crc32)
+                                {
+                                    crcOk = false;
+                                    // 손상된 데이터를 남기지 않는다. 토스트는 오류를 3건까지만 보여주므로
+                                    // 파일을 남기면 4번째 이후는 손상된 채 조용히 디스크에 남는다.
+                                    try { File.Delete(fullPath); }
+                                    catch (Exception delEx)
+                                    {
+                                        Span.Helpers.DebugLogger.Log(
+                                            $"[Extract] failed to remove corrupted file {fullPath}: {delEx.GetType().Name}");
+                                    }
+                                    errors.Add($"{entry.FullName}: {LocalizationService.L("Op_CrcMismatch")}");
+                                    Span.Helpers.DebugLogger.Log(
+                                        $"[Extract] CRC mismatch: {entry.FullName} — expected 0x{entry.Crc32:X8}, actual 0x{actual:X8}");
+                                }
+                            }
+
+                            if (crcOk) extracted++;
                         }
                     }
                     catch (OperationCanceledException) { throw; } // 취소는 전체 중단이 맞다

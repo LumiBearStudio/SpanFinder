@@ -126,6 +126,9 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.2" />
     <PackageReference Include="SSH.NET" Version="2025.1.0" />
     <PackageReference Include="Sentry" Version="6.1.0" />
+    <!-- ZIP 압축 해제 시 CRC32 검증용. 직접 구현한 table-driven CRC는 445 MB/s로
+         추출 처리량을 반토막 내지만 이 패키지는 18 GB/s(실측)라 영향이 없다. -->
+    <PackageReference Include="System.IO.Hashing" Version="8.0.0" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.3" />
   </ItemGroup>
   <PropertyGroup Condition="'$(DisableHasPackageAndPublishMenuAddedByProject)'!='true' and '$(EnableMsixTooling)'=='true'">

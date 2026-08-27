@@ -406,6 +406,230 @@ public class ExtractOperationTests
     }
 
 
+    /// <summary>
+    /// Helper: writes a minimal single-entry ZIP with full control over the raw filename
+    /// bytes and the EFS flag (general purpose bit 11). ZipArchive cannot produce a
+    /// non-UTF8 name with the flag cleared, which is exactly what Korean tools emit.
+    /// </summary>
+    private static void WriteRawZip(string path, byte[] nameBytes, bool efs, string content = "hello")
+    {
+        byte[] data = System.Text.Encoding.ASCII.GetBytes(content);
+        uint crc = Crc32Of(data);
+        ushort flags = (ushort)(efs ? 0x0800 : 0);
+
+        using var fs = File.Create(path);
+        using var w = new BinaryWriter(fs);
+
+        long localHeaderOffset = fs.Position;
+        w.Write(0x04034b50); w.Write((ushort)20); w.Write(flags); w.Write((ushort)0); // stored
+        w.Write((ushort)0); w.Write((ushort)0); w.Write(crc);
+        w.Write((uint)data.Length); w.Write((uint)data.Length);
+        w.Write((ushort)nameBytes.Length); w.Write((ushort)0);
+        w.Write(nameBytes); w.Write(data);
+
+        long centralOffset = fs.Position;
+        w.Write(0x02014b50); w.Write((ushort)20); w.Write((ushort)20); w.Write(flags); w.Write((ushort)0);
+        w.Write((ushort)0); w.Write((ushort)0); w.Write(crc);
+        w.Write((uint)data.Length); w.Write((uint)data.Length);
+        w.Write((ushort)nameBytes.Length); w.Write((ushort)0); w.Write((ushort)0);
+        w.Write((ushort)0); w.Write((ushort)0); w.Write((uint)0); w.Write((uint)localHeaderOffset);
+        w.Write(nameBytes);
+
+        long centralEnd = fs.Position;
+        w.Write(0x06054b50); w.Write((ushort)0); w.Write((ushort)0);
+        w.Write((ushort)1); w.Write((ushort)1);
+        w.Write((uint)(centralEnd - centralOffset)); w.Write((uint)centralOffset); w.Write((ushort)0);
+    }
+
+    private static uint Crc32Of(byte[] data)
+    {
+        var table = new uint[256];
+        for (uint i = 0; i < 256; i++)
+        {
+            uint c = i;
+            for (int k = 0; k < 8; k++) c = (c & 1) != 0 ? 0xEDB88320u ^ (c >> 1) : c >> 1;
+            table[i] = c;
+        }
+        uint crc = 0xFFFFFFFFu;
+        foreach (var b in data) crc = table[(crc ^ b) & 0xFF] ^ (crc >> 8);
+        return crc ^ 0xFFFFFFFFu;
+    }
+
+    private const string KoreanName = "주문서_한글파일.txt";
+
+    [TestMethod]
+    public async Task Execute_KoreanNameCp949WithoutEfs_DecodesCorrectly()
+    {
+        // 반디집과 윈도우 탐색기 기본 압축이 실제로 만드는 형태: CP949 바이트 + EFS 비트 없음.
+        // .NET Core는 Encoding.Default가 UTF-8이라 이 이름을 오디코딩한다(U+FFFD, 비가역).
+        System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+        var zipPath = Path.Combine(_tempDir, "cp949.zip");
+        WriteRawZip(zipPath, System.Text.Encoding.GetEncoding(949).GetBytes(KoreanName), efs: false);
+        var destPath = Path.Combine(_tempDir, "extracted");
+
+        var result = await new ExtractOperation(zipPath, destPath).ExecuteAsync();
+
+        Assert.IsTrue(result.Success, result.ErrorMessage);
+        Assert.IsTrue(File.Exists(Path.Combine(destPath, KoreanName)),
+            "CP949 entry name (no EFS flag) must decode to the original Korean filename");
+    }
+
+    [TestMethod]
+    public async Task Execute_KoreanNameUtf8WithEfs_StillDecodesCorrectly()
+    {
+        // 7-Zip/Python 등이 만드는 표준 형태. 고정 코드페이지를 지정하면 이쪽이 깨진다.
+        var zipPath = Path.Combine(_tempDir, "utf8-efs.zip");
+        WriteRawZip(zipPath, System.Text.Encoding.UTF8.GetBytes(KoreanName), efs: true);
+        var destPath = Path.Combine(_tempDir, "extracted");
+
+        var result = await new ExtractOperation(zipPath, destPath).ExecuteAsync();
+
+        Assert.IsTrue(result.Success, result.ErrorMessage);
+        Assert.IsTrue(File.Exists(Path.Combine(destPath, KoreanName)),
+            "UTF-8 entry name with EFS flag must keep working");
+    }
+
+    [TestMethod]
+    public async Task Execute_KoreanNameUtf8WithoutEfs_StillDecodesCorrectly()
+    {
+        // UTF-8이지만 EFS 비트를 켜지 않은 아카이브. 고정 CP949 지정 시 깨지는 케이스라
+        // 자동 판별이 필요하다는 근거가 되는 항목.
+        var zipPath = Path.Combine(_tempDir, "utf8-noefs.zip");
+        WriteRawZip(zipPath, System.Text.Encoding.UTF8.GetBytes(KoreanName), efs: false);
+        var destPath = Path.Combine(_tempDir, "extracted");
+
+        var result = await new ExtractOperation(zipPath, destPath).ExecuteAsync();
+
+        Assert.IsTrue(result.Success, result.ErrorMessage);
+        Assert.IsTrue(File.Exists(Path.Combine(destPath, KoreanName)),
+            "UTF-8 entry name without EFS flag must not be misdecoded as ANSI");
+    }
+
+    [TestMethod]
+    public async Task Execute_AsciiName_UnaffectedByEncodingDetection()
+    {
+        // ASCII 이름은 두 인코딩에서 동일하게 디코딩되어야 한다 (회귀 방지).
+        var zipPath = Path.Combine(_tempDir, "ascii.zip");
+        WriteRawZip(zipPath, System.Text.Encoding.ASCII.GetBytes("plain_file.txt"), efs: false);
+        var destPath = Path.Combine(_tempDir, "extracted");
+
+        var result = await new ExtractOperation(zipPath, destPath).ExecuteAsync();
+
+        Assert.IsTrue(result.Success, result.ErrorMessage);
+        Assert.IsTrue(File.Exists(Path.Combine(destPath, "plain_file.txt")));
+    }
+
+    [TestMethod]
+    public async Task Execute_AlternateDataStreamEntry_IsRejected()
+    {
+        // 엔트리 이름의 ':'는 NTFS 대체 데이터 스트림으로 해석된다.
+        // "installer.exe:Zone.Identifier"는 경로가 대상 폴더 안이므로 traversal 검사를
+        // 통과하고, .NET FileStream이 이를 ADS로 기록한다
+        // (실측: 0바이트 installer.exe 본체 + 보이지 않는 24바이트 스트림).
+        var zipPath = Path.Combine(_tempDir, "ads.zip");
+        CreateTestZip(zipPath,
+            ("good.txt", "ok"),
+            ("installer.exe:Zone.Identifier", "[ZoneTransfer]\r\nZoneId=1"));
+        var destPath = Path.Combine(_tempDir, "extracted");
+
+        var op = new ExtractOperation(zipPath, destPath);
+        var result = await op.ExecuteAsync();
+
+        Assert.IsTrue(File.Exists(Path.Combine(destPath, "good.txt")), "Safe entry should still be extracted");
+        Assert.IsTrue(result.Success, "One rejected ADS entry must not fail the whole extraction");
+
+        // ADS를 심으려던 본체 파일이 만들어지면 안 된다
+        Assert.IsFalse(File.Exists(Path.Combine(destPath, "installer.exe")),
+            "ADS carrier file must not be created");
+        // 목적지에 남은 파일은 good.txt 하나뿐이어야 한다
+        Assert.AreEqual(1, Directory.GetFiles(destPath).Length,
+            "Only the safe entry should exist in the destination");
+    }
+
+    [TestMethod]
+    public async Task Execute_CorruptedEntry_IsDetectedAndNotLeftOnDisk()
+    {
+        // .NET ZipArchive의 읽기 경로는 CRC32를 검증하지 않아, 손상된 ZIP을 예외 없이
+        // "성공"으로 풀어버린다(실측 확인). 손상 항목은 보고되고 디스크에 남지 않아야 한다.
+        var zipPath = Path.Combine(_tempDir, "corrupt.zip");
+        var payload = new byte[4096];
+        new Random(7).NextBytes(payload); // 비압축 저장이 되도록 무작위 데이터 사용
+
+        using (var fs = File.Create(zipPath))
+        using (var archive = new ZipArchive(fs, ZipArchiveMode.Create))
+        {
+            using var s = archive.CreateEntry("data.bin", CompressionLevel.NoCompression).Open();
+            s.Write(payload, 0, payload.Length);
+        }
+
+        // 로컬 헤더(30바이트) + 파일명("data.bin" = 8바이트) 직후가 페이로드 시작 지점
+        var raw = File.ReadAllBytes(zipPath);
+        raw[30 + 8 + 100] ^= 0xFF;
+        File.WriteAllBytes(zipPath, raw);
+
+        var destPath = Path.Combine(_tempDir, "extracted");
+        var op = new ExtractOperation(zipPath, destPath);
+        var result = await op.ExecuteAsync();
+
+        Assert.IsFalse(result.Success, "A ZIP whose only entry is corrupted must not report success");
+        Assert.IsFalse(File.Exists(Path.Combine(destPath, "data.bin")),
+            "Corrupted data must not be left on disk");
+    }
+
+    [TestMethod]
+    public async Task Execute_CorruptedEntry_DoesNotBlockHealthyEntries()
+    {
+        // 손상 항목 하나가 나머지 정상 항목을 막으면 안 된다 (Issue #63 후속 계약 유지).
+        var zipPath = Path.Combine(_tempDir, "mixed-corrupt.zip");
+        var payload = new byte[2048];
+        new Random(11).NextBytes(payload);
+
+        using (var fs = File.Create(zipPath))
+        using (var archive = new ZipArchive(fs, ZipArchiveMode.Create))
+        {
+            using (var s = archive.CreateEntry("bad.bin", CompressionLevel.NoCompression).Open())
+                s.Write(payload, 0, payload.Length);
+            using (var w = new StreamWriter(archive.CreateEntry("zzz_good.txt").Open()))
+                w.Write("healthy");
+        }
+
+        var raw = File.ReadAllBytes(zipPath);
+        raw[30 + 7 + 50] ^= 0xFF; // "bad.bin" = 7바이트
+        File.WriteAllBytes(zipPath, raw);
+
+        var destPath = Path.Combine(_tempDir, "extracted");
+        var op = new ExtractOperation(zipPath, destPath);
+        var result = await op.ExecuteAsync();
+
+        Assert.IsTrue(File.Exists(Path.Combine(destPath, "zzz_good.txt")),
+            "Entries after a corrupted one must still be extracted");
+        Assert.IsFalse(File.Exists(Path.Combine(destPath, "bad.bin")),
+            "Corrupted entry must not be left on disk");
+        Assert.IsTrue(result.Success, "Partial success expected when at least one entry extracted");
+        Assert.IsNotNull(result.ErrorMessage, "The corrupted entry must be reported to the user");
+    }
+
+    [TestMethod]
+    public async Task Execute_IntactZip_StillExtractsAfterCrcCheck()
+    {
+        // CRC 검증 추가가 정상 아카이브를 오탐으로 막지 않는지 확인 (회귀 방지).
+        var zipPath = Path.Combine(_tempDir, "intact.zip");
+        CreateTestZip(zipPath,
+            ("a.txt", "aaa"),
+            ("empty.txt", ""),          // 길이 0 -> CRC 0, 검증 경로가 이를 통과해야 한다
+            ("nested/b.txt", "bbb"));
+        var destPath = Path.Combine(_tempDir, "extracted");
+
+        var op = new ExtractOperation(zipPath, destPath);
+        var result = await op.ExecuteAsync();
+
+        Assert.IsTrue(result.Success);
+        Assert.IsNull(result.ErrorMessage, "An intact archive must produce no errors");
+        Assert.AreEqual("aaa", File.ReadAllText(Path.Combine(destPath, "a.txt")));
+        Assert.IsTrue(File.Exists(Path.Combine(destPath, "empty.txt")));
+        Assert.AreEqual("bbb", File.ReadAllText(Path.Combine(destPath, "nested", "b.txt")));
+    }
+
     [TestMethod]
     public async Task Execute_ValidZip_ExtractsAllFiles()
     {

@@ -84,7 +84,8 @@ public class ArchiveReaderService
             {
                 using var stream = new FileStream(
                     archiveFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-                using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
+                using var archive = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: false,
+                    entryNameEncoding: Span.Helpers.ZipEntryNameEncoding.Instance);
 
                 ct.ThrowIfCancellationRequested();
 
@@ -175,7 +176,8 @@ public class ArchiveReaderService
             {
                 using var stream = new FileStream(
                     archiveFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-                using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
+                using var archive = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: false,
+                    entryNameEncoding: Span.Helpers.ZipEntryNameEncoding.Instance);
 
                 ct.ThrowIfCancellationRequested();
 
@@ -252,7 +254,8 @@ public class ArchiveReaderService
             // disposes the returned stream. Use a MemoryStream copy.
             using var fileStream = new FileStream(
                 archiveFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-            using var archive = new ZipArchive(fileStream, ZipArchiveMode.Read);
+            using var archive = new ZipArchive(fileStream, ZipArchiveMode.Read, leaveOpen: false,
+                entryNameEncoding: Span.Helpers.ZipEntryNameEncoding.Instance);
 
             ct.ThrowIfCancellationRequested();
 
