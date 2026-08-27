@@ -55,6 +55,10 @@
     <Compile Include="..\Span\Helpers\HangulSearchHelper.cs" Link="Sources\Helpers\HangulSearchHelper.cs" />
     <Compile Include="..\Span\Helpers\DebugLogger.cs" Link="Sources\Helpers\DebugLogger.cs" />
     <Compile Include="..\Span\Helpers\ZipEntryNameEncoding.cs" Link="Sources\Helpers\ZipEntryNameEncoding.cs" />
+    <!-- Issue #66 — OtterZip 네이티브 엔진 바인딩 (WinUI 의존 없음) -->
+    <Compile Include="..\Span\Services\Archive\OtterZipNative.cs" Link="Sources\Services\Archive\OtterZipNative.cs" />
+    <Compile Include="..\Span\Services\Archive\OtterZipArchiveHandle.cs" Link="Sources\Services\Archive\OtterZipArchiveHandle.cs" />
+    <Compile Include="..\Span\Services\Archive\OtterZipEngine.cs" Link="Sources\Services\Archive\OtterZipEngine.cs" />
     <Compile Include="..\Span\Helpers\FontScaleService.cs" Link="Sources\Helpers\FontScaleService.cs" />
     <!-- Services - file operations (pure C#) -->
     <Compile Include="..\Span\Services\FileOperations\OperationResult.cs" Link="Sources\Services\OperationResult.cs" />
@@ -105,6 +109,22 @@
 
   <ItemGroup>
     <Using Include="Microsoft.VisualStudio.TestTools.UnitTesting" />
+  </ItemGroup>
+
+  <!-- Issue #66 — 네이티브 엔진 테스트용. DllImportSearchPath.AssemblyDirectory로 찾으므로
+       테스트 어셈블리 옆에 있어야 한다. x64 전용이며, 다른 플랫폼에서는 엔진 테스트가
+       "사용 불가"를 확인하는 경로로 자동 전환된다. -->
+  <ItemGroup Condition="'$(Platform)' == 'x64'">
+    <Content Include="..\..\..\third_party\otterzip\x64\otterzip_ffi.dll">
+      <Link>otterzip_ffi.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Fixtures\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
 </Project>
