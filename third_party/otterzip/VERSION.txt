@@ -1,0 +1,29 @@
+component      : otterzip_ffi.dll (OtterZip native archive engine)
+source repo    : https://github.com/LumiBearStudio/OtterZip
+tag            : v1.2.3.0
+commit         : 5cb9053374c5e88484b508af61bf16b3040ed7a1
+architecture   : x64 (IMAGE_FILE_MACHINE_AMD64)
+abi version    : 9   (otterzip_abi_version())
+size           : 5918208 bytes
+sha256         : 1b13da90534a099a976d0a27a5e22669bf35ac803f2e89597d3fc11800d214ed
+built on       : 2026-08-27
+build command  : RUSTFLAGS="-C target-feature=+crt-static" cargo build -p otterzip-ffi --release
+
+verification at import time (see verify-otterzip-dll.ps1):
+  [PASS] no VCRUNTIME140 / VCRUNTIME140_1 / MSVCP140 imports
+         (a CRT-redistributable dependency caused a Microsoft Store
+          certification failure on 2026-07-21, policy 10.1.2.10)
+  [PASS] machine = x64
+  [PASS] otterzip_abi_version() == 9
+  [PASS] open + extract_all round trip on a .7z containing Korean
+         filenames and a nested folder
+
+license        : Rust core (crates/**) is MIT OR Apache-2.0.
+                 The binary statically links the unrar / unrar_sys crates,
+                 which embed UnRAR sources (C) Alexander Roshal.
+                 SPAN uses UnRAR to EXTRACT RAR archives only and never
+                 creates them. See LICENSE.md (UnRAR Exception) and
+                 OpenSourceLicenses.md before shipping this DLL.
+
+GPL corresponding source: this release's DLL is built from the commit
+recorded above. Keep that SHA pinned in the GitHub Release notes.

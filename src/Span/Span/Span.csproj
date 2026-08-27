@@ -74,6 +74,23 @@
     <Manifest Include="$(ApplicationManifest)" />
   </ItemGroup>
 
+  <!-- OtterZip 네이티브 아카이브 엔진 (Issue #66 — .7z/.tar.*/.cab 등 비-ZIP 포맷).
+       x64 전용이다. Rust 코어가 x86/ARM64 타깃을 지원하지 않으므로
+       (OtterZip docs/01-plan/performance.md §7.2) 비-x64 빌드에서는 이 DLL을 싣지 않고
+       System.IO.Compression 경로로 폴백한다. 로드 실패는 정상 경로로 처리해야 한다.
+
+       반입 절차와 출처는 third_party\otterzip\VERSION.txt 참고.
+       DLL을 교체할 때는 반드시 third_party\otterzip\verify-otterzip-dll.ps1을 통과시킬 것 —
+       crt-static 없이 빌드된 DLL은 개발 머신에서는 멀쩡히 동작하지만 클린 윈도우에서
+       로드에 실패한다(OtterZip이 2026-07-21 이 문제로 스토어 인증에 실패했다). -->
+  <ItemGroup Condition="'$(Platform)' == 'x64'">
+    <Content Include="$(MSBuildThisFileDirectory)..\..\..\third_party\otterzip\x64\otterzip_ffi.dll">
+      <Link>otterzip_ffi.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Visible>false</Visible>
+    </Content>
+  </ItemGroup>
+
   <ItemGroup Condition="'$(DisableMsixProjectCapabilityAddedByProject)'!='true' and '$(EnableMsixTooling)'=='true'">
     <ProjectCapability Include="Msix" />
   </ItemGroup>
