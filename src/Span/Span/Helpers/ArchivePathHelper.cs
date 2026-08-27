@@ -75,6 +75,33 @@ public static class ArchivePathHelper
     }
 
     /// <summary>
+    /// Formats we can actually list the contents of. Issue #66 added extraction for the
+    /// other formats via the native engine, but browsing still goes through
+    /// ArchiveReaderService, which reads ZIP only.
+    /// </summary>
+    private static readonly HashSet<string> BrowsableExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".zip"
+    };
+
+    /// <summary>
+    /// Returns true if the archive's contents can be listed, i.e. it is safe to navigate
+    /// into as an archive:// path.
+    ///
+    /// <see cref="IsArchiveFile"/> is the wider question ("can we do archive things with
+    /// this?") and is what the Extract commands use. Navigating in must use this narrower
+    /// one: opening a .7z with the ZIP reader does not fail visibly, it yields an empty
+    /// listing, so the user is shown what looks like an empty archive.
+    /// </summary>
+    public static bool IsBrowsableArchive(string path)
+    {
+        if (!IsArchiveFile(path)) return false;
+
+        var extension = System.IO.Path.GetExtension(path);
+        return !string.IsNullOrEmpty(extension) && BrowsableExtensions.Contains(extension);
+    }
+
+    /// <summary>
     /// Parses an archive:// path into (ArchiveFilePath, InternalPath).
     /// Example: "archive://C:/files/test.zip/src/main.cs"
     ///   → ArchiveFilePath = "C:/files/test.zip", InternalPath = "src/main.cs"

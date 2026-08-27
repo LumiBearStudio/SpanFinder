@@ -5487,7 +5487,7 @@ namespace Span
                 var selected = folderVm.SelectedChild;
                 if (selected is FileViewModel file)
                 {
-                    if (Helpers.ArchivePathHelper.IsArchiveFile(file.Path))
+                    if (Helpers.ArchivePathHelper.IsBrowsableArchive(file.Path))
                     {
                         // Archive already navigated on selection; double-click is no-op
                         Helpers.DebugLogger.Log($"[MainWindow] Miller Column DoubleClick: Archive {file.Name} (already navigated)");
@@ -6311,7 +6311,7 @@ namespace Span
             }
             else if (item is FileViewModel file)
             {
-                if (Helpers.ArchivePathHelper.IsArchiveFile(file.Path))
+                if (Helpers.ArchivePathHelper.IsBrowsableArchive(file.Path))
                 {
                     // Archive: navigate into it instead of opening externally
                     var explorer = ViewModel.ActiveExplorer;

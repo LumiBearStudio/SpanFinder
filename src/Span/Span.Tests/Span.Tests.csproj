@@ -55,6 +55,7 @@
     <Compile Include="..\Span\Helpers\HangulSearchHelper.cs" Link="Sources\Helpers\HangulSearchHelper.cs" />
     <Compile Include="..\Span\Helpers\DebugLogger.cs" Link="Sources\Helpers\DebugLogger.cs" />
     <Compile Include="..\Span\Helpers\ZipEntryNameEncoding.cs" Link="Sources\Helpers\ZipEntryNameEncoding.cs" />
+    <Compile Include="..\Span\Helpers\ArchivePathHelper.cs" Link="Sources\Helpers\ArchivePathHelper.cs" />
     <!-- Issue #66 — OtterZip 네이티브 엔진 바인딩 (WinUI 의존 없음) -->
     <Compile Include="..\Span\Services\Archive\OtterZipNative.cs" Link="Sources\Services\Archive\OtterZipNative.cs" />
     <Compile Include="..\Span\Services\Archive\OtterZipArchiveHandle.cs" Link="Sources\Services\Archive\OtterZipArchiveHandle.cs" />

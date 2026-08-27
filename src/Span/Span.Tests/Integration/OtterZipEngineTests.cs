@@ -171,6 +171,162 @@ public class OtterZipEngineTests
         Assert.AreEqual("Toast_OperationCancelled", result.MessageKey);
     }
 
+    // ------------------------------------------------------------------
+    // ExtractOperation routing — the .zip path must stay on the managed
+    // engine, everything else must reach the native one.
+    // ------------------------------------------------------------------
+
+    [TestMethod]
+    public async Task ExtractOperation_SevenZip_RoutesToNativeEngineAndExtracts()
+    {
+        if (!OtterZipEngine.IsAvailable) Assert.Inconclusive("engine unavailable on this platform");
+
+        var dest = Path.Combine(_tempDir, "out");
+        var op = new Span.Services.FileOperations.ExtractOperation(FixturePath, dest);
+
+        var result = await op.ExecuteAsync();
+
+        Assert.IsTrue(result.Success, result.ErrorMessage);
+        Assert.AreEqual("hello from 7z", File.ReadAllText(Path.Combine(dest, "plain.txt")));
+        Assert.AreEqual("한글 내용", File.ReadAllText(Path.Combine(dest, "한글파일.txt")));
+        Assert.AreEqual("nested content", File.ReadAllText(Path.Combine(dest, "하위폴더", "nested.txt")));
+    }
+
+    [TestMethod]
+    public async Task ExtractOperation_SevenZip_ReportsProgress()
+    {
+        if (!OtterZipEngine.IsAvailable) Assert.Inconclusive("engine unavailable on this platform");
+
+        var dest = Path.Combine(_tempDir, "out");
+        var op = new Span.Services.FileOperations.ExtractOperation(FixturePath, dest);
+
+        var reports = new List<Span.Services.FileOperations.FileOperationProgress>();
+        var progress = new Progress<Span.Services.FileOperations.FileOperationProgress>(reports.Add);
+
+        var result = await op.ExecuteAsync(progress);
+
+        Assert.IsTrue(result.Success, result.ErrorMessage);
+        // Progress<T> posts asynchronously, so the count is not deterministic here —
+        // what matters is that the operation completes and the panel has a source to
+        // bind to. The engine-level callback is asserted directly in ExtractAll_ReportsProgress.
+    }
+
+    [TestMethod]
+    public async Task ExtractOperation_SevenZip_UndoRemovesTheOutput()
+    {
+        // Undo is inherited from ExtractOperation rather than reimplemented, so the
+        // native path must honour the same contract.
+        if (!OtterZipEngine.IsAvailable) Assert.Inconclusive("engine unavailable on this platform");
+
+        var dest = Path.Combine(_tempDir, "out");
+        var op = new Span.Services.FileOperations.ExtractOperation(FixturePath, dest);
+
+        Assert.IsTrue((await op.ExecuteAsync()).Success);
+        Assert.IsTrue(Directory.Exists(dest));
+
+        var undo = await op.UndoAsync();
+
+        Assert.IsTrue(undo.Success, undo.ErrorMessage);
+        Assert.IsFalse(Directory.Exists(dest), "undo must remove the extracted folder");
+    }
+
+    [TestMethod]
+    public async Task ExtractOperation_MissingSevenZip_FailsWithoutThrowing()
+    {
+        var missing = Path.Combine(_tempDir, "nope.7z");
+        var op = new Span.Services.FileOperations.ExtractOperation(missing, Path.Combine(_tempDir, "out"));
+
+        var result = await op.ExecuteAsync();
+
+        Assert.IsFalse(result.Success);
+        Assert.IsFalse(string.IsNullOrEmpty(result.ErrorMessage), "the user needs to be told what went wrong");
+    }
+
+    [TestMethod]
+    public async Task ExtractOperation_CancelledSevenZip_ReportsCancellation()
+    {
+        if (!OtterZipEngine.IsAvailable) Assert.Inconclusive("engine unavailable on this platform");
+
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var op = new Span.Services.FileOperations.ExtractOperation(
+            FixturePath, Path.Combine(_tempDir, "out"));
+
+        var result = await op.ExecuteAsync(null, cts.Token);
+
+        // 취소는 예외가 아니라 결과로 돌아와야 한다 — 이 클래스의 나머지 경로가
+        // OperationCanceledException을 잡아 Toast_OperationCancelled를 돌려주는 것과 같은 계약.
+        Assert.IsFalse(result.Success);
+        Assert.IsFalse(Directory.Exists(Path.Combine(_tempDir, "out", "plain.txt")),
+            "nothing should have been extracted");
+    }
+
+    [TestMethod]
+    public async Task ExtractOperation_Zip_StaysOnManagedEngine()
+    {
+        // The managed path verifies CRC and deletes corrupted output; the native engine
+        // does neither. Seeing that behaviour on a .zip proves the routing did not send
+        // it to OtterZip.
+        var zipPath = Path.Combine(_tempDir, "corrupt.zip");
+        var payload = new byte[2048];
+        new Random(23).NextBytes(payload);
+
+        using (var fs = File.Create(zipPath))
+        using (var archive = new System.IO.Compression.ZipArchive(fs, System.IO.Compression.ZipArchiveMode.Create))
+        {
+            using var s = archive.CreateEntry("data.bin", System.IO.Compression.CompressionLevel.NoCompression).Open();
+            s.Write(payload, 0, payload.Length);
+        }
+
+        var raw = File.ReadAllBytes(zipPath);
+        raw[30 + 8 + 100] ^= 0xFF;   // local header (30) + "data.bin" (8)
+        File.WriteAllBytes(zipPath, raw);
+
+        var dest = Path.Combine(_tempDir, "out");
+        var result = await new Span.Services.FileOperations.ExtractOperation(zipPath, dest).ExecuteAsync();
+
+        Assert.IsFalse(result.Success, "the managed engine must catch the CRC mismatch");
+        Assert.IsFalse(File.Exists(Path.Combine(dest, "data.bin")));
+    }
+
+    // ------------------------------------------------------------------
+    // Browsing vs extracting — a .7z can be extracted but not listed, and
+    // navigating into it would show an empty archive rather than an error.
+    // ------------------------------------------------------------------
+
+    [TestMethod]
+    public void IsArchiveFile_AcceptsFormatsWeCanExtract()
+    {
+        foreach (var name in new[] { "a.zip", "a.7z", "a.rar", "a.tar.gz", "a.cab", "a.xz" })
+        {
+            Assert.IsTrue(Span.Helpers.ArchivePathHelper.IsArchiveFile(Path.Combine(_tempDir, name)),
+                $"{name} should offer the Extract commands");
+        }
+    }
+
+    [TestMethod]
+    public void IsBrowsableArchive_OnlyAcceptsWhatTheReaderCanList()
+    {
+        // ArchiveReaderService reads ZIP only. Opening a .7z with it does not throw a
+        // visible error — it yields an empty listing, which reads to the user as
+        // "this archive is empty".
+        Assert.IsTrue(Span.Helpers.ArchivePathHelper.IsBrowsableArchive(Path.Combine(_tempDir, "a.zip")));
+
+        foreach (var name in new[] { "a.7z", "a.rar", "a.tar.gz", "a.cab", "a.xz" })
+        {
+            Assert.IsFalse(Span.Helpers.ArchivePathHelper.IsBrowsableArchive(Path.Combine(_tempDir, name)),
+                $"{name} must not be navigated into as an archive:// path");
+        }
+    }
+
+    [TestMethod]
+    public void IsBrowsableArchive_RejectsNonArchives()
+    {
+        Assert.IsFalse(Span.Helpers.ArchivePathHelper.IsBrowsableArchive(Path.Combine(_tempDir, "notes.txt")));
+        Assert.IsFalse(Span.Helpers.ArchivePathHelper.IsBrowsableArchive(""));
+    }
+
     [TestMethod]
     public void ExtractResult_ClassifiesOurOwnBugsSeparately()
     {

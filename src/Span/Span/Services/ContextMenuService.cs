@@ -382,8 +382,10 @@ namespace Span.Services
                 if (!isArchive)
                 {
                     // Compress / Extract
-                    string ext = System.IO.Path.GetExtension(file.Path).ToLowerInvariant();
-                    if (ext == ".zip")
+                    // Issue #66: .zip 외의 아카이브(.7z / .tar.* / .cab 등)도 네이티브 엔진으로
+                    // 풀 수 있으므로 확장자 목록 전체로 넓힌다. 엔진을 못 쓰는 환경에서는
+                    // ExtractOperation이 "지원하지 않는 형식"으로 안내한다.
+                    if (Helpers.ArchivePathHelper.IsArchiveFile(file.Path))
                     {
                         menu.Items.Add(CreateItem(_loc.Get("ExtractHere"), "\uE8B7", () => host.PerformExtractHere(file.Path), "E"));
                         menu.Items.Add(CreateItem(_loc.Get("ExtractTo"), "\uE8B7", () => host.PerformExtractTo(file.Path), "T"));
