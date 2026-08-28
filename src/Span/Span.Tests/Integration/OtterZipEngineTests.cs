@@ -321,6 +321,50 @@ public class OtterZipEngineTests
     }
 
     [TestMethod]
+    public void GetArchiveBaseName_StripsCompoundExtensions()
+    {
+        // 실측된 결함: GetFileNameWithoutExtension은 마지막 확장자만 떼어
+        // "backup.tar.gz"를 "backup.tar"로 만든다. 그 이름의 파일이 바로 옆에 있으면
+        // 추출이 IOException으로 실패한다.
+        Assert.AreEqual("backup", Span.Helpers.ArchivePathHelper.GetArchiveBaseName(@"C:\x\backup.tar.gz"));
+        Assert.AreEqual("backup", Span.Helpers.ArchivePathHelper.GetArchiveBaseName(@"C:\x\backup.tar.bz2"));
+        Assert.AreEqual("backup", Span.Helpers.ArchivePathHelper.GetArchiveBaseName(@"C:\x\backup.tar.xz"));
+        Assert.AreEqual("backup", Span.Helpers.ArchivePathHelper.GetArchiveBaseName(@"C:\x\backup.tar"));
+        Assert.AreEqual("backup", Span.Helpers.ArchivePathHelper.GetArchiveBaseName(@"C:\x\backup.7z"));
+        Assert.AreEqual("backup", Span.Helpers.ArchivePathHelper.GetArchiveBaseName(@"C:\x\backup.tgz"));
+        Assert.AreEqual("backup", Span.Helpers.ArchivePathHelper.GetArchiveBaseName(@"C:\x\backup.zip"));
+
+        // 이름에 점이 여러 개 있어도 아카이브 확장자만 떼야 한다
+        Assert.AreEqual("my.backup.2026", Span.Helpers.ArchivePathHelper.GetArchiveBaseName(@"C:\x\my.backup.2026.tar.gz"));
+        Assert.AreEqual("", Span.Helpers.ArchivePathHelper.GetArchiveBaseName(""));
+    }
+
+    [TestMethod]
+    public async Task ExtractOperation_DestinationNameCollidingWithFile_IsHandledByCaller()
+    {
+        // 실측 재현: sample.tar.gz 옆에 sample.tar "파일"이 있으면 목적지 폴더 이름이
+        // sample.tar가 되어 Directory.Exists는 false지만 CreateDirectory가 터진다.
+        // 호출부(PerformExtractHere/To)가 File.Exists까지 확인해 회피해야 한다.
+        if (!OtterZipEngine.IsAvailable) Assert.Inconclusive("engine unavailable on this platform");
+
+        var collidingFile = Path.Combine(_tempDir, "sample");
+        File.WriteAllText(collidingFile, "occupies the destination name");
+
+        // 호출부가 하는 것과 같은 회피 로직
+        var baseName = Span.Helpers.ArchivePathHelper.GetArchiveBaseName(FixturePath);
+        var dest = Path.Combine(_tempDir, baseName);
+        int n = 1;
+        while (Directory.Exists(dest) || File.Exists(dest))
+            dest = Path.Combine(_tempDir, $"{baseName} ({n++})");
+
+        var result = await new Span.Services.FileOperations.ExtractOperation(FixturePath, dest).ExecuteAsync();
+
+        Assert.IsTrue(result.Success, result.ErrorMessage);
+        Assert.AreNotEqual(collidingFile, dest, "must not target the existing file's name");
+        Assert.IsTrue(File.Exists(Path.Combine(dest, "plain.txt")));
+    }
+
+    [TestMethod]
     public void IsBrowsableArchive_RejectsNonArchives()
     {
         Assert.IsFalse(Span.Helpers.ArchivePathHelper.IsBrowsableArchive(Path.Combine(_tempDir, "notes.txt")));

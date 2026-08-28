@@ -117,6 +117,11 @@ namespace Span.Helpers
         {
             try
             {
+                // Issue #64: archive:// 항목을 임시 파일로 꺼낸 뒤 실제 경로를 넘긴다.
+                // 이전에는 File.Exists가 false라 조용히 누락됐다. 지연 콜백이라
+                // 상대 앱이 데이터를 요청할 때만 비용이 든다.
+                paths = await Span.Services.Archive.ArchiveEntryStaging.MaterializeAsync(paths);
+
                 var storageItems = new List<Windows.Storage.IStorageItem>();
                 foreach (var p in paths)
                 {

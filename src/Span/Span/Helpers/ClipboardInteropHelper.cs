@@ -31,11 +31,16 @@ internal static class ClipboardInteropHelper
         var items = new List<IStorageItem>();
         var validPaths = new List<string>();
 
-        foreach (var p in paths)
+        // Issue #64: 압축 내부 항목은 실파일이 아니라 그대로는 StorageItem을 만들 수 없다
+        // (빈 CF_HDROP가 되어 탐색기에서 오류). 임시 폴더에 꺼내 실제 경로로 바꾼다.
+        // 원격(ftp/sftp) 경로는 여전히 대상이 아니며 아래에서 걸러진다.
+        var resolved = Services.Archive.ArchiveEntryStaging.ContainsArchiveEntry(paths)
+            ? await Services.Archive.ArchiveEntryStaging.MaterializeAsync(paths)
+            : paths;
+
+        foreach (var p in resolved)
         {
             if (string.IsNullOrWhiteSpace(p)) continue;
-            // 압축 내부(archive://)·원격(ftp/sftp) 경로는 실파일이 아니라 StorageItem을
-            // 만들 수 없다 → 빈 CF_HDROP가 되어 탐색기에서 오류가 난다.
             if (ArchivePathHelper.IsArchivePath(p) || Services.FileSystemRouter.IsRemotePath(p)) continue;
 
             try

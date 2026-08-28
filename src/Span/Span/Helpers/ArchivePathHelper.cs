@@ -75,6 +75,50 @@ public static class ArchivePathHelper
     }
 
     /// <summary>
+    /// Whether the archive file behind an <c>archive://</c> path still exists.
+    ///
+    /// An archive:// path is not a directory, so <c>Directory.Exists</c> on it is always
+    /// false. Code that checks whether a location is still valid has to ask this instead,
+    /// or it will conclude that every open archive has been deleted.
+    /// </summary>
+    public static bool ArchiveFileExists(string archivePath)
+    {
+        if (!IsArchivePath(archivePath)) return false;
+
+        try
+        {
+            return System.IO.File.Exists(Parse(archivePath).ArchiveFilePath);
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"[ArchiveFileExists] parse failed for '{archivePath}': {ex.GetType().Name}");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// The archive's name with its extension removed, for naming the folder we extract into.
+    ///
+    /// <see cref="System.IO.Path.GetFileNameWithoutExtension"/> strips only the last
+    /// extension, so "backup.tar.gz" becomes "backup.tar" — which is both wrong as a folder
+    /// name and very likely to collide, because a "backup.tar" usually sits right next to it.
+    /// </summary>
+    public static string GetArchiveBaseName(string path)
+    {
+        var fileName = System.IO.Path.GetFileName(path);
+        if (string.IsNullOrEmpty(fileName))
+            return fileName ?? string.Empty;
+
+        foreach (var ext in CompoundExtensions)
+        {
+            if (fileName.EndsWith(ext, StringComparison.OrdinalIgnoreCase))
+                return fileName.Substring(0, fileName.Length - ext.Length);
+        }
+
+        return System.IO.Path.GetFileNameWithoutExtension(fileName);
+    }
+
+    /// <summary>
     /// Formats we can actually list the contents of. Issue #66 added extraction for the
     /// other formats via the native engine, but browsing still goes through
     /// ArchiveReaderService, which reads ZIP only.

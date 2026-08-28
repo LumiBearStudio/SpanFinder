@@ -143,12 +143,15 @@ namespace Span
         {
             try
             {
+                // Issue #64: archive:// 항목을 임시 파일로 꺼낸 뒤 실제 경로를 넘긴다.
+                // 이전에는 여기서 건너뛰어 StorageItems가 비었고, 받는 쪽은 아무것도 못 받았다.
+                // 이 콜백은 상대 앱이 실제로 데이터를 요청할 때만 실행되므로 드래그만 하다
+                // 말면 꺼내는 비용이 발생하지 않는다.
+                paths = await Services.Archive.ArchiveEntryStaging.MaterializeAsync(paths);
+
                 var storageItems = new List<Windows.Storage.IStorageItem>();
                 foreach (var p in paths)
                 {
-                    if (Helpers.ArchivePathHelper.IsArchivePath(p))
-                        continue;
-
                     try
                     {
                         if (System.IO.Directory.Exists(p))
@@ -874,9 +877,19 @@ namespace Span
             if (Helpers.ArchivePathHelper.IsArchivePath(destFolder))
                 return;
 
-            // Archive safety: block drag from archives (not yet supported)
-            if (sourcePaths.Any(p => Helpers.ArchivePathHelper.IsArchivePath(p)))
-                return;
+            // Issue #64: 압축 내부에서 꺼내오는 드래그. 항목을 임시 파일로 꺼낸 뒤
+            // 실제 경로로 진행한다. 아카이브는 읽기 전용이라 원본을 지울 수 없으므로
+            // 이동은 복사로 강등한다 — 여기서 Move를 허용하면 임시 파일만 지워진다.
+            if (Services.Archive.ArchiveEntryStaging.ContainsArchiveEntry(sourcePaths))
+            {
+                sourcePaths = await Services.Archive.ArchiveEntryStaging.MaterializeAsync(sourcePaths);
+                if (sourcePaths.Count == 0)
+                {
+                    Helpers.DebugLogger.Log("[DragDrop] archive entries could not be staged — drop ignored");
+                    return;
+                }
+                mode = DragDropMode.Copy;
+            }
 
             // Early check: if the destination is one of the selected/dragged items, warn and block.
             // e.g., selecting 24 folders and dropping into one of them is almost certainly a mistake.

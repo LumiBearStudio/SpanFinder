@@ -6206,6 +6206,20 @@ namespace Span
                 }
             }
 
+            // Issue #64: 압축 내부에서 복사한 항목을 붙여넣는 경우. 복사 시점이 아니라
+            // 붙여넣는 지금 꺼낸다 — 복사만 하고 안 붙여넣으면 꺼낼 이유가 없다.
+            // 아카이브는 읽기 전용이라 원본을 지울 수 없으므로 잘라내기는 복사로 강등한다.
+            if (Span.Services.Archive.ArchiveEntryStaging.ContainsArchiveEntry(sourcePaths))
+            {
+                sourcePaths = await Span.Services.Archive.ArchiveEntryStaging.MaterializeAsync(sourcePaths);
+                if (sourcePaths.Count == 0)
+                {
+                    Helpers.DebugLogger.Log("[Paste] archive entries could not be staged — paste ignored");
+                    return;
+                }
+                isCut = false;
+            }
+
             var router = App.Current.Services.GetRequiredService<FileSystemRouter>();
             Span.Services.FileOperations.IFileOperation op = isCut
                 ? new Span.Services.FileOperations.MoveFileOperation(sourcePaths, targetFolderPath, router)
@@ -6743,11 +6757,16 @@ namespace Span
             try
             {
                 string parentDir = System.IO.Path.GetDirectoryName(zipPath)!;
-                string folderName = System.IO.Path.GetFileNameWithoutExtension(zipPath);
+                // Issue #66: 복합 확장자를 인식한다. GetFileNameWithoutExtension은 마지막
+                // 확장자만 떼어 "backup.tar.gz"를 "backup.tar"로 만드는데, 폴더 이름으로도
+                // 틀렸고 바로 옆에 있기 마련인 "backup.tar" 파일과 충돌한다.
+                string folderName = Helpers.ArchivePathHelper.GetArchiveBaseName(zipPath);
                 string destPath = System.IO.Path.Combine(parentDir, folderName);
 
                 int count = 1;
-                while (System.IO.Directory.Exists(destPath))
+                // 같은 이름의 파일도 비켜간다. 디렉터리만 확인하면 동명 파일이 있을 때
+                // 검사를 통과한 뒤 CreateDirectory에서 IOException으로 터진다(실측 확인).
+                while (System.IO.Directory.Exists(destPath) || System.IO.File.Exists(destPath))
                 {
                     destPath = System.IO.Path.Combine(parentDir, $"{folderName} ({count})");
                     count++;
@@ -6786,11 +6805,16 @@ namespace Span
                 var folder = await picker.PickSingleFolderAsync();
                 if (folder == null) return;
 
-                string folderName = System.IO.Path.GetFileNameWithoutExtension(zipPath);
+                // Issue #66: 복합 확장자를 인식한다. GetFileNameWithoutExtension은 마지막
+                // 확장자만 떼어 "backup.tar.gz"를 "backup.tar"로 만드는데, 폴더 이름으로도
+                // 틀렸고 바로 옆에 있기 마련인 "backup.tar" 파일과 충돌한다.
+                string folderName = Helpers.ArchivePathHelper.GetArchiveBaseName(zipPath);
                 string destPath = System.IO.Path.Combine(folder.Path, folderName);
 
                 int count = 1;
-                while (System.IO.Directory.Exists(destPath))
+                // 같은 이름의 파일도 비켜간다. 디렉터리만 확인하면 동명 파일이 있을 때
+                // 검사를 통과한 뒤 CreateDirectory에서 IOException으로 터진다(실측 확인).
+                while (System.IO.Directory.Exists(destPath) || System.IO.File.Exists(destPath))
                 {
                     destPath = System.IO.Path.Combine(folder.Path, $"{folderName} ({count})");
                     count++;

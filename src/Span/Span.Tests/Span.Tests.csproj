@@ -60,6 +60,8 @@
     <Compile Include="..\Span\Services\Archive\OtterZipNative.cs" Link="Sources\Services\Archive\OtterZipNative.cs" />
     <Compile Include="..\Span\Services\Archive\OtterZipArchiveHandle.cs" Link="Sources\Services\Archive\OtterZipArchiveHandle.cs" />
     <Compile Include="..\Span\Services\Archive\OtterZipEngine.cs" Link="Sources\Services\Archive\OtterZipEngine.cs" />
+    <Compile Include="..\Span\Services\Archive\ArchiveEntryStaging.cs" Link="Sources\Services\Archive\ArchiveEntryStaging.cs" />
+    <Compile Include="..\Span\Helpers\ArchivePreviewResolver.cs" Link="Sources\Helpers\ArchivePreviewResolver.cs" />
     <Compile Include="..\Span\Helpers\FontScaleService.cs" Link="Sources\Helpers\FontScaleService.cs" />
     <!-- Services - file operations (pure C#) -->
     <Compile Include="..\Span\Services\FileOperations\OperationResult.cs" Link="Sources\Services\OperationResult.cs" />

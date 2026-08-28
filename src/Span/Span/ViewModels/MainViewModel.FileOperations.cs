@@ -470,7 +470,16 @@ namespace Span.ViewModels
 
                 // If the column's folder was moved/deleted, remove it and all subsequent columns
                 // instead of reloading (which would trigger "폴더를 찾을 수 없습니다" error toast).
-                if (!System.IO.Directory.Exists(col.Path))
+                //
+                // Issue #64: archive:// 컬럼은 실제 디렉터리가 아니라 Directory.Exists가 항상
+                // false다. 그대로 두면 압축 안에서 복사해 붙여넣을 때마다 열어 둔 아카이브
+                // 컬럼이 닫혀 화면이 튄다(실측 확인). 근거가 되는 아카이브 파일이 남아 있으면
+                // 유효한 컬럼이다.
+                bool columnTargetExists = Helpers.ArchivePathHelper.IsArchivePath(col.Path)
+                    ? Helpers.ArchivePathHelper.ArchiveFileExists(col.Path)
+                    : System.IO.Directory.Exists(col.Path);
+
+                if (!columnTargetExists)
                 {
                     Helpers.DebugLogger.Log($"[RefreshCurrentFolderAsync] Column '{col.Name}' path no longer exists, removing from index {i}");
                     explorer.CleanupColumnsFrom(i);

@@ -194,6 +194,19 @@ namespace Span.ViewModels
                 if (previewType == PreviewType.HexBinary && _settings != null && !_settings.ShowHexPreview)
                     previewType = PreviewType.Generic;
 
+                // 압축 내부 항목은 실제 파일이 아니라 미리보기 로더가 열 수 없다
+                // (경로가 상대 경로로 해석돼 'C:\WINDOWS\System32\archive:\...'를 찾는다).
+                // .lnk가 대상 파일로 치환되는 것과 같은 자리에서 임시 파일로 치환한다.
+                if (Helpers.ArchivePathHelper.IsArchivePath(previewPath))
+                {
+                    var staged = await Helpers.ArchivePreviewResolver.ResolveAsync(
+                        previewType, previewPath, item.SizeValue, ct);
+                    Helpers.DebugLogger.Log(
+                        $"[Preview] archive entry: type={previewType}, size={item.SizeValue}, staged={staged ?? "(null)"}");
+                    if (staged is null) previewType = PreviewType.Generic;
+                    else previewPath = staged;
+                }
+
                 // Cloud-only files: avoid triggering download for text/pdf/hex
                 // Image/Media는 허용 — 이미지는 캐시 썸네일, 미디어는 접근 시 자동 다운로드
                 if (!isFolder && previewType != PreviewType.Image && previewType != PreviewType.Media
@@ -213,6 +226,7 @@ namespace Span.ViewModels
                 var hashTask = LoadFileHashAsync(item, isFolder, ct);
 
                 await Task.WhenAll(contentTask, gitTask, hashTask);
+
             }
             catch (OperationCanceledException)
             {

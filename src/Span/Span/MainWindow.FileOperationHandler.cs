@@ -628,6 +628,24 @@ namespace Span
                 }
             }
 
+            // Issue #64: 압축 내부에서 복사한 항목을 붙여넣는 경우. archive:// 는 실제 파일이
+            // 아니라 그대로 넘기면 복사 작업이 실패한다. 복사 시점이 아니라 붙여넣는 지금
+            // 꺼낸다 — 복사만 하고 안 붙여넣으면 꺼낼 이유가 없다.
+            // 아래 자기복사 검사와 충돌 확인이 모두 실제 경로를 전제로 하므로 그보다 앞에 둔다.
+            // 아카이브는 읽기 전용이라 원본을 지울 수 없으므로 잘라내기는 복사로 강등한다.
+            if (Services.Archive.ArchiveEntryStaging.ContainsArchiveEntry(sourcePaths))
+            {
+                sourcePaths = await Services.Archive.ArchiveEntryStaging.MaterializeAsync(sourcePaths);
+                if (sourcePaths.Count == 0)
+                {
+                    Helpers.DebugLogger.Log("[HandlePaste] archive entries could not be staged");
+                    ViewModel.ShowToast(_loc.Get("Toast_PasteFailed") ?? "Paste failed", 3000, isError: true);
+                    return;
+                }
+                isCut = false;
+                Helpers.DebugLogger.Log($"[HandlePaste] staged {sourcePaths.Count} archive entry(ies) to temp files");
+            }
+
             // 자기 폴더 복사 방지: 폴더를 자기 자신 안에 복사/이동하면 무한 재귀 발생
             var destNorm = destDir.TrimEnd('\\', '/') + "\\";
             int removedCount = sourcePaths.RemoveAll(srcPath =>

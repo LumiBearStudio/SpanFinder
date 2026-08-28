@@ -180,6 +180,17 @@ namespace Span.ViewModels
                     previewType = PreviewType.Generic;
                 }
 
+                // Issue #64: 압축 내부 항목은 실제 파일이 아니라 미리보기 로더가 열 수 없다.
+                // 미리보기 패널과 같은 정책으로 임시 파일에 꺼낸다(형식·크기 상한 적용).
+                var previewPath = item.Path;
+                if (Helpers.ArchivePathHelper.IsArchivePath(previewPath))
+                {
+                    var staged = await Helpers.ArchivePreviewResolver.ResolveAsync(
+                        previewType, previewPath, item.SizeValue, ct);
+                    if (staged is null) previewType = PreviewType.Generic;
+                    else previewPath = staged;
+                }
+
                 // Reset previous
                 ClearPreviewContent();
                 CurrentPreviewType = previewType;
@@ -190,23 +201,23 @@ namespace Span.ViewModels
                 switch (previewType)
                 {
                     case PreviewType.Image:
-                        ImagePreview = await _previewService.LoadImagePreviewAsync(item.Path, 1024, ct);
-                        var imgMeta = await _previewService.GetImageMetadataAsync(item.Path, ct);
+                        ImagePreview = await _previewService.LoadImagePreviewAsync(previewPath, 1024, ct);
+                        var imgMeta = await _previewService.GetImageMetadataAsync(previewPath, ct);
                         if (imgMeta != null)
                             Dimensions = $"{imgMeta.Width} x {imgMeta.Height}";
                         break;
 
                     case PreviewType.Text:
-                        TextPreview = await _previewService.LoadTextPreviewAsync(item.Path, ct);
+                        TextPreview = await _previewService.LoadTextPreviewAsync(previewPath, ct);
                         break;
 
                     case PreviewType.Markdown:
-                        var mdText = await _previewService.LoadTextPreviewAsync(item.Path, ct);
+                        var mdText = await _previewService.LoadTextPreviewAsync(previewPath, ct);
                         MarkdownHtml = Helpers.MarkdownHelper.ToHtml(mdText ?? "");
                         break;
 
                     case PreviewType.Csv:
-                        var csvText = await _previewService.LoadTextPreviewAsync(item.Path, ct);
+                        var csvText = await _previewService.LoadTextPreviewAsync(previewPath, ct);
                         var isTsv = item.Path.EndsWith(".tsv", StringComparison.OrdinalIgnoreCase);
                         var (headers, rows) = Helpers.CsvHelper.Parse(csvText ?? "", isTsv ? '\t' : ',');
                         CsvHeaders = headers;
@@ -214,7 +225,7 @@ namespace Span.ViewModels
                         break;
 
                     case PreviewType.Pdf:
-                        PdfPreview = await _previewService.LoadPdfPreviewAsync(item.Path, ct);
+                        PdfPreview = await _previewService.LoadPdfPreviewAsync(previewPath, ct);
                         break;
 
                     case PreviewType.Media:
@@ -231,11 +242,11 @@ namespace Span.ViewModels
                         break;
 
                     case PreviewType.HexBinary:
-                        HexPreview = await _previewService.LoadHexPreviewAsync(item.Path, ct);
+                        HexPreview = await _previewService.LoadHexPreviewAsync(previewPath, ct);
                         break;
 
                     case PreviewType.Font:
-                        var fontData = _previewService.GetFontPreviewData(item.Path);
+                        var fontData = _previewService.GetFontPreviewData(previewPath);
                         if (fontData != null)
                         {
                             FontFamilySource = fontData.FamilyName;
