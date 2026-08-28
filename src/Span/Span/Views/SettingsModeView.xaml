@@ -2355,6 +2355,34 @@
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
                                             <StackPanel Grid.Column="0" Spacing="2">
+                                                <TextBlock Text="OtterZip (archive engine)" FontSize="13" FontWeight="SemiBold" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
+                                                <TextBlock Text="LumiBear Studio — MIT OR Apache-2.0" FontSize="11" Foreground="{ThemeResource SpanTextTertiaryBrush}" TextWrapping="Wrap" />
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="1" Text="v1.2.3.0" FontSize="11" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center" />
+                                        </Grid>
+                                    </Border>
+
+                                    <Border Background="{ThemeResource SpanBgLayer2Brush}" CornerRadius="6" Padding="12,8" Margin="48,0,0,0">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0" Spacing="2">
+                                                <TextBlock Text="UnRAR" FontSize="13" FontWeight="SemiBold" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
+                                                <TextBlock Text="Alexander Roshal — UnRAR License (extraction only)" FontSize="11" Foreground="{ThemeResource SpanTextTertiaryBrush}" TextWrapping="Wrap" />
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="1" Text="v7.1" FontSize="11" Foreground="{ThemeResource SpanTextTertiaryBrush}" VerticalAlignment="Center" />
+                                        </Grid>
+                                    </Border>
+
+                                    <Border Background="{ThemeResource SpanBgLayer2Brush}" CornerRadius="6" Padding="12,8" Margin="48,0,0,0">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0" Spacing="2">
                                                 <TextBlock Text="SSH.NET" FontSize="13" FontWeight="SemiBold" Foreground="{ThemeResource SpanTextPrimaryBrush}" />
                                                 <TextBlock Text="Renci — MIT License" FontSize="11" Foreground="{ThemeResource SpanTextTertiaryBrush}" />
                                             </StackPanel>

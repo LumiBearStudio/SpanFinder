@@ -1,3 +1,25 @@
+// -----------------------------------------------------------------------------
+// otterzip_ffi.dll statically links the `unrar` / `unrar_sys` crates, which embed
+// UnRAR sources (C) Alexander Roshal. SPAN Finder uses UnRAR to EXTRACT RAR
+// archives only and never creates them. The UnRAR license requires the following
+// paragraph to appear in the license, the documentation, and in source code
+// comments of the resulting package — this is that source comment. The same text
+// is in LICENSE.md (UnRAR Exception) and OpenSourceLicenses.md.
+//
+//   UnRAR source code may be used in any software to handle
+//   RAR archives without limitations free of charge, but cannot be
+//   used to develop RAR (WinRAR) compatible archiver and to
+//   re-create RAR compression algorithm, which is proprietary.
+//   Distribution of modified UnRAR source code in separate form
+//   or as a part of other software is permitted, provided that
+//   full text of this paragraph, starting from "UnRAR source code"
+//   words, is included in license, or in documentation if license
+//   is not available, and in source code comments of resulting package.
+//
+// Because that restriction is one GPL v3 does not allow to be imposed on
+// recipients, LICENSE.md carries an UnRAR Exception (GPL v3 section 7).
+// -----------------------------------------------------------------------------
+
 using System.Runtime.InteropServices;
 
 namespace Span.Services.Archive;
