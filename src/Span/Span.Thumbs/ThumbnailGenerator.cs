@@ -34,12 +34,44 @@ internal sealed class ThumbnailGenerator
         bool applyExif,
         CancellationToken ct)
     {
-        // ── 0. Issue #56: .clip은 셸 썸네일 미지원 → 내장 SQLite 미리보기 추출 경로 ──
+        // ── 0. Issue #56: 셸 코덱이 없는 편집 원본 포맷 → 내장 미리보기를 직접 추출 ──
+        // .clip = CSFCHUNK 컨테이너 안 SQLite의 CanvasPreview PNG (ClipThumbnailExtractor)
+        // .psd  = 이미지 리소스 블록 1036의 내장 JPEG        (PsdThumbnailExtractor)
+        //         Photoshop은 Windows 썸네일 핸들러를 등록하지 않아 탐색기조차 .psd 썸네일이 없다.
+        //
         // 클라우드 전용(OneDrive online-only) 파일은 FileStream open이 하이드레이션(다운로드)을
         // 유발하므로 P2-4c 가드에 맞춰 커스텀 추출을 건너뛴다 (셸 캐시 경로로 폴백).
-        if (!isCloudOnly &&
-            string.Equals(Path.GetExtension(filePath), ".clip", StringComparison.OrdinalIgnoreCase))
-            return await GenerateFromClipAsync(filePath, requestedSize, ct);
+        //
+        // 추출/디코드가 실패해도 null로 끝내지 않고 아래 셸 경로로 흘려보낸다 — CSP나 서드파티
+        // PSD 코덱이 설치된 환경에는 동작하는 셸 핸들러가 있을 수 있어 그 경우까지 빈 아이콘이
+        // 되면 손해다. (이전 구현은 .clip 추출 실패 시 즉시 return null이라 셸 경로를 아예
+        // 시도하지 않았다 — Issue #56에서 CSP 5.x 사용자가 빈 아이콘을 본 경로 중 하나.)
+        if (!isCloudOnly)
+        {
+            string ext = Path.GetExtension(filePath);
+            byte[]? embedded = null;
+
+            if (string.Equals(ext, ".clip", StringComparison.OrdinalIgnoreCase))
+                embedded = ClipThumbnailExtractor.TryExtractPreviewPng(filePath, ct);
+            else if (string.Equals(ext, ".psd", StringComparison.OrdinalIgnoreCase))
+                embedded = PsdThumbnailExtractor.TryExtractPreviewImage(filePath, ct);
+
+            if (embedded != null && embedded.Length > 0)
+            {
+                GenerateResult? fromEmbedded = null;
+                try
+                {
+                    fromEmbedded = await GenerateFromEmbeddedAsync(embedded, requestedSize, ct);
+                }
+                catch (OperationCanceledException) { throw; }
+                catch (Exception ex)
+                {
+                    // 추출은 됐는데 디코드가 실패 — 셸 경로로 폴백 (아래로 흘려보냄)
+                    WorkerLogger.Log($"[Embedded] decode failed ({ex.GetType().Name}: {ex.Message}) — {Path.GetFileName(filePath)}");
+                }
+                if (fromEmbedded != null) return fromEmbedded;
+            }
+        }
 
         // ── 1. StorageFile 획득 ──
         var storageFile = await StorageFile.GetFileFromPathAsync(filePath).AsTask(ct);
@@ -125,24 +157,24 @@ internal sealed class ThumbnailGenerator
     }
 
     /// <summary>
-    /// Issue #56: .clip 내장 미리보기 PNG(CanvasPreview)를 추출해 요청 크기로 축소 후 재인코딩.
-    /// 원본 미리보기(예: 930x1315)를 긴 변 기준 requestedSize로 비율 유지 다운스케일한다.
-    /// 셸 핸들러에 의존하지 않아 CSP 설치 여부와 무관하게 동작. 추출 실패 시 null(빈 아이콘).
+    /// Issue #56: 파일에서 뽑아낸 내장 미리보기(.clip=PNG / .psd=JPEG)를 요청 크기로
+    /// 축소한 뒤 PNG로 재인코딩한다. 원본 미리보기(예: 930x1315)를 긴 변 기준
+    /// requestedSize로 비율 유지 다운스케일. 셸 핸들러에 의존하지 않아 CSP/Photoshop
+    /// 설치 여부와 무관하게 동작한다.
+    /// 디코드 불가 시 null 반환 또는 예외 — 어느 쪽이든 호출자가 셸 경로로 폴백한다.
     /// </summary>
-    private static async Task<GenerateResult?> GenerateFromClipAsync(
-        string filePath,
+    private static async Task<GenerateResult?> GenerateFromEmbeddedAsync(
+        byte[] imageBytes,
         int requestedSize,
         CancellationToken ct)
     {
-        byte[]? previewPng = ClipThumbnailExtractor.TryExtractPreviewPng(filePath, ct);
-        if (previewPng == null || previewPng.Length == 0) return null;
         ct.ThrowIfCancellationRequested();
 
-        // 추출 PNG를 메모리 스트림에 실어 디코드
+        // 추출 이미지를 메모리 스트림에 실어 디코드 (BitmapDecoder가 PNG/JPEG를 자동 판별)
         using var srcStream = new InMemoryRandomAccessStream();
         using (var dw = new DataWriter(srcStream))
         {
-            dw.WriteBytes(previewPng);
+            dw.WriteBytes(imageBytes);
             await dw.StoreAsync().AsTask(ct);
             dw.DetachStream();
         }
