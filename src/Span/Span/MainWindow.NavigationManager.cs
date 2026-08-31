@@ -1016,16 +1016,17 @@ namespace Span
             // ExplorerViewModel.NavigateToPath가 같은 이유로 이미 Task.Run을 쓴다.
             bool isUnc = Helpers.UncPathHelper.IsUnc(path);
 
-            // Issue #67: 서버 루트(\\dave-mba)는 Directory.Exists가 항상 false라 아래 검사로는
-            // 절대 통과하지 못한다. 탐색으로 넘겨 공유 목록을 열게 한다.
-            if (Helpers.UncPathHelper.IsServerRoot(path))
+            // Issue #67: 서버 루트(\\dave-mba)와 \\wsl.localhost 는 Directory.Exists가 항상
+            // false라 아래 검사로는 절대 통과하지 못한다. 탐색으로 넘겨 각각 공유 목록과
+            // WSL 배포판 목록을 열게 한다.
+            if (Helpers.UncPathHelper.IsServerRoot(path) || Helpers.UncPathHelper.IsShellNamespaceRoot(path))
             {
-                var serverFolder = new Models.FolderItem
+                var rootFolder = new Models.FolderItem
                 {
                     Name = path.TrimStart('\\').TrimEnd('\\', '/'),
                     Path = path.TrimEnd('\\', '/')
                 };
-                _ = explorer.NavigateTo(serverFolder);
+                _ = explorer.NavigateTo(rootFolder);
                 return;
             }
 
@@ -1074,23 +1075,12 @@ namespace Span
                     // "cmd" / "calc" 같은 실행 명령 호환용인데 \\wsl.localhost 같은 입력까지
                     // 삼켜서, SPAN이 기본 파일 관리자인데도 윈도우 탐색기가 떴다(제보 #67).
                     //
-                    // \\wsl.localhost 와 \\wsl$ 루트는 파일시스템 UNC가 아니라 셸 네임스페이스
-                    // 확장이라 우리가 열 수 없다(실측: Directory.Exists는 false지만 그 하위
-                    // \\wsl.localhost\Ubuntu 는 true). 탐색기로 넘기는 동작 자체는 유지하되
-                    // 우연이 아니라 의도적으로 한다 — 위 shell: 처리와 같은 패턴이다.
-                    if (Helpers.UncPathHelper.IsShellNamespaceRoot(path))
-                    {
-                        Helpers.DebugLogger.Log($"[AddressBar] shell-namespace UNC → explorer: {path}");
-                        try { Process.Start(new ProcessStartInfo("explorer.exe", path) { UseShellExecute = true }); }
-                        catch (Exception ex) { Helpers.DebugLogger.Log($"[AddressBar] explorer delegate failed: {ex.Message}"); }
-                    }
-                    else
-                    {
-                        // 도달할 수 없거나 존재하지 않는 네트워크 경로. 이전에는 아무 반응이
-                        // 없었다 — ShellExecute가 조용히 실패했다.
-                        Helpers.DebugLogger.Log($"[AddressBar] unreachable UNC path: {path}");
-                        ViewModel.ShowToast(string.Format(_loc.Get("Error_NetworkPath"), path), isError: true);
-                    }
+                    // 셸 네임스페이스 루트(\\wsl.localhost)와 서버 루트는 위에서 이미 탐색으로
+                    // 넘겼으므로 여기 오지 않는다. 남는 것은 도달할 수 없거나 존재하지 않는
+                    // 네트워크 경로뿐이다. 이전에는 아무 반응이 없었다 — ShellExecute가
+                    // 조용히 실패했다.
+                    Helpers.DebugLogger.Log($"[AddressBar] unreachable UNC path: {path}");
+                    ViewModel.ShowToast(string.Format(_loc.Get("Error_NetworkPath"), path), isError: true);
                 }
                 else
                 {

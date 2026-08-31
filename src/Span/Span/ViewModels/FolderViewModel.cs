@@ -422,8 +422,8 @@ namespace Span.ViewModels
 
             // Issue #67: 서버 루트를 Details 뷰로 열면 공유마다 SMB 전체 재귀 워크가
             // 동시에 시작된다. 탐색기도 공유 크기는 계산하지 않는다.
-            if (Helpers.UncPathHelper.IsServerRoot(System.IO.Path.GetDirectoryName(Path) ?? string.Empty)
-                || Helpers.UncPathHelper.IsServerRoot(Path))
+            if (Helpers.UncPathHelper.IsVirtualRoot(System.IO.Path.GetDirectoryName(Path) ?? string.Empty)
+                || Helpers.UncPathHelper.IsVirtualRoot(Path))
                 return;
 
             var svc = App.Current.Services.GetService(typeof(FolderSizeService)) as FolderSizeService;
@@ -574,6 +574,13 @@ namespace Span.ViewModels
                 {
                     await LoadFromRemoteAsync(folderPath, token);
                 }
+                else if (Helpers.UncPathHelper.IsShellNamespaceRoot(folderPath))
+                {
+                    // Issue #67: \\wsl.localhost 는 파일 서버가 아니라 셸 네임스페이스 루트라
+                    // 공유 열거가 통하지 않는다. 배포판 이름은 레지스트리에서 얻고, 그 아래
+                    // \\wsl.localhost\<배포판> 은 실제 경로라 기존 디스크 경로로 합류한다.
+                    await LoadWslDistributionsAsync(token);
+                }
                 else if (Helpers.UncPathHelper.IsServerRoot(folderPath))
                 {
                     // Issue #67: \\server 는 디렉터리가 아니라 Directory.Exists가 항상 false다.
@@ -686,6 +693,37 @@ namespace Span.ViewModels
         }
 
         /// <summary>
+        /// Lists installed WSL distributions as folders (Issue #67).
+        ///
+        /// Reported symptom: typing <c>\\wsl.localhost</c> launched Windows File Explorer even
+        /// with SPAN set as the default file manager. Rather than only stopping the hand-off,
+        /// SPAN now lists the distributions itself, the same way a server root lists its shares.
+        /// </summary>
+        private async Task LoadWslDistributionsAsync(System.Threading.CancellationToken token)
+        {
+            var distros = await Task.Run(WslDistributionService.GetDistributions, token);
+            if (token.IsCancellationRequested) return;
+
+            if (distros.Count == 0)
+            {
+                // WSL이 없거나 배포판이 하나도 마운트되지 않은 상태.
+                ErrorMessage = GetLoc().Get("Error_NetworkPathNotFound") ?? "Cannot access network path";
+                ErrorIcon = "\uE871";
+                return;
+            }
+
+            var items = new List<FileSystemViewModel>();
+            foreach (var d in distros)
+            {
+                if (token.IsCancellationRequested) return;
+                items.Add(new FolderViewModel(new FolderItem { Name = d.Name, Path = d.Path }, _fileService));
+            }
+
+            if (!token.IsCancellationRequested)
+                PopulateChildren(items, token);
+        }
+
+        /// <summary>
         /// Lists a server's shares as folders (Issue #67).
         ///
         /// Windows does not expose <c>\\server</c> as a directory, so it can only be listed
@@ -694,7 +732,7 @@ namespace Span.ViewModels
         /// ordinary disk path that already works today.
         ///
         /// The listing is read-only: a server root has nowhere to create or paste into.
-        /// See <c>IsServerRootColumn</c> for how the write paths are blocked.
+        /// See <c>UncPathHelper.IsVirtualRoot</c> for how the write paths are blocked.
         /// </summary>
         private async Task LoadServerSharesAsync(string folderPath, System.Threading.CancellationToken token)
         {

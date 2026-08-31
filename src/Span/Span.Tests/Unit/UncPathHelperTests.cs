@@ -87,6 +87,22 @@ public class UncPathHelperTests
     }
 
     [TestMethod]
+    public void IsVirtualRoot_CoversBothListingKinds()
+    {
+        // 쓰기 경로가 쓰는 판정. 두 종류 모두 실제 디렉터리가 아니라 목록일 뿐이라
+        // 새 폴더·붙여넣기·드롭이 막혀야 한다.
+        Assert.IsTrue(UncPathHelper.IsVirtualRoot(@"\\dave-mba"));
+        Assert.IsTrue(UncPathHelper.IsVirtualRoot(@"\\wsl.localhost"));
+        Assert.IsTrue(UncPathHelper.IsVirtualRoot(@"\\wsl$"));
+
+        // 진짜 쓸 수 있는 위치는 막히면 안 된다.
+        Assert.IsFalse(UncPathHelper.IsVirtualRoot(@"\\dave-mba\lanshared"));
+        Assert.IsFalse(UncPathHelper.IsVirtualRoot(@"\\wsl.localhost\Ubuntu"));
+        Assert.IsFalse(UncPathHelper.IsVirtualRoot(@"C:\Users"));
+        Assert.IsFalse(UncPathHelper.IsVirtualRoot(null));
+    }
+
+    [TestMethod]
     public void ServerRootAndShellNamespace_AreMutuallyExclusive()
     {
         // Both classifiers feed different branches; an overlap would make behaviour depend

@@ -879,7 +879,7 @@ namespace Span
 
             // Issue #67: 서버 루트(\\server)는 공유 목록일 뿐 쓸 수 있는 위치가 아니다.
             // 막지 않으면 드롭이 조용히 실패한다.
-            if (Helpers.UncPathHelper.IsServerRoot(destFolder))
+            if (Helpers.UncPathHelper.IsVirtualRoot(destFolder))
             {
                 Helpers.DebugLogger.Log($"[ServerRoot] drop blocked into {destFolder}");
                 ViewModel.ShowToast(_loc.Get("Toast_NetworkRootReadOnly"));

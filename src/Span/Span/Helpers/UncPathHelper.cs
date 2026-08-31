@@ -60,6 +60,16 @@ internal static class UncPathHelper
     }
 
     /// <summary>
+    /// True for any UNC root SPAN lists itself — a file server (shares) or
+    /// <c>\\wsl.localhost</c> (distributions).
+    ///
+    /// These are listings, not directories: nothing can be created, pasted or dropped into
+    /// them, so the write paths check this rather than either classifier alone.
+    /// </summary>
+    internal static bool IsVirtualRoot(string? path) =>
+        IsServerRoot(path) || IsShellNamespaceRoot(path);
+
+    /// <summary>
     /// The server name when <paramref name="path"/> is a bare UNC root, otherwise null.
     /// Device paths are rejected here so neither classifier can capture them.
     /// </summary>

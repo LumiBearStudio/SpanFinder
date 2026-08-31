@@ -719,7 +719,7 @@ namespace Span.ViewModels
                 // false다. 그래서 \\dave-mba\lanshared 는 열리는데 \\dave-mba 는 "네트워크
                 // 경로에 접근할 수 없습니다"가 됐다. 서버 루트는 이 게이트를 건너뛰고
                 // FolderViewModel이 NetShareEnum으로 공유 목록을 채운다.
-                if (!Helpers.UncPathHelper.IsServerRoot(path))
+                if (!Helpers.UncPathHelper.IsServerRoot(path) && !Helpers.UncPathHelper.IsShellNamespaceRoot(path))
                 {
                     var exists = await Task.Run(() => System.IO.Directory.Exists(path));
                     if (!exists)
