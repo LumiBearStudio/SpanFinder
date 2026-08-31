@@ -377,6 +377,11 @@ namespace Span
         private Models.TabStateDto? _pendingTearOff;
         // True if this window was created from a tear-off (skip session save on close)
         private bool _isTearOffWindow;
+        // True only for a window created by DRAGGING a tab out. Ctrl+N/점프리스트 창도
+        // _pendingTearOff를 쓰기 때문에 _isTearOffWindow만으로는 둘을 구분할 수 없다.
+        // 언클로킹 주체가 다르다 — 드래그 창은 StartManualWindowDrag 타이머가 풀고,
+        // Ctrl+N 창은 Loaded가 직접 풀어야 한다. 이 플래그가 그 갈림길이다.
+        private bool _isDragTearOff;
 
         private const double ColumnWidth = 220;
 
@@ -730,7 +735,9 @@ namespace Span
             // Cloak the window so the user never sees the WinUI default size.
             // Activate() resets the size, but the Loaded handler re-applies
             // the saved placement and then uncloaks.
-            // Skip for tear-off windows — TearOffTab manages cloak/position via drag timer.
+            // 주의: 아래 _pendingTearOff 검사는 실제로는 항상 참이다. 이 필드는 생성자가
+            // 끝난 뒤에 호출자가 채우므로(TabManager.cs:1038, :1154) 여기서는 늘 null이다.
+            // 즉 tear-off 창도 여기서 클로킹된다 — 언클로킹 주체가 누구인지가 중요하다.
             if (_settings.RememberWindowPosition && _pendingTearOff == null)
             {
                 int cloakOn = 1;
@@ -840,9 +847,12 @@ namespace Span
                         ViewModel.Favorites.CollectionChanged += OnFavoritesCollectionChanged;
                         ApplySidebarSectionVisibility();
 
-                        // Uncloak if cloaked during constructor (RememberWindowPosition)
-                        // For tear-off windows, uncloak is managed by StartManualWindowDrag timer
-                        if (_settings.RememberWindowPosition && !_isTearOffWindow)
+                        // Uncloak if cloaked during constructor (RememberWindowPosition).
+                        // 드래그로 떼어낸 창만 StartManualWindowDrag 타이머가 언클로킹한다.
+                        // 여기서 _isTearOffWindow를 보면 안 된다 — 바로 위에서 true로 세팅되므로
+                        // 조건이 영영 거짓이 되고, Ctrl+N 창이 클로킹된 채로 남아 화면에 안 뜬다.
+                        // (v1.2.13.0 ~ v2.0.4 회귀. 작업표시줄에는 보이는데 창이 없던 증상.)
+                        if (_settings.RememberWindowPosition && !_isDragTearOff)
                         {
                             int cloakOff = 0;
                             Helpers.NativeMethods.DwmSetWindowAttribute(
@@ -928,7 +938,9 @@ namespace Span
                         App.StartupArguments = null; // Consume to prevent re-navigation
                         jumpArg = jumpArg?.Trim().Trim('"');
 
-                        if (jumpArg != "--new-window")
+                        // "--new-window"로 시작한 경우는 이 창 자체가 그 새 창이므로 할 일이 없다.
+                        // (앱이 이미 떠 있을 때는 App.OnAppActivated가 창을 하나 더 만든다.)
+                        if (!App.IsNewWindowArgument(jumpArg))
                         {
                             // 가상 폴더 처리 (휴지통, 내 PC 등)
                             if (IsRecycleBinArgument(jumpArg))

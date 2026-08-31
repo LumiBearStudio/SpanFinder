@@ -1006,6 +1006,13 @@ namespace Span
         #region Tear-off and Window Management
 
         /// <summary>
+        /// Opens a new window from outside this class — the taskbar Jump List's "New window"
+        /// task arrives as an app activation, not as a keystroke, so App has to be able to
+        /// trigger the same action.
+        /// </summary>
+        internal void OpenNewWindowFromActivation() => OpenNewWindow();
+
+        /// <summary>
         /// Open a new window at the current path (Ctrl+N).
         /// </summary>
         private void OpenNewWindow()
@@ -1032,10 +1039,85 @@ namespace Span
 
                 App.Current.RegisterWindow(newWindow);
                 newWindow.Activate();
+
+                // Activate()가 크기를 WinUI 기본값으로 되돌리고, 저장된 배치는 창마다
+                // 같은 값이라 그대로 두면 기존 창을 정확히 덮는다. 창이 열렸는지
+                // 알 수 없으므로 이 창 기준으로 크기를 맞추고 살짝 어긋나게 놓는다.
+                // Loaded의 언클로킹보다 먼저 실행되므로 이동 과정은 보이지 않는다.
+                PlaceNewWindowNearThis(WinRT.Interop.WindowNative.GetWindowHandle(newWindow));
             }
             catch (Exception ex)
             {
                 Helpers.DebugLogger.Log($"[OpenNewWindow] Error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 새 창을 이 창과 같은 크기로, 캐스케이드 오프셋만큼 어긋난 위치에 놓는다.
+        /// 작업 영역을 벗어나면 좌상단으로 되감는다.
+        /// </summary>
+        private void PlaceNewWindowNearThis(IntPtr newHwnd)
+        {
+            try
+            {
+                if (newHwnd == IntPtr.Zero) return;
+
+                // 최소화된 창의 GetWindowRect는 (-32000,-32000)이라 기준으로 쓸 수 없다.
+                // 점프 리스트 "새 창"은 기존 창을 복원하지 않고 여기로 오므로 실제로 도달한다.
+                // 이 경우 생성자의 RestoreWindowPlacement가 잡아둔 위치를 그대로 둔다.
+                if (Helpers.NativeMethods.IsIconic(_hwnd))
+                {
+                    Helpers.DebugLogger.Log("[OpenNewWindow] Source minimized — keeping restored placement");
+                    return;
+                }
+
+                if (!Helpers.NativeMethods.GetWindowRect(_hwnd, out var src)) return;
+
+                int w = src.Right - src.Left;
+                int h = src.Bottom - src.Top;
+                if (w < 400) w = 400;
+                if (h < 300) h = 300;
+
+                uint dpi = Helpers.NativeMethods.GetDpiForWindow(_hwnd);
+                int step = (int)Math.Round(30 * (dpi == 0 ? 96u : dpi) / 96.0);
+                int x = src.Left + step;
+                int y = src.Top + step;
+
+                var probe = new Helpers.NativeMethods.RECT
+                {
+                    Left = x,
+                    Top = y,
+                    Right = x + w,
+                    Bottom = y + h
+                };
+                var hMon = Helpers.NativeMethods.MonitorFromRect(
+                    ref probe, Helpers.NativeMethods.MONITOR_DEFAULTTONEAREST);
+                if (hMon != IntPtr.Zero)
+                {
+                    var mi = new Helpers.NativeMethods.MONITORINFO();
+                    mi.cbSize = System.Runtime.InteropServices.Marshal.SizeOf<Helpers.NativeMethods.MONITORINFO>();
+                    if (Helpers.NativeMethods.GetMonitorInfo(hMon, ref mi))
+                    {
+                        var work = mi.rcWork;
+                        if (w > work.Right - work.Left) w = work.Right - work.Left;
+                        if (h > work.Bottom - work.Top) h = work.Bottom - work.Top;
+
+                        // 양쪽 다 조인다. 오른쪽/아래만 검사하면 원본 창이 화면 밖에 있을 때
+                        // 새 창도 화면 밖에 남는다. 크기를 먼저 줄였으므로 이 순서면 반드시 들어온다.
+                        if (x + w > work.Right) x = work.Right - w;
+                        if (y + h > work.Bottom) y = work.Bottom - h;
+                        if (x < work.Left) x = work.Left;
+                        if (y < work.Top) y = work.Top;
+                    }
+                }
+
+                Helpers.NativeMethods.SafeSetWindowPos(newHwnd, IntPtr.Zero, x, y, w, h,
+                    Helpers.NativeMethods.SWP_NOZORDER | Helpers.NativeMethods.SWP_NOACTIVATE);
+                Helpers.DebugLogger.Log($"[OpenNewWindow] Placed at {x},{y} {w}x{h}");
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[OpenNewWindow] Placement failed: {ex.Message}");
             }
         }
 
@@ -1082,6 +1164,7 @@ namespace Span
                 // 4. 새 창 생성 + HWND 확보
                 var newWindow = new MainWindow();
                 newWindow._pendingTearOff = dto;
+                newWindow._isDragTearOff = true;   // 언클로킹은 아래 드래그 타이머가 담당
                 var newHwnd = WinRT.Interop.WindowNative.GetWindowHandle(newWindow);
 
                 // 5. DWMWA_CLOAK — 창을 DWM에서 합성하되 화면에 숨김 (깜빡임 방지)
