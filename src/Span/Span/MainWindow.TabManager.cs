@@ -1062,12 +1062,20 @@ namespace Span
             {
                 if (newHwnd == IntPtr.Zero) return;
 
-                // 최소화된 창의 GetWindowRect는 (-32000,-32000)이라 기준으로 쓸 수 없다.
-                // 점프 리스트 "새 창"은 기존 창을 복원하지 않고 여기로 오므로 실제로 도달한다.
+                // 최소화·최대화 창의 GetWindowRect는 기준으로 쓸 수 없다.
+                //   최소화 — (-32000,-32000)을 돌려준다. 점프 리스트 "새 창"은 기존 창을
+                //     복원하지 않고 여기로 오므로 실제로 도달하는 경로다.
+                //   최대화 — 작업 영역보다 큰 rect를 돌려준다. 아래에서 크기를 작업 영역으로
+                //     자르고 나면 x + w > work.Right가 반드시 참이 되어 오프셋이 통째로
+                //     상쇄되고, 새 창이 원본을 정확히 덮는다. 캐스케이드를 넣은 이유가 사라진다.
+                // SaveWindowPlacement도 같은 이유로 두 상태를 저장하지 않는다(MainWindow.xaml.cs:1222).
+                //
                 // 이 경우 생성자의 RestoreWindowPlacement가 잡아둔 위치를 그대로 둔다.
-                if (Helpers.NativeMethods.IsIconic(_hwnd))
+                // 크기는 Activate()가 되돌린 WinUI 기본값으로 남는다 — 이 경로는 재적용에
+                // 도달하지 않는다. 그래서 오히려 원본과 뚜렷이 달라 새 창이 열린 것이 보인다.
+                if (IsIconic(_hwnd) || IsZoomed(_hwnd))
                 {
-                    Helpers.DebugLogger.Log("[OpenNewWindow] Source minimized — keeping restored placement");
+                    Helpers.DebugLogger.Log("[OpenNewWindow] Source minimized/maximized — keeping restored placement");
                     return;
                 }
 
