@@ -2450,13 +2450,18 @@ namespace Span
                 await col.ReloadAsync();
                 explorer.NotifyCurrentItemsChanged();
 
+                // 리로드가 오류로 끝났으면 "빈 폴더"가 아니다. 접근이 잠깐 실패한 것뿐인데
+                // 아래 정리를 실행하면 오른쪽 컬럼 체인이 통째로 사라지고 활성 컬럼이
+                // 부모로 되감긴다 — 표시가 아니라 탐색 위치를 잃는 손실이다.
+                bool reloadFailed = !string.IsNullOrEmpty(col.ErrorMessage);
+
                 // 리로드 후 빈 컬럼 → 자식 컬럼 정리 + Active를 부모로 이동
-                if (col.Children.Count == 0 && i + 1 < explorer.Columns.Count)
+                if (!reloadFailed && col.Children.Count == 0 && i + 1 < explorer.Columns.Count)
                 {
                     explorer.CleanupColumnsFrom(i + 1);
                 }
                 // 빈 컬럼 자체가 Active이면 부모로 Active 이동
-                if (col.Children.Count == 0 && col.IsActive && i > 0)
+                if (!reloadFailed && col.Children.Count == 0 && col.IsActive && i > 0)
                 {
                     explorer.SetActiveColumn(explorer.Columns[i - 1]);
                 }
