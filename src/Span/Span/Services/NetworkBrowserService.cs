@@ -147,6 +147,162 @@ namespace Span.Services
             }
         }
 
+        // --- browsing a server root as a folder (Issue #67) ----------------------
+
+        /// <summary>Outcome of a share enumeration, distinguishing failure from an empty server.</summary>
+        public enum ShareListStatus
+        {
+            /// <summary>Shares listed (possibly zero — the server answered).</summary>
+            Ok,
+            /// <summary>The server did not answer within the timeout.</summary>
+            TimedOut,
+            /// <summary>The server answered with an error (unreachable, denied, not a file server).</summary>
+            Failed,
+        }
+
+        /// <summary>Per-server gate: one in-flight enumeration, plus a short memory of failures.</summary>
+        private sealed class ServerGate
+        {
+            internal Task<(ShareListStatus, List<NetworkItem>)>? InFlight;
+            internal DateTime FailedUntilUtc;
+        }
+
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, ServerGate> _serverGates =
+            new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// How long a failed server is remembered. NetShareEnum is a blocking P/Invoke that
+        /// cannot be cancelled, so the 5s timeout only stops us waiting — the thread stays
+        /// parked until Windows gives up. Without this, moving back and forth across an
+        /// unreachable server's column parks a new thread every time.
+        /// </summary>
+        private static readonly TimeSpan FailureMemory = TimeSpan.FromSeconds(30);
+
+        /// <summary>
+        /// Lists a server's shares for navigation, reporting whether the server actually
+        /// answered. <see cref="GetServerSharesAsync"/> keeps its original shape for the
+        /// network-browse dialog, which only needs the list.
+        /// </summary>
+        public Task<(ShareListStatus Status, List<NetworkItem> Shares)> ListSharesForNavigationAsync(string serverName)
+        {
+            var key = serverName.TrimStart('\\').TrimEnd('\\', '/');
+            var gate = _serverGates.GetOrAdd(key, _ => new ServerGate());
+
+            lock (gate)
+            {
+                if (DateTime.UtcNow < gate.FailedUntilUtc)
+                {
+                    DebugLogger.Log($"[NetworkBrowserService] '{key}' recently failed — skipping enumeration");
+                    return Task.FromResult((ShareListStatus.Failed, new List<NetworkItem>()));
+                }
+
+                // Several columns can ask for the same server at once (navigate, refresh,
+                // breadcrumb). Share one enumeration rather than parking a thread each.
+                if (gate.InFlight is { IsCompleted: false } running)
+                    return running;
+
+                gate.InFlight = RunAsync(key, gate);
+                return gate.InFlight;
+            }
+
+            async Task<(ShareListStatus, List<NetworkItem>)> RunAsync(string server, ServerGate g)
+            {
+                try
+                {
+                    var work = Task.Run(() => EnumServerSharesWithStatus(server));
+                    var completed = await Task.WhenAny(work, Task.Delay(TimeoutMs)).ConfigureAwait(false);
+
+                    if (completed != work)
+                    {
+                        DebugLogger.Log($"[NetworkBrowserService] '{server}' timed out after {TimeoutMs}ms");
+                        lock (g) { g.FailedUntilUtc = DateTime.UtcNow + FailureMemory; }
+                        return (ShareListStatus.TimedOut, new List<NetworkItem>());
+                    }
+
+                    var (ret, shares) = await work.ConfigureAwait(false);
+                    if (ret != NativeMethods.NERR_Success)
+                    {
+                        DebugLogger.Log($"[NetworkBrowserService] '{server}' NetShareEnum failed (ret={ret})");
+                        lock (g) { g.FailedUntilUtc = DateTime.UtcNow + FailureMemory; }
+                        return (ShareListStatus.Failed, new List<NetworkItem>());
+                    }
+
+                    DebugLogger.Log($"[NetworkBrowserService] '{server}' returned {shares.Count} share(s)");
+                    return (ShareListStatus.Ok, shares);
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"[NetworkBrowserService] '{server}' error: {ex.GetType().Name}: {ex.Message}");
+                    lock (g) { g.FailedUntilUtc = DateTime.UtcNow + FailureMemory; }
+                    return (ShareListStatus.Failed, new List<NetworkItem>());
+                }
+            }
+        }
+
+        /// <summary>Clears the failure memory for a server so an explicit refresh retries immediately.</summary>
+        public static void ForgetServerFailure(string serverName)
+        {
+            var key = serverName.TrimStart('\\').TrimEnd('\\', '/');
+            if (_serverGates.TryGetValue(key, out var gate))
+                lock (gate) { gate.FailedUntilUtc = DateTime.MinValue; }
+        }
+
+        private (int Ret, List<NetworkItem> Shares) EnumServerSharesWithStatus(string serverName)
+        {
+            var results = new List<NetworkItem>();
+
+            if (!serverName.StartsWith(@"\\"))
+                serverName = @"\\" + serverName;
+
+            int resumeHandle = 0;
+            int ret = NativeMethods.NetShareEnum(
+                serverName, 1,
+                out IntPtr bufPtr,
+                NativeMethods.MAX_PREFERRED_LENGTH,
+                out int entriesRead, out int _,
+                ref resumeHandle);
+
+            if (ret != NativeMethods.NERR_Success || bufPtr == IntPtr.Zero)
+                return (ret, results);
+
+            try
+            {
+                CollectDiskShares(bufPtr, entriesRead, serverName, results);
+            }
+            finally
+            {
+                NativeMethods.NetApiBufferFree(bufPtr);
+            }
+
+            return (ret, results);
+        }
+
+        private static void CollectDiskShares(IntPtr bufPtr, int entriesRead, string serverName, List<NetworkItem> results)
+        {
+            int structSize = Marshal.SizeOf<NativeMethods.SHARE_INFO_1>();
+            for (int i = 0; i < entriesRead; i++)
+            {
+                IntPtr ptr = IntPtr.Add(bufPtr, i * structSize);
+                var share = Marshal.PtrToStructure<NativeMethods.SHARE_INFO_1>(ptr);
+
+                // Only include disk shares, exclude admin shares ($ suffix)
+                bool isDisk = (share.shi1_type & ~NativeMethods.STYPE_SPECIAL) == NativeMethods.STYPE_DISKTREE;
+                bool isSpecial = (share.shi1_type & NativeMethods.STYPE_SPECIAL) != 0;
+
+                if (isDisk && !isSpecial && !string.IsNullOrEmpty(share.shi1_netname))
+                {
+                    results.Add(new NetworkItem
+                    {
+                        Name = share.shi1_netname,
+                        Path = $@"{serverName}\{share.shi1_netname}",
+                        Type = NetworkItemType.Share,
+                        IconGlyph = "", // ri-folder-shared-fill
+                        Comment = share.shi1_remark ?? string.Empty
+                    });
+                }
+            }
+        }
+
         private List<NetworkItem> EnumServerShares(string serverName)
         {
             var results = new List<NetworkItem>();

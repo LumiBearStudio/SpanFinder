@@ -715,11 +715,18 @@ namespace Span.ViewModels
             // 로컬 경로: 즉시 확인 (긴 경로는 비동기 처리)
             if (path.StartsWith(@"\\"))
             {
-                var exists = await Task.Run(() => System.IO.Directory.Exists(path));
-                if (!exists)
+                // Issue #67: \\server 서버 루트는 디렉터리가 아니라 Directory.Exists가 항상
+                // false다. 그래서 \\dave-mba\lanshared 는 열리는데 \\dave-mba 는 "네트워크
+                // 경로에 접근할 수 없습니다"가 됐다. 서버 루트는 이 게이트를 건너뛰고
+                // FolderViewModel이 NetShareEnum으로 공유 목록을 채운다.
+                if (!Helpers.UncPathHelper.IsServerRoot(path))
                 {
-                    NavigationError?.Invoke(string.Format(_loc.Get("Error_NetworkPath") ?? "Cannot access network path: {0}", path));
-                    return;
+                    var exists = await Task.Run(() => System.IO.Directory.Exists(path));
+                    if (!exists)
+                    {
+                        NavigationError?.Invoke(string.Format(_loc.Get("Error_NetworkPath") ?? "Cannot access network path: {0}", path));
+                        return;
+                    }
                 }
             }
             else

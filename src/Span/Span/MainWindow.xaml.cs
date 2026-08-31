@@ -6161,6 +6161,7 @@ namespace Span
         async void Services.IContextMenuHost.PerformPaste(string targetFolderPath)
         {
             if (Helpers.ArchivePathHelper.IsArchivePath(targetFolderPath)) { ViewModel.ShowToast(_loc.Get("Toast_ArchiveReadOnly")); return; }
+            if (Helpers.UncPathHelper.IsServerRoot(targetFolderPath)) { Helpers.DebugLogger.Log("[ServerRoot] write blocked"); ViewModel.ShowToast(_loc.Get("Toast_NetworkRootReadOnly")); return; }
             try
             {
             List<string> sourcePaths;
@@ -6500,6 +6501,7 @@ namespace Span
         async void Services.IContextMenuHost.PerformNewFolder(string parentFolderPath)
         {
             if (Helpers.ArchivePathHelper.IsArchivePath(parentFolderPath)) { ViewModel.ShowToast(_loc.Get("Toast_ArchiveReadOnly")); return; }
+            if (Helpers.UncPathHelper.IsServerRoot(parentFolderPath)) { Helpers.DebugLogger.Log("[ServerRoot] write blocked"); ViewModel.ShowToast(_loc.Get("Toast_NetworkRootReadOnly")); return; }
             string baseName = _loc.Get("NewFolderBaseName");
             string newPath = System.IO.Path.Combine(parentFolderPath, baseName);
 
@@ -6577,6 +6579,7 @@ namespace Span
         async void Services.IContextMenuHost.PerformNewFile(string parentFolderPath, string fileName)
         {
             if (Helpers.ArchivePathHelper.IsArchivePath(parentFolderPath)) { ViewModel.ShowToast(_loc.Get("Toast_ArchiveReadOnly")); return; }
+            if (Helpers.UncPathHelper.IsServerRoot(parentFolderPath)) { Helpers.DebugLogger.Log("[ServerRoot] write blocked"); ViewModel.ShowToast(_loc.Get("Toast_NetworkRootReadOnly")); return; }
             string baseName = System.IO.Path.GetFileNameWithoutExtension(fileName);
             string ext = System.IO.Path.GetExtension(fileName);
             string newPath = System.IO.Path.Combine(parentFolderPath, fileName);
@@ -6652,6 +6655,7 @@ namespace Span
         async void Services.IContextMenuHost.PerformNewFileFromShellNew(string parentFolderPath, Services.ShellNewItem shellNewItem)
         {
             if (Helpers.ArchivePathHelper.IsArchivePath(parentFolderPath)) { ViewModel.ShowToast(_loc.Get("Toast_ArchiveReadOnly")); return; }
+            if (Helpers.UncPathHelper.IsServerRoot(parentFolderPath)) { Helpers.DebugLogger.Log("[ServerRoot] write blocked"); ViewModel.ShowToast(_loc.Get("Toast_NetworkRootReadOnly")); return; }
 
             try
             {
@@ -6719,12 +6723,14 @@ namespace Span
         {
             if (paths == null || paths.Length == 0) return;
             if (paths.Any(p => Helpers.ArchivePathHelper.IsArchivePath(p))) { ViewModel.ShowToast(_loc.Get("Toast_ArchiveReadOnly")); return; }
+            if (paths.Any(p => Helpers.UncPathHelper.IsServerRoot(p))) { Helpers.DebugLogger.Log("[ServerRoot] write blocked"); ViewModel.ShowToast(_loc.Get("Toast_NetworkRootReadOnly")); return; }
 
             try
             {
                 // Multi-selection support: path 기반으로 올바른 컬럼의 선택 항목을 가져옴
                 var allPaths = GetSelectedPathsForContextMenu(paths[0]);
                 if (allPaths.Any(p => Helpers.ArchivePathHelper.IsArchivePath(p))) { ViewModel.ShowToast(_loc.Get("Toast_ArchiveReadOnly")); return; }
+                if (allPaths.Any(p => Helpers.UncPathHelper.IsServerRoot(p))) { Helpers.DebugLogger.Log("[ServerRoot] write blocked"); ViewModel.ShowToast(_loc.Get("Toast_NetworkRootReadOnly")); return; }
 
                 // ZIP name: first item name + .zip
                 string firstPath = allPaths[0];

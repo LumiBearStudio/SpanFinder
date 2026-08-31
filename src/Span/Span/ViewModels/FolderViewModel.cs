@@ -420,6 +420,12 @@ namespace Span.ViewModels
         {
             if (_calculatedSize != null) return; // 이미 계산됨
 
+            // Issue #67: 서버 루트를 Details 뷰로 열면 공유마다 SMB 전체 재귀 워크가
+            // 동시에 시작된다. 탐색기도 공유 크기는 계산하지 않는다.
+            if (Helpers.UncPathHelper.IsServerRoot(System.IO.Path.GetDirectoryName(Path) ?? string.Empty)
+                || Helpers.UncPathHelper.IsServerRoot(Path))
+                return;
+
             var svc = App.Current.Services.GetService(typeof(FolderSizeService)) as FolderSizeService;
             if (svc == null) return;
 
@@ -568,6 +574,15 @@ namespace Span.ViewModels
                 {
                     await LoadFromRemoteAsync(folderPath, token);
                 }
+                else if (Helpers.UncPathHelper.IsServerRoot(folderPath))
+                {
+                    // Issue #67: \\server 는 디렉터리가 아니라 Directory.Exists가 항상 false다.
+                    // 공유 목록은 NetShareEnum으로만 얻을 수 있다. LoadFromDiskAsync 안이
+                    // 아니라 여기서 분기하는 이유는 그쪽이 Task.Run 동기 람다라 await가
+                    // 불가능하기 때문이다. 결과는 캐시하지 않는다 — 공유 구성은 서버 쪽에서
+                    // 바뀔 수 있고 목록이 작아 다시 읽는 비용이 낮다.
+                    await LoadServerSharesAsync(folderPath, token);
+                }
                 else
                 {
                     await LoadFromDiskAsync(folderPath, showHidden, folderCache, token);
@@ -668,6 +683,62 @@ namespace Span.ViewModels
                 Helpers.DebugLogger.Log($"[LoadFromArchiveAsync] Error: {ex.Message}\n{ex.StackTrace}");
                 ErrorMessage = ex.Message;
             }
+        }
+
+        /// <summary>
+        /// Lists a server's shares as folders (Issue #67).
+        ///
+        /// Windows does not expose <c>\\server</c> as a directory, so it can only be listed
+        /// through NetShareEnum. Each share becomes a normal FolderViewModel whose Path is
+        /// the full <c>\\server\share</c> UNC — clicking one therefore navigates through the
+        /// ordinary disk path that already works today.
+        ///
+        /// The listing is read-only: a server root has nowhere to create or paste into.
+        /// See <c>IsServerRootColumn</c> for how the write paths are blocked.
+        /// </summary>
+        private async Task LoadServerSharesAsync(string folderPath, System.Threading.CancellationToken token)
+        {
+            NetworkBrowserService? browser = null;
+            try { browser = App.Current.Services.GetService<NetworkBrowserService>(); }
+            catch (Exception ex) { Helpers.DebugLogger.Log($"[ServerShares] service unavailable: {ex.Message}"); }
+
+            if (browser == null)
+            {
+                ErrorMessage = GetLoc().Get("Error_NetworkPathNotFound") ?? "Cannot access network path";
+                ErrorIcon = "\uE871";
+                return;
+            }
+
+            var (status, shares) = await browser.ListSharesForNavigationAsync(folderPath);
+            if (token.IsCancellationRequested) return;
+
+            if (status != NetworkBrowserService.ShareListStatus.Ok)
+            {
+                // 도달 불가 / 권한 거부 / 타임아웃. F5로 다시 시도할 수 있도록 실패 기억을
+                // 지워 둔다 — 그러지 않으면 30초 동안 재시도가 조용히 무시된다.
+                NetworkBrowserService.ForgetServerFailure(folderPath);
+                ErrorMessage = GetLoc().Get("Error_NetworkPathNotFound") ?? "Cannot access network path";
+                ErrorIcon = "\uE871";
+                Helpers.DebugLogger.Log($"[ServerShares] {folderPath} → {status}");
+                return;
+            }
+
+            var items = new List<FileSystemViewModel>();
+            foreach (var share in shares)
+            {
+                if (token.IsCancellationRequested) return;
+
+                items.Add(new FolderViewModel(new FolderItem
+                {
+                    Name = share.Name,
+                    // 이미 완전한 \\server\share 형태다. 이 경로는 Directory.Exists를
+                    // 통과하므로 하위 탐색은 기존 디스크 경로를 그대로 탄다.
+                    Path = share.Path,
+                }, _fileService));
+            }
+
+            if (!token.IsCancellationRequested)
+                PopulateChildren(items, token);
         }
 
         private async Task LoadFromRemoteAsync(string folderPath, System.Threading.CancellationToken token)

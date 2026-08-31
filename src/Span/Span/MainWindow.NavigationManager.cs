@@ -1011,7 +1011,30 @@ namespace Span
                 return;
             }
 
-            if (System.IO.Directory.Exists(path))
+            // Issue #67: UNC 경로에서 Directory.Exists는 도달 불가 호스트에 30초 이상
+            // 매달린다. 여기는 UI 스레드라 그대로 두면 주소창 입력만으로 앱이 멈춘다.
+            // ExplorerViewModel.NavigateToPath가 같은 이유로 이미 Task.Run을 쓴다.
+            bool isUnc = Helpers.UncPathHelper.IsUnc(path);
+
+            // Issue #67: 서버 루트(\\dave-mba)는 Directory.Exists가 항상 false라 아래 검사로는
+            // 절대 통과하지 못한다. 탐색으로 넘겨 공유 목록을 열게 한다.
+            if (Helpers.UncPathHelper.IsServerRoot(path))
+            {
+                var serverFolder = new Models.FolderItem
+                {
+                    Name = path.TrimStart('\\').TrimEnd('\\', '/'),
+                    Path = path.TrimEnd('\\', '/')
+                };
+                _ = explorer.NavigateTo(serverFolder);
+                return;
+            }
+
+            bool dirExists = isUnc
+                ? await System.Threading.Tasks.Task.Run(() => System.IO.Directory.Exists(path))
+                : System.IO.Directory.Exists(path);
+            if (_isClosed) return;
+
+            if (dirExists)
             {
                 // 주소바 입력은 해당 폴더를 루트로 열기 (shell: / 로컬라이즈 이름과 동일 패턴)
                 var dirFolder = new Models.FolderItem
@@ -1044,6 +1067,30 @@ namespace Span
                 if (archiveUri != null)
                 {
                     _ = explorer.NavigateToPath(archiveUri);
+                }
+                else if (isUnc)
+                {
+                    // Issue #67: UNC 경로를 아래 ShellExecute로 넘기면 안 된다. 그 호출은
+                    // "cmd" / "calc" 같은 실행 명령 호환용인데 \\wsl.localhost 같은 입력까지
+                    // 삼켜서, SPAN이 기본 파일 관리자인데도 윈도우 탐색기가 떴다(제보 #67).
+                    //
+                    // \\wsl.localhost 와 \\wsl$ 루트는 파일시스템 UNC가 아니라 셸 네임스페이스
+                    // 확장이라 우리가 열 수 없다(실측: Directory.Exists는 false지만 그 하위
+                    // \\wsl.localhost\Ubuntu 는 true). 탐색기로 넘기는 동작 자체는 유지하되
+                    // 우연이 아니라 의도적으로 한다 — 위 shell: 처리와 같은 패턴이다.
+                    if (Helpers.UncPathHelper.IsShellNamespaceRoot(path))
+                    {
+                        Helpers.DebugLogger.Log($"[AddressBar] shell-namespace UNC → explorer: {path}");
+                        try { Process.Start(new ProcessStartInfo("explorer.exe", path) { UseShellExecute = true }); }
+                        catch (Exception ex) { Helpers.DebugLogger.Log($"[AddressBar] explorer delegate failed: {ex.Message}"); }
+                    }
+                    else
+                    {
+                        // 도달할 수 없거나 존재하지 않는 네트워크 경로. 이전에는 아무 반응이
+                        // 없었다 — ShellExecute가 조용히 실패했다.
+                        Helpers.DebugLogger.Log($"[AddressBar] unreachable UNC path: {path}");
+                        ViewModel.ShowToast(string.Format(_loc.Get("Error_NetworkPath"), path), isError: true);
+                    }
                 }
                 else
                 {

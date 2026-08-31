@@ -877,6 +877,15 @@ namespace Span
             if (Helpers.ArchivePathHelper.IsArchivePath(destFolder))
                 return;
 
+            // Issue #67: 서버 루트(\\server)는 공유 목록일 뿐 쓸 수 있는 위치가 아니다.
+            // 막지 않으면 드롭이 조용히 실패한다.
+            if (Helpers.UncPathHelper.IsServerRoot(destFolder))
+            {
+                Helpers.DebugLogger.Log($"[ServerRoot] drop blocked into {destFolder}");
+                ViewModel.ShowToast(_loc.Get("Toast_NetworkRootReadOnly"));
+                return;
+            }
+
             // Issue #64: 압축 내부에서 꺼내오는 드래그. 항목을 임시 파일로 꺼낸 뒤
             // 실제 경로로 진행한다. 아카이브는 읽기 전용이라 원본을 지울 수 없으므로
             // 이동은 복사로 강등한다 — 여기서 Move를 허용하면 임시 파일만 지워진다.
