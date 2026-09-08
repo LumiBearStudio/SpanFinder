@@ -51,7 +51,7 @@ namespace Span.Services
                     {
                         ct.ThrowIfCancellationRequested();
                         var attrs = d.Attributes;
-                        bool isHidden = (attrs & FileAttributes.Hidden) != 0;
+                        bool isHidden = Helpers.FileVisibility.IsHidden(attrs);
                         if (!_settings.ShowHiddenFiles && isHidden) continue;
 
                         // 셰브론 표시용 경량 체크 (단일 FindFirstFile 호출)
@@ -73,7 +73,7 @@ namespace Span.Services
                     {
                         ct.ThrowIfCancellationRequested();
                         var attrs = f.Attributes;
-                        bool isHidden = (attrs & FileAttributes.Hidden) != 0;
+                        bool isHidden = Helpers.FileVisibility.IsHidden(attrs);
                         if (!_settings.ShowHiddenFiles && isHidden) continue;
 
                         items.Add(new FileItem

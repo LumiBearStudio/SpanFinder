@@ -90,12 +90,12 @@ namespace Span.Services
             var batch = new List<FileSystemViewModel>(BatchSize);
 
             // IgnoreInaccessible: MoveNext()에서 접근 불가 항목을 건너뜀 (루프 전체 중단 방지)
-            // AttributesToSkip: Hidden 파일 필터링을 열거자 레벨에서 처리
+            // AttributesToSkip: 표시 규칙(Helpers/FileVisibility)을 열거자 레벨에서 적용
             var enumOptions = new EnumerationOptions
             {
                 IgnoreInaccessible = true,
                 RecurseSubdirectories = false,
-                AttributesToSkip = showHidden ? FileAttributes.None : FileAttributes.Hidden
+                AttributesToSkip = Helpers.FileVisibility.AttributesToSkip(showHidden)
             };
 
             while (queue.Count > 0 && !ct.IsCancellationRequested)

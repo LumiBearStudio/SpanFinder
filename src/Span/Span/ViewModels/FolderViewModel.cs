@@ -866,13 +866,8 @@ namespace Span.ViewModels
                     {
                         if (token.IsCancellationRequested) return (new List<FileSystemViewModel>(), folders, files, (string?)null, (string?)null);
                         var attrs = d.Attributes;
-                        // Issue #68: System 단독 항목은 숨기지 않는다 — Windows 탐색기와 같은 규칙.
-                        // 탐색기는 Hidden일 때만 숨기고, System만 붙은 항목(C:\ProgramData\Microsoft,
-                        // 네이버 MYBOX 드라이브 루트 등)은 항상 표시한다. 폴더의 System 속성은 숨기라는
-                        // 뜻이 아니라 desktop.ini 기반 커스텀 아이콘·표시 이름을 켜는 관용구이기 때문이다.
-                        // (Issue #51에서 showHidden에 연동했으나 System 단독까지 숨겨, MYBOX 드라이브가
-                        //  기본 설정에서 통째로 빈 폴더로 보였다.)
-                        if (!showHidden && (attrs & System.IO.FileAttributes.Hidden) != 0) continue;
+                        // 표시 규칙은 Helpers/FileVisibility에 모여 있다 (Issue #68).
+                        if (Helpers.FileVisibility.ShouldHide(attrs, showHidden)) continue;
 
                         bool hasChild;
                         try { hasChild = System.IO.Directory.EnumerateFileSystemEntries(d.FullName).Any(); }
@@ -887,13 +882,8 @@ namespace Span.ViewModels
                     {
                         if (token.IsCancellationRequested) return (new List<FileSystemViewModel>(), folders, files, (string?)null, (string?)null);
                         var attrs = f.Attributes;
-                        // Issue #68: System 단독 항목은 숨기지 않는다 — Windows 탐색기와 같은 규칙.
-                        // 탐색기는 Hidden일 때만 숨기고, System만 붙은 항목(C:\ProgramData\Microsoft,
-                        // 네이버 MYBOX 드라이브 루트 등)은 항상 표시한다. 폴더의 System 속성은 숨기라는
-                        // 뜻이 아니라 desktop.ini 기반 커스텀 아이콘·표시 이름을 켜는 관용구이기 때문이다.
-                        // (Issue #51에서 showHidden에 연동했으나 System 단독까지 숨겨, MYBOX 드라이브가
-                        //  기본 설정에서 통째로 빈 폴더로 보였다.)
-                        if (!showHidden && (attrs & System.IO.FileAttributes.Hidden) != 0) continue;
+                        // 표시 규칙은 Helpers/FileVisibility에 모여 있다 (Issue #68).
+                        if (Helpers.FileVisibility.ShouldHide(attrs, showHidden)) continue;
 
                         var fileItem = new FileItem { Name = f.Name, Path = f.FullName, Size = f.Length, DateModified = f.LastWriteTime, FileType = f.Extension, IsHidden = (attrs & System.IO.FileAttributes.Hidden) != 0 };
                         files.Add(fileItem);

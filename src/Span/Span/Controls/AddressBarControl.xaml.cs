@@ -311,7 +311,7 @@ namespace Span.Controls
 
                 var suggestions = new System.IO.DirectoryInfo(parentDir)
                     .GetDirectories()
-                    .Where(d => (d.Attributes & System.IO.FileAttributes.Hidden) == 0)
+                    .Where(d => !Helpers.FileVisibility.IsHidden(d.Attributes))
                     .Where(d => string.IsNullOrEmpty(prefix) || d.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
                     .OrderBy(d => d.Name)
                     .Take(10)

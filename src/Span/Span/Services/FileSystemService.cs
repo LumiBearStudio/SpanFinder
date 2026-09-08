@@ -407,7 +407,7 @@ namespace Span.Services
                     // Enumerate (lazy) — 대용량 폴더에서 메모리 효율적
                     foreach (var d in dirInfo.EnumerateDirectories())
                     {
-                        bool isHidden = (d.Attributes & FileAttributes.Hidden) != 0;
+                        bool isHidden = Helpers.FileVisibility.IsHidden(d.Attributes);
                         if (!_settings.ShowHiddenFiles && isHidden) continue;
 
                         items.Add(new FolderItem
@@ -421,7 +421,7 @@ namespace Span.Services
 
                     foreach (var f in dirInfo.EnumerateFiles())
                     {
-                        bool isHidden = (f.Attributes & FileAttributes.Hidden) != 0;
+                        bool isHidden = Helpers.FileVisibility.IsHidden(f.Attributes);
                         if (!_settings.ShowHiddenFiles && isHidden) continue;
 
                         items.Add(new FileItem
