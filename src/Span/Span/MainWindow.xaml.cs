@@ -4434,8 +4434,8 @@ namespace Span
                     try
                     {
                         var info = new System.IO.DirectoryInfo(dir);
+                        // Issue #68: System 단독은 숨김이 아니다 (탐색기 규칙). Hidden만 건너뛴다.
                         if ((info.Attributes & System.IO.FileAttributes.Hidden) != 0) continue;
-                        if ((info.Attributes & System.IO.FileAttributes.System) != 0) continue;
                         return true; // Found at least one visible subfolder
                     }
                     catch { continue; }
@@ -4465,8 +4465,8 @@ namespace Span
                     try
                     {
                         var info = new System.IO.DirectoryInfo(dir);
+                        // Issue #68: System 단독은 숨김이 아니다 (탐색기 규칙). Hidden만 건너뛴다.
                         if ((info.Attributes & System.IO.FileAttributes.Hidden) != 0) continue;
-                        if ((info.Attributes & System.IO.FileAttributes.System) != 0) continue;
 
                         var childContent = new SidebarFolderNode
                         {

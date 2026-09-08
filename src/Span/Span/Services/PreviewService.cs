@@ -131,8 +131,8 @@ namespace Span.Services
                 var di = new DirectoryInfo(folderPath);
                 foreach (var entry in di.EnumerateFileSystemInfos())
                 {
+                    // Issue #68: System 단독은 숨김이 아니다 (탐색기 규칙). Hidden만 건너뛴다.
                     if ((entry.Attributes & System.IO.FileAttributes.Hidden) != 0) continue;
-                    if ((entry.Attributes & System.IO.FileAttributes.System) != 0) continue;
                     count++;
                 }
                 return count;
