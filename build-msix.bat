@@ -2,7 +2,7 @@
 setlocal
 
 echo =========================================
-echo   Span MSIX Store Upload Build (x64/x86/ARM64)
+echo   Span MSIX Store Upload Build (x64)
 echo =========================================
 echo.
 
@@ -31,7 +31,7 @@ if not exist "%OUTDIR%" mkdir "%OUTDIR%"
 :: defect failed Microsoft Store certification on 2026-07-21, policy 10.1.2.10.
 :: Fail the release here rather than in certification.
 if exist "D:\11.AI\Span\third_party\otterzip\x64\otterzip_ffi.dll" (
-    echo [0/3] Verifying vendored otterzip_ffi.dll...
+    echo [0/1] Verifying vendored otterzip_ffi.dll...
     powershell -NoProfile -ExecutionPolicy Bypass -File "D:\11.AI\Span\third_party\otterzip\verify-otterzip-dll.ps1"
     if errorlevel 1 (
         echo.
@@ -45,7 +45,9 @@ if exist "D:\11.AI\Span\third_party\otterzip\x64\otterzip_ffi.dll" (
 set FAILED=0
 
 :: -- x64 Build --
-echo [1/3] Building x64...
+:: x64 only. x86/ARM64 have not shipped since the v1.0.4/v1.0.5 GitHub releases,
+:: and the vendored otterzip native engine is x64-only.
+echo [1/1] Building x64...
 %MSBUILD% "%CSPROJ%" /restore /v:minimal ^
     /p:Configuration=Release /p:Platform=x64 ^
     /p:GenerateAppxPackageOnBuild=true /p:AppxBundle=Never ^
@@ -60,41 +62,9 @@ if %ERRORLEVEL% NEQ 0 (
 )
 echo.
 
-:: -- x86 Build --
-echo [2/3] Building x86...
-%MSBUILD% "%CSPROJ%" /restore /v:minimal ^
-    /p:Configuration=Release /p:Platform=x86 ^
-    /p:GenerateAppxPackageOnBuild=true /p:AppxBundle=Never ^
-    /p:PublishTrimmed=false /p:SelfContained=true ^
-    /p:UapAppxPackageBuildMode=StoreUpload ^
-    /p:AppxPackageDir="%OUTDIR%\\"
-if %ERRORLEVEL% NEQ 0 (
-    echo [FAILED] x86 build failed
-    set FAILED=1
-) else (
-    echo [OK] x86
-)
-echo.
-
-:: -- ARM64 Build --
-echo [3/3] Building ARM64...
-%MSBUILD% "%CSPROJ%" /restore /v:minimal ^
-    /p:Configuration=Release /p:Platform=ARM64 ^
-    /p:GenerateAppxPackageOnBuild=true /p:AppxBundle=Never ^
-    /p:PublishTrimmed=false /p:SelfContained=true ^
-    /p:UapAppxPackageBuildMode=StoreUpload ^
-    /p:AppxPackageDir="%OUTDIR%\\"
-if %ERRORLEVEL% NEQ 0 (
-    echo [FAILED] ARM64 build failed
-    set FAILED=1
-) else (
-    echo [OK] ARM64
-)
-echo.
-
 :: -- Create ZIP packages for GitHub Release --
 echo Creating ZIP packages for GitHub Release...
-for %%P in (x64 x86 ARM64) do (
+for %%P in (x64) do (
     if exist "%OUTDIR%\Span_%VER%_%%P_Test" (
         powershell -NoProfile -Command "Compress-Archive -Path '%OUTDIR%\Span_%VER%_%%P_Test\*' -DestinationPath '%OUTDIR%\SpanFinder_v%VER%_%%P.zip' -Force"
         echo [OK] SpanFinder_v%VER%_%%P.zip
