@@ -135,16 +135,23 @@ namespace Span
         }
 
         /// <summary>파일 경로가 넘어온 경우: 부모 폴더를 열고 해당 파일을 선택.</summary>
-        internal void HandleRedirectedFile(string filePath)
+        internal void HandleRedirectedFile(string filePath) => HandleRedirectedSelect(filePath);
+
+        /// <summary>
+        /// 부모 폴더를 새 탭으로 열고 항목(파일 또는 폴더)을 선택한다(--select).
+        /// 드라이브 루트처럼 부모가 없으면 그 폴더 자체를 연다.
+        /// </summary>
+        internal void HandleRedirectedSelect(string itemPath)
         {
             if (_isClosed || ViewModel == null) return;
-            var parentDir = System.IO.Path.GetDirectoryName(filePath);
-            if (string.IsNullOrEmpty(parentDir) || !System.IO.Directory.Exists(parentDir)) return;
+            if (!TrySplitParent(itemPath, out var parentDir, out var fileName))
+            {
+                if (System.IO.Directory.Exists(itemPath)) HandleRedirectedFolder(itemPath);
+                return;
+            }
 
             try
             {
-                var fileName = System.IO.Path.GetFileName(filePath);
-
                 // 새 탭 추가 + Miller 패널 생성
                 ViewModel.AddNewTab();
                 if (ViewModel.ActiveTab != null)
@@ -169,12 +176,56 @@ namespace Span
                 };
                 _ = NavigateAndSelectFileAsync(folder, fileName);
                 FocusActiveView();
-                Helpers.DebugLogger.Log($"[MainWindow] HandleRedirectedFile: {parentDir} → select {fileName}");
+                Helpers.DebugLogger.Log($"[MainWindow] HandleRedirectedSelect: {parentDir} → select {fileName}");
             }
             catch (Exception ex)
             {
-                Helpers.DebugLogger.Log($"[MainWindow] HandleRedirectedFile error: {ex.Message}");
+                Helpers.DebugLogger.Log($"[MainWindow] HandleRedirectedSelect error: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// 항목 경로를 부모 폴더와 이름으로 나눈다. 폴더 경로 끝의 '\'는 떼고 본다
+        /// (GetDirectoryName("D:\a\b\")는 "D:\a\b"를 돌려준다). 부모가 없거나(드라이브 루트) 존재하지 않으면 false.
+        /// </summary>
+        private static bool TrySplitParent(string itemPath, out string parentDir, out string name)
+        {
+            parentDir = string.Empty;
+            name = string.Empty;
+            if (string.IsNullOrEmpty(itemPath)) return false;
+
+            var p = itemPath.Length > 3 ? itemPath.TrimEnd('\\', '/') : itemPath;
+            var parent = System.IO.Path.GetDirectoryName(p);
+            var leaf = System.IO.Path.GetFileName(p);
+            if (string.IsNullOrEmpty(parent) || string.IsNullOrEmpty(leaf) || !System.IO.Directory.Exists(parent))
+                return false;
+
+            parentDir = parent;
+            name = leaf;
+            return true;
+        }
+
+        /// <summary>
+        /// 콜드 스타트: 복원된 활성 탭에서 부모 폴더로 이동해 항목(파일 또는 폴더)을 선택한다.
+        /// 부모가 없으면(드라이브 루트) false — 호출 측이 폴더 열기로 처리한다.
+        /// </summary>
+        private bool TryNavigateAndSelectAtStartup(string itemPath)
+        {
+            if (ViewModel == null || !TrySplitParent(itemPath, out var parentDir, out var name)) return false;
+
+            if (ViewModel.CurrentViewMode == ViewMode.Home
+                || ViewModel.CurrentViewMode == ViewMode.RecycleBin)
+            {
+                ViewModel.SwitchViewMode(ViewModel.ResolveViewModeFromHome());
+                UpdateViewModeVisibility();
+            }
+            var folder = new Models.FolderItem
+            {
+                Name = System.IO.Path.GetFileName(parentDir) ?? parentDir,
+                Path = parentDir
+            };
+            _ = NavigateAndSelectFileAsync(folder, name);
+            return true;
         }
 
         private async Task NavigateAndSelectFileAsync(Models.FolderItem folder, string fileName)
@@ -935,7 +986,9 @@ namespace Span
                     if (!string.IsNullOrEmpty(App.StartupArguments))
                     {
                         var jumpArg = App.StartupArguments;
+                        var selectMode = App.StartupSelect;
                         App.StartupArguments = null; // Consume to prevent re-navigation
+                        App.StartupSelect = false;
                         jumpArg = jumpArg?.Trim().Trim('"');
 
                         // "--new-window"로 시작한 경우는 이 창 자체가 그 새 창이므로 할 일이 없다.
@@ -958,6 +1011,12 @@ namespace Span
                             {
                                 // shell:/CLSID 가상 폴더 → explorer.exe 위임 후 이 창 닫기
                             }
+                            else if (selectMode && TryNavigateAndSelectAtStartup(jumpArg))
+                            {
+                                // --select: 부모 폴더를 열고 항목 선택. 폴더 항목도 안으로 들어가지 않는다
+                                // (아래 Directory.Exists 분기보다 먼저 봐야 한다).
+                                Helpers.DebugLogger.Log($"[Startup] Select argument: {jumpArg}");
+                            }
                             else if (System.IO.Directory.Exists(jumpArg))
                             {
                                 Helpers.DebugLogger.Log($"[JumpList] Navigating to: {jumpArg}");
@@ -974,26 +1033,14 @@ namespace Span
                             {
                                 // 파일 경로 → 부모 폴더 열고 파일 선택
                                 Helpers.DebugLogger.Log($"[Startup] File argument: {jumpArg}");
-                                var parentDir = System.IO.Path.GetDirectoryName(jumpArg);
-                                var fileName = System.IO.Path.GetFileName(jumpArg);
-                                if (!string.IsNullOrEmpty(parentDir) && System.IO.Directory.Exists(parentDir))
-                                {
-                                    if (ViewModel.CurrentViewMode == ViewMode.Home
-                                        || ViewModel.CurrentViewMode == ViewMode.RecycleBin)
-                                    {
-                                        ViewModel.SwitchViewMode(ViewModel.ResolveViewModeFromHome());
-                                        UpdateViewModeVisibility();
-                                    }
-                                    var folder = new Models.FolderItem
-                                    {
-                                        Name = System.IO.Path.GetFileName(parentDir) ?? parentDir,
-                                        Path = parentDir
-                                    };
-                                    _ = NavigateAndSelectFileAsync(folder, fileName);
-                                }
+                                TryNavigateAndSelectAtStartup(jumpArg);
                             }
                         }
                     }
+
+                    // 시작 인자까지 소비했다. 그 사이 도착해 보관된 리다이렉트를 처리하게 한다.
+                    // App 쪽 재생은 DispatcherQueue에 넣으므로 이 Loaded 처리가 끝난 뒤에 실행된다.
+                    ((App)Application.Current).OnMainWindowStartupComplete();
 
                     // ── Populate Favorites Tree and observe changes ──
                     ApplyFavoritesTreeMode(_settings.ShowFavoritesTree);

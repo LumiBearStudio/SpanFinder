@@ -153,40 +153,10 @@ namespace Span
             catch { /* fallback: XAML에 정의된 기본값 사용 */ }
         }
 
-        /// <summary>
-        /// 커맨드라인 문자열에서 폴더 경로 인수를 추출한다.
-        /// AppExecutionAlias 경유 시: "C:\...\spanfinder.exe" "D:\folder" → "D:\folder"
-        /// JumpList 경유 시: "D:\folder" → "D:\folder"
-        /// </summary>
-        /// <summary>휴지통 관련 shell 인자인지 판별.</summary>
-        private static bool IsRecycleBinArgument(string? arg)
-        {
-            if (string.IsNullOrEmpty(arg)) return false;
-            return arg.Contains("RecycleBinFolder", StringComparison.OrdinalIgnoreCase)
-                || arg.Contains("{645FF040-5081-101B-9F08-00AA002F954E}", StringComparison.OrdinalIgnoreCase);
-        }
-
-        /// <summary>
-        /// CLSID 가상 폴더 경로인지 판별 (This PC 제외 — Span 홈으로 처리).
-        /// 제어판(::{26EE0668-...}), 네트워크, 프린터 등 Span이 탐색할 수 없는 가상 폴더.
-        /// </summary>
-        private static bool IsVirtualFolderArgument(string? arg)
-        {
-            if (string.IsNullOrEmpty(arg)) return false;
-            if (!arg.StartsWith("::{", StringComparison.OrdinalIgnoreCase))
-                return false;
-            // This PC → Span 홈에서 처리 (explorer 위임 불필요)
-            if (IsThisPCArgument(arg))
-                return false;
-            return true;
-        }
-
-        /// <summary>This PC (내 PC) CLSID인지 판별. Span 홈 화면으로 매핑.</summary>
-        private static bool IsThisPCArgument(string? arg)
-        {
-            if (string.IsNullOrEmpty(arg)) return false;
-            return arg.Contains("{20D04FE0-3AEA-1069-A2D8-08002B30309D}", StringComparison.OrdinalIgnoreCase);
-        }
+        // 실행 인자 판정은 Helpers/LaunchArguments(순수 함수, 단위 테스트)에 있다.
+        private static bool IsRecycleBinArgument(string? arg) => Helpers.LaunchArguments.IsRecycleBin(arg);
+        private static bool IsVirtualFolderArgument(string? arg) => Helpers.LaunchArguments.IsVirtualFolder(arg);
+        private static bool IsThisPCArgument(string? arg) => Helpers.LaunchArguments.IsThisPC(arg);
 
         /// <summary>
         /// 가상 폴더를 explorer.exe에 위임.
@@ -210,72 +180,37 @@ namespace Span
             }
         }
 
-        /// <summary>
-        /// MSIX/WindowsApps 패키지 경로 필터 — 기본 파일관리자로 등록 시
-        /// 탐색기 아이콘 클릭 때 패키지 폴더가 인자로 전달되는 것을 방지
-        /// </summary>
-        private static bool IsSystemPackagePath(string path)
+        /// <summary>The Jump List "New window" task (JumpListService). It is a command, not a path.</summary>
+        internal static bool IsNewWindowArgument(string? arg) => Helpers.LaunchArguments.IsNewWindow(arg);
+
+        private static Helpers.LaunchRequest ParseLaunchArguments(string? raw) =>
+            Helpers.LaunchArguments.Parse(raw, System.IO.Directory.Exists, System.IO.File.Exists);
+
+        /// <summary>--select 대상이 있거나, 없어도 부모 폴더가 있는지.</summary>
+        private static bool IsSelectTargetReachable(string? path)
         {
             if (string.IsNullOrEmpty(path)) return false;
-            // WindowsApps 패키지 폴더 (MSIX AppExecutionAlias 경로)
-            if (path.Contains(@"\Microsoft\WindowsApps", StringComparison.OrdinalIgnoreCase)) return true;
-            // Program Files\WindowsApps (시스템 패키지 설치 경로)
-            if (path.Contains(@"\WindowsApps\", StringComparison.OrdinalIgnoreCase)
-                && path.Contains(@"Program Files", StringComparison.OrdinalIgnoreCase)) return true;
-            return false;
+            try
+            {
+                if (System.IO.Directory.Exists(path) || System.IO.File.Exists(path)) return true;
+                var trimmed = path.Length > 3 ? path.TrimEnd('\\', '/') : path;
+                var parent = System.IO.Path.GetDirectoryName(trimmed);
+                return !string.IsNullOrEmpty(parent) && System.IO.Directory.Exists(parent);
+            }
+            catch
+            {
+                return false;
+            }
         }
 
-        /// <summary>
-        /// The Jump List "New window" task (JumpListService). It is a command, not a path —
-        /// ExtractFolderArgument falls back to returning the raw string when nothing looks
-        /// like a path, so callers must check this before treating the value as one.
-        /// </summary>
-        internal static bool IsNewWindowArgument(string? arg) =>
-            string.Equals(arg?.Trim().Trim('"'), "--new-window", StringComparison.OrdinalIgnoreCase);
+        [System.Runtime.InteropServices.DllImport("kernel32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+        private static extern IntPtr GetCommandLineW();
 
-        private static string? ExtractFolderArgument(string rawArgs)
+        /// <summary>프로세스의 원본 명령줄(WinAppSDK가 LaunchActivatedEventArgs를 만들 때 쓰는 것과 같은 값).</summary>
+        private static string? GetProcessCommandLine()
         {
-            if (string.IsNullOrWhiteSpace(rawArgs)) return null;
-            rawArgs = rawArgs.Trim();
-
-            // 따옴표로 감싸진 인수들을 파싱
-            var parts = new System.Collections.Generic.List<string>();
-            int i = 0;
-            while (i < rawArgs.Length)
-            {
-                if (rawArgs[i] == '"')
-                {
-                    int end = rawArgs.IndexOf('"', i + 1);
-                    if (end < 0) end = rawArgs.Length;
-                    parts.Add(rawArgs.Substring(i + 1, end - i - 1));
-                    i = end + 1;
-                }
-                else if (rawArgs[i] != ' ')
-                {
-                    int end = rawArgs.IndexOf(' ', i);
-                    if (end < 0) end = rawArgs.Length;
-                    parts.Add(rawArgs.Substring(i, end - i));
-                    i = end;
-                }
-                else { i++; }
-            }
-
-            // 마지막 인수부터 역순으로 폴더/파일 경로 탐색
-            for (int j = parts.Count - 1; j >= 0; j--)
-            {
-                var part = parts[j].Trim().Trim('"');
-                if (!string.IsNullOrEmpty(part)
-                    && (System.IO.Directory.Exists(part) || System.IO.File.Exists(part)
-                        || IsRecycleBinArgument(part) || IsVirtualFolderArgument(part))
-                    && !IsSystemPackagePath(part))
-                    return part;
-            }
-
-            // 단일 인수 (따옴표 없는 경로)
-            var trimmed = rawArgs.Trim().Trim('"');
-            if ((System.IO.Directory.Exists(trimmed) || System.IO.File.Exists(trimmed)) && !IsSystemPackagePath(trimmed)) return trimmed;
-
-            return rawArgs; // fallback: 원본 반환
+            try { return System.Runtime.InteropServices.Marshal.PtrToStringUni(GetCommandLineW()); }
+            catch { return null; }
         }
 
         private static Windows.UI.Color ColorFromHex(string hex)
@@ -617,38 +552,44 @@ namespace Span
                 // Note: args.Arguments is unreliable in WinUI 3 (WindowsAppSDK #1619)
                 // Use AppLifecycle API instead
                 StartupArguments = null;
+                StartupSelect = false;
                 try
                 {
                     var activatedArgs = Microsoft.Windows.AppLifecycle.AppInstance.GetCurrent().GetActivatedEventArgs();
                     Helpers.DebugLogger.Log($"[App] Activation kind: {activatedArgs.Kind}");
+                    var request = Helpers.LaunchRequest.Empty;
                     if (activatedArgs.Kind == Microsoft.Windows.AppLifecycle.ExtendedActivationKind.Launch)
                     {
+                        // AppExecutionAlias 경유 시 전체 커맨드라인이 온다:
+                        // "C:\...\spanfinder.exe" "D:\folder" → 폴더 경로만 추출
                         var launchData = activatedArgs.Data as Windows.ApplicationModel.Activation.ILaunchActivatedEventArgs;
                         Helpers.DebugLogger.Log($"[App] LaunchData.Arguments: '{launchData?.Arguments}'");
-                        if (!string.IsNullOrEmpty(launchData?.Arguments))
-                        {
-                            // AppExecutionAlias 경유 시 전체 커맨드라인이 옴:
-                            // "C:\...\spanfinder.exe" "D:\folder" → 폴더 경로만 추출
-                            var rawArgs = launchData.Arguments;
-                            StartupArguments = ExtractFolderArgument(rawArgs);
-                        }
+                        request = ParseLaunchArguments(launchData?.Arguments);
                     }
 
-                    // Fallback: Environment.GetCommandLineArgs (AppExecutionAlias 대응)
-                    if (string.IsNullOrEmpty(StartupArguments))
+                    // Fallback: LaunchData가 비는 경우(WindowsAppSDK #1619). 프로세스 원본 명령줄을 같은 규칙으로 해석한다.
+                    // Environment.CommandLine/GetCommandLineArgs는 쓰지 않는다: apphost 앱에서는 argv0이 실제 exe가
+                    // 아니라 "…\Span.dll"이라(실측) 그 dll이 파일 인자로 읽혀 AppX 폴더가 열렸고, .NET 인자 분리는
+                    // "C:\"를 C:"로 깨뜨린다.
+                    if (request.Kind == Helpers.LaunchKind.None)
                     {
-                        var cmdArgs = Environment.GetCommandLineArgs();
-                        Helpers.DebugLogger.Log($"[App] CommandLineArgs count: {cmdArgs.Length}, values: [{string.Join(", ", cmdArgs)}]");
-                        if (cmdArgs.Length > 1)
-                        {
-                            var folderArg = cmdArgs[1].Trim().Trim('"');
-                            if ((System.IO.Directory.Exists(folderArg)
-                                || System.IO.File.Exists(folderArg)
-                                || IsRecycleBinArgument(folderArg)
-                                || IsVirtualFolderArgument(folderArg))
-                                && !IsSystemPackagePath(folderArg))
-                                StartupArguments = folderArg;
-                        }
+                        var commandLine = GetProcessCommandLine();
+                        Helpers.DebugLogger.Log($"[App] CommandLine: '{commandLine}'");
+                        request = ParseLaunchArguments(commandLine);
+                    }
+
+                    switch (request.Kind)
+                    {
+                        case Helpers.LaunchKind.NewWindow:
+                            StartupArguments = Helpers.LaunchArguments.NewWindowFlag;
+                            break;
+                        case Helpers.LaunchKind.Path:
+                            StartupArguments = request.Path;
+                            break;
+                        case Helpers.LaunchKind.Select:
+                            StartupArguments = request.Path;
+                            StartupSelect = true;
+                            break;
                     }
                 }
                 catch (Exception ex)
@@ -656,7 +597,7 @@ namespace Span
                     Helpers.DebugLogger.Log($"[App] Activation args check failed: {ex.Message}");
                 }
                 if (StartupArguments != null)
-                    Helpers.DebugLogger.Log($"[App] Final StartupArguments: {StartupArguments}");
+                    Helpers.DebugLogger.Log($"[App] Final StartupArguments: {StartupArguments}{(StartupSelect ? " (select)" : "")}");
 
                 // 가상 폴더(제어판 등)는 창 생성 없이 explorer.exe로 위임 후 즉시 종료
                 if (!string.IsNullOrEmpty(StartupArguments) && IsVirtualFolderArgument(StartupArguments))
@@ -670,6 +611,17 @@ namespace Span
                 m_window = new MainWindow();
                 RegisterWindow(m_window);
                 m_window.Activate();
+
+                // 안전장치: 첫 창의 Loaded가 예외로 끝나 시작 완료 신호가 오지 않아도, 보관된 활성화가
+                // 영영 처리되지 않는 일은 없게 한다(기본 파일 관리자 사용자는 폴더 열기 전체가 막힌다).
+                var startupWindow = m_window;
+                _ = System.Threading.Tasks.Task.Delay(TimeSpan.FromSeconds(15)).ContinueWith(_ =>
+                    startupWindow.DispatcherQueue?.TryEnqueue(() =>
+                    {
+                        if (!IsActivationReady)
+                            Helpers.DebugLogger.Log("[App] Startup completion signal not received in 15s — releasing queued activations");
+                        OnMainWindowStartupComplete();
+                    }));
             }
             catch (Exception ex)
             {
@@ -686,6 +638,39 @@ namespace Span
         /// </summary>
         internal static string? StartupArguments { get; set; }
 
+        /// <summary>StartupArguments가 --select로 왔는지. 폴더여도 들어가지 않고 부모에서 선택한다.</summary>
+        internal static bool StartupSelect { get; set; }
+
+        // ── 콜드 스타트 중 도착한 활성화 보관 ──
+        // 첫 창이 세션 복원을 마치기 전에 온 리다이렉트는 여기 쌓았다가 그 뒤에 처리한다.
+        // 이전에는 창이 없으면 버렸고(폴더가 열리지 않음), 창은 있지만 Loaded 전이면 세션 복원보다 먼저
+        // 새 탭을 만들었다. SPAN이 꺼져 있을 때 폴더 두 개를 연달아 열면 두 번째가 사라지던 경로다.
+        private readonly object _activationLock = new();
+        private readonly System.Collections.Generic.List<Helpers.LaunchRequest> _pendingActivations = new();
+        private bool _activationReady;
+
+        private bool IsActivationReady { get { lock (_activationLock) return _activationReady; } }
+
+        /// <summary>
+        /// 첫 MainWindow가 시작 처리(세션 복원, 시작 인자 소비)를 마쳤을 때 호출된다. 보관된 활성화를
+        /// 도착 순서대로 처리한다. 여러 번 불려도 한 번만 동작한다.
+        /// </summary>
+        internal void OnMainWindowStartupComplete()
+        {
+            lock (_activationLock)
+            {
+                if (_activationReady) return;
+                _activationReady = true;
+                if (_pendingActivations.Count > 0)
+                    Helpers.DebugLogger.Log($"[App] Replaying {_pendingActivations.Count} activation(s) queued during startup");
+                // 재생도 lock 안에서 디스패처 큐에 넣는다(TryEnqueue는 블로킹하지 않는다). lock을 푼 사이에
+                // 새로 온 활성화가 먼저 큐에 들어가 순서가 뒤집히지 않게 한다.
+                foreach (var request in _pendingActivations)
+                    DispatchActivation(request);
+                _pendingActivations.Clear();
+            }
+        }
+
         /// <summary>
         /// Single instance 모드: 다른 프로세스에서 리다이렉트된 활성화 이벤트 처리.
         /// 기존 창을 포그라운드로 활성화하고 폴더 경로를 새 탭으로 엽니다.
@@ -694,24 +679,58 @@ namespace Span
         {
             try
             {
-                string? folderPath = null;
-
+                var request = Helpers.LaunchRequest.Empty;
                 if (args.Kind == ExtendedActivationKind.Launch)
                 {
                     var launchData = args.Data as Windows.ApplicationModel.Activation.ILaunchActivatedEventArgs;
-                    if (!string.IsNullOrEmpty(launchData?.Arguments))
-                        folderPath = ExtractFolderArgument(launchData.Arguments);
+                    request = ParseLaunchArguments(launchData?.Arguments);
                 }
+
+                // 가상 폴더는 창 활성화 없이 explorer.exe로 바로 위임 (창 준비 여부와 무관)
+                if (request.Kind == Helpers.LaunchKind.Path && IsVirtualFolderArgument(request.Path))
+                {
+                    DelegateToExplorer(request.Path!);
+                    Helpers.DebugLogger.Log($"[App] Redirected: virtual folder → explorer.exe (no activation): {request.Path}");
+                    return;
+                }
+
+                // --select 대상 확인은 여기(백그라운드 스레드)서 한다. UI 콜백에서 처음 확인하면 오프라인 UNC에서
+                // 첫 확인이 수십 초 걸려 창이 멈춘다. 항목이 없어도 부모가 있으면 부모를 연다(콜드 스타트와 같은 규칙).
+                if (request.Kind == Helpers.LaunchKind.Select && !IsSelectTargetReachable(request.Path))
+                {
+                    Helpers.DebugLogger.Log($"[App] Redirected: select target not found: {request.Path}");
+                    return;
+                }
+
+                lock (_activationLock)
+                {
+                    if (!_activationReady)
+                    {
+                        _pendingActivations.Add(request);
+                        Helpers.DebugLogger.Log($"[App] Redirected activation queued until startup completes: {request}");
+                        return;
+                    }
+                    // 재생과 같은 lock 안에서 큐에 넣어 도착 순서를 지킨다
+                    DispatchActivation(request);
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[App] OnAppActivated error: {ex.Message}");
+            }
+        }
+
+        private void DispatchActivation(Helpers.LaunchRequest request)
+        {
+            try
+            {
+                var folderPath = request.Path;
 
                 // UI 스레드에서 처리
                 var mainWindow = GetMainWindow();
-                if (mainWindow == null) return;
-
-                // 가상 폴더는 창 활성화 없이 explorer.exe로 바로 위임
-                if (!string.IsNullOrEmpty(folderPath) && IsVirtualFolderArgument(folderPath))
+                if (mainWindow == null)
                 {
-                    DelegateToExplorer(folderPath);
-                    Helpers.DebugLogger.Log($"[App] Redirected: virtual folder → explorer.exe (no activation): {folderPath}");
+                    Helpers.DebugLogger.Log($"[App] Redirected activation dropped — no main window: {request}");
                     return;
                 }
 
@@ -719,7 +738,7 @@ namespace Span
                 // 기존 창을 건드리지 않고 새 창만 만든다 — 아래 포그라운드 처리 뒤에 두면
                 // 한 디스패처 틱에서 Activate가 두 번 일어나고, 새 창이 뜨자마자 사라지거나
                 // 종료 시 XAML에서 크래시가 났다(실측: 0xc000027b in Microsoft.UI.Xaml.dll).
-                if (IsNewWindowArgument(folderPath))
+                if (request.Kind == Helpers.LaunchKind.NewWindow)
                 {
                     mainWindow.DispatcherQueue?.TryEnqueue(() =>
                     {
@@ -758,11 +777,18 @@ namespace Span
                         mainWindow.Activate();
 
                         // 2. 폴더 경로가 있으면 새 탭으로 열기
-                        if (!string.IsNullOrEmpty(folderPath))
+                        if (request.Kind == Helpers.LaunchKind.Select && !string.IsNullOrEmpty(folderPath))
+                        {
+                            // --select: 부모 폴더를 열고 그 항목을 선택. 폴더 항목도 안으로 들어가지 않는다.
+                            // (Directory.Exists 분기보다 먼저 봐야 한다 — 아니면 그 폴더 안으로 들어간다.)
+                            // 대상 확인은 OnAppActivated에서 이미 했다.
+                            mainWindow.HandleRedirectedSelect(folderPath);
+                            Helpers.DebugLogger.Log($"[App] Redirected: select {folderPath}");
+                        }
+                        else if (!string.IsNullOrEmpty(folderPath))
                         {
                             if (IsRecycleBinArgument(folderPath))
                             {
-                                StartupArguments = folderPath;
                                 mainWindow.HandleRecycleBinActivation();
                                 Helpers.DebugLogger.Log("[App] Redirected: opened RecycleBin");
                             }
@@ -773,13 +799,11 @@ namespace Span
                             }
                             else if (System.IO.Directory.Exists(folderPath))
                             {
-                                StartupArguments = folderPath;
                                 mainWindow.HandleRedirectedFolder(folderPath);
                                 Helpers.DebugLogger.Log($"[App] Redirected: opened {folderPath} in new tab");
                             }
                             else if (System.IO.File.Exists(folderPath))
                             {
-                                StartupArguments = folderPath;
                                 mainWindow.HandleRedirectedFile(folderPath);
                                 Helpers.DebugLogger.Log($"[App] Redirected: opened file {folderPath}");
                             }
@@ -802,7 +826,7 @@ namespace Span
             }
             catch (Exception ex)
             {
-                Helpers.DebugLogger.Log($"[App] OnAppActivated error: {ex.Message}");
+                Helpers.DebugLogger.Log($"[App] DispatchActivation error: {ex.Message}");
             }
         }
 
