@@ -2012,7 +2012,7 @@
                                                    Text="• 해제 시에도 UAC 승인이 필요합니다. SPAN Finder를 제거하기 전에 반드시 이 설정을 먼저 해제하세요."/>
                                         <TextBlock x:Name="DefaultFMInfo3" TextWrapping="Wrap" FontSize="11"
                                                    Foreground="{ThemeResource SpanTextTertiaryBrush}"
-                                                   Text="ℹ 앱 삭제 시 자동으로 Windows 탐색기로 복원됩니다. 문제가 생기면 삭제 전 '해제' 버튼을 눌러주세요."/>
+                                                   Text="ℹ 이 설정을 해제하지 않고 앱을 삭제하면 폴더가 열리지 않을 수 있습니다. 그런 경우 SPAN Finder를 다시 설치해 이 설정을 해제하세요."/>
                                     </StackPanel>
                                 </StackPanel>
                             </Border>
@@ -2040,6 +2040,28 @@
                                                 Click="OnExportRestoreReg"
                                                 helpers:CursorHelper.IsHandCursor="True"/>
                                     </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <!-- 이전 버전의 해제가 남긴 빈 shell\open 키 정리 (남아 있을 때만 표시) -->
+                            <Border x:Name="DefaultFMRepairPanel" Style="{StaticResource SettingsCardBorder}" Visibility="Collapsed">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Style="{StaticResource CardIconContainer}">
+                                        <FontIcon Glyph="&#xE90F;" Style="{StaticResource CardIconStyle}" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock x:Name="DefaultFMRepairLabel" Text="폴더 연결 복구" Style="{StaticResource SettingsCardLabel}" />
+                                        <TextBlock x:Name="DefaultFMRepairDesc" Text="이전 기본 파일 관리자 설정이 남긴 항목 때문에 일부 앱에서 폴더 열기가 실패할 수 있습니다. UAC 승인이 필요합니다." Style="{StaticResource SettingsCardDesc}" />
+                                    </StackPanel>
+                                    <Button x:Name="DefaultFMRepairBtn" Grid.Column="2" Content="복구" MinWidth="60"
+                                            VerticalAlignment="Center"
+                                            Click="OnRepairDefaultFMLeftover"
+                                            helpers:CursorHelper.IsHandCursor="True"/>
                                 </Grid>
                             </Border>
 

@@ -289,6 +289,7 @@ public sealed partial class SettingsModeView : UserControl
             if (dfmService != null)
             {
                 DefaultFileManagerToggle.IsOn = dfmService.IsDefault();
+                UpdateDefaultFMRepairPanel(dfmService);
             }
 
             // Git 설치 상태 표시
@@ -826,7 +827,10 @@ public sealed partial class SettingsModeView : UserControl
             DefaultFMDesc.Text = _loc.Get("Settings_DefaultFMDesc") ?? "폴더/드라이브를 열 때 SPAN Finder 사용";
             DefaultFMInfo1.Text = _loc.Get("Settings_DefaultFMInfo1") ?? "• 등록 시 UAC(관리자 권한) 승인이 필요합니다. 승인해야 정상 동작합니다.";
             DefaultFMInfo2.Text = _loc.Get("Settings_DefaultFMInfo2") ?? "• 해제 시에도 UAC 승인이 필요합니다. SPAN Finder를 제거하기 전에 반드시 이 설정을 먼저 해제하세요.";
-            DefaultFMInfo3.Text = _loc.Get("Settings_DefaultFMInfo3") ?? "ℹ 앱 삭제 시 자동으로 Windows 탐색기로 복원됩니다. 문제가 생기면 삭제 전 '해제' 버튼을 눌러주세요.";
+            DefaultFMInfo3.Text = _loc.Get("Settings_DefaultFMInfo3") ?? "ℹ 이 설정을 해제하지 않고 앱을 삭제하면 폴더가 열리지 않을 수 있습니다. 그런 경우 SPAN Finder를 다시 설치해 이 설정을 해제하세요.";
+            DefaultFMRepairLabel.Text = _loc.Get("Settings_DefaultFMRepair") ?? "폴더 연결 복구";
+            DefaultFMRepairDesc.Text = _loc.Get("Settings_DefaultFMRepairDesc") ?? "이전 기본 파일 관리자 설정이 남긴 항목 때문에 일부 앱에서 폴더 열기가 실패할 수 있습니다. UAC 승인이 필요합니다.";
+            DefaultFMRepairBtn.Content = _loc.Get("Settings_DefaultFMRepairButton") ?? "복구";
             DefaultFMExportLabel.Text = _loc.Get("Settings_DefaultFMExport") ?? ".reg 파일 수동 적용";
             DefaultFMExportDesc.Text = _loc.Get("Settings_DefaultFMExportDesc") ?? "자동 등록이 실패한 경우 .reg 파일을 내보내서 직접 실행하세요";
             ExportSetRegBtn.Content = _loc.Get("Settings_DefaultFMExportSet") ?? "등록";
@@ -1865,11 +1869,52 @@ public sealed partial class SettingsModeView : UserControl
                     ? (_loc?.Get("Settings_DefaultFMSet") ?? "기본 파일 관리자로 설정되었습니다")
                     : (_loc?.Get("Settings_DefaultFMUnset") ?? "기본 파일 관리자 설정이 해제되었습니다"));
             }
+            UpdateDefaultFMRepairPanel(service);
         }
         catch (Exception ex)
         {
             Helpers.DebugLogger.Log($"[Settings] DefaultFileManager toggle error: {ex.Message}");
             try { App.Current.Services.GetService<Services.CrashReportingService>()?.CaptureException(ex, "OnDefaultFileManagerToggled"); } catch { }
+        }
+    }
+
+    /// <summary>이전 버전의 해제가 남긴 빈 shell\open 키가 있을 때만 복구 카드를 보인다.</summary>
+    private void UpdateDefaultFMRepairPanel(Services.DefaultFileManagerService service)
+    {
+        bool show = service.HasLeftoverOpenKeys();
+        DefaultFMRepairPanel.Visibility = show
+            ? Microsoft.UI.Xaml.Visibility.Visible
+            : Microsoft.UI.Xaml.Visibility.Collapsed;
+        if (show)
+            Helpers.DebugLogger.Log($"[Settings] Leftover shell\\open keys: {string.Join(",", service.FindLeftoverOpenKeys())}");
+    }
+
+    private async void OnRepairDefaultFMLeftover(object sender, RoutedEventArgs e)
+    {
+        var service = App.Current.Services.GetService<Services.DefaultFileManagerService>();
+        if (service == null) return;
+        try
+        {
+            DefaultFMRepairBtn.IsEnabled = false;
+            bool ok = await service.RemoveLeftoverOpenKeysAsync();
+            if (!ok)
+            {
+                // 표준 사용자 계정에서 다른 관리자 자격으로 승인하면 그 관리자의 HKCU에 적용돼 여기서는 안 지워진다.
+                // 그때 쓸 수 있도록 .reg 수동 적용 패널을 보인다('복원' .reg가 남은 빈 키도 지운다).
+                DefaultFMExportPanel.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
+            }
+            ShowToastFromSettings(ok
+                ? (_loc?.Get("Settings_DefaultFMRepaired") ?? "폴더 연결을 복구했습니다")
+                : (_loc?.Get("Settings_DefaultFMRepairFailed") ?? "복구하지 못했습니다. 아래 '.reg 파일 수동 적용'의 '복원' 파일을 직접 실행하세요."));
+        }
+        catch (Exception ex)
+        {
+            Helpers.DebugLogger.Log($"[Settings] Repair leftover open keys error: {ex.Message}");
+        }
+        finally
+        {
+            DefaultFMRepairBtn.IsEnabled = true;
+            UpdateDefaultFMRepairPanel(service);
         }
     }
 

@@ -231,16 +231,124 @@ Windows Registry Editor Version 5.00
 """;
         }
 
-        /// <summary>복원용 .reg 내용 생성</summary>
+        /// <summary>
+        /// 복원용 .reg 내용 생성.
+        /// v2.0.7까지는 \command만 지워 빈 shell\open 키가 남았고, 그 빈 키가 HKLM의 open 동사를 가려
+        /// ShellExecute(폴더, "open")이 ERROR_NO_ASSOCIATION(1155)으로 실패했다(실측: 기본 동사(NULL)는 성공,
+        /// 명시적 "open"만 실패). 그래서 shell\open에 SPAN이 쓴 command 말고 아무것도 없으면 shell\open 키째
+        /// 지운다. 다른 값이나 하위 키가 있으면(다른 앱·사용자가 둔 것) 예전처럼 command만 지워 그것들을 보존한다.
+        /// shell 키는 다른 앱의 동사가 있을 수 있어 건드리지 않는다.
+        /// </summary>
         private string GenerateRestoreReg()
         {
-            return """
-Windows Registry Editor Version 5.00
+            var sb = new System.Text.StringBuilder("Windows Registry Editor Version 5.00\r\n\r\n");
+            foreach (var cls in ShellOpenClasses)
+            {
+                var openKey = $@"HKEY_CURRENT_USER\Software\Classes\{cls}\shell\open";
+                sb.Append(OpenKeyHoldsOnlySpanCommand(cls)
+                    ? $"[-{openKey}]\r\n"
+                    : $"[-{openKey}\\command]\r\n");
+            }
+            return sb.ToString();
+        }
 
-[-HKEY_CURRENT_USER\Software\Classes\Folder\shell\open\command]
-[-HKEY_CURRENT_USER\Software\Classes\Directory\shell\open\command]
-[-HKEY_CURRENT_USER\Software\Classes\Drive\shell\open\command]
-""";
+        /// <summary>HKCU {cls}\shell\open이 없거나, 값이 없고 하위 키가 command 하나(또는 없음)뿐인지.</summary>
+        private static bool OpenKeyHoldsOnlySpanCommand(string cls)
+        {
+            try
+            {
+                using var key = Registry.CurrentUser.OpenSubKey($@"Software\Classes\{cls}\shell\open");
+                if (key == null) return true;
+                if (key.ValueCount != 0) return false;
+                var subKeys = key.GetSubKeyNames();
+                return subKeys.Length == 0
+                    || (subKeys.Length == 1 && subKeys[0].Equals("command", StringComparison.OrdinalIgnoreCase));
+            }
+            catch
+            {
+                return false; // 판단할 수 없으면 보수적으로 command만 지운다
+            }
+        }
+
+        private static readonly string[] ShellOpenClasses = { "Folder", "Directory", "Drive" };
+
+        /// <summary>
+        /// 이전 버전의 해제가 남긴 빈 shell\open 키(값도 하위 키도 없음)가 있는 클래스 목록.
+        /// 값이나 하위 키가 있는 키는 다른 앱이 쓴 것일 수 있어 대상에서 뺀다.
+        /// </summary>
+        public System.Collections.Generic.List<string> FindLeftoverOpenKeys()
+        {
+            var found = new System.Collections.Generic.List<string>();
+            foreach (var cls in ShellOpenClasses)
+            {
+                try
+                {
+                    using var key = Registry.CurrentUser.OpenSubKey($@"Software\Classes\{cls}\shell\open");
+                    if (key != null && key.ValueCount == 0 && key.SubKeyCount == 0)
+                        found.Add(cls);
+                }
+                catch
+                {
+                    // 읽기 실패는 '없음'으로 본다
+                }
+            }
+            return found;
+        }
+
+        /// <summary>기본 파일 관리자가 꺼져 있는데 빈 shell\open 키가 남아 있는지.</summary>
+        public bool HasLeftoverOpenKeys()
+        {
+            try { return !IsDefault() && FindLeftoverOpenKeys().Count > 0; }
+            catch { return false; }
+        }
+
+        /// <summary>
+        /// 남은 빈 shell\open 키를 지운다. 등록·해제와 같은 방식(regedit /s + runas, UAC)이다 —
+        /// 패키지 앱의 HKCU 쓰기는 가상화되므로 앱이 직접 지울 수 없다.
+        /// </summary>
+        public async Task<bool> RemoveLeftoverOpenKeysAsync()
+        {
+            var classes = FindLeftoverOpenKeys();
+            if (classes.Count == 0) return true;
+
+            try
+            {
+                var lines = new System.Text.StringBuilder("Windows Registry Editor Version 5.00\r\n\r\n");
+                foreach (var cls in classes)
+                    lines.Append($"[-HKEY_CURRENT_USER\\Software\\Classes\\{cls}\\shell\\open]\r\n");
+
+                var tempPath = Path.Combine(Path.GetTempPath(), "SpanCleanupOpenKeys.reg");
+                await File.WriteAllTextAsync(tempPath, lines.ToString());
+
+                var process = Process.Start(new ProcessStartInfo
+                {
+                    FileName = "regedit.exe",
+                    Arguments = $"/s \"{tempPath}\"",
+                    UseShellExecute = true,
+                    Verb = "runas"
+                });
+
+                if (process != null)
+                    await process.WaitForExitAsync();
+
+                try { File.Delete(tempPath); } catch { }
+
+                NotifyShellAssocChanged();
+
+                var remaining = FindLeftoverOpenKeys();
+                Helpers.DebugLogger.Log($"[DefaultFM] Leftover open keys cleanup: {string.Join(",", classes)} → remaining {remaining.Count}");
+                return remaining.Count == 0;
+            }
+            catch (System.ComponentModel.Win32Exception)
+            {
+                // 사용자가 UAC를 취소한 경우
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[DefaultFM] Leftover open keys cleanup failed: {ex.Message}");
+                return false;
+            }
         }
     }
 }
