@@ -288,6 +288,10 @@ public class KeyBindingService
             [ShortcutCommands.ShelfAdd] = ["Ctrl+Shift+B"],
             [ShortcutCommands.ShelfToggle] = ["Ctrl+B"],
 
+            // 경로로 복사 — Windows 11 탐색기와 같은 키. 이전 버전에서 사용자가 Ctrl+Shift+C를 다른 커맨드에
+            // 지정해 두었다면 그 지정이 이긴다(불러올 때 ReleaseKeysClaimedByOverrides가 여기서 키를 뺀다).
+            [ShortcutCommands.CopyAsPath] = ["Ctrl+Shift+C"],
+
             // ── Command Palette (HIDDEN) ──────────────────────────────────────
             // 2026-04-10: Command Palette는 파일 탐색기 워크플로우와 부합하지 않아 숨김 처리됨.
             // 자세한 사유는 MainWindow.CommandPaletteHandler.cs 상단 주석 참조.
@@ -317,6 +321,7 @@ public class KeyBindingService
             var overrideData = JsonSerializer.Deserialize<KeyBindingsJson>(json, _jsonOptions);
             if (overrideData?.Overrides is { Count: > 0 })
             {
+                var overridden = new HashSet<string>(StringComparer.Ordinal);
                 foreach (var entry in overrideData.Overrides)
                 {
                     if (string.IsNullOrWhiteSpace(entry.Command))
@@ -329,7 +334,9 @@ public class KeyBindingService
                     _currentBindings[entry.Command] = entry.Keys != null
                         ? new List<string>(entry.Keys)
                         : new List<string>();
+                    overridden.Add(entry.Command);
                 }
+                ReleaseKeysClaimedByOverrides(overridden);
             }
         }
         catch (Exception ex)
@@ -343,6 +350,34 @@ public class KeyBindingService
         }
 
         RebuildReverseIndex();
+    }
+
+    /// <summary>
+    /// 업데이트로 새 기본 키가 생겼는데 사용자가 그 키를 이미 다른 커맨드에 지정해 두었다면 사용자 지정이 이긴다.
+    /// 기본값 쪽(오버라이드가 없는 커맨드)에서 그 키를 빼서, 설정·도움말에 실제로 동작하는 키만 보이게 한다.
+    /// 예: 경로로 복사(Ctrl+Shift+C)는 이전 버전에서 비어 있던 키라 사용자가 다른 커맨드에 썼을 수 있다.
+    /// 설정 화면은 키가 겹치면 기존 쪽에서 빼므로, 저장된 오버라이드끼리는 겹치지 않는다.
+    /// </summary>
+    private void ReleaseKeysClaimedByOverrides(HashSet<string> overridden)
+    {
+        var claimed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var commandId in overridden)
+        {
+            if (!_currentBindings.TryGetValue(commandId, out var keys)) continue;
+            foreach (var key in keys)
+                if (!string.IsNullOrWhiteSpace(key)) claimed.Add(key);
+        }
+        if (claimed.Count == 0) return;
+
+        foreach (var commandId in _currentBindings.Keys.ToList())
+        {
+            if (overridden.Contains(commandId)) continue;
+            var keys = _currentBindings[commandId];
+            if (!keys.Any(claimed.Contains)) continue;
+
+            _currentBindings[commandId] = keys.Where(k => !claimed.Contains(k)).ToList();
+            DebugLogger.Log($"[KeyBindingService] '{commandId}' default key released — already assigned by the user to another command");
+        }
     }
 
     private void SaveOverrides()

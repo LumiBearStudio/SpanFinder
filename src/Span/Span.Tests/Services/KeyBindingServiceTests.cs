@@ -82,6 +82,13 @@ public class KeyBindingServiceTests
     }
 
     [TestMethod]
+    public void Resolve_CtrlShiftC_CopyAsPath()
+    {
+        var cmd = _service.ResolveCommand(VirtualKey.C, ctrl: true, shift: true, alt: false, scanCode: 0);
+        Assert.AreEqual(ShortcutCommands.CopyAsPath, cmd);
+    }
+
+    [TestMethod]
     public void Resolve_Unbound_ReturnsNull()
     {
         var cmd = _service.ResolveCommand(VirtualKey.Q, ctrl: true, shift: true, alt: true, scanCode: 0);
@@ -273,6 +280,36 @@ public class KeyBindingServiceTests
         var json = _settings.Get<string>("KeyBindingsJson", "MISSING");
         Assert.AreEqual(string.Empty, json,
             "오버라이드가 없으면 JSON 키는 빈 문자열로 클리어되어야 한다");
+    }
+
+    [TestMethod]
+    public void Load_UserKeyCollidingWithNewDefault_UserWins_AndDefaultReleased()
+    {
+        // 이전 버전에서 사용자가 Ctrl+Shift+C를 다른 커맨드에 지정해 둔 경우 — 이후 추가된 기본값(경로로 복사)과 겹친다.
+        _settings.Set("KeyBindingsJson",
+            "{\"version\":1,\"overrides\":[{\"command\":\"span.view.splitView\",\"keys\":[\"Ctrl+Shift+C\"]}]}");
+
+        var fresh = new KeyBindingService(_settings);
+
+        Assert.AreEqual(ShortcutCommands.ToggleSplitView,
+            fresh.ResolveCommand(VirtualKey.C, ctrl: true, shift: true, alt: false, scanCode: 0));
+        // 설정·도움말에 동작하지 않는 키가 보이지 않도록 기본값 쪽에서 빠져야 한다
+        Assert.AreEqual(0, fresh.CloneCurrentBindings()[ShortcutCommands.CopyAsPath].Count);
+        // 사용자가 지정하지 않은 다른 기본값은 그대로
+        CollectionAssert.AreEqual(new[] { "Ctrl+C" }, fresh.CloneCurrentBindings()[ShortcutCommands.Copy]);
+    }
+
+    [TestMethod]
+    public void Load_CopyAsPathRebound_OldKeyFree()
+    {
+        _settings.Set("KeyBindingsJson",
+            "{\"version\":1,\"overrides\":[{\"command\":\"span.edit.copyAsPath\",\"keys\":[\"Ctrl+Alt+C\"]}]}");
+
+        var fresh = new KeyBindingService(_settings);
+
+        Assert.AreEqual(ShortcutCommands.CopyAsPath,
+            fresh.ResolveCommand(VirtualKey.C, ctrl: true, shift: false, alt: true, scanCode: 0));
+        Assert.IsNull(fresh.ResolveCommand(VirtualKey.C, ctrl: true, shift: true, alt: false, scanCode: 0));
     }
 
     [TestMethod]

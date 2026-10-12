@@ -119,6 +119,9 @@
                             <Border Style="{StaticResource ShortcutBadge}"><TextBlock x:Name="Key_Copy" Style="{StaticResource ShortcutKeyText}" Text="Ctrl+C"/></Border>
                             <TextBlock x:Name="DescCopy" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="복사"/></Grid>
                         <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <Border Style="{StaticResource ShortcutBadge}"><TextBlock x:Name="Key_CopyAsPath" Style="{StaticResource ShortcutKeyText}" Text="Ctrl+Shift+C"/></Border>
+                            <TextBlock x:Name="DescCopyAsPath" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="경로로 복사"/></Grid>
+                        <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Border Style="{StaticResource ShortcutBadge}"><TextBlock x:Name="Key_Cut" Style="{StaticResource ShortcutKeyText}" Text="Ctrl+X"/></Border>
                             <TextBlock x:Name="DescCut" Grid.Column="1" Style="{StaticResource ShortcutDescText}" Text="잘라내기"/></Grid>
                         <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>

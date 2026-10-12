@@ -382,7 +382,10 @@ namespace Span
             // Issue #62: 즉시 렌더링 + Flush — 지연 렌더링 콜백이 빈 목록을 넘겨
             // 탐색기에서 CLIPBRD_E_BAD_DATA가 발생하던 문제 해결.
             _suppressNextClipboardChange = true;
-            if (!await Helpers.ClipboardInteropHelper.SetFilesAsync(_clipboardPaths, isCut: false))
+            int clipboardGen = ++_clipboardOpGen;
+            var writeResult = await Helpers.ClipboardInteropHelper.SetFilesAsync(_clipboardPaths, isCut: false);
+            if (!IsLatestClipboardOp(writeResult, clipboardGen)) return;
+            if (writeResult == Helpers.ClipboardWriteResult.Failed)
             {
                 _suppressNextClipboardChange = false;
                 _clipboardPaths.Clear();
@@ -404,6 +407,67 @@ namespace Span
             }
 
             Helpers.DebugLogger.Log($"[Clipboard] Copied {_clipboardPaths.Count} item(s)");
+            UpdateToolbarButtonStates();
+        }
+
+        /// <summary>
+        /// <see cref="Helpers.ClipboardInteropHelper.SetFilesAsync"/>를 기다린 뒤, 이 요청의 결과를 반영해도 되는지 판단한다.
+        /// - 기다리는 사이 이 창에서 더 나중 클립보드 작업이 있었으면 false — 내부 상태는 그 작업의 것이다.
+        /// - Superseded인데 이 창의 나중 작업 때문이 아니면(사이드바·즐겨찾기 "경로 복사", 다른 창의 복사)
+        ///   덮어쓴 쓰기의 ContentChanged가 이 요청의 억제 플래그에 먹혔을 수 있으므로 내부 상태를 직접 비우고 false.
+        /// </summary>
+        private bool IsLatestClipboardOp(Helpers.ClipboardWriteResult result, int clipboardGen)
+        {
+            if (clipboardGen != _clipboardOpGen) return false;
+            if (result == Helpers.ClipboardWriteResult.Superseded)
+            {
+                ResetInternalClipboardState();
+                return false;
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// 경로로 복사 (Ctrl+Shift+C). Windows 11 탐색기와 같은 형식의 텍스트만 넣는다
+        /// (항목마다 큰따옴표, 여러 개면 CRLF). Issue #71로 Ctrl+C가 경로 텍스트를 넣지 않게 되어,
+        /// 경로가 필요할 때 쓰는 정식 수단이다.
+        /// 텍스트 입력 중이면 false를 돌려 텍스트 컨트롤의 기본 동작에 맡긴다.
+        /// </summary>
+        private bool HandleCopyAsPath()
+        {
+            var focused = FocusManager.GetFocusedElement(this.Content.XamlRoot);
+            if (focused is TextBox or RichEditBox or PasswordBox) return false;
+
+            var paths = GetCurrentSelectedItems()
+                .Where(i => i.Name != "..")
+                .Select(i => i.Path);
+            var text = Helpers.PathTextFormatter.FormatQuoted(paths);
+            if (text.Length == 0) return true; // 선택 없음 — Ctrl+C와 같이 아무것도 하지 않는다
+
+            if (!Helpers.ClipboardInteropHelper.SetText(text))
+            {
+                ViewModel.ShowToast(_loc.Get("Toast_ClipboardFailed"));
+                return true;
+            }
+            ResetInternalClipboardState();
+            ViewModel.ShowToast(_loc.Get("Toast_PathCopied"), 2000);
+            return true;
+        }
+
+        /// <summary>
+        /// 내부 복사/잘라내기 상태를 비운다. 이 창이 경로 텍스트를 쓴 뒤, 또는 이 창의 파일 복사가
+        /// 밖의 쓰기에 밀렸을 때(<see cref="IsLatestClipboardOp"/>) 부른다. 시스템 클립보드에 이 창의
+        /// 파일이 더는 없기 때문이다. ContentChanged 이벤트에만 맡기지 않는 이유: 진행 중인 파일 복사가
+        /// 켜 둔 _suppressNextClipboardChange가 그 쓰기의 이벤트를 삼키면 상태가 남아, 클립보드는
+        /// 텍스트인데 SPAN 안 Ctrl+V가 잘라낸 파일을 이동시킨다.
+        /// </summary>
+        private void ResetInternalClipboardState()
+        {
+            _clipboardOpGen++;
+            _suppressNextClipboardChange = false;
+            ClearCutState();
+            _clipboardPaths.Clear();
+            _isCutOperation = false;
             UpdateToolbarButtonStates();
         }
 
@@ -435,7 +499,10 @@ namespace Span
 
             // Issue #62: 즉시 렌더링 + Flush (HandleCopy와 동일)
             _suppressNextClipboardChange = true;
-            if (!await Helpers.ClipboardInteropHelper.SetFilesAsync(_clipboardPaths, isCut: true))
+            int clipboardGen = ++_clipboardOpGen;
+            var writeResult = await Helpers.ClipboardInteropHelper.SetFilesAsync(_clipboardPaths, isCut: true);
+            if (!IsLatestClipboardOp(writeResult, clipboardGen)) return;
+            if (writeResult == Helpers.ClipboardWriteResult.Failed)
             {
                 _suppressNextClipboardChange = false;
                 ClearCutState();

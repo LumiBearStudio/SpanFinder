@@ -349,7 +349,7 @@ namespace Span.Services
                 menu.Items.Add(CreateItem(_loc.Get("Rename"), "\uE70F", () => host.PerformRename(file), "M"));
                 menu.Items.Add(new MenuFlyoutSeparator());
 
-                menu.Items.Add(CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => _shellService.CopyPathToClipboard(file.Path), "H"));
+                menu.Items.Add(CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => host.PerformCopyPath(file.Path), "H"));
                 menu.Items.Add(new MenuFlyoutSeparator());
                 menu.Items.Add(CreateItem(_loc.Get("Properties"), "\uE946", () => ShowProperties(file), "R"));
             }
@@ -404,7 +404,7 @@ namespace Span.Services
                     menu.Items.Add(new MenuFlyoutSeparator());
                 }
 
-                menu.Items.Add(CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => _shellService.CopyPathToClipboard(file.Path), "H"));
+                menu.Items.Add(CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => host.PerformCopyPath(file.Path), "H"));
                 if (!isArchive)
                 {
                     menu.Items.Add(CreateItem(_loc.Get("OpenInExplorer"), "\uED25", () => _shellService.OpenInExplorer(file.Path), "L"));
@@ -485,7 +485,7 @@ namespace Span.Services
                 menu.Items.Add(new MenuFlyoutSeparator());
             }
 
-            menu.Items.Add(CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => _shellService.CopyPathToClipboard(folder.Path), "H"));
+            menu.Items.Add(CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => host.PerformCopyPath(folder.Path), "H"));
 
             if (!isRemote && !isArchive)
             {

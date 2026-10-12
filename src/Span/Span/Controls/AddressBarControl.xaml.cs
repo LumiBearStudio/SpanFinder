@@ -378,6 +378,8 @@ namespace Span.Controls
             }
             _lastUserInput = null;
 
+            // "경로로 복사"(Ctrl+Shift+C)나 탐색기에서 복사한 "C:\경로" 형태를 그대로 붙여넣어도 이동되게
+            path = Helpers.PathTextFormatter.StripEnclosingQuotes(path);
             if (string.IsNullOrEmpty(path)) return;
             path = Environment.ExpandEnvironmentVariables(path);
             PathNavigated?.Invoke(this, path);

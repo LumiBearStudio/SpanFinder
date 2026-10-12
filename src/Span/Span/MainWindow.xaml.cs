@@ -380,6 +380,12 @@ namespace Span
         /// (자기 이벤트로 방금 넣은 내부 상태를 지우면 안 됨)
         /// </summary>
         private bool _suppressNextClipboardChange;
+
+        /// <summary>
+        /// 이 창에서 시작한 클립보드 작업(파일 복사·잘라내기, 경로 복사)의 세대.
+        /// SetFilesAsync를 기다리는 사이 이 창에서 더 나중 작업이 있었는지 가린다(<see cref="IsLatestClipboardOp"/>).
+        /// </summary>
+        private int _clipboardOpGen;
         private readonly List<ViewModels.FileSystemViewModel> _cutItems = new();
 
         // Rename 완료 직후 Enter가 파일 실행으로 이어지는 것을 방지
@@ -6158,7 +6164,7 @@ namespace Span
         bool Services.IContextMenuHost.HasClipboardContent
             => _clipboardPaths.Count > 0 || Helpers.Win32ClipboardHelper.HasFileDrop();
 
-        void Services.IContextMenuHost.PerformCut(string path)
+        async void Services.IContextMenuHost.PerformCut(string path)
         {
             if (Helpers.ArchivePathHelper.IsArchivePath(path)) { ViewModel.ShowToast(_loc.Get("Toast_ArchiveReadOnly")); return; }
 
@@ -6175,24 +6181,29 @@ namespace Span
                 _clipboardPaths.Add(p);
             _isCutOperation = true;
 
-            var dataPackage = new DataPackage();
-            dataPackage.RequestedOperation = DataPackageOperation.Move;
-            dataPackage.SetText(string.Join("\n", _clipboardPaths));
-
-            // Provide StorageItems for Windows Explorer compatibility
-            var capturedPaths = new List<string>(_clipboardPaths);
-            dataPackage.SetDataProvider(StandardDataFormats.StorageItems, request =>
+            // Issue #71: Ctrl+X(HandleCut)와 같은 헬퍼로 쓴다. 예전에는 경로 텍스트 + 지연 StorageItems였고
+            // Flush와 _suppressNextClipboardChange가 없었다 — 파일 대화상자에 T"T"가 붙여넣어지고,
+            // SPAN을 닫으면 파일 데이터가 사라졌으며, 자기 쓰기를 외부 변경으로 오인해
+            // 잘라내기 상태(_clipboardPaths·반투명 효과)가 바로 초기화됐다.
+            _suppressNextClipboardChange = true;
+            int clipboardGen = ++_clipboardOpGen;
+            var writeResult = await Helpers.ClipboardInteropHelper.SetFilesAsync(_clipboardPaths, isCut: true);
+            if (!IsLatestClipboardOp(writeResult, clipboardGen)) return;
+            if (writeResult == Helpers.ClipboardWriteResult.Failed)
             {
-                var deferral = request.GetDeferral();
-                _ = Helpers.ViewDragDropHelper.ProvideStorageItemsAsync(request, capturedPaths, deferral);
-            });
-
-            Clipboard.SetContent(dataPackage);
+                _suppressNextClipboardChange = false;
+                ClearCutState();
+                _clipboardPaths.Clear();
+                _isCutOperation = false;
+                UpdateToolbarButtonStates();
+                ViewModel.ShowToast(_loc.Get("Toast_ClipboardFailed"));
+                return;
+            }
             Helpers.DebugLogger.Log($"[ContextMenu] Cut: {_clipboardPaths.Count} item(s)");
             UpdateToolbarButtonStates();
         }
 
-        void Services.IContextMenuHost.PerformCopy(string path)
+        async void Services.IContextMenuHost.PerformCopy(string path)
         {
             // 이전 잘라내기 항목의 반투명 효과 해제
             ClearCutState();
@@ -6205,21 +6216,35 @@ namespace Span
                 _clipboardPaths.Add(p);
             _isCutOperation = false;
 
-            var dataPackage = new DataPackage();
-            dataPackage.RequestedOperation = DataPackageOperation.Copy;
-            dataPackage.SetText(string.Join("\n", _clipboardPaths));
-
-            // Provide StorageItems for Windows Explorer compatibility
-            var capturedPaths = new List<string>(_clipboardPaths);
-            dataPackage.SetDataProvider(StandardDataFormats.StorageItems, request =>
+            // Issue #71: Ctrl+C(HandleCopy)와 같은 헬퍼로 쓴다 (PerformCut 주석 참고).
+            // 압축 내부 항목도 Ctrl+C처럼 임시 폴더에 꺼내 넣는다(Issue #64).
+            _suppressNextClipboardChange = true;
+            int clipboardGen = ++_clipboardOpGen;
+            var writeResult = await Helpers.ClipboardInteropHelper.SetFilesAsync(_clipboardPaths, isCut: false);
+            if (!IsLatestClipboardOp(writeResult, clipboardGen)) return;
+            if (writeResult == Helpers.ClipboardWriteResult.Failed)
             {
-                var deferral = request.GetDeferral();
-                _ = Helpers.ViewDragDropHelper.ProvideStorageItemsAsync(request, capturedPaths, deferral);
-            });
-
-            Clipboard.SetContent(dataPackage);
+                _suppressNextClipboardChange = false;
+                _clipboardPaths.Clear();
+                UpdateToolbarButtonStates();
+                ViewModel.ShowToast(_loc.Get("Toast_ClipboardFailed"));
+                return;
+            }
             Helpers.DebugLogger.Log($"[ContextMenu] Copy: {_clipboardPaths.Count} item(s)");
             UpdateToolbarButtonStates();
+        }
+
+        void Services.IContextMenuHost.PerformCopyPath(string path)
+        {
+            // 우클릭 "경로 복사": 따옴표 없이(예전과 같음). 여러 항목을 골랐으면 모두 CRLF로 잇는다.
+            var text = Helpers.PathTextFormatter.FormatPlain(GetSelectedPathsForContextMenu(path));
+            if (text.Length == 0) return;
+            if (!Helpers.ClipboardInteropHelper.SetText(text))
+            {
+                ViewModel.ShowToast(_loc.Get("Toast_ClipboardFailed"));
+                return;
+            }
+            ResetInternalClipboardState();
         }
 
         async void Services.IContextMenuHost.PerformPaste(string targetFolderPath)

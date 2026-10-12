@@ -54,6 +54,7 @@
     <Compile Include="..\Span\Helpers\SearchQueryParser.cs" Link="Sources\Helpers\SearchQueryParser.cs" />
     <Compile Include="..\Span\Helpers\WildcardRegex.cs" Link="Sources\Helpers\WildcardRegex.cs" />
     <Compile Include="..\Span\Helpers\LaunchArguments.cs" Link="Sources\Helpers\LaunchArguments.cs" />
+    <Compile Include="..\Span\Helpers\PathTextFormatter.cs" Link="Sources\Helpers\PathTextFormatter.cs" />
     <Compile Include="..\Span\Helpers\HangulSearchHelper.cs" Link="Sources\Helpers\HangulSearchHelper.cs" />
     <Compile Include="..\Span\Helpers\DebugLogger.cs" Link="Sources\Helpers\DebugLogger.cs" />
     <Compile Include="..\Span\Helpers\ZipEntryNameEncoding.cs" Link="Sources\Helpers\ZipEntryNameEncoding.cs" />

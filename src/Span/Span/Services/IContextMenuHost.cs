@@ -13,6 +13,7 @@ namespace Span.Services
         bool HasClipboardContent { get; }
         void PerformCut(string path);
         void PerformCopy(string path);
+        void PerformCopyPath(string path);
         void PerformPaste(string targetFolderPath);
         void PerformDelete(string path, string itemName);
         void PerformRename(FileSystemViewModel item);

@@ -903,6 +903,7 @@
             ("Shortcut_Search", "Search", "검색", "検索", "搜索", "搜尋", "Suche", "Buscar", "Rechercher", "Pesquisar"),
             ("Shortcut_FilterBar", "Filter", "필터", "フィルター", "筛选", "篩選", "Filter", "Filtro", "Filtre", "Filtro"),
             ("Shortcut_Copy", "Copy", "복사", "コピー", "复制", "複製", "Kopieren", "Copiar", "Copier", "Copiar"),
+            ("Shortcut_CopyAsPath", "Copy as path", "경로로 복사", "パスのコピー", "复制文件地址", "複製為路徑", "Als Pfad kopieren", "Copiar como ruta de acceso", "Copier en tant que chemin d'accès", "Copiar como caminho"),
             ("Shortcut_Cut", "Cut", "잘라내기", "切り取り", "剪切", "剪下", "Ausschneiden", "Cortar", "Couper", "Recortar"),
             ("Shortcut_Paste", "Paste", "붙여넣기", "貼り付け", "粘贴", "貼上", "Einfügen", "Pegar", "Coller", "Colar"),
             ("Shortcut_PasteAsShortcut", "Paste as shortcut", "바로가기로 붙여넣기", "ショートカットとして貼り付け", "粘贴为快捷方式", "貼上為捷徑", "Als Verknüpfung einfügen", "Pegar como acceso directo", "Coller comme raccourci", "Colar como atalho"),

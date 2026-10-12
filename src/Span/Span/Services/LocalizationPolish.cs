@@ -754,6 +754,7 @@ namespace Span.Services
                 ["Shortcut_Search"] = "Wyszukiwanie",
                 ["Shortcut_FilterBar"] = "Filtr",
                 ["Shortcut_Copy"] = "Kopiuj",
+                ["Shortcut_CopyAsPath"] = "Kopiuj jako ścieżkę",
                 ["Shortcut_Cut"] = "Wytnij",
                 ["Shortcut_Paste"] = "Wklej",
                 ["Shortcut_PasteAsShortcut"] = "Wklej jako skrót",

@@ -138,9 +138,8 @@ namespace Span.Services
         {
             try
             {
-                var dataPackage = new DataPackage();
-                dataPackage.SetText(path);
-                Clipboard.SetContent(dataPackage);
+                // 파일 복사와 순번을 공유하는 쓰기 — 진행 중인 파일 복사가 나중에 이 텍스트를 덮어쓰지 않게
+                Helpers.ClipboardInteropHelper.SetText(path);
             }
             catch (Exception ex)
             {
