@@ -955,6 +955,11 @@ namespace Span.ViewModels
         private string _sortBy = s_defaultSortBy;
         private bool _sortAscending = s_defaultSortAscending;
 
+        /// <summary>현재 정렬 기준("Name", "DateModified", "Size", "Type").</summary>
+        public string CurrentSortBy => _sortBy;
+        /// <summary>현재 정렬 방향.</summary>
+        public bool CurrentSortAscending => _sortAscending;
+
         // 앱 전체 기본값 (LocalSettings에서 1회 로드)
         private static string s_defaultSortBy = "Name";
         private static bool s_defaultSortAscending = true;

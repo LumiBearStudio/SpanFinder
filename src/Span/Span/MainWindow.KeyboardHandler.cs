@@ -1526,7 +1526,7 @@ namespace Span
                 else
                 {
                     var shellService = App.Current.Services.GetRequiredService<Services.ShellService>();
-                    shellService.OpenFile(fileVm.Path);
+                    shellService.OpenFileFromFolderView(fileVm.Path, currentColumn);
                 }
             }
         }

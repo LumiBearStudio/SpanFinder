@@ -40,6 +40,56 @@ namespace Span.Services
             }
         }
 
+        /// <summary>
+        /// 폴더 뷰(목록)에서 파일을 열 때 쓴다. Issue #72: 기본 앱이 사진 앱인 로컬 이미지는 탐색기처럼
+        /// 폴더 보기 문맥과 함께 열어, 사진 앱에서 ←/→로 같은 폴더의 다른 사진으로 넘어가게 한다
+        /// (다운로드한 사진도 확인 창 없이, SPAN의 정렬 순서대로). 그 밖의 파일이거나 실패하면 <see cref="OpenFile"/>과 같다.
+        /// </summary>
+        /// <param name="folder">파일이 보이는 폴더(표시 순서·위치를 넘기는 데 쓴다). 모르면 null — 이름순으로 이동.</param>
+        public void OpenFileFromFolderView(string filePath, ViewModels.FolderViewModel? folder)
+        {
+            if (string.IsNullOrWhiteSpace(filePath)) return;
+            if (!Helpers.FolderContextLauncher.IsApplicable(filePath))
+            {
+                OpenFile(filePath);
+                return;
+            }
+
+            FileOpening?.Invoke(System.IO.Path.GetFileName(filePath));
+
+            string? sortBy = null;
+            bool ascending = true;
+            int index = 0;
+            if (folder != null)
+            {
+                // 화면에 보이는 순서를 넘긴다. Details 보기는 정렬을 따로 가지고 Children 순서만 바꾸므로
+                // 폴더의 정렬 상태 대신 실제 순서에서 판별한다(맞는 게 없으면 폴더의 정렬 상태).
+                var children = folder.Children;
+                var files = new System.Collections.Generic.List<Helpers.FolderContextLauncher.SortProbe>(children.Count);
+                for (int i = 0; i < children.Count; i++)
+                {
+                    var child = children[i];
+                    if (string.Equals(child.Path, filePath, StringComparison.OrdinalIgnoreCase)) index = i;
+                    if (child is ViewModels.FileViewModel)
+                        files.Add(new Helpers.FolderContextLauncher.SortProbe(child.Name, child.DateModifiedValue, child.SizeValue, child.FileType));
+                }
+                (sortBy, ascending) = Helpers.FolderContextLauncher.DetectDisplayedSort(files, folder.CurrentSortBy, folder.CurrentSortAscending);
+            }
+            _ = OpenWithFolderContextAsync(filePath, sortBy, ascending, index);
+        }
+
+        private static async Task OpenWithFolderContextAsync(string filePath, string? sortBy, bool ascending, int index)
+        {
+            bool opened = false;
+            try { opened = await Helpers.FolderContextLauncher.TryOpenAsync(filePath, sortBy, ascending, index); }
+            catch (Exception ex) { Helpers.DebugLogger.Log($"[ShellService] OpenFileFromFolderView error: {ex.Message}"); }
+            if (opened) return;
+
+            // 폴백: 예전과 같은 열기 (사진 한 장만 열린다)
+            try { Process.Start(new ProcessStartInfo(filePath) { UseShellExecute = true }); }
+            catch (Exception ex) { Helpers.DebugLogger.Log($"[ShellService] OpenFile fallback error: {ex.Message}"); }
+        }
+
         public async Task OpenWithAsync(string filePath)
         {
             try

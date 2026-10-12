@@ -61,7 +61,7 @@ namespace Span.Helpers
                     else
                     {
                         var shellService = App.Current.Services.GetRequiredService<Services.ShellService>();
-                        shellService.OpenFile(file.Path);
+                        shellService.OpenFileFromFolderView(file.Path, explorer?.CurrentFolder);
                         DebugLogger.Log($"[{viewName}] Opening file {file.Name}");
                     }
                 }

@@ -5588,7 +5588,7 @@ namespace Span
                     {
                         // Open file with default application via ShellExecute (faster than WinRT Launcher)
                         var shellService = App.Current.Services.GetRequiredService<ShellService>();
-                        shellService.OpenFile(file.Path);
+                        shellService.OpenFileFromFolderView(file.Path, folderVm);
                         Helpers.DebugLogger.Log($"[MainWindow] Miller Column DoubleClick: Opening file {file.Name}");
                     }
                 }
@@ -6441,7 +6441,8 @@ namespace Span
                 else
                 {
                     var shellService = App.Current.Services.GetRequiredService<ShellService>();
-                    shellService.OpenFile(file.Path);
+                    var parentCol = ViewModel.ActiveExplorer?.Columns.FirstOrDefault(c => c.Children.Contains(file));
+                    shellService.OpenFileFromFolderView(file.Path, parentCol);
                 }
             }
         }
