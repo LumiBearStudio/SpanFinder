@@ -17,6 +17,7 @@ namespace Span.Models
         public const string AddressBarFocus = "span.navigate.addressBar";
         public const string Search = "span.navigate.search";
         public const string FilterBar = "span.navigate.filterBar";
+        public const string AddFavorite = "span.navigate.addFavorite";
 
         // ── Edit ────────────────────────────────────────────────
         public const string Copy = "span.edit.copy";
@@ -160,6 +161,7 @@ namespace Span.Models
             { AddressBarFocus, "Navigation" },
             { Search, "Navigation" },
             { FilterBar, "Navigation" },
+            { AddFavorite, "Navigation" },
             // Edit
             { Copy, "Edit" },
             { CopyAsPath, "Edit" },
@@ -292,6 +294,7 @@ namespace Span.Models
             { AddressBarFocus, "Shortcut_AddressBarFocus" },
             { Search, "Shortcut_Search" },
             { FilterBar, "Shortcut_FilterBar" },
+            { AddFavorite, "Shortcut_AddFavorite" },
             // Edit
             { Copy, "Shortcut_Copy" },
             { CopyAsPath, "Shortcut_CopyAsPath" },

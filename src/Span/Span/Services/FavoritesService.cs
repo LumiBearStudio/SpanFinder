@@ -4,39 +4,51 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text.Json;
-using Microsoft.Extensions.DependencyInjection;
 using Span.Models;
 
 namespace Span.Services
 {
     /// <summary>
-    /// 즐겨찾기 서비스 구현. Windows Quick Access Shell Namespace를 통해
-    /// 고정된 폴더 목록을 읽고, Shell COM verb(pintohome/unpinfromhome)로 추가/제거한다.
+    /// 즐겨찾기 서비스 구현. Span 자체 목록(favorites.json)을 source of truth로 사용한다.
+    /// 첫 실행 시 Windows Quick Access에 고정된 폴더를 한 번만 가져오며(마이그레이션),
+    /// 이후 추가/제거는 Quick Access(탐색기)에 영향을 주지 않는다. 폴더와 파일 모두 지원.
     /// </summary>
     public class FavoritesService : IFavoritesService
     {
-        // Windows Quick Access shell namespace CLSID
+        // Windows Quick Access shell namespace CLSID (one-time migration only)
         private const string QuickAccessCLSID = "shell:::{679f85cb-0220-4080-b29b-5540cc05aab6}";
+        // Legacy Quick Access order (migration only)
         private const string FavoritesOrderKey = "FavoritesOrderJson";
+        private const string SettingsKey = "FavoritesJson";
+        private readonly string _storePath;
+
+        public FavoritesService()
+        {
+            _storePath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "Span",
+                "favorites.json");
+        }
 
         public List<FavoriteItem> LoadFavorites()
         {
-            try
+            var entries = LoadEntries();
+            if (entries == null)
             {
-                var favorites = ReadQuickAccess();
-                if (favorites.Count > 0)
-                {
-                    favorites = ApplySavedOrder(favorites);
-                    Helpers.DebugLogger.Log($"[FavoritesService] Loaded {favorites.Count} items from Quick Access");
-                    return favorites;
-                }
-            }
-            catch (Exception ex)
-            {
-                Helpers.DebugLogger.Log($"[FavoritesService] Quick Access read failed: {ex.Message}");
+                entries = MigrateFromQuickAccess();
+                SaveEntries(entries);
+                Helpers.DebugLogger.Log($"[FavoritesService] Migrated {entries.Count} items from Quick Access");
             }
 
-            return GetDefaultFavorites();
+            var favorites = new List<FavoriteItem>(entries.Count);
+            foreach (var entry in entries)
+            {
+                if (string.IsNullOrWhiteSpace(entry.Path)) continue;
+                if (favorites.Any(f => IsSamePath(f.Path, entry.Path))) continue;
+                favorites.Add(CreateItem(entry, favorites.Count));
+            }
+            Helpers.DebugLogger.Log($"[FavoritesService] Loaded {favorites.Count} favorites");
+            return favorites;
         }
 
         public List<FavoriteItem> GetDefaultFavorites()
@@ -51,7 +63,7 @@ namespace Span.Services
                 {
                     Name = LocalizationService.L("Favorites_Desktop"),
                     Path = desktopPath,
-                    IconGlyph = (IconService.Current?.FolderGlyph ?? "\uED53"),
+                    IconGlyph = (IconService.Current?.FolderGlyph ?? ""),
                     IconColor = "#6FA8DC",
                     Order = order++
                 });
@@ -65,7 +77,7 @@ namespace Span.Services
                 {
                     Name = LocalizationService.L("Favorites_Downloads"),
                     Path = downloadsPath,
-                    IconGlyph = (IconService.Current?.FolderGlyph ?? "\uED53"),
+                    IconGlyph = (IconService.Current?.FolderGlyph ?? ""),
                     IconColor = "#FFA066",
                     Order = order++
                 });
@@ -78,7 +90,7 @@ namespace Span.Services
                 {
                     Name = LocalizationService.L("Favorites_Documents"),
                     Path = documentsPath,
-                    IconGlyph = (IconService.Current?.FolderGlyph ?? "\uED53"),
+                    IconGlyph = (IconService.Current?.FolderGlyph ?? ""),
                     IconColor = "#6FA8DC",
                     Order = order++
                 });
@@ -91,13 +103,169 @@ namespace Span.Services
                 {
                     Name = LocalizationService.L("Favorites_Pictures"),
                     Path = picturesPath,
-                    IconGlyph = (IconService.Current?.FolderGlyph ?? "\uED53"),
+                    IconGlyph = (IconService.Current?.FolderGlyph ?? ""),
                     IconColor = "#93C47D",
                     Order = order++
                 });
             }
 
             return favorites;
+        }
+
+        /// <summary>
+        /// 즐겨찾기 목록(순서, 사용자 이름/색상 포함)을 favorites.json + LocalSettings에 저장.
+        /// </summary>
+        public void SaveFavorites(List<FavoriteItem> favorites)
+        {
+            SaveEntries(favorites.Select(f => new FavoriteEntry
+            {
+                Path = f.Path,
+                Name = f.CustomName,
+                Color = f.CustomColor,
+                IsFile = f.IsFile
+            }).ToList());
+        }
+
+        public List<FavoriteItem> AddFavorite(string path, List<FavoriteItem> existing)
+        {
+            var canonical = CanonicalizePath(path);
+            if (existing.Any(f => IsSamePath(f.Path, canonical)))
+                return existing.ToList();
+
+            bool isFile = !Directory.Exists(canonical) && File.Exists(canonical);
+            var result = existing.ToList();
+            result.Add(CreateItem(new FavoriteEntry { Path = canonical, IsFile = isFile }, result.Count));
+            SaveFavorites(result);
+            Helpers.DebugLogger.Log($"[FavoritesService] Added favorite: {canonical} (file={isFile})");
+            return result;
+        }
+
+        public List<FavoriteItem> RemoveFavorite(string path, List<FavoriteItem> existing)
+        {
+            var result = existing.Where(f => !IsSamePath(f.Path, path)).ToList();
+            SaveFavorites(result);
+            Helpers.DebugLogger.Log($"[FavoritesService] Removed favorite: {path}");
+            return result;
+        }
+
+        /// <summary>Default icon color for a favorite (used when a custom color is reset).</summary>
+        public string GetDefaultIconColor(FavoriteItem item)
+            => (item.IsFile ? GetIconForFile(item.Path) : GetIconForPath(item.Path)).Color;
+
+        /// <summary>Display name derived from the path (folder/file name, or the root itself).</summary>
+        public static string GetDefaultName(string path)
+        {
+            var name = Path.GetFileName(path.TrimEnd('\\', '/'));
+            return string.IsNullOrEmpty(name) ? path : name;
+        }
+
+        /// <summary>Full path without trailing separators (drive roots keep theirs).</summary>
+        public static string CanonicalizePath(string path)
+        {
+            try
+            {
+                var full = Path.GetFullPath(path.Trim());
+                var root = Path.GetPathRoot(full) ?? string.Empty;
+                return full.Length > root.Length ? full.TrimEnd('\\', '/') : full;
+            }
+            catch
+            {
+                return path.Trim();
+            }
+        }
+
+        public static bool IsSamePath(string a, string b)
+            => string.Equals(CanonicalizePath(a), CanonicalizePath(b), StringComparison.OrdinalIgnoreCase);
+
+        private FavoriteItem CreateItem(FavoriteEntry entry, int order)
+        {
+            var (glyph, color) = entry.IsFile ? GetIconForFile(entry.Path) : GetIconForPath(entry.Path);
+            var customName = string.IsNullOrWhiteSpace(entry.Name) ? null : entry.Name;
+            var customColor = string.IsNullOrWhiteSpace(entry.Color) ? null : entry.Color;
+            return new FavoriteItem
+            {
+                Name = customName ?? GetDefaultName(entry.Path),
+                Path = entry.Path,
+                IconGlyph = glyph,
+                IconColor = customColor ?? color,
+                Order = order,
+                IsFile = entry.IsFile,
+                CustomName = customName,
+                CustomColor = customColor
+            };
+        }
+
+        // =================================================================
+        //  Persistence
+        // =================================================================
+
+        /// <summary>Returns null when nothing was ever saved (→ migrate from Quick Access).</summary>
+        private List<FavoriteEntry>? LoadEntries()
+        {
+            // Prefer on-disk file so dev, personal install, and reboots share the same list.
+            try
+            {
+                if (File.Exists(_storePath))
+                {
+                    var fromFile = JsonSerializer.Deserialize<List<FavoriteEntry>>(File.ReadAllText(_storePath));
+                    if (fromFile != null)
+                        return fromFile;
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[FavoritesService] File load failed: {ex.Message}");
+            }
+
+            try
+            {
+                var settings = Windows.Storage.ApplicationData.Current.LocalSettings;
+                if (settings.Values.TryGetValue(SettingsKey, out var raw) && raw is string json)
+                    return JsonSerializer.Deserialize<List<FavoriteEntry>>(json);
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[FavoritesService] LocalSettings load failed: {ex.Message}");
+            }
+
+            return null;
+        }
+
+        private void SaveEntries(List<FavoriteEntry> entries)
+        {
+            var json = JsonSerializer.Serialize(entries);
+            try { Windows.Storage.ApplicationData.Current.LocalSettings.Values[SettingsKey] = json; }
+            catch (Exception ex) { Helpers.DebugLogger.Log($"[FavoritesService] LocalSettings save failed: {ex.Message}"); }
+            try
+            {
+                var dir = Path.GetDirectoryName(_storePath);
+                if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+                File.WriteAllText(_storePath, json);
+            }
+            catch (Exception ex) { Helpers.DebugLogger.Log($"[FavoritesService] File save failed: {ex.Message}"); }
+        }
+
+        // =================================================================
+        //  One-time migration from Windows Quick Access
+        // =================================================================
+
+        private List<FavoriteEntry> MigrateFromQuickAccess()
+        {
+            List<FavoriteItem> items;
+            try
+            {
+                items = ApplySavedOrder(ReadQuickAccess());
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[FavoritesService] Quick Access read failed: {ex.Message}");
+                items = new List<FavoriteItem>();
+            }
+
+            if (items.Count == 0)
+                items = GetDefaultFavorites();
+
+            return items.Select(f => new FavoriteEntry { Path = f.Path }).ToList();
         }
 
         /// <summary>
@@ -134,15 +302,10 @@ namespace Span.Services
                             if (string.IsNullOrEmpty(path) || !Directory.Exists(path))
                                 continue;
 
-                            string name = item.Name ?? Path.GetFileName(path);
-                            var (glyph, color) = GetIconForPath(path);
-
                             favorites.Add(new FavoriteItem
                             {
-                                Name = name,
+                                Name = item.Name ?? Path.GetFileName(path),
                                 Path = path,
-                                IconGlyph = glyph,
-                                IconColor = color,
                                 Order = order++
                             });
                         }
@@ -174,28 +337,7 @@ namespace Span.Services
         }
 
         /// <summary>
-        /// 즐겨찾기 경로 순서를 LocalSettings에 JSON으로 저장.
-        /// Quick Access는 항목의 source of truth, 순서는 앱 로컬에서 관리.
-        /// </summary>
-        public void SaveFavorites(List<FavoriteItem> favorites)
-        {
-            try
-            {
-                var paths = favorites.Select(f => f.Path).ToList();
-                var json = JsonSerializer.Serialize(paths);
-                var settings = Windows.Storage.ApplicationData.Current.LocalSettings;
-                settings.Values[FavoritesOrderKey] = json;
-                Helpers.DebugLogger.Log($"[FavoritesService] Saved favorites order ({paths.Count} items)");
-            }
-            catch (Exception ex)
-            {
-                Helpers.DebugLogger.Log($"[FavoritesService] SaveFavorites failed: {ex.Message}");
-            }
-        }
-
-        /// <summary>
-        /// 저장된 순서가 있으면 Quick Access에서 로드한 목록을 재정렬.
-        /// 새로 추가된 항목은 끝에 배치, 삭제된 항목은 무시.
+        /// 이전 버전이 저장한 Quick Access 순서가 있으면 마이그레이션 시 그대로 적용.
         /// </summary>
         private static List<FavoriteItem> ApplySavedOrder(List<FavoriteItem> favorites)
         {
@@ -207,42 +349,15 @@ namespace Span.Services
                     var savedPaths = JsonSerializer.Deserialize<List<string>>(json);
                     if (savedPaths == null || savedPaths.Count == 0) return favorites;
 
-                    // 경로 → FavoriteItem 매핑 (정규화된 경로로 비교)
-                    var lookup = new Dictionary<string, FavoriteItem>(StringComparer.OrdinalIgnoreCase);
-                    foreach (var fav in favorites)
-                    {
-                        var key = Path.GetFullPath(fav.Path).TrimEnd('\\');
-                        lookup.TryAdd(key, fav);
-                    }
-
                     var ordered = new List<FavoriteItem>();
-                    var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-                    // 저장된 순서대로 배치
                     foreach (var savedPath in savedPaths)
                     {
-                        var key = Path.GetFullPath(savedPath).TrimEnd('\\');
-                        if (lookup.TryGetValue(key, out var item) && used.Add(key))
-                        {
-                            ordered.Add(item);
-                        }
+                        var match = favorites.FirstOrDefault(f => IsSamePath(f.Path, savedPath));
+                        if (match != null && !ordered.Contains(match))
+                            ordered.Add(match);
                     }
-
-                    // Quick Access에 있지만 저장 순서에 없는 새 항목은 끝에 추가
-                    foreach (var fav in favorites)
-                    {
-                        var key = Path.GetFullPath(fav.Path).TrimEnd('\\');
-                        if (used.Add(key))
-                        {
-                            ordered.Add(fav);
-                        }
-                    }
-
-                    if (ordered.Count > 0)
-                    {
-                        Helpers.DebugLogger.Log($"[FavoritesService] Applied saved order ({ordered.Count} items)");
-                        return ordered;
-                    }
+                    ordered.AddRange(favorites.Where(f => !ordered.Contains(f)));
+                    return ordered;
                 }
             }
             catch (Exception ex)
@@ -252,171 +367,24 @@ namespace Span.Services
             return favorites;
         }
 
-        public List<FavoriteItem> AddFavorite(string path, List<FavoriteItem> existing)
-        {
-            if (existing.Any(f => f.Path.Equals(path, StringComparison.OrdinalIgnoreCase)))
-                return existing.ToList();
-
-            PinToQuickAccess(path);
-            var result = LoadFavorites();
-            SaveFavorites(result);
-            return result;
-        }
-
-        public List<FavoriteItem> RemoveFavorite(string path, List<FavoriteItem> existing)
-        {
-            UnpinFromQuickAccess(path);
-
-            // Shell Quick Access 캐시 업데이트는 비동기일 수 있으므로,
-            // LoadFavorites()가 stale 데이터를 반환할 경우 로컬에서 직접 제거
-            var reloaded = LoadFavorites();
-            var normalizedPath = Path.GetFullPath(path).TrimEnd('\\');
-            bool stillPresent = reloaded.Any(f =>
-                Path.GetFullPath(f.Path).TrimEnd('\\').Equals(normalizedPath, StringComparison.OrdinalIgnoreCase));
-
-            if (stillPresent)
-            {
-                Helpers.DebugLogger.Log($"[FavoritesService] Quick Access stale — removing locally: {path}");
-                reloaded.RemoveAll(f =>
-                    Path.GetFullPath(f.Path).TrimEnd('\\').Equals(normalizedPath, StringComparison.OrdinalIgnoreCase));
-            }
-
-            SaveFavorites(reloaded);
-            return reloaded;
-        }
-
         // =================================================================
-        //  Shell COM: Pin / Unpin
+        //  Icon / Color mapping
         // =================================================================
 
-        private static void PinToQuickAccess(string path)
+        private static (string Glyph, string Color) GetIconForFile(string path)
         {
-            Type? shellType = Type.GetTypeFromProgID("Shell.Application");
-            if (shellType == null) return;
-
-            dynamic? shell = null;
+            var ext = Path.GetExtension(path);
+            var icons = IconService.Current;
+            var glyph = icons?.GetIcon(ext) ?? icons?.FileDefaultGlyph ?? "";
+            var color = "#C8C8C8";
             try
             {
-                shell = Activator.CreateInstance(shellType);
-                dynamic? folder = shell?.NameSpace(path);
-                if (folder == null) return;
-
-                dynamic? self = null;
-                try
-                {
-                    self = folder.Self;
-                    // Windows 11: "pintohome", Windows 10: "pintoquickaccess"
-                    try { self.InvokeVerb("pintohome"); }
-                    catch
-                    {
-                        try { self.InvokeVerb("pintoquickaccess"); } catch { }
-                    }
-
-                    Helpers.DebugLogger.Log($"[FavoritesService] Pinned to Quick Access: {path}");
-                }
-                finally
-                {
-                    if (self != null) try { Marshal.ReleaseComObject(self); } catch { }
-                    try { Marshal.ReleaseComObject(folder); } catch { }
-                }
+                if (icons?.GetBrush(ext) is Microsoft.UI.Xaml.Media.SolidColorBrush brush)
+                    color = $"#{brush.Color.R:X2}{brush.Color.G:X2}{brush.Color.B:X2}";
             }
-            catch (Exception ex)
-            {
-                Helpers.DebugLogger.Log($"[FavoritesService] Pin failed: {ex.Message}");
-                try { App.Current.Services.GetService<CrashReportingService>()?.CaptureException(ex, "FavoritesService.PinToQuickAccess"); } catch { }
-            }
-            finally
-            {
-                if (shell != null)
-                {
-                    try { Marshal.ReleaseComObject(shell); } catch { }
-                }
-            }
+            catch { }
+            return (glyph, color);
         }
-
-        private static void UnpinFromQuickAccess(string path)
-        {
-            Type? shellType = Type.GetTypeFromProgID("Shell.Application");
-            if (shellType == null) return;
-
-            // 경로 정규화: trailing backslash 제거 + full path 변환
-            var normalizedPath = Path.GetFullPath(path).TrimEnd('\\');
-
-            dynamic? shell = null;
-            try
-            {
-                shell = Activator.CreateInstance(shellType);
-                dynamic? qa = shell?.NameSpace(QuickAccessCLSID);
-                if (qa == null) return;
-
-                dynamic? items = null;
-                bool found = false;
-                try
-                {
-                    items = qa.Items();
-                    int count = (int)items.Count;
-
-                    for (int i = 0; i < count; i++)
-                    {
-                        dynamic? item = null;
-                        try
-                        {
-                            item = items.Item(i);
-                            string? itemPath = item.Path;
-                            if (string.IsNullOrEmpty(itemPath)) continue;
-
-                            var normalizedItemPath = Path.GetFullPath(itemPath).TrimEnd('\\');
-                            if (string.Equals(normalizedItemPath, normalizedPath, StringComparison.OrdinalIgnoreCase))
-                            {
-                                found = true;
-                                // Verb cascading: unpinfromhome → removefromhome → unpinfromquickaccess
-                                string[] verbs = ["unpinfromhome", "removefromhome", "unpinfromquickaccess"];
-                                foreach (var verb in verbs)
-                                {
-                                    try
-                                    {
-                                        item.InvokeVerb(verb);
-                                        Helpers.DebugLogger.Log($"[FavoritesService] Unpinned from Quick Access via '{verb}': {path}");
-                                        break;
-                                    }
-                                    catch { }
-                                }
-                                break;
-                            }
-                        }
-                        catch { }
-                        finally
-                        {
-                            if (item != null) try { Marshal.ReleaseComObject(item); } catch { }
-                        }
-                    }
-
-                    if (!found)
-                        Helpers.DebugLogger.Log($"[FavoritesService] Item not found in Quick Access for unpin: {path}");
-                }
-                finally
-                {
-                    if (items != null) try { Marshal.ReleaseComObject(items); } catch { }
-                    try { Marshal.ReleaseComObject(qa); } catch { }
-                }
-            }
-            catch (Exception ex)
-            {
-                Helpers.DebugLogger.Log($"[FavoritesService] Unpin failed: {ex.Message}");
-                try { App.Current.Services.GetService<CrashReportingService>()?.CaptureException(ex, "FavoritesService.UnpinFromQuickAccess"); } catch { }
-            }
-            finally
-            {
-                if (shell != null)
-                {
-                    try { Marshal.ReleaseComObject(shell); } catch { }
-                }
-            }
-        }
-
-        // =================================================================
-        //  Icon / Color mapping for special folders
-        // =================================================================
 
         private static (string Glyph, string Color) GetIconForPath(string path)
         {
@@ -428,19 +396,92 @@ namespace Span.Services
             var videosPath = Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
 
             if (path.Equals(desktopPath, StringComparison.OrdinalIgnoreCase))
-                return ((IconService.Current?.FolderGlyph ?? "\uED53"), "#6FA8DC");
+                return ((IconService.Current?.FolderGlyph ?? ""), "#6FA8DC");
             if (path.Equals(downloadsPath, StringComparison.OrdinalIgnoreCase))
-                return ((IconService.Current?.FolderGlyph ?? "\uED53"), "#FFA066");
+                return ((IconService.Current?.FolderGlyph ?? ""), "#FFA066");
             if (path.Equals(documentsPath, StringComparison.OrdinalIgnoreCase))
-                return ((IconService.Current?.FolderGlyph ?? "\uED53"), "#6FA8DC");
+                return ((IconService.Current?.FolderGlyph ?? ""), "#6FA8DC");
             if (path.Equals(picturesPath, StringComparison.OrdinalIgnoreCase))
-                return ((IconService.Current?.FolderGlyph ?? "\uED53"), "#93C47D");
+                return ((IconService.Current?.FolderGlyph ?? ""), "#93C47D");
             if (path.Equals(musicPath, StringComparison.OrdinalIgnoreCase))
-                return ((IconService.Current?.FolderGlyph ?? "\uED53"), "#B07CD8");
+                return ((IconService.Current?.FolderGlyph ?? ""), "#B07CD8");
             if (path.Equals(videosPath, StringComparison.OrdinalIgnoreCase))
-                return ((IconService.Current?.FolderGlyph ?? "\uED53"), "#E06666");
+                return ((IconService.Current?.FolderGlyph ?? ""), "#E06666");
 
-            return ((IconService.Current?.FolderGlyph ?? "\uED53"), "#FFC857");
+            return ((IconService.Current?.FolderGlyph ?? ""), "#FFC857");
+        }
+    }
+
+    public interface IFavoritesLayoutService
+    {
+        FavoritesLayout Load();
+        void Save(FavoritesLayout layout);
+    }
+
+    public class FavoritesLayoutService : IFavoritesLayoutService
+    {
+        private const string SettingsKey = "FavoritesLayoutJson";
+        private readonly string _fallbackPath;
+
+        public FavoritesLayoutService()
+        {
+            _fallbackPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "Span",
+                "favorites-layout.json");
+        }
+
+        public FavoritesLayout Load()
+        {
+            // Prefer on-disk file so dev, personal install, and reboots share the same layout.
+            try
+            {
+                if (File.Exists(_fallbackPath))
+                {
+                    var json = File.ReadAllText(_fallbackPath);
+                    var fromFile = JsonSerializer.Deserialize<FavoritesLayout>(json);
+                    if (fromFile != null)
+                        return fromFile;
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[FavoritesLayout] File load failed: {ex.Message}");
+            }
+
+            try
+            {
+                var settings = Windows.Storage.ApplicationData.Current.LocalSettings;
+                if (settings.Values.TryGetValue(SettingsKey, out var raw) && raw is string json)
+                {
+                    var layout = JsonSerializer.Deserialize<FavoritesLayout>(json);
+                    if (layout != null)
+                    {
+                        Save(layout);
+                        return layout;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[FavoritesLayout] LocalSettings load failed: {ex.Message}");
+            }
+
+            return new FavoritesLayout();
+        }
+
+        public void Save(FavoritesLayout layout)
+        {
+            var json = JsonSerializer.Serialize(layout);
+            try { Windows.Storage.ApplicationData.Current.LocalSettings.Values[SettingsKey] = json; }
+            catch (Exception ex) { Helpers.DebugLogger.Log($"[FavoritesLayout] LocalSettings save failed: {ex.Message}"); }
+            try
+            {
+                var dir = Path.GetDirectoryName(_fallbackPath);
+                if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+                File.WriteAllText(_fallbackPath, json);
+            }
+            catch (Exception ex) { Helpers.DebugLogger.Log($"[FavoritesLayout] File save failed: {ex.Message}"); }
         }
     }
 }

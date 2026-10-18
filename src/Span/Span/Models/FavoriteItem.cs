@@ -27,6 +27,15 @@ namespace Span.Models
         /// <summary>정렬 순서 (드래그로 변경 가능).</summary>
         public int Order { get; set; }
 
+        /// <summary>True when the favorite points to a file (click opens it with the default app).</summary>
+        public bool IsFile { get; set; }
+
+        /// <summary>User-defined display name (null = name derived from the path).</summary>
+        public string? CustomName { get; set; }
+
+        /// <summary>User-defined icon color (HEX, null = default color for the path).</summary>
+        public string? CustomColor { get; set; }
+
         /// <summary>
         /// desktop.ini 기반 커스텀 아이콘 (lazy 로드). null이면 기본 글리프 표시.
         /// FolderViewModel.CustomIcon과 동일한 패턴.
@@ -58,7 +67,7 @@ namespace Span.Models
         public void RequestCustomIconLoad()
         {
             if (_customIconRequested) return;
-            if (string.IsNullOrEmpty(Path)) return;
+            if (string.IsNullOrEmpty(Path) || IsFile) return;
 
             try
             {
@@ -136,5 +145,74 @@ namespace Span.Models
                 }
             }
         }
+    }
+
+    /// <summary>Persisted favorite (Span-owned list, independent of Windows Quick Access).</summary>
+    public class FavoriteEntry
+    {
+        public string Path { get; set; } = string.Empty;
+        public string? Name { get; set; }
+        public string? Color { get; set; }
+        public bool IsFile { get; set; }
+    }
+
+    /// <summary>User-defined sidebar favorites group.</summary>
+    public class FavoriteGroup
+    {
+        public string Id { get; set; } = System.Guid.NewGuid().ToString("N");
+        public string Name { get; set; } = string.Empty;
+        public int Order { get; set; }
+        public bool IsExpanded { get; set; } = true;
+        public List<string> Paths { get; set; } = new();
+    }
+
+    /// <summary>Persisted sidebar favorites layout.</summary>
+    public class FavoritesLayout
+    {
+        public List<FavoriteGroup> Groups { get; set; } = new();
+        public List<string> UngroupedPaths { get; set; } = new();
+    }
+
+    /// <summary>Unified favorites sidebar row (section header or pinned folder).</summary>
+    public abstract class FavoriteSidebarRow : ObservableObject
+    {
+        public abstract bool IsHeader { get; }
+    }
+
+    /// <summary>Collapsible group header in the favorites sidebar.</summary>
+    public partial class FavoriteGroupHeaderRow : FavoriteSidebarRow
+    {
+        public FavoriteGroupHeaderRow(string groupId, string name, bool isExpanded)
+        {
+            GroupId = groupId;
+            _name = name;
+            _isExpanded = isExpanded;
+        }
+
+        public override bool IsHeader => true;
+        public string GroupId { get; }
+
+        [ObservableProperty]
+        private string _name;
+
+        [ObservableProperty]
+        private bool _isExpanded;
+    }
+
+    /// <summary>Pinned folder row in the favorites sidebar.</summary>
+    public partial class FavoriteItemRow : FavoriteSidebarRow
+    {
+        public FavoriteItemRow(FavoriteItem item, string? groupId)
+        {
+            Item = item;
+            GroupId = groupId;
+        }
+
+        public override bool IsHeader => false;
+
+        /// <summary>Null = ungrouped (above the first section header).</summary>
+        public string? GroupId { get; }
+
+        public FavoriteItem Item { get; }
     }
 }

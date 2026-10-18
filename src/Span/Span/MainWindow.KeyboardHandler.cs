@@ -806,6 +806,7 @@ namespace Span
                 case ShortcutCommands.AddressBarFocus: ExecuteOpenAddressBar(); return true;
                 case ShortcutCommands.Search: SearchBox.Focus(FocusState.Keyboard); return true;
                 case ShortcutCommands.FilterBar: ToggleFilterBar(); return true;
+                case ShortcutCommands.AddFavorite: AddCurrentFolderToFavorites(); return true;
 
                 // Edit
                 case ShortcutCommands.Copy: HandleCopy(); return true;
