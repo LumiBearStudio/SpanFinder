@@ -57,6 +57,7 @@ namespace Span.Views
 
         // Rubber-band selection
         private Helpers.RubberBandSelectionHelper? _rubberBandHelper;
+        private Helpers.RightButtonDragHelper? _rightDragHelper;
         private bool _isSyncingSelection;
 
         public IconModeView()
@@ -164,13 +165,27 @@ namespace Span.Views
             if (_rubberBandHelper?.IsActive == true)
             { e.Cancel = true; return; }
 
-            if (!Helpers.ViewDragDropHelper.SetupDragData(e, IsRightPane))
+            if (!Helpers.ViewDragDropHelper.SetupDragData(e, IsRightPane, sender as Microsoft.UI.Xaml.Controls.ListViewBase))
                 e.Cancel = true;
             else
                 (ContextMenuHost as MainWindow)?.NotifyViewDragStarted(e);
         }
 
         private void OnDragItemsCompleted(object sender, DragItemsCompletedEventArgs e)
+        {
+            (ContextMenuHost as MainWindow)?.NotifyViewDragCompleted();
+        }
+
+        /// <summary>Right-button drag (Explorer): fill the package like a left-button drag.</summary>
+        private bool OnRightDragStarting(IReadOnlyList<ViewModels.FileSystemViewModel> items, Windows.ApplicationModel.DataTransfer.DataPackage data)
+        {
+            if (_rubberBandHelper?.IsActive == true) return false;
+            Helpers.ViewDragDropHelper.PopulateDragData(data, items, IsRightPane);
+            (ContextMenuHost as MainWindow)?.NotifyViewDragStarted(items);
+            return true;
+        }
+
+        private void OnRightDragCompleted()
         {
             (ContextMenuHost as MainWindow)?.NotifyViewDragCompleted();
         }
@@ -237,17 +252,7 @@ namespace Span.Views
             destPath ??= ViewModel?.CurrentFolder?.Path;
             if (string.IsNullOrEmpty(destPath)) return;
 
-            try
-            {
-                var paths = await mainWindow.ExtractDropPaths(e);
-                if (paths.Count == 0) return;
-                var mode = mainWindow.ResolveDragDropMode(e, destPath);
-                await mainWindow.HandleDropAsync(paths, destPath, mode);
-            }
-            catch (Exception ex)
-            {
-                Helpers.DebugLogger.Log($"[IconModeView] OnGridViewDrop error: {ex.Message}");
-            }
+            await mainWindow.CompleteDropAsync(e, destPath);
         }
 
         private void OnGridViewDragLeave(object sender, DragEventArgs e)
@@ -606,12 +611,17 @@ namespace Span.Views
                 val => _isSyncingSelection = val,
                 items => ViewModel?.CurrentFolder?.SyncSelectedItems(items),
                 () => (ContextMenuHost as MainWindow)?.ViewModel?.UpdateStatusBar());
+
+            _rightDragHelper ??= new Helpers.RightButtonDragHelper(
+                IconGridView, selectDraggedItem: true, OnRightDragStarting, OnRightDragCompleted);
         }
 
         private void OnRootGridUnloaded(object sender, RoutedEventArgs e)
         {
             _rubberBandHelper?.Detach();
             _rubberBandHelper = null;
+            _rightDragHelper?.Detach();
+            _rightDragHelper = null;
         }
 
         // Ctrl+Mouse Wheel view mode cycling is handled globally by MainWindow.OnGlobalPointerWheelChanged
@@ -746,6 +756,8 @@ namespace Span.Views
 
                 _rubberBandHelper?.Detach();
                 _rubberBandHelper = null;
+                _rightDragHelper?.Detach();
+                _rightDragHelper = null;
 
                 if (_settings != null)
                 {

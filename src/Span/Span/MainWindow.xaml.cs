@@ -4772,6 +4772,19 @@ namespace Span
 
             _rubberBandHelpers[grid] = helper;
 
+            // Explorer-style right-button drag (Copy here / Move here / Create shortcuts here).
+            // selectDraggedItem is false: selecting an item in a Miller column navigates into it.
+            _rightDragHelpers[grid] = new Helpers.RightButtonDragHelper(
+                listView,
+                selectDraggedItem: false,
+                (items, data) =>
+                {
+                    if (_rubberBandHelpers.Values.Any(h => h.IsActive)) return false;
+                    BeginFileDrag(items, data, DeterminePane(listView) == "Right", useIconService: false);
+                    return true;
+                },
+                EndOutboundFileDrag);
+
             // 컬럼 Grid Loaded 시점에 path highlight 리프레시
             // PathHighlightsUpdated 이벤트가 Loaded 전에 발생한 경우를 보완
             DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
@@ -4927,6 +4940,12 @@ namespace Span
             {
                 helper.Detach();
                 _rubberBandHelpers.Remove(grid);
+            }
+
+            if (_rightDragHelpers.TryGetValue(grid, out var rightDrag))
+            {
+                rightDrag.Detach();
+                _rightDragHelpers.Remove(grid);
             }
         }
 

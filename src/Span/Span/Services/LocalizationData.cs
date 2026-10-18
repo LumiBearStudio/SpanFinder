@@ -140,6 +140,10 @@
             // ── Drag-drop ───────────────────────────────────────────────────
             ("Move", "Move", "이동", "移動", "移动", "移動", "Verschieben", "Mover", "Déplacer", "Mover"),
             ("DragLink", "Create Shortcut", "바로가기 만들기", "ショートカットの作成", "创建快捷方式", "建立捷徑", "Verknüpfung erstellen", "Crear acceso directo", "Créer un raccourci", "Criar atalho"),
+            // Right-button drag menu (Windows Explorer)
+            ("DragMenu_CopyHere", "Copy here", "여기에 복사", "ここにコピー", "复制到此处", "複製到此處", "Hierher kopieren", "Copiar aquí", "Copier ici", "Copiar aqui"),
+            ("DragMenu_MoveHere", "Move here", "여기로 이동", "ここに移動", "移动到此处", "移動到此處", "Hierher verschieben", "Mover aquí", "Déplacer ici", "Mover aqui"),
+            ("DragMenu_LinkHere", "Create shortcuts here", "여기에 바로 가기 만들기", "ここにショートカットを作成", "在此处创建快捷方式", "在此處建立捷徑", "Verknüpfungen hier erstellen", "Crear accesos directos aquí", "Créer des raccourcis ici", "Criar atalhos aqui"),
             ("DragAddToFavorites", "Add to Favorites", "즐겨찾기에 추가", "お気に入りに追加", "添加到收藏夹", "新增到我的最愛", "Zu Favoriten hinzufügen", "Agregar a Favoritos", "Ajouter aux Favoris", "Adicionar aos Favoritos"),
 
             // ── View modes ──────────────────────────────────────────────────

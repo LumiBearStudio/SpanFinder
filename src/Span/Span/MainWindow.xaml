@@ -217,7 +217,7 @@
                 <appcontrols:AddressBarControl x:Name="MainAddressBar" Grid.Column="1"
                     RecentFolders="{x:Bind ViewModel.RecentFolders, Mode=OneWay}"
                     BreadcrumbSegmentClicked="OnAddressBarBreadcrumbClicked"
-                    BreadcrumbChevronClicked="OnAddressBarChevronClicked"
+                    BreadcrumbChevronClicked="OnAddressBarChevronClicked" BreadcrumbSegmentDragOver="OnAddressBarSegmentDragOver" BreadcrumbSegmentDrop="OnAddressBarSegmentDrop" BreadcrumbSegmentDragLeave="OnAddressBarSegmentDragLeave"
                     PathNavigated="OnAddressBarPathNavigated"/>
 
                 <!-- 경로 복사 버튼 -->
@@ -542,7 +542,7 @@
                                 <DataTemplate x:DataType="models:DriveItem">
                                     <Grid Height="26" Padding="12,0,8,0" Background="Transparent"
                                           ToolTipService.ToolTip="{x:Bind TooltipText}"
-                                          Tapped="OnDriveItemTapped" RightTapped="OnSidebarDriveRightTapped"
+                                          Tapped="OnDriveItemTapped" RightTapped="OnSidebarDriveRightTapped" AllowDrop="True" DragOver="OnDriveItemDragOver" Drop="OnDriveItemDrop" DragLeave="OnDriveItemDragLeave"
                                           PointerEntered="OnSidebarItemPointerEntered" PointerExited="OnSidebarItemPointerExited" PointerPressed="OnSidebarItemPointerPressed" PointerReleased="OnSidebarItemPointerReleased">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
@@ -590,7 +590,7 @@
                                     <DataTemplate x:DataType="models:DriveItem">
                                         <Grid Height="26" Padding="12,0,8,0" Background="Transparent"
                                               ToolTipService.ToolTip="{x:Bind TooltipText}"
-                                              Tapped="OnDriveItemTapped" RightTapped="OnSidebarDriveRightTapped"
+                                              Tapped="OnDriveItemTapped" RightTapped="OnSidebarDriveRightTapped" AllowDrop="True" DragOver="OnDriveItemDragOver" Drop="OnDriveItemDrop" DragLeave="OnDriveItemDragLeave"
                                               PointerEntered="OnSidebarItemPointerEntered" PointerExited="OnSidebarItemPointerExited" PointerPressed="OnSidebarItemPointerPressed" PointerReleased="OnSidebarItemPointerReleased">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto"/>
@@ -637,7 +637,7 @@
                                     <DataTemplate x:DataType="models:DriveItem">
                                         <Grid Height="26" Padding="12,0,8,0" Background="Transparent"
                                               ToolTipService.ToolTip="{x:Bind TooltipText}"
-                                              Tapped="OnDriveItemTapped" RightTapped="OnSidebarDriveRightTapped"
+                                              Tapped="OnDriveItemTapped" RightTapped="OnSidebarDriveRightTapped" AllowDrop="True" DragOver="OnDriveItemDragOver" Drop="OnDriveItemDrop" DragLeave="OnDriveItemDragLeave"
                                               PointerEntered="OnSidebarItemPointerEntered" PointerExited="OnSidebarItemPointerExited" PointerPressed="OnSidebarItemPointerPressed" PointerReleased="OnSidebarItemPointerReleased">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto"/>
@@ -816,7 +816,7 @@
                         <appcontrols:AddressBarControl x:Name="LeftAddressBar" Grid.Column="1"
                             RecentFolders="{x:Bind ViewModel.RecentFolders, Mode=OneWay}"
                             BreadcrumbSegmentClicked="OnAddressBarBreadcrumbClicked"
-                            BreadcrumbChevronClicked="OnAddressBarChevronClicked"
+                            BreadcrumbChevronClicked="OnAddressBarChevronClicked" BreadcrumbSegmentDragOver="OnAddressBarSegmentDragOver" BreadcrumbSegmentDrop="OnAddressBarSegmentDrop" BreadcrumbSegmentDragLeave="OnAddressBarSegmentDragLeave"
                             PathNavigated="OnAddressBarPathNavigated"/>
                         <!-- Pane actions: CopyPath | Sort, ViewMode, Preview -->
                         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="0" VerticalAlignment="Center" Margin="0,0,2,0">
@@ -941,7 +941,7 @@
                                               VerticalScrollBarVisibility="Disabled"
                                               VerticalScrollMode="Disabled"
                                               AllowDrop="True"
-                                              DragOver="OnMillerEmptyAreaDragOver"
+                                              DragOver="OnMillerEmptyAreaDragOver" Drop="OnMillerEmptyAreaDrop"
                                               DragLeave="OnMillerEmptyAreaDragLeave"
                                               >
                                     <StackPanel Orientation="Horizontal">
@@ -970,7 +970,7 @@
                                                                       Background="Transparent"
                                                                       ItemContainerStyle="{StaticResource MillerColumnItemStyle}"
                                                                       DragItemsStarting="OnDragItemsStarting" DragItemsCompleted="OnDragItemsCompleted"
-                                                                      DragOver="OnColumnDragOver" Drop="OnColumnDrop"
+                                                                      DragOver="OnColumnDragOver" Drop="OnColumnDrop" DragLeave="OnColumnDragLeave"
                                                                       GotFocus="OnMillerColumnGotFocus"
                                                                       SelectionChanged="OnMillerColumnSelectionChanged"
                                                                       DoubleTapped="OnMillerColumnDoubleTapped"
@@ -1295,7 +1295,7 @@
                         <appcontrols:AddressBarControl x:Name="RightAddressBar" Grid.Column="1"
                             RecentFolders="{x:Bind ViewModel.RecentFolders, Mode=OneWay}"
                             BreadcrumbSegmentClicked="OnAddressBarBreadcrumbClicked"
-                            BreadcrumbChevronClicked="OnAddressBarChevronClicked"
+                            BreadcrumbChevronClicked="OnAddressBarChevronClicked" BreadcrumbSegmentDragOver="OnAddressBarSegmentDragOver" BreadcrumbSegmentDrop="OnAddressBarSegmentDrop" BreadcrumbSegmentDragLeave="OnAddressBarSegmentDragLeave"
                             PathNavigated="OnAddressBarPathNavigated"/>
                         <!-- Pane actions: CopyPath | Sort, ViewMode, Preview -->
                         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="0" VerticalAlignment="Center" Margin="0,0,2,0">
@@ -1386,7 +1386,7 @@
                                           VerticalScrollMode="Disabled"
                                           Visibility="{x:Bind IsMillerColumnsMode(ViewModel.RightViewMode), Mode=OneWay}"
                                           AllowDrop="True"
-                                          DragOver="OnMillerEmptyAreaDragOver"
+                                          DragOver="OnMillerEmptyAreaDragOver" Drop="OnMillerEmptyAreaDrop"
                                           DragLeave="OnMillerEmptyAreaDragLeave">
                                 <!-- v1.4.19: ItemsControl을 StackPanel로 감싸 spacer Border와 함께 배치 (좌측과 동일 패턴) -->
                                 <StackPanel Orientation="Horizontal">
@@ -1415,7 +1415,7 @@
                                                                       Background="Transparent"
                                                                       ItemContainerStyle="{StaticResource MillerColumnItemStyle}"
                                                                       DragItemsStarting="OnDragItemsStarting" DragItemsCompleted="OnDragItemsCompleted"
-                                                                      DragOver="OnColumnDragOver" Drop="OnColumnDrop"
+                                                                      DragOver="OnColumnDragOver" Drop="OnColumnDrop" DragLeave="OnColumnDragLeave"
                                                                       GotFocus="OnMillerColumnGotFocus"
                                                                       SelectionChanged="OnMillerColumnSelectionChanged"
                                                                       DoubleTapped="OnMillerColumnDoubleTapped"
