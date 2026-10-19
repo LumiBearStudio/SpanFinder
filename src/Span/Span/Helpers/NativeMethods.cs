@@ -16,42 +16,6 @@ namespace Span.Helpers
         internal static extern bool GetCursorPos(out POINT pt);
 
         [DllImport("user32.dll")]
-        internal static extern IntPtr WindowFromPoint(POINT point);
-
-        [DllImport("user32.dll")]
-        internal static extern IntPtr GetAncestor(IntPtr hwnd, uint gaFlags);
-
-        internal const uint GA_ROOT = 2;
-
-        [DllImport("user32.dll")]
-        internal static extern bool IsWindow(IntPtr hWnd);
-
-        [DllImport("user32.dll")]
-        internal static extern bool IsWindowVisible(IntPtr hWnd);
-
-        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-        internal static extern int GetClassName(IntPtr hWnd, System.Text.StringBuilder lpClassName, int nMaxCount);
-
-        [DllImport("user32.dll")]
-        internal static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
-
-        [DllImport("user32.dll")]
-        internal static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
-
-        [DllImport("user32.dll")]
-        internal static extern IntPtr GetForegroundWindow();
-
-        [DllImport("kernel32.dll")]
-        internal static extern uint GetCurrentThreadId();
-
-        internal const int DWMWA_CLOAKED = 14;
-        internal const int WS_EX_TOOLWINDOW = 0x00000080;
-
-        [DllImport("dwmapi.dll")]
-        internal static extern int DwmGetWindowAttribute(
-            IntPtr hwnd, int dwAttribute, ref int pvAttribute, int cbAttribute);
-
-        [DllImport("user32.dll")]
         internal static extern bool SetCursorPos(int x, int y);
 
         [DllImport("user32.dll")]
@@ -100,7 +64,6 @@ namespace Span.Helpers
             int X, int Y, int cx, int cy, uint uFlags);
 
         internal const uint SWP_NOSIZE = 0x0001;
-        internal const uint SWP_NOMOVE = 0x0002;
         internal const uint SWP_NOZORDER = 0x0004;
         internal const uint SWP_NOACTIVATE = 0x0010;
         internal const uint SWP_NOOWNERZORDER = 0x0200;

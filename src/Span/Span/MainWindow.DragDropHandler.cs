@@ -52,7 +52,6 @@ namespace Span
         /// Window the taskbar switched to while the user hovered one of its buttons during a drag
         /// (zero otherwise). Kept above Span for the rest of the drag.
         /// </summary>
-        private IntPtr _revealedDragTarget;
 
         // 커스텀 드래그 오버레이: WinUI 기본 ListView 행 스크린샷 + 시스템 Caption 대신
         // 앱 폰트/테마에 맞는 경량 오버레이로 아이콘+파일명+작업 텍스트를 표시한다.
@@ -75,8 +74,6 @@ namespace Span
         /// <summary>True while the pointer rests in an auto-scroll edge zone of a list during a drag.</summary>
         private volatile bool _dragAutoScrollActive;
         /// <summary>Paths of an external (Explorer → Span) drag, resolved once per session for the Move/Copy default.</summary>
-        private List<string>? _externalDragPaths;
-        private bool _externalDragPathsPending;
         /// <summary>Sidebar drives: "root exists" per drag session (network roots can be slow to probe).</summary>
         private readonly Dictionary<string, bool> _driveDropAvailability = new(StringComparer.OrdinalIgnoreCase);
         /// <summary>Inner ScrollViewer per list, for drag auto-scroll.</summary>
@@ -149,18 +146,16 @@ namespace Span
         }
 
         /// <summary>
-        /// Start outbound drag tracking (modifier poll + z-order management for external drops).
+        /// Start outbound drag tracking (modifier poll for Copy/Move/Link caption + auto-scroll).
         /// </summary>
         private void BeginOutboundFileDrag()
         {
-            _revealedDragTarget = IntPtr.Zero;
             IsDragInProgress = true;
             StartModifierPollTimer();
         }
 
         /// <summary>
-        /// End outbound drag. A window the taskbar switched to stays in front (it is the
-        /// foreground app now, exactly as after an Explorer drag).
+        /// End outbound drag.
         /// </summary>
         private void EndOutboundFileDrag()
         {
@@ -169,153 +164,8 @@ namespace Span
             StopModifierPollTimer();
             HideDragTooltip();
             _dragItemCount = 0;
-            _revealedDragTarget = IntPtr.Zero;
         }
 
-
-        /// <summary>
-        /// Explorer semantics for drags that leave the window: nothing is raised or lowered on
-        /// the way — the drop lands in whatever window is visible under the pointer, so a target
-        /// that sits partly visible behind Span stays reachable. The one exception is the
-        /// taskbar: hovering a taskbar button makes Windows switch to that app. Because WinUI
-        /// re-activates the drag source on every pointer move, that window is kept above Span
-        /// for the rest of the drag so the drop can land in it.
-        /// </summary>
-        private void UpdateWindowZOrderForOutboundDrag()
-        {
-            if (_hwnd == IntPtr.Zero || !IsDragInProgress)
-                return;
-
-            Helpers.NativeMethods.GetCursorPos(out var cursor);
-            if (IsTaskbarAtPoint(cursor))
-            {
-                var foreground = Helpers.NativeMethods.GetForegroundWindow();
-                if (foreground != _revealedDragTarget && IsExternalAppWindow(foreground))
-                {
-                    Helpers.DebugLogger.Log($"[DragDrop] taskbar switched to window 0x{foreground.ToInt64():X}");
-                    _revealedDragTarget = foreground;
-                }
-            }
-
-            if (_revealedDragTarget == IntPtr.Zero)
-                return;
-            if (!Helpers.NativeMethods.IsWindow(_revealedDragTarget))
-            {
-                _revealedDragTarget = IntPtr.Zero;
-                return;
-            }
-
-            ForceWindowAbove(_revealedDragTarget);
-        }
-
-        private bool IsExternalAppWindow(IntPtr hwnd)
-        {
-            if (hwnd == IntPtr.Zero || hwnd == _hwnd)
-                return false;
-            if (!Helpers.NativeMethods.IsWindowVisible(hwnd) || Helpers.NativeMethods.IsIconic(hwnd))
-                return false;
-
-            Helpers.NativeMethods.GetWindowThreadProcessId(hwnd, out uint pid);
-            Helpers.NativeMethods.GetWindowThreadProcessId(_hwnd, out uint ourPid);
-            if (pid == ourPid && !HasSameWindowClass(hwnd, _hwnd))
-                return false;
-
-            int cloaked = 0;
-            Helpers.NativeMethods.DwmGetWindowAttribute(hwnd, Helpers.NativeMethods.DWMWA_CLOAKED, ref cloaked, sizeof(int));
-            if (cloaked != 0)
-                return false;
-
-            int ex = Helpers.NativeMethods.GetWindowLong(hwnd, Helpers.NativeMethods.GWL_EXSTYLE);
-            if ((ex & Helpers.NativeMethods.WS_EX_TOOLWINDOW) != 0)
-                return false;
-
-            var className = new System.Text.StringBuilder(256);
-            if (Helpers.NativeMethods.GetClassName(hwnd, className, className.Capacity) > 0)
-            {
-                var name = className.ToString();
-                if (name is "Progman" or "WorkerW" or "NotifyIconOverflowWindow"
-                    or "TopLevelWindowForOverflowXamlIsland" or "Windows.UI.Core.CoreWindow"
-                    || IsTaskbarClass(name))
-                    return false;
-            }
-
-            if (!Helpers.NativeMethods.GetWindowRect(hwnd, out var rect))
-                return false;
-            int w = rect.Right - rect.Left;
-            int h = rect.Bottom - rect.Top;
-            return w >= 80 && h >= 80;
-        }
-
-        /// <summary>Taskbar, its thumbnail/preview flyouts and the Win11 XAML host for them.</summary>
-        private static bool IsTaskbarClass(string className) =>
-            className is "Shell_TrayWnd" or "Shell_SecondaryTrayWnd" or "TaskListThumbnailWnd"
-                or "TaskListOverlayWnd" or "XamlExplorerHostIslandWindow";
-
-        /// <summary>True when the top-level window under the point belongs to the taskbar.</summary>
-        private static bool IsTaskbarAtPoint(Helpers.NativeMethods.POINT pt)
-        {
-            var hwnd = Helpers.NativeMethods.WindowFromPoint(pt);
-            if (hwnd == IntPtr.Zero)
-                return false;
-            var root = Helpers.NativeMethods.GetAncestor(hwnd, Helpers.NativeMethods.GA_ROOT);
-            if (root == IntPtr.Zero)
-                root = hwnd;
-            var className = new System.Text.StringBuilder(256);
-            return Helpers.NativeMethods.GetClassName(root, className, className.Capacity) > 0
-                && IsTaskbarClass(className.ToString());
-        }
-
-        private static bool HasSameWindowClass(IntPtr a, IntPtr b)
-        {
-            var ca = new System.Text.StringBuilder(256);
-            var cb = new System.Text.StringBuilder(256);
-            if (Helpers.NativeMethods.GetClassName(a, ca, ca.Capacity) <= 0)
-                return false;
-            if (Helpers.NativeMethods.GetClassName(b, cb, cb.Capacity) <= 0)
-                return false;
-            return string.Equals(ca.ToString(), cb.ToString(), StringComparison.Ordinal);
-        }
-
-        /// <summary>
-        /// WinUI re-activates the drag source on every move. Push the window the taskbar switched
-        /// to above us and give it the foreground again so it stays visible for the drop.
-        /// </summary>
-        private static void ForceWindowAbove(IntPtr target)
-        {
-            Helpers.NativeMethods.SetWindowPos(
-                target,
-                Helpers.NativeMethods.HWND_TOP,
-                0, 0, 0, 0,
-                Helpers.NativeMethods.SWP_NOSIZE | Helpers.NativeMethods.SWP_NOMOVE | Helpers.NativeMethods.SWP_NOACTIVATE);
-
-            var foreground = Helpers.NativeMethods.GetForegroundWindow();
-            if (foreground == target)
-                return;
-
-            uint current = Helpers.NativeMethods.GetCurrentThreadId();
-            uint foreThread = foreground != IntPtr.Zero
-                ? Helpers.NativeMethods.GetWindowThreadProcessId(foreground, out _)
-                : 0;
-            uint targetThread = Helpers.NativeMethods.GetWindowThreadProcessId(target, out _);
-
-            bool attachedFore = false;
-            bool attachedTarget = false;
-            try
-            {
-                if (foreThread != 0 && foreThread != current)
-                    attachedFore = Helpers.NativeMethods.AttachThreadInput(current, foreThread, true);
-                if (targetThread != 0 && targetThread != current && targetThread != foreThread)
-                    attachedTarget = Helpers.NativeMethods.AttachThreadInput(current, targetThread, true);
-                Helpers.NativeMethods.SetForegroundWindow(target);
-            }
-            finally
-            {
-                if (attachedTarget)
-                    Helpers.NativeMethods.AttachThreadInput(current, targetThread, false);
-                if (attachedFore)
-                    Helpers.NativeMethods.AttachThreadInput(current, foreThread, false);
-            }
-        }
 
         /// <summary>
         /// 이벤트 발신자(ListView)가 좌측/우측 탐색기 중 어느 패널에 속하는지 판단한다.
@@ -695,11 +545,14 @@ namespace Span
             if (ctrl) return DragDropMode.Copy;    // Ctrl = force Copy
 
             // Default: same drive root = Move, different drive = Copy
+            // 외부(탐색기)에서 온 드래그는 여기서 제외한다. 판정 근거가 되는 경로가
+            // StorageItems를 비동기로 읽어 뒤늦게 채워지고, 드래그 세션 구분도
+            // "마지막 DragOver로부터 1500ms"라는 시계 추정뿐이라 같은 드롭이 타이밍에 따라
+            // Copy가 되기도 Move가 되기도 한다. Move는 원본을 지우는 동작이라
+            // 비결정적이어선 안 된다. 외부 드래그는 종전대로 항상 Copy.
             IReadOnlyList<string>? sources = null;
             if (Helpers.OutboundFileDragHelper.TryGetSourcePaths(e.DataView, out var srcPaths) && srcPaths.Count > 0)
                 sources = srcPaths;
-            else if (_externalDragPaths is { Count: > 0 } externalPaths)
-                sources = externalPaths;
 
             if (sources != null)
             {
@@ -754,8 +607,8 @@ namespace Span
 
         /// <summary>
         /// Called from every DragOver handler. Detects a new drag session (gap since the last
-        /// DragOver), keeps the poll timer alive for external drags (modifier changes and
-        /// auto-scroll need it) and resolves the paths of an external drag once per session.
+        /// DragOver) and keeps the poll timer alive for external drags — modifier changes and
+        /// auto-scroll need it.
         /// </summary>
         internal void TrackDragOver(DragEventArgs e)
         {
@@ -765,50 +618,12 @@ namespace Span
 
             if (newSession)
             {
-                _externalDragPaths = null;
-                _externalDragPathsPending = false;
                 _driveDropAvailability.Clear();
                 _dragAutoScrollActive = false;
             }
 
             if (_modifierPollTimer == null)
                 StartModifierPollTimer();
-
-            if (IsDragInProgress || Helpers.OutboundFileDragHelper.TryGetSourcePaths(e.DataView, out _))
-                return;
-
-            if (_externalDragPaths == null && !_externalDragPathsPending)
-            {
-                try
-                {
-                    if (!e.DataView.Contains(StandardDataFormats.StorageItems)) return;
-                }
-                catch
-                {
-                    return;
-                }
-                _externalDragPathsPending = true;
-                _ = LoadExternalDragPathsAsync(e.DataView);
-            }
-        }
-
-        private async Task LoadExternalDragPathsAsync(DataPackageView view)
-        {
-            List<string> paths;
-            try
-            {
-                var items = await view.GetStorageItemsAsync();
-                paths = items.Select(i => i.Path).Where(p => !string.IsNullOrEmpty(p)).ToList();
-            }
-            catch (Exception ex)
-            {
-                Helpers.DebugLogger.Log($"[DragDrop] external drag path resolve failed: {ex.Message}");
-                paths = new List<string>();
-            }
-            _externalDragPaths = paths;
-            _externalDragPathsPending = false;
-            // Re-trigger DragOver once so caption and default operation (Move/Copy) refresh.
-            if (_nudgeCountdown == 0) _nudgeCountdown = 1;
         }
 
         /// <summary>
@@ -1227,9 +1042,6 @@ namespace Span
                     StopModifierPollTimer();
                     return;
                 }
-
-                if (internalDrag)
-                    UpdateWindowZOrderForOutboundDrag();
 
                 var snapshot = GetModifierSnapshot();
                 if (snapshot != _lastModifierSnapshot)
