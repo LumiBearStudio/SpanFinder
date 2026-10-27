@@ -563,7 +563,9 @@
                         </StackPanel>
 
                         <!-- ═══════ Section 4: 클라우드 (CloudDrives 있을 때만) ═══════ -->
-                        <StackPanel x:Name="SidebarCloudSection" Visibility="{x:Bind ViewModel.HasCloudDrives, Mode=OneWay}">
+                        <!-- Visibility는 ApplySidebarSectionVisibility()가 설정 AND 드라이브 존재로 계산한다.
+                             여기에 x:Bind를 걸면 드라이브 갱신 때마다 숨김 설정을 덮어쓴다. -->
+                        <StackPanel x:Name="SidebarCloudSection" Visibility="Collapsed">
                             <Rectangle Height="1" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="12,12"/>
                             <Grid Height="24" Padding="12,0" Background="Transparent"
                                   Tapped="OnSidebarSectionHeaderTapped" Tag="Cloud"
@@ -610,7 +612,8 @@
                         </StackPanel>
 
                         <!-- ═══════ Section 5: 네트워크 (NetworkAndRemoteDrives 있을 때만) ═══════ -->
-                        <StackPanel x:Name="SidebarNetworkSection" Visibility="{x:Bind ViewModel.HasNetworkDrives, Mode=OneWay}">
+                        <!-- Section 4와 동일 — Visibility는 ApplySidebarSectionVisibility()가 소유한다. -->
+                        <StackPanel x:Name="SidebarNetworkSection" Visibility="Collapsed">
                             <Rectangle Height="1" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="12,12"/>
                             <Grid Height="24" Padding="12,0" Background="Transparent"
                                   Tapped="OnSidebarSectionHeaderTapped" Tag="Network"
