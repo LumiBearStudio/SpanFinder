@@ -21,23 +21,41 @@ namespace Span.Services
         private const string FavoritesOrderKey = "FavoritesOrderJson";
         private const string SettingsKey = "FavoritesJson";
         private readonly string _storePath;
+        private readonly Func<List<FavoriteItem>> _readQuickAccess;
+        private readonly Func<string?> _readSettings;
+        private readonly Action<string> _writeSettings;
+
+        // A fallback is display-only. In particular, Cleanup must not commit it.
+        public bool CanSaveFavorites { get; private set; }
 
         public FavoritesService()
-        {
-            _storePath = Path.Combine(
+            : this(Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "Span",
-                "favorites.json");
+                "Span", "favorites.json"), null, ReadSettings, WriteSettings)
+        {
+        }
+
+        internal FavoritesService(string storePath, Func<List<FavoriteItem>>? readQuickAccess,
+            Func<string?> readSettings, Action<string> writeSettings)
+        {
+            _storePath = storePath;
+            _readQuickAccess = readQuickAccess ?? ReadQuickAccess;
+            _readSettings = readSettings;
+            _writeSettings = writeSettings;
         }
 
         public List<FavoriteItem> LoadFavorites()
         {
-            var entries = LoadEntries();
+            CanSaveFavorites = false;
+            var entries = LoadEntries(out var mayMigrate, out var canSave);
             if (entries == null)
             {
-                entries = MigrateFromQuickAccess();
-                SaveEntries(entries);
-                Helpers.DebugLogger.Log($"[FavoritesService] Migrated {entries.Count} items from Quick Access");
+                if (!mayMigrate || !TryMigrateFromQuickAccess(out entries))
+                    return GetDefaultFavorites();
+
+                canSave = SaveEntries(entries, createOnly: true);
+                if (canSave)
+                    Helpers.DebugLogger.Log($"[FavoritesService] Migrated {entries.Count} items from Quick Access");
             }
 
             var favorites = new List<FavoriteItem>(entries.Count);
@@ -47,6 +65,7 @@ namespace Span.Services
                 if (favorites.Any(f => IsSamePath(f.Path, entry.Path))) continue;
                 favorites.Add(CreateItem(entry, favorites.Count));
             }
+            CanSaveFavorites = canSave;
             Helpers.DebugLogger.Log($"[FavoritesService] Loaded {favorites.Count} favorites");
             return favorites;
         }
@@ -117,6 +136,11 @@ namespace Span.Services
         /// </summary>
         public void SaveFavorites(List<FavoriteItem> favorites)
         {
+            if (!CanSaveFavorites)
+            {
+                Helpers.DebugLogger.Log("[FavoritesService] Save blocked: favorites have not been completely loaded and persisted");
+                return;
+            }
             SaveEntries(favorites.Select(f => new FavoriteEntry
             {
                 Path = f.Path,
@@ -128,6 +152,7 @@ namespace Span.Services
 
         public List<FavoriteItem> AddFavorite(string path, List<FavoriteItem> existing)
         {
+            if (!CanSaveFavorites) return existing.ToList();
             var canonical = CanonicalizePath(path);
             if (existing.Any(f => IsSamePath(f.Path, canonical)))
                 return existing.ToList();
@@ -142,6 +167,7 @@ namespace Span.Services
 
         public List<FavoriteItem> RemoveFavorite(string path, List<FavoriteItem> existing)
         {
+            if (!CanSaveFavorites) return existing.ToList();
             var result = existing.Where(f => !IsSamePath(f.Path, path)).ToList();
             SaveFavorites(result);
             Helpers.DebugLogger.Log($"[FavoritesService] Removed favorite: {path}");
@@ -199,29 +225,39 @@ namespace Span.Services
         //  Persistence
         // =================================================================
 
-        /// <summary>Returns null when nothing was ever saved (→ migrate from Quick Access).</summary>
-        private List<FavoriteEntry>? LoadEntries()
+        /// <summary>Only a definitely missing store permits a first-time import.</summary>
+        private List<FavoriteEntry>? LoadEntries(out bool mayMigrate, out bool canSave)
         {
+            mayMigrate = false;
+            canSave = false;
+            bool fileFailed = false;
             // Prefer on-disk file so dev, personal install, and reboots share the same list.
             try
             {
-                if (File.Exists(_storePath))
-                {
-                    var fromFile = JsonSerializer.Deserialize<List<FavoriteEntry>>(File.ReadAllText(_storePath));
-                    if (fromFile != null)
-                        return fromFile;
-                }
+                // File.Exists hides access errors; read directly to distinguish missing from unreadable.
+                var fromFile = DeserializeEntries(File.ReadAllText(_storePath));
+                canSave = true;
+                return fromFile;
             }
+            catch (FileNotFoundException) { }
+            catch (DirectoryNotFoundException) { }
             catch (Exception ex)
             {
+                fileFailed = true;
                 Helpers.DebugLogger.Log($"[FavoritesService] File load failed: {ex.Message}");
             }
 
             try
             {
-                var settings = Windows.Storage.ApplicationData.Current.LocalSettings;
-                if (settings.Values.TryGetValue(SettingsKey, out var raw) && raw is string json)
-                    return JsonSerializer.Deserialize<List<FavoriteEntry>>(json);
+                var json = _readSettings();
+                if (json != null)
+                {
+                    var entries = DeserializeEntries(json);
+                    // A backup may be displayed, but must not overwrite an unreadable primary.
+                    canSave = !fileFailed;
+                    return entries;
+                }
+                mayMigrate = !fileFailed;
             }
             catch (Exception ex)
             {
@@ -231,41 +267,83 @@ namespace Span.Services
             return null;
         }
 
-        private void SaveEntries(List<FavoriteEntry> entries)
+        private static List<FavoriteEntry> DeserializeEntries(string json)
+        {
+            var entries = JsonSerializer.Deserialize<List<FavoriteEntry>>(json);
+            if (entries == null || entries.Any(e => e == null || string.IsNullOrWhiteSpace(e.Path)))
+                throw new InvalidDataException("Invalid favorites list");
+            return entries;
+        }
+
+        private bool SaveEntries(List<FavoriteEntry> entries, bool createOnly = false)
         {
             var json = JsonSerializer.Serialize(entries);
-            try { Windows.Storage.ApplicationData.Current.LocalSettings.Values[SettingsKey] = json; }
-            catch (Exception ex) { Helpers.DebugLogger.Log($"[FavoritesService] LocalSettings save failed: {ex.Message}"); }
+            var tempPath = _storePath + "." + Guid.NewGuid().ToString("N") + ".tmp";
             try
             {
                 var dir = Path.GetDirectoryName(_storePath);
                 if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
-                File.WriteAllText(_storePath, json);
+                File.WriteAllText(tempPath, json);
+                // Same-directory rename avoids truncating an existing favorites file on failure.
+                // An import must never replace a store created while Shell COM was running.
+                File.Move(tempPath, _storePath, overwrite: !createOnly);
             }
-            catch (Exception ex) { Helpers.DebugLogger.Log($"[FavoritesService] File save failed: {ex.Message}"); }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[FavoritesService] File save failed: {ex.Message}");
+                return false;
+            }
+            finally
+            {
+                try { File.Delete(tempPath); } catch { }
+            }
+
+            // The file is authoritative. Never leave only a LocalSettings migration marker
+            // when the primary write failed.
+            try { _writeSettings(json); }
+            catch (Exception ex) { Helpers.DebugLogger.Log($"[FavoritesService] LocalSettings save failed: {ex.Message}"); }
+            return true;
         }
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+        private static extern int GetCurrentPackageFullName(ref uint length, IntPtr packageFullName);
+
+        private static string? ReadSettings()
+        {
+            uint length = 0;
+            // Unpackaged runs have no LocalSettings store. Other read errors are not absence.
+            if (GetCurrentPackageFullName(ref length, IntPtr.Zero) == 15700) return null;
+            var settings = Windows.Storage.ApplicationData.Current.LocalSettings;
+            if (!settings.Values.TryGetValue(SettingsKey, out var raw)) return null;
+            return raw as string ?? throw new InvalidDataException("Invalid FavoritesJson setting");
+        }
+
+        private static void WriteSettings(string json)
+            => Windows.Storage.ApplicationData.Current.LocalSettings.Values[SettingsKey] = json;
 
         // =================================================================
         //  One-time migration from Windows Quick Access
         // =================================================================
 
-        private List<FavoriteEntry> MigrateFromQuickAccess()
+        private bool TryMigrateFromQuickAccess(out List<FavoriteEntry> entries)
         {
+            entries = new List<FavoriteEntry>();
             List<FavoriteItem> items;
             try
             {
-                items = ApplySavedOrder(ReadQuickAccess());
+                items = ApplySavedOrder(_readQuickAccess());
             }
             catch (Exception ex)
             {
                 Helpers.DebugLogger.Log($"[FavoritesService] Quick Access read failed: {ex.Message}");
-                items = new List<FavoriteItem>();
+                return false;
             }
 
             if (items.Count == 0)
                 items = GetDefaultFavorites();
 
-            return items.Select(f => new FavoriteEntry { Path = f.Path }).ToList();
+            entries = items.Select(f => new FavoriteEntry { Path = f.Path }).ToList();
+            return true;
         }
 
         /// <summary>
@@ -276,48 +354,32 @@ namespace Span.Services
         {
             var favorites = new List<FavoriteItem>();
             Type? shellType = Type.GetTypeFromProgID("Shell.Application");
-            if (shellType == null) return favorites;
+            if (shellType == null) throw new InvalidOperationException("Shell.Application is unavailable");
 
             dynamic? shell = null;
             try
             {
                 shell = Activator.CreateInstance(shellType);
                 dynamic? folder = shell?.NameSpace(QuickAccessCLSID);
-                if (folder == null) return favorites;
+                if (folder == null) throw new InvalidOperationException("Quick Access namespace is unavailable");
 
                 dynamic? items = null;
                 try
                 {
                     items = folder.Items();
-                    int count = (int)items.Count;
-                    int order = 0;
-
-                    for (int i = 0; i < count; i++)
+                    favorites = ReadQuickAccessPaths((int)items.Count, i =>
                     {
                         dynamic? item = null;
                         try
                         {
                             item = items.Item(i);
-                            string? path = item.Path;
-                            if (string.IsNullOrEmpty(path) || !Directory.Exists(path))
-                                continue;
-
-                            favorites.Add(new FavoriteItem
-                            {
-                                Name = item.Name ?? Path.GetFileName(path),
-                                Path = path,
-                                Order = order++
-                            });
-                        }
-                        catch
-                        {
-                            // Skip problematic items (network folders offline, etc.)
+                            return (string?)item.Path;
                         }
                         finally
                         {
                             if (item != null) try { Marshal.ReleaseComObject(item); } catch { }
                         }
-                    }
+                    });
                 }
                 finally
                 {
@@ -333,6 +395,23 @@ namespace Span.Services
                 }
             }
 
+            return favorites;
+        }
+
+        internal static List<FavoriteItem> ReadQuickAccessPaths(int count, Func<int, string?> readPath)
+        {
+            if (count < 0) throw new InvalidDataException("Quick Access returned an invalid item count");
+            var favorites = new List<FavoriteItem>();
+            for (int i = 0; i < count; i++)
+            {
+                var path = readPath(i);
+                if (string.IsNullOrWhiteSpace(path) || !Path.IsPathFullyQualified(path))
+                    throw new InvalidDataException("Quick Access returned an unresolved folder path");
+                // Offline network shares and disconnected drives are still pinned favorites.
+                // A per-item failure aborts the import instead of committing a partial list.
+                if (!favorites.Any(f => IsSamePath(f.Path, path)))
+                    favorites.Add(new FavoriteItem { Path = path, Name = GetDefaultName(path), Order = favorites.Count });
+            }
             return favorites;
         }
 

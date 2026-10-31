@@ -19,6 +19,8 @@ public class IconService
     /// 테스트에서는 비어있지 않은 문자열만 보장하면 충분하다.
     /// </summary>
     public string GetIcon(string extension) => string.IsNullOrEmpty(extension) ? FileDefaultGlyph : "\uECA5";
+
+    public object? GetBrush(string extension) => null;
 }
 
 /// <summary>

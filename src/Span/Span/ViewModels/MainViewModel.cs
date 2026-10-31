@@ -990,6 +990,13 @@ namespace Span.ViewModels
 
         #region Favorites
 
+        private bool EnsureFavoritesWritable()
+        {
+            if (_favoritesService.CanSaveFavorites) return true;
+            ShowToast(_loc.Get("Favorites_Unavailable"), isError: true);
+            return false;
+        }
+
         private void LoadFavorites()
         {
             try
@@ -1051,6 +1058,7 @@ namespace Span.ViewModels
         /// </summary>
         public bool AddToFavorites(string path, string? groupId = null, string? beforePath = null)
         {
+            if (!EnsureFavoritesWritable()) return false;
             if (string.IsNullOrWhiteSpace(path)) return false;
             path = FavoritesService.CanonicalizePath(path);
 
@@ -1073,6 +1081,7 @@ namespace Span.ViewModels
 
         public void RemoveFromFavorites(string path)
         {
+            if (!EnsureFavoritesWritable()) return;
             RemoveFavoriteFromLayout(path);
             var updated = _favoritesService.RemoveFavorite(path, Favorites.ToList());
             ReplaceFavoritesCollection(updated);
@@ -1090,6 +1099,7 @@ namespace Span.ViewModels
         /// <summary>Set (or reset with null/empty) the display name of a favorite.</summary>
         public void RenameFavorite(string path, string? newName)
         {
+            if (!EnsureFavoritesWritable()) return;
             var fav = FindFavorite(path);
             if (fav == null) return;
 
@@ -1104,6 +1114,7 @@ namespace Span.ViewModels
         /// <summary>Set (or reset with null) the icon color of a favorite (HEX, e.g. "#E84855").</summary>
         public void SetFavoriteColor(string path, string? color)
         {
+            if (!EnsureFavoritesWritable()) return;
             var fav = FindFavorite(path);
             if (fav == null) return;
 
@@ -1248,6 +1259,7 @@ namespace Span.ViewModels
 
         private void PruneMissingPathsFromLayout()
         {
+            if (!_favoritesService.CanSaveFavorites) return;
             if (Favorites.Count == 0)
                 return;
 
@@ -1322,12 +1334,18 @@ namespace Span.ViewModels
 
         private void SaveFavoriteLayout()
         {
+            if (!_favoritesService.CanSaveFavorites) return;
             _favoritesLayoutService.Save(_favoritesLayout);
         }
 
         /// <summary>After drag-reorder in the unified favorites list.</summary>
         public void SaveFavoritesSidebarOrder()
         {
+            if (!EnsureFavoritesWritable())
+            {
+                RebuildFavoritesSidebarRows();
+                return;
+            }
             PersistFavoriteLayoutFromSidebarRows();
             RefreshFavoriteGroups();
             _favoritesService.SaveFavorites(Favorites.ToList());
@@ -1337,8 +1355,9 @@ namespace Span.ViewModels
 
         public void SaveGroupFavoriteOrder(string groupId) => SaveFavoritesSidebarOrder();
 
-        public FavoriteGroupViewModel CreateFavoriteGroup(string name)
+        public FavoriteGroupViewModel? CreateFavoriteGroup(string name)
         {
+            if (!EnsureFavoritesWritable()) return null;
             var group = new FavoriteGroup
             {
                 Name = name,
@@ -1353,6 +1372,7 @@ namespace Span.ViewModels
 
         public void RenameFavoriteGroup(string groupId, string newName)
         {
+            if (!EnsureFavoritesWritable()) return;
             var group = _favoritesLayout.Groups.FirstOrDefault(g => g.Id == groupId);
             var vm = FavoriteGroups.FirstOrDefault(g => g.Id == groupId);
             if (group == null || vm == null) return;
@@ -1365,6 +1385,7 @@ namespace Span.ViewModels
 
         public void DeleteFavoriteGroup(string groupId)
         {
+            if (!EnsureFavoritesWritable()) return;
             var group = _favoritesLayout.Groups.FirstOrDefault(g => g.Id == groupId);
             if (group == null) return;
 
@@ -1385,6 +1406,7 @@ namespace Span.ViewModels
 
         public void ToggleFavoriteGroupExpanded(string groupId)
         {
+            if (!EnsureFavoritesWritable()) return;
             var group = _favoritesLayout.Groups.FirstOrDefault(g => g.Id == groupId);
             var vm = FavoriteGroups.FirstOrDefault(g => g.Id == groupId);
             if (group == null || vm == null) return;
@@ -1397,6 +1419,7 @@ namespace Span.ViewModels
 
         public void MoveFavoriteToGroup(string path, string? groupId, string? beforePath = null)
         {
+            if (!EnsureFavoritesWritable()) return;
             var normalized = NormalizeFavoritePath(path);
             var fav = Favorites.FirstOrDefault(f => NormalizeFavoritePath(f.Path).Equals(normalized, StringComparison.OrdinalIgnoreCase));
             if (fav == null) return;

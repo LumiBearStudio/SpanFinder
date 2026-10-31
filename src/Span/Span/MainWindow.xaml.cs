@@ -4595,6 +4595,7 @@ namespace Span
             if (name == null) return;
 
             var group = ViewModel.CreateFavoriteGroup(name);
+            if (group == null) return;
             if (!string.IsNullOrEmpty(addPath))
                 ViewModel.AddToFavorites(addPath, group.Id);
         }
