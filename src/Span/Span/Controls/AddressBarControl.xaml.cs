@@ -125,6 +125,14 @@ namespace Span.Controls
         /// </summary>
         public event EventHandler<BreadcrumbClickEventArgs>? BreadcrumbChevronClicked;
 
+        /// <summary>
+        /// Explorer address bar: breadcrumb segments are drop targets. Raised on DragOver,
+        /// Drop and DragLeave of a segment button; the host decides and sets AcceptedOperation.
+        /// </summary>
+        public event EventHandler<BreadcrumbDragEventArgs>? BreadcrumbSegmentDragOver;
+        public event EventHandler<BreadcrumbDragEventArgs>? BreadcrumbSegmentDrop;
+        public event EventHandler<BreadcrumbDragEventArgs>? BreadcrumbSegmentDragLeave;
+
         #endregion
 
         #region Public Methods
@@ -255,6 +263,24 @@ namespace Span.Controls
         {
             if (sender is Button btn && btn.Tag is string fullPath)
                 BreadcrumbChevronClicked?.Invoke(this, new BreadcrumbClickEventArgs(fullPath, btn));
+        }
+
+        private void OnSegmentDragOver(object sender, DragEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is string fullPath)
+                BreadcrumbSegmentDragOver?.Invoke(this, new BreadcrumbDragEventArgs(fullPath, btn.Content as string ?? fullPath, btn, e));
+        }
+
+        private void OnSegmentDrop(object sender, DragEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is string fullPath)
+                BreadcrumbSegmentDrop?.Invoke(this, new BreadcrumbDragEventArgs(fullPath, btn.Content as string ?? fullPath, btn, e));
+        }
+
+        private void OnSegmentDragLeave(object sender, DragEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is string fullPath)
+                BreadcrumbSegmentDragLeave?.Invoke(this, new BreadcrumbDragEventArgs(fullPath, btn.Content as string ?? fullPath, btn, e));
         }
 
         #endregion
@@ -555,6 +581,26 @@ namespace Span.Controls
         {
             FullPath = fullPath;
             SourceButton = sourceButton;
+        }
+    }
+
+    /// <summary>
+    /// Event args for drag &amp; drop over a breadcrumb segment (Explorer address bar drop target).
+    /// </summary>
+    public class BreadcrumbDragEventArgs : EventArgs
+    {
+        public string FullPath { get; }
+        /// <summary>Display name of the segment (for the drag caption).</summary>
+        public string Name { get; }
+        public Control SourceButton { get; }
+        public DragEventArgs DragArgs { get; }
+
+        public BreadcrumbDragEventArgs(string fullPath, string name, Control sourceButton, DragEventArgs dragArgs)
+        {
+            FullPath = fullPath;
+            Name = name;
+            SourceButton = sourceButton;
+            DragArgs = dragArgs;
         }
     }
 }

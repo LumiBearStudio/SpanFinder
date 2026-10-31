@@ -2597,6 +2597,10 @@ namespace Span
             {
                 // Sidebar 스케일은 이제 FontScaleService + XAML {Binding} 으로 자동 반영됨.
                 // (기존 _iconFontScaleLevel 기반 fan-out 재적용 불필요 — Phase B/C 제거)
+
+                // 드라이브가 생기거나 사라졌으므로 클라우드/네트워크 섹션 표시 여부를 다시 계산한다.
+                // 숨김 설정(Settings → Sidebar)을 존중해야 하므로 XAML 바인딩이 아니라 이 경로로만 갱신한다.
+                ApplySidebarSectionVisibility();
             }
             else if (e.PropertyName == nameof(MainViewModel.IsToastError))
             {
@@ -4314,9 +4318,16 @@ namespace Span
         // =================================================================
 
         /// <summary>
-        /// 즐겨찾기 사이드바의 표시 모드(Tree/Flat)를 설정에 따라 적용한다.
+        /// 사이드바 각 섹션의 표시 여부를 적용한다.
+        /// 클라우드/네트워크는 설정(Settings → Sidebar)과 해당 드라이브 존재 여부를 AND로 결합한다 —
+        /// 설정이 켜져 있어도 드라이브가 없으면 빈 섹션 헤더가 남지 않도록 숨긴다.
         /// </summary>
-        /// <param name="showTree">true면 트리 모드, false면 플랫 리스트 모드를 표시한다.</param>
+        /// <remarks>
+        /// 이 메서드가 두 섹션 Visibility의 단일 소유자다. 예전에는 XAML이
+        /// HasCloudDrives/HasNetworkDrives에 직접 x:Bind 하고 있었는데, 드라이브 목록이 갱신될 때마다
+        /// 그 바인딩이 여기서 세팅한 값을 덮어써서 숨김 설정이 먹지 않았다(v2.0.8).
+        /// 드라이브 수가 바뀌면 OnViewModelPropertyChanged에서 다시 호출된다.
+        /// </remarks>
         internal void ApplySidebarSectionVisibility()
         {
             var v = Microsoft.UI.Xaml.Visibility.Visible;
@@ -4324,11 +4335,15 @@ namespace Span
             SidebarHomeSection.Visibility = _settings.SidebarShowHome ? v : c;
             SidebarFavoritesSection.Visibility = _settings.SidebarShowFavorites ? v : c;
             SidebarLocalDrivesSection.Visibility = _settings.SidebarShowLocalDrives ? v : c;
-            SidebarCloudSection.Visibility = _settings.SidebarShowCloud ? v : c;
-            SidebarNetworkSection.Visibility = _settings.SidebarShowNetwork ? v : c;
+            SidebarCloudSection.Visibility = _settings.SidebarShowCloud && ViewModel.HasCloudDrives ? v : c;
+            SidebarNetworkSection.Visibility = _settings.SidebarShowNetwork && ViewModel.HasNetworkDrives ? v : c;
             SidebarRecycleBinSection.Visibility = _settings.SidebarShowRecycleBin ? v : c;
         }
 
+        /// <summary>
+        /// 즐겨찾기 사이드바의 표시 모드(Tree/Flat)를 설정에 따라 적용한다.
+        /// </summary>
+        /// <param name="showTree">true면 트리 모드, false면 플랫 리스트 모드를 표시한다.</param>
         private void ApplyFavoritesTreeMode(bool showTree)
         {
             FavoritesTreeView.Visibility = showTree
@@ -5062,6 +5077,19 @@ namespace Span
 
             _rubberBandHelpers[grid] = helper;
 
+            // Explorer-style right-button drag (Copy here / Move here / Create shortcuts here).
+            // selectDraggedItem is false: selecting an item in a Miller column navigates into it.
+            _rightDragHelpers[grid] = new Helpers.RightButtonDragHelper(
+                listView,
+                selectDraggedItem: false,
+                (items, data) =>
+                {
+                    if (_rubberBandHelpers.Values.Any(h => h.IsActive)) return false;
+                    BeginFileDrag(items, data, DeterminePane(listView) == "Right", useIconService: false);
+                    return true;
+                },
+                EndOutboundFileDrag);
+
             // 컬럼 Grid Loaded 시점에 path highlight 리프레시
             // PathHighlightsUpdated 이벤트가 Loaded 전에 발생한 경우를 보완
             DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
@@ -5217,6 +5245,12 @@ namespace Span
             {
                 helper.Detach();
                 _rubberBandHelpers.Remove(grid);
+            }
+
+            if (_rightDragHelpers.TryGetValue(grid, out var rightDrag))
+            {
+                rightDrag.Detach();
+                _rightDragHelpers.Remove(grid);
             }
         }
 

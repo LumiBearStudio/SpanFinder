@@ -25,10 +25,9 @@ namespace Span.Helpers
     ///     PointerReleased 시 최종 선택을 ViewModel에 동기화하고 정리.</description></item>
     /// </list>
     /// 
-    /// <para><b>데드존 처리:</b></para>
-    /// <para>ListViewItem의 텍스트/아이콘이 아닌 패딩 영역(데드존)을 클릭하면:  
-    /// - 선택된 항목의 데드존 → ListView에 위임 (드래그 시작 가능)  
-    /// - 미선택 항목의 데드존 → Starting 상태 진입 → 클릭 시 해당 항목 단일 선택  
+    /// <para><b>히트 영역 (Windows 탐색기와 동일):</b></para>
+    /// <para>항목 행/타일 위 어디를 누르든(텍스트, 아이콘, 패딩 포함) ListView에 위임한다 —
+    /// 선택 및 파일 드래그 시작. 러버밴드는 항목이 없는 빈 공간에서만 시작한다:
     /// - 빈 공간 → Starting 상태 진입 → 클릭 시 선택 해제</para>
     /// 
     /// <para><b>Ctrl 키:</b> Ctrl+드래그 시 기존 선택을 스냅샷으로 보존하고 XOR 방식으로 토글.</para>
@@ -81,8 +80,6 @@ namespace Span.Helpers
         private bool _isCapturing;
         /// <summary>러버밴드 시작 전 ListView.CanDragItems 원본값 (복원용).</summary>
         private bool _savedCanDragItems = true;
-        /// <summary>Starting 상태에서 데드존 클릭된 SelectorItem (null이면 빈 공간 클릭).</summary>
-        private Microsoft.UI.Xaml.Controls.Primitives.SelectorItem? _deadZoneSelectorItem;
 
         // ── 자동 스크롤 ──
         /// <summary>자동 스크롤 16ms 간격 타이머 (~60fps).</summary>
@@ -199,8 +196,10 @@ namespace Span.Helpers
                 if (IsPointerOnScrollbar(e))
                     return;
 
-                // Hit-test: if pointer is on actual item content (text/icon), let ListView handle it
-                if (IsPointerOnItemContent(e))
+                // Explorer-style hit area: a press anywhere on an item row/tile (text, icon or
+                // the padding around them) belongs to the ListView — it selects the item and can
+                // start a file drag. The rubber band only starts on truly empty space.
+                if (FindSelectorItemAtPointer(e) != null)
                     return;
 
                 // Shift key → let ListView handle for native range selection (Extended mode)
@@ -209,25 +208,13 @@ namespace Span.Helpers
                     Windows.System.VirtualKey.Shift).HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down))
                     return;
 
-                // Determine if pointer is on an item's dead zone or truly empty space
-                var selectorItem = FindSelectorItemAtPointer(e);
-
-                // Dead zone of a SELECTED item → let ListView handle (file drag / keep selection)
-                if (selectorItem != null)
-                {
-                    var itemData = _listView.ItemFromContainer(selectorItem);
-                    if (itemData != null && _listView.SelectedItems.Contains(itemData))
-                        return;
-                }
-
-                // Dead zone of UNSELECTED item or empty space → rubber band Starting
-                // Click (no drag) → select item or clear selection
+                // Empty space → rubber band Starting
+                // Click (no drag) → clear selection
                 // Drag (threshold exceeded) → rubber band multi-select
                 var point = e.GetCurrentPoint(_contentGrid).Position;
                 _origin = point;
                 _isCtrlHeld = InputKeyboardSource.GetKeyStateForCurrentThread(
                     Windows.System.VirtualKey.Control).HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
-                _deadZoneSelectorItem = selectorItem; // null = empty space
 
                 // Snapshot current selection for Ctrl+drag
                 _preSelectionSnapshot.Clear();
@@ -246,7 +233,7 @@ namespace Span.Helpers
                 _listView.CanDragItems = false;
 
                 e.Handled = true;
-                DebugLogger.Log($"[RubberBand] PointerPressed: Starting at ({point.X:F0},{point.Y:F0}), onItem={selectorItem != null}");
+                DebugLogger.Log($"[RubberBand] PointerPressed: Starting at ({point.X:F0},{point.Y:F0})");
             }
             catch (Exception ex)
             {
@@ -323,45 +310,13 @@ namespace Span.Helpers
 
                 if (_state == State.Starting)
                 {
-                    // Click without drag — distinguish dead zone vs empty space
-                    if (_deadZoneSelectorItem != null)
+                    // Click without drag on empty space → clear selection
+                    if (!_isCtrlHeld)
                     {
-                        // Dead zone of UNSELECTED item → select it (like Windows Explorer)
-                        var itemData = _listView.ItemFromContainer(_deadZoneSelectorItem);
-                        if (itemData != null)
-                        {
-                            _setIsSyncing(true);
-                            try
-                            {
-                                if (_isCtrlHeld)
-                                {
-                                    // Ctrl+click: toggle selection
-                                    if (_listView.SelectedItems.Contains(itemData))
-                                        _listView.SelectedItems.Remove(itemData);
-                                    else
-                                        _listView.SelectedItems.Add(itemData);
-                                }
-                                else
-                                {
-                                    // Normal click: single-select
-                                    _listView.SelectedItems.Clear();
-                                    _listView.SelectedItems.Add(itemData);
-                                }
-                            }
-                            finally { _setIsSyncing(false); }
-                        }
+                        _setIsSyncing(true);
+                        try { _listView.SelectedItems.Clear(); }
+                        finally { _setIsSyncing(false); }
                         SyncToViewModel();
-                    }
-                    else
-                    {
-                        // Empty space click → clear selection
-                        if (!_isCtrlHeld)
-                        {
-                            _setIsSyncing(true);
-                            try { _listView.SelectedItems.Clear(); }
-                            finally { _setIsSyncing(false); }
-                            SyncToViewModel();
-                        }
                     }
                 }
 
@@ -446,7 +401,6 @@ namespace Span.Helpers
             _state = State.Inactive;
             _itemBoundsCache.Clear();
             _preSelectionSnapshot.Clear();
-            _deadZoneSelectorItem = null;
             StopAutoScroll();
 
             // Restore ListView's CanDragItems (disabled during rubber band to prevent built-in drag)
@@ -476,48 +430,6 @@ namespace Span.Helpers
                 source = VisualTreeHelper.GetParent(source);
             }
             return false;
-        }
-
-        /// <summary>
-        /// Walk the visual tree from OriginalSource upward to check if pointer hit
-        /// actual item CONTENT (text, icon, image) — not dead-zone padding.
-        /// Dead-zone hits on SelectorItem return false so rubber band can handle click-vs-drag.
-        /// </summary>
-        private bool IsPointerOnItemContent(PointerRoutedEventArgs e)
-        {
-            var source = e.OriginalSource as DependencyObject;
-            while (source != null)
-            {
-                // FontIcon, Image, TextBox: always content
-                if (source is FontIcon || source is Image || source is TextBox)
-                    return true;
-
-                // TextBlock: check if pointer is on the actual text area, not the stretched dead zone
-                if (source is TextBlock tb)
-                {
-                    try
-                    {
-                        var pos = e.GetCurrentPoint(tb).Position;
-                        double textW = tb.DesiredSize.Width;
-                        double textH = tb.DesiredSize.Height;
-
-                        if (pos.X >= 0 && pos.X <= textW && pos.Y >= 0 && pos.Y <= textH)
-                            return true;
-                        // Dead zone of TextBlock → continue walking up
-                    }
-                    catch
-                    {
-                        return true;
-                    }
-                }
-
-                // SelectorItem or contentGrid → stop walking
-                if (source is Microsoft.UI.Xaml.Controls.Primitives.SelectorItem || source == _contentGrid)
-                    break;
-
-                source = VisualTreeHelper.GetParent(source);
-            }
-            return false; // Dead zone of item row OR empty space below items
         }
 
         /// <summary>

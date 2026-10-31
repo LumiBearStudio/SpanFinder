@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using System.Collections.Generic;
 using Microsoft.UI.Xaml.Media;
 using Span.Helpers;
 using Span.Models;
@@ -490,13 +491,29 @@ namespace Span.Views
                 .Where(x => IsParentDotDot(x)).ToList();
             foreach (var item in filtered) e.Items.Remove(item);
 
-            if (!Helpers.ViewDragDropHelper.SetupDragData(e, IsRightPane))
+            if (!Helpers.ViewDragDropHelper.SetupDragData(e, IsRightPane, sender as ListViewBase))
                 e.Cancel = true;
             else
                 (ContextMenuHost as MainWindow)?.NotifyViewDragStarted(e);
         }
 
         private void OnDragItemsCompleted(object sender, DragItemsCompletedEventArgs e)
+        {
+            (ContextMenuHost as MainWindow)?.NotifyViewDragCompleted();
+        }
+
+        /// <summary>Right-button drag (Explorer): fill the package like a left-button drag (".." excluded).</summary>
+        private bool OnRightDragStarting(IReadOnlyList<FileSystemViewModel> items, Windows.ApplicationModel.DataTransfer.DataPackage data)
+        {
+            if (_rubberBandHelper?.IsActive == true) return false;
+            var real = items.Where(x => !IsParentDotDot(x)).ToList();
+            if (real.Count == 0) return false;
+            Helpers.ViewDragDropHelper.PopulateDragData(data, real, IsRightPane);
+            (ContextMenuHost as MainWindow)?.NotifyViewDragStarted(real);
+            return true;
+        }
+
+        private void OnRightDragCompleted()
         {
             (ContextMenuHost as MainWindow)?.NotifyViewDragCompleted();
         }
@@ -563,17 +580,7 @@ namespace Span.Views
             destPath ??= ViewModel?.CurrentFolder?.Path;
             if (string.IsNullOrEmpty(destPath)) return;
 
-            try
-            {
-                var paths = await mainWindow.ExtractDropPaths(e);
-                if (paths.Count == 0) return;
-                var mode = mainWindow.ResolveDragDropMode(e, destPath);
-                await mainWindow.HandleDropAsync(paths, destPath, mode);
-            }
-            catch (Exception ex)
-            {
-                Helpers.DebugLogger.Log($"[ListModeView] OnGridViewDrop error: {ex.Message}");
-            }
+            await mainWindow.CompleteDropAsync(e, destPath);
         }
 
         private void OnGridViewDragLeave(object sender, DragEventArgs e)
@@ -1075,6 +1082,7 @@ namespace Span.Views
         #region Rubber Band Selection
 
         private Helpers.RubberBandSelectionHelper? _rubberBandHelper;
+        private Helpers.RightButtonDragHelper? _rightDragHelper;
         private bool _isSyncingSelection;
 
         private void OnListViewWrapperLoaded(object sender, RoutedEventArgs e)
@@ -1088,12 +1096,17 @@ namespace Span.Views
                 val => _isSyncingSelection = val,
                 items => _viewModel?.CurrentFolder?.SyncSelectedItems(items),
                 () => (ContextMenuHost as MainWindow)?.ViewModel?.UpdateStatusBar());
+
+            _rightDragHelper ??= new Helpers.RightButtonDragHelper(
+                ListGridView, selectDraggedItem: true, OnRightDragStarting, OnRightDragCompleted);
         }
 
         private void OnListViewWrapperUnloaded(object sender, RoutedEventArgs e)
         {
             _rubberBandHelper?.Detach();
             _rubberBandHelper = null;
+            _rightDragHelper?.Detach();
+            _rightDragHelper = null;
         }
 
         #endregion
@@ -1135,6 +1148,8 @@ namespace Span.Views
 
                 _rubberBandHelper?.Detach();
                 _rubberBandHelper = null;
+                _rightDragHelper?.Detach();
+                _rightDragHelper = null;
 
                 _parentDotDotVm = null;
                 _listItems.Clear();

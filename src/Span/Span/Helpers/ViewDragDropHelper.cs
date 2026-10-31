@@ -1,43 +1,109 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Span.ViewModels;
+using Windows.ApplicationModel.DataTransfer;
 
 namespace Span.Helpers
 {
     /// <summary>
-    /// Shared drag/drop logic used by DetailsModeView, ListModeView, and IconModeView.
+    /// Shared drag/drop logic used by Miller columns, DetailsModeView, ListModeView, and IconModeView.
     /// </summary>
     public static class ViewDragDropHelper
     {
         /// <summary>
-        /// Sets up drag data from selected items.
-        /// Returns false if drag should be cancelled.
+        /// Sets up WinUI drag data from the items of a DragItemsStarting event.
+        /// Returns false if there is nothing to drag.
         /// </summary>
+        /// <param name="listView">Source list; needed for Explorer-style selection of the dragged item.</param>
+        /// <param name="selectDraggedItem">
+        /// Explorer: dragging an unselected item selects it (Ctrl adds it to the selection and
+        /// drags the whole selection). Miller columns pass false because selecting there navigates.
+        /// </param>
         public static bool SetupDragData(
             Microsoft.UI.Xaml.Controls.DragItemsStartingEventArgs e,
-            bool isRightPane)
+            bool isRightPane,
+            Microsoft.UI.Xaml.Controls.ListViewBase? listView = null,
+            bool selectDraggedItem = true)
         {
             var items = e.Items.OfType<FileSystemViewModel>().ToList();
-            if (items.Count == 0) return false;
+            if (items.Count == 0)
+                return false;
 
-            var paths = items.Select(i => i.Path).ToList();
-            e.Data.SetText(string.Join("\n", paths));
-            e.Data.Properties["SourcePaths"] = paths;
-            e.Data.Properties["SourcePane"] = isRightPane ? "Right" : "Left";
-            // Must include all operations so that AcceptedOperation (set in DragOver) is
-            // always a subset of RequestedOperation. Without Move flag, WinUI OLE layer
-            // silently blocks Drop events when AcceptedOperation=Move (same-drive default).
-            e.Data.RequestedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Copy
-                | Windows.ApplicationModel.DataTransfer.DataPackageOperation.Move
-                | Windows.ApplicationModel.DataTransfer.DataPackageOperation.Link;
+            if (listView != null && selectDraggedItem)
+                items = EnsureDraggedItemsSelected(listView, items);
 
-            var capturedPaths = new List<string>(paths);
-            e.Data.SetDataProvider(Windows.ApplicationModel.DataTransfer.StandardDataFormats.StorageItems, request =>
-            {
-                var deferral = request.GetDeferral();
-                _ = ProvideStorageItemsAsync(request, capturedPaths, deferral);
-            });
+            PopulateDragData(e.Data, items, isRightPane);
             return true;
+        }
+
+        /// <summary>
+        /// Fills a DataPackage for an internal file drag: SourcePaths/SourcePane for drops inside
+        /// Span plus StorageItems for external targets.
+        /// </summary>
+        public static void PopulateDragData(DataPackage data, IReadOnlyList<FileSystemViewModel> items, bool isRightPane)
+        {
+            var paths = items.Select(i => i.Path).ToList();
+            // 텍스트는 싣지 않는다 (외부 앱 파일 드롭 호환 — MainWindow.OnDragItemsStarting 참고)
+            data.Properties["SourcePaths"] = paths;
+            data.Properties["SourcePane"] = isRightPane ? "Right" : "Left";
+            data.RequestedOperation = DataPackageOperation.Copy
+                | DataPackageOperation.Move
+                | DataPackageOperation.Link;
+            OutboundFileDragHelper.Populate(data, paths, skipArchivePaths: false);
+        }
+
+        /// <summary>
+        /// Explorer semantics for the drag start: a drag that begins on an item outside the
+        /// selection selects that item (Ctrl held: adds it and drags the whole selection).
+        /// Returns the items that should actually be dragged.
+        /// </summary>
+        public static List<FileSystemViewModel> EnsureDraggedItemsSelected(
+            Microsoft.UI.Xaml.Controls.ListViewBase listView,
+            List<FileSystemViewModel> items)
+        {
+            if (items.Count != 1)
+                return items;
+
+            var item = items[0];
+            try
+            {
+                if (listView.SelectedItems.Contains(item))
+                    return items;
+
+                bool ctrl = (NativeMethods.GetAsyncKeyState(NativeMethods.VK_CONTROL) & 0x8000) != 0;
+                if (!ctrl)
+                    listView.SelectedItems.Clear();
+                listView.SelectedItems.Add(item);
+
+                if (ctrl && listView.SelectedItems.Count > 1)
+                    return listView.SelectedItems.OfType<FileSystemViewModel>().ToList();
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[DragDrop] Selecting dragged item failed: {ex.Message}");
+            }
+            return items;
+        }
+
+        /// <summary>
+        /// Items to drag when a drag starts on <paramref name="pressed"/>: the whole selection when
+        /// the item is part of it, otherwise just that item (selected first when requested).
+        /// </summary>
+        public static List<FileSystemViewModel> ResolveDragItems(
+            Microsoft.UI.Xaml.Controls.ListViewBase listView,
+            FileSystemViewModel pressed,
+            bool selectDraggedItem)
+        {
+            try
+            {
+                if (listView.SelectedItems.Contains(pressed))
+                    return listView.SelectedItems.OfType<FileSystemViewModel>().ToList();
+            }
+            catch { }
+
+            var single = new List<FileSystemViewModel> { pressed };
+            return selectDraggedItem ? EnsureDraggedItemsSelected(listView, single) : single;
         }
 
         /// <summary>
@@ -94,6 +160,17 @@ namespace Span.Helpers
             return null;
         }
 
+        /// <summary>Nearest ListView/GridView ancestor of an element (e.g. an item template Grid).</summary>
+        public static Microsoft.UI.Xaml.Controls.ListViewBase? FindOwningListView(Microsoft.UI.Xaml.DependencyObject? element)
+        {
+            while (element != null)
+            {
+                if (element is Microsoft.UI.Xaml.Controls.ListViewBase lv) return lv;
+                element = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(element);
+            }
+            return null;
+        }
+
         private static T? FindChild<T>(Microsoft.UI.Xaml.DependencyObject parent) where T : Microsoft.UI.Xaml.DependencyObject
         {
             int count = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(parent);
@@ -105,48 +182,6 @@ namespace Span.Helpers
                 if (result != null) return result;
             }
             return null;
-        }
-
-        /// <summary>
-        /// Provides StorageItems asynchronously for external app drops.
-        /// </summary>
-        public static async System.Threading.Tasks.Task ProvideStorageItemsAsync(
-            Windows.ApplicationModel.DataTransfer.DataProviderRequest request,
-            List<string> paths,
-            Windows.ApplicationModel.DataTransfer.DataProviderDeferral deferral)
-        {
-            try
-            {
-                // Issue #64: archive:// 항목을 임시 파일로 꺼낸 뒤 실제 경로를 넘긴다.
-                // 이전에는 File.Exists가 false라 조용히 누락됐다. 지연 콜백이라
-                // 상대 앱이 데이터를 요청할 때만 비용이 든다.
-                paths = await Span.Services.Archive.ArchiveEntryStaging.MaterializeAsync(paths);
-
-                var storageItems = new List<Windows.Storage.IStorageItem>();
-                foreach (var p in paths)
-                {
-                    try
-                    {
-                        if (System.IO.Directory.Exists(p))
-                            storageItems.Add(await Windows.Storage.StorageFolder.GetFolderFromPathAsync(p));
-                        else if (System.IO.File.Exists(p))
-                            storageItems.Add(await Windows.Storage.StorageFile.GetFileFromPathAsync(p));
-                    }
-                    catch (Exception ex)
-                    {
-                        DebugLogger.Log($"[DragDrop] StorageItem resolve failed ({p}): {ex.Message}");
-                    }
-                }
-                request.SetData(storageItems);
-            }
-            catch (Exception ex)
-            {
-                DebugLogger.Log($"[DragDrop] SetData error: {ex.Message}");
-            }
-            finally
-            {
-                deferral.Complete();
-            }
         }
     }
 }

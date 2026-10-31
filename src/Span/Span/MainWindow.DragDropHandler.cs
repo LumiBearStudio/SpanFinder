@@ -48,6 +48,11 @@ namespace Span
         private int _lastModifierSnapshot;
         private int _nudgeCountdown;
 
+        /// <summary>
+        /// Window the taskbar switched to while the user hovered one of its buttons during a drag
+        /// (zero otherwise). Kept above Span for the rest of the drag.
+        /// </summary>
+
         // 커스텀 드래그 오버레이: WinUI 기본 ListView 행 스크린샷 + 시스템 Caption 대신
         // 앱 폰트/테마에 맞는 경량 오버레이로 아이콘+파일명+작업 텍스트를 표시한다.
         private Border? _dragOverlay;
@@ -63,6 +68,25 @@ namespace Span
         private string _dragItemName = "";
         private List<string> _dragItemIcons = new();
 
+        // ── Explorer-like drag behaviour ──
+        /// <summary>Last DragOver tick from any source; a long gap marks a new drag session.</summary>
+        private long _lastDragOverTicks;
+        /// <summary>True while the pointer rests in an auto-scroll edge zone of a list during a drag.</summary>
+        private volatile bool _dragAutoScrollActive;
+        /// <summary>Paths of an external (Explorer → Span) drag, resolved once per session for the Move/Copy default.</summary>
+        /// <summary>Sidebar drives: "root exists" per drag session (network roots can be slow to probe).</summary>
+        private readonly Dictionary<string, bool> _driveDropAvailability = new(StringComparer.OrdinalIgnoreCase);
+        /// <summary>Inner ScrollViewer per list, for drag auto-scroll.</summary>
+        private readonly System.Runtime.CompilerServices.ConditionalWeakTable<ListViewBase, ScrollViewer> _dragScrollViewers = new();
+        /// <summary>Right-button drag helpers of the Miller column lists (keyed by the column content Grid).</summary>
+        private readonly Dictionary<Grid, Helpers.RightButtonDragHelper> _rightDragHelpers = new();
+        private const double DragAutoScrollEdge = 32;
+        private const double DragAutoScrollMaxStep = 20;
+        /// <summary>Gap between DragOver events after which the next one starts a new session.</summary>
+        private const int DragSessionGapMs = 1500;
+        /// <summary>Poll timer lifetime after the last DragOver of an external drag.</summary>
+        private const int ExternalDragIdleMs = 10000;
+
         #region Drag & Drop: Drag start and Favorites
 
         /// <summary>
@@ -77,50 +101,72 @@ namespace Span
             if (_rubberBandHelpers.Values.Any(h => h.IsActive))
             { e.Cancel = true; return; }
 
-            // Allow dragging both files and folders
+            // Allow dragging both files and folders. No Explorer-style "select the dragged item"
+            // here: selecting a folder in a Miller column navigates into it.
             var items = e.Items.OfType<FileSystemViewModel>().ToList();
             if (items.Count == 0) { e.Cancel = true; return; }
 
-            IsDragInProgress = true;
-            StartModifierPollTimer();
+            BeginFileDrag(items, e.Data, DeterminePane(sender) == "Right", useIconService: false);
+        }
 
-            // 드래그 오버레이용 항목 정보 캡처 (최대 3개 아이콘 — 스택 표시용)
+        /// <summary>
+        /// Common start of an internal file drag (left or right mouse button): captures the
+        /// overlay info, fills the DataPackage and starts drag tracking.
+        /// </summary>
+        private void BeginFileDrag(IReadOnlyList<FileSystemViewModel> items, DataPackage data, bool isRightPane, bool useIconService)
+        {
+            CaptureDragOverlayInfo(items, useIconService);
+            // 텍스트(CF_UNICODETEXT)는 싣지 않는다 — 탐색기처럼 파일 형식만 제공해야 Discord 등
+            // Chromium/Electron 앱이 드롭을 텍스트가 아닌 파일 업로드로 처리한다. 내부 드롭은 SourcePaths 사용.
+            Helpers.ViewDragDropHelper.PopulateDragData(data, items, isRightPane);
+            BeginOutboundFileDrag();
+        }
+
+        /// <summary>드래그 오버레이용 항목 정보 캡처 (최대 3개 아이콘 — 스택 표시용).</summary>
+        private void CaptureDragOverlayInfo(IReadOnlyList<FileSystemViewModel> items, bool useIconService)
+        {
             _dragItemCount = items.Count;
-            _dragItemName = items[0].Name;
-            _dragItemIcons = items.Take(3).Select(i => i.IconGlyph).ToList();
-
-            var paths = items.Select(i => i.Path).ToList();
-            e.Data.SetText(string.Join("\n", paths));
-            e.Data.Properties["SourcePaths"] = paths;
-            e.Data.Properties["SourcePane"] = DeterminePane(sender);
-            // 모든 작업 유형(Copy/Move/Link)을 허용.
-            // AcceptedOperation이 RequestedOperation의 부분집합이어야 WinUI가 수용하므로,
-            // Shift=Move, Alt=Link, 기본(같은 드라이브)=Move가 동작하려면 모두 포함해야 한다.
-            // 참고: SPAN→외부앱(Explorer) 드롭 시 Explorer가 자체 규칙으로 Move/Copy 결정.
-            e.Data.RequestedOperation = DataPackageOperation.Copy | DataPackageOperation.Move | DataPackageOperation.Link;
-
-            // Span→외부 앱: StorageItems를 지연 로딩 (외부 앱이 요청할 때만 로드)
-            // DragItemsStarting에서 await 사용 금지 — async void + await는 드래그 종료 시
-            // UI 스레드 데드락 유발 (DataPackage freeze 후 async 연속이 수정 시도)
-            var capturedPaths = new List<string>(paths);
-            e.Data.SetDataProvider(StandardDataFormats.StorageItems, request =>
+            _dragItemName = items.Count > 0 ? items[0].Name : "";
+            var iconSvc = Services.IconService.Current;
+            _dragItemIcons = items.Take(3).Select(i =>
             {
-                var deferral = request.GetDeferral();
-                _ = ProvideStorageItemsAsync(request, capturedPaths, deferral);
-            });
+                if (!useIconService && !string.IsNullOrEmpty(i.IconGlyph)) return i.IconGlyph;
+                if (i is FolderViewModel) return iconSvc?.FolderGlyph ?? "\uED53";
+                return iconSvc?.GetIcon(System.IO.Path.GetExtension(i.Path)) ?? "\uECE0";
+            }).ToList();
         }
 
         /// <summary>
         /// 드래그 작업 완료(드롭 또는 취소) 시 IsDragInProgress 플래그를 해제한다.
+        ///
         /// </summary>
         private void OnDragItemsCompleted(ListViewBase sender, DragItemsCompletedEventArgs args)
         {
+            EndOutboundFileDrag();
+        }
+
+        /// <summary>
+        /// Start outbound drag tracking (modifier poll for Copy/Move/Link caption + auto-scroll).
+        /// </summary>
+        private void BeginOutboundFileDrag()
+        {
+            IsDragInProgress = true;
+            StartModifierPollTimer();
+        }
+
+        /// <summary>
+        /// End outbound drag.
+        /// </summary>
+        private void EndOutboundFileDrag()
+        {
             IsDragInProgress = false;
+            _dragAutoScrollActive = false;
             HideFavoriteDropFeedback();
             StopModifierPollTimer();
             HideDragTooltip();
             _dragItemCount = 0;
         }
+
 
         /// <summary>
         /// 이벤트 발신자(ListView)가 좌측/우측 탐색기 중 어느 패널에 속하는지 판단한다.
@@ -133,50 +179,6 @@ namespace Span
                     return "Right";
             }
             return "Left";
-        }
-
-        /// <summary>
-        /// Deferred StorageItems provider for drag-and-drop to external apps.
-        /// Called lazily only when an external app (e.g. Windows Explorer) requests the data.
-        /// </summary>
-        private static async System.Threading.Tasks.Task ProvideStorageItemsAsync(
-            Windows.ApplicationModel.DataTransfer.DataProviderRequest request,
-            List<string> paths,
-            Windows.ApplicationModel.DataTransfer.DataProviderDeferral deferral)
-        {
-            try
-            {
-                // Issue #64: archive:// 항목을 임시 파일로 꺼낸 뒤 실제 경로를 넘긴다.
-                // 이전에는 여기서 건너뛰어 StorageItems가 비었고, 받는 쪽은 아무것도 못 받았다.
-                // 이 콜백은 상대 앱이 실제로 데이터를 요청할 때만 실행되므로 드래그만 하다
-                // 말면 꺼내는 비용이 발생하지 않는다.
-                paths = await Services.Archive.ArchiveEntryStaging.MaterializeAsync(paths);
-
-                var storageItems = new List<Windows.Storage.IStorageItem>();
-                foreach (var p in paths)
-                {
-                    try
-                    {
-                        if (System.IO.Directory.Exists(p))
-                            storageItems.Add(await Windows.Storage.StorageFolder.GetFolderFromPathAsync(p));
-                        else if (System.IO.File.Exists(p))
-                            storageItems.Add(await Windows.Storage.StorageFile.GetFileFromPathAsync(p));
-                    }
-                    catch (Exception ex)
-                    {
-                        Helpers.DebugLogger.Log($"[DragDrop] StorageItem resolve failed ({p}): {ex.Message}");
-                    }
-                }
-                request.SetData(storageItems);
-            }
-            catch (Exception ex)
-            {
-                Helpers.DebugLogger.Log($"[DragDrop] StorageItems provider error: {ex.Message}");
-            }
-            finally
-            {
-                deferral.Complete();
-            }
         }
 
         /// <summary>What a drop on the favorites sidebar does.</summary>
@@ -207,8 +209,9 @@ namespace Span
         /// </summary>
         private void OnFavoritesDragOver(object sender, DragEventArgs e)
         {
-            bool hasSourcePaths = TryGetDragSourcePaths(e, out var sourcePaths);
-            if (!hasSourcePaths && !HasFavoriteDropData(e))
+            TrackDragOver(e);
+            bool hasSourcePaths = Helpers.OutboundFileDragHelper.TryGetSourcePaths(e.DataView, out var sourcePaths);
+            if (!hasSourcePaths && !HasDroppableData(e))
                 return;
 
             var target = ResolveFavoriteDropTarget(e, hasSourcePaths ? sourcePaths : null);
@@ -248,9 +251,10 @@ namespace Span
         /// </summary>
         private async void OnFavoritesDrop(object sender, DragEventArgs e)
         {
+            _dragAutoScrollActive = false;
             HideDragTooltip();
-            bool hasSourcePaths = TryGetDragSourcePaths(e, out var sourcePaths);
-            if (!hasSourcePaths && !HasFavoriteDropData(e))
+            bool hasSourcePaths = Helpers.OutboundFileDragHelper.TryGetSourcePaths(e.DataView, out var sourcePaths);
+            if (!hasSourcePaths && !HasDroppableData(e))
             {
                 HideFavoriteDropFeedback();
                 return;
@@ -263,18 +267,7 @@ namespace Span
 
             if (target.Kind == FavoriteDropKind.IntoFolder && target.Folder != null)
             {
-                try
-                {
-                    // Resolve the operation before the first await (modifier keys / same drive).
-                    var mode = ResolveDragDropMode(e, target.Folder.Path);
-                    var dropped = await ExtractDropPaths(e);
-                    if (dropped.Count > 0)
-                        await HandleDropAsync(dropped, target.Folder.Path, mode);
-                }
-                catch (Exception ex)
-                {
-                    Helpers.DebugLogger.Log($"[DragDrop] Favorite folder drop error: {ex.Message}");
-                }
+                await CompleteDropAsync(e, target.Folder.Path);
                 return;
             }
 
@@ -419,22 +412,6 @@ namespace Span
                 FavoritesDropIndicator.Visibility = Visibility.Collapsed;
         }
 
-        /// <summary>Paths of an internal Span drag (DataPackage property "SourcePaths").</summary>
-        private static bool TryGetDragSourcePaths(DragEventArgs e, out List<string> paths)
-        {
-            if (e.DataView.Properties.TryGetValue("SourcePaths", out var obj) && obj is List<string> list && list.Count > 0)
-            {
-                paths = list;
-                return true;
-            }
-            paths = new List<string>();
-            return false;
-        }
-
-        /// <summary>The drag carries files or paths that can become favorites.</summary>
-        private static bool HasFavoriteDropData(DragEventArgs e)
-            => e.DataView.Contains(StandardDataFormats.Text) || e.DataView.Contains(StandardDataFormats.StorageItems);
-
         #endregion
 
         #region Drag & Drop: Folder item targets (drop file onto a folder)
@@ -451,6 +428,7 @@ namespace Span
             try { targetFolder = grid.DataContext as FolderViewModel; }
             catch (System.Runtime.InteropServices.COMException) { return; }
             if (targetFolder == null) return;
+            TrackDragOver(e);
 
             if (Helpers.ArchivePathHelper.IsArchivePath(targetFolder.Path))
             {
@@ -460,12 +438,15 @@ namespace Span
             }
 
             // Check if data contains paths (internal or external app)
-            if (!e.DataView.Contains(StandardDataFormats.Text) &&
-                !e.DataView.Properties.ContainsKey("SourcePaths") &&
-                !e.DataView.Contains(StandardDataFormats.StorageItems)) return;
+            if (!HasDroppableData(e)) return;
+
+            // Explorer-like auto-scroll of the column while hovering a folder near its edge
+            // (the item Grid handles DragOver, so the ListView's own handler does not run).
+            if (Helpers.ViewDragDropHelper.FindOwningListView(grid) is ListViewBase owner)
+                UpdateDragAutoScroll(owner, e.GetPosition(owner));
 
             // Prevent dropping onto self (check source paths)
-            if (e.DataView.Properties.TryGetValue("SourcePaths", out var srcObj) && srcObj is List<string> srcPaths)
+            if (Helpers.OutboundFileDragHelper.TryGetSourcePaths(e.DataView, out var srcPaths))
             {
                 if (srcPaths.Any(p => p.Equals(targetFolder.Path, StringComparison.OrdinalIgnoreCase)))
                 {
@@ -524,24 +505,12 @@ namespace Span
             if (Helpers.ArchivePathHelper.IsArchivePath(targetFolder.Path))
                 return;
             e.Handled = true; // Prevent bubbling BEFORE await (avoid duplicate execution)
-            HideDragTooltip();
 
-            try
-            {
-                // Reset highlight and cancel spring-load
-                grid.Background = _transparentBrush;
-                StopSpringLoadTimer();
+            // Reset highlight and cancel spring-load
+            grid.Background = _transparentBrush;
+            StopSpringLoadTimer();
 
-                var paths = await ExtractDropPaths(e);
-                if (paths.Count == 0) return;
-
-                var mode = ResolveDragDropMode(e, targetFolder.Path);
-                await HandleDropAsync(paths, targetFolder.Path, mode);
-            }
-            catch (Exception ex)
-            {
-                Helpers.DebugLogger.Log($"[DragDrop] OnFolderItemDrop error: {ex.Message}");
-            }
+            await CompleteDropAsync(e, targetFolder.Path);
         }
 
         /// <summary>
@@ -638,6 +607,7 @@ namespace Span
             try { folderVm = listView.DataContext as FolderViewModel; }
             catch (System.Runtime.InteropServices.COMException) { return; }
             if (folderVm == null) return;
+            TrackDragOver(e);
 
             if (Helpers.ArchivePathHelper.IsArchivePath(folderVm.Path))
             {
@@ -646,20 +616,20 @@ namespace Span
                 return;
             }
 
-            if (!e.DataView.Contains(StandardDataFormats.Text) &&
-                !e.DataView.Properties.ContainsKey("SourcePaths") &&
-                !e.DataView.Contains(StandardDataFormats.StorageItems)) return;
+            if (!HasDroppableData(e)) return;
+
+            UpdateDragAutoScroll(listView, e.GetPosition(listView));
 
             // Same-folder check: block Move only when source and target are in the SAME pane.
             // Cross-pane drags (Split View) should always be allowed even if the column shows
             // the same folder path, because the user explicitly intends to move between panes.
             bool isSameFolder = false;
             bool isCrossPane = false;
-            if (e.DataView.Properties.TryGetValue("SourcePaths", out var srcObj) && srcObj is List<string> srcPaths)
+            if (Helpers.OutboundFileDragHelper.TryGetSourcePaths(e.DataView, out var srcPaths))
             {
                 isSameFolder = srcPaths.All(p => System.IO.Path.GetDirectoryName(p)?.Equals(folderVm.Path, StringComparison.OrdinalIgnoreCase) == true);
             }
-            if (e.DataView.Properties.TryGetValue("SourcePane", out var spObj) && spObj is string srcPane)
+            if (Helpers.OutboundFileDragHelper.TryGetSourcePane(e.DataView, out var srcPane))
             {
                 var targetPane = IsDescendant(RightPaneContainer, sender as DependencyObject) ? "Right" : "Left";
                 isCrossPane = srcPane != targetPane;
@@ -699,20 +669,15 @@ namespace Span
             if (Helpers.ArchivePathHelper.IsArchivePath(folderVm.Path))
                 return;
             e.Handled = true; // Prevent bubbling to OnPaneDrop (duplicate execution)
+
+            await CompleteDropAsync(e, folderVm.Path);
+        }
+
+        /// <summary>Miller Column ListView에서 드래그가 벗어날 때: 자동 스크롤 중지, 오버레이 숨김.</summary>
+        private void OnColumnDragLeave(object sender, DragEventArgs e)
+        {
+            _dragAutoScrollActive = false;
             HideDragTooltip();
-
-            try
-            {
-                var paths = await ExtractDropPaths(e);
-                if (paths.Count == 0) return;
-
-                var mode = ResolveDragDropMode(e, folderVm.Path);
-                await HandleDropAsync(paths, folderVm.Path, mode);
-            }
-            catch (Exception ex)
-            {
-                Helpers.DebugLogger.Log($"[DragDrop] OnColumnDrop error: {ex.Message}");
-            }
         }
 
         #endregion
@@ -725,7 +690,7 @@ namespace Span
         /// </summary>
         internal async Task<List<string>> ExtractDropPaths(DragEventArgs e)
         {
-            if (e.DataView.Properties.TryGetValue("SourcePaths", out var srcObj) && srcObj is List<string> srcPaths)
+            if (Helpers.OutboundFileDragHelper.TryGetSourcePaths(e.DataView, out var srcPaths))
                 return srcPaths;
 
             if (e.DataView.Contains(StandardDataFormats.Text))
@@ -753,8 +718,9 @@ namespace Span
         /// <summary>
         /// Resolves drag-drop operation based on modifier keys and drive comparison.
         /// Windows Explorer convention:
-        ///   Shift = force Move, Ctrl = force Copy, Alt = create shortcut (Link).
-        ///   Default: same drive = Move, different drive = Copy.
+        ///   Shift = force Move, Ctrl = force Copy, Alt or Ctrl+Shift = create shortcut (Link).
+        ///   Default: same drive = Move, different drive = Copy — also for drags that come
+        ///   from Explorer (their paths are resolved once per session by TrackDragOver).
         /// </summary>
         internal DragDropMode ResolveDragDropMode(DragEventArgs e, string destFolder)
         {
@@ -765,14 +731,23 @@ namespace Span
             var alt = (Helpers.NativeMethods.GetAsyncKeyState(Helpers.NativeMethods.VK_MENU) & 0x8000) != 0;
 
             // Explicit modifier keys override default behavior
-            if (alt) return DragDropMode.Link;    // Alt = create shortcut
+            if (alt || (ctrl && shift)) return DragDropMode.Link;   // Alt / Ctrl+Shift = create shortcut
             if (shift) return DragDropMode.Move;   // Shift = force Move
             if (ctrl) return DragDropMode.Copy;    // Ctrl = force Copy
 
             // Default: same drive root = Move, different drive = Copy
-            if (e.DataView.Properties.TryGetValue("SourcePaths", out var srcObj) && srcObj is List<string> srcPaths && srcPaths.Count > 0)
+            // 외부(탐색기)에서 온 드래그는 여기서 제외한다. 판정 근거가 되는 경로가
+            // StorageItems를 비동기로 읽어 뒤늦게 채워지고, 드래그 세션 구분도
+            // "마지막 DragOver로부터 1500ms"라는 시계 추정뿐이라 같은 드롭이 타이밍에 따라
+            // Copy가 되기도 Move가 되기도 한다. Move는 원본을 지우는 동작이라
+            // 비결정적이어선 안 된다. 외부 드래그는 종전대로 항상 Copy.
+            IReadOnlyList<string>? sources = null;
+            if (Helpers.OutboundFileDragHelper.TryGetSourcePaths(e.DataView, out var srcPaths) && srcPaths.Count > 0)
+                sources = srcPaths;
+
+            if (sources != null)
             {
-                var srcRoot = System.IO.Path.GetPathRoot(srcPaths[0]);
+                var srcRoot = System.IO.Path.GetPathRoot(sources[0]);
                 var destRoot = System.IO.Path.GetPathRoot(destFolder);
                 if (!string.IsNullOrEmpty(srcRoot) && !string.IsNullOrEmpty(destRoot)
                     && srcRoot.Equals(destRoot, StringComparison.OrdinalIgnoreCase))
@@ -780,6 +755,219 @@ namespace Span
             }
 
             return DragDropMode.Copy; // fallback: Copy
+        }
+
+        /// <summary>True when the drag carries files (internal SourcePaths, StorageItems or text paths).</summary>
+        private static bool HasDroppableData(DragEventArgs e)
+        {
+            try
+            {
+                return Helpers.OutboundFileDragHelper.TryGetSourcePaths(e.DataView, out _)
+                    || e.DataView.Contains(StandardDataFormats.StorageItems)
+                    || e.DataView.Contains(StandardDataFormats.Text);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Explorer rules for a folder drop target: it must not be one of the dragged items and
+        /// must not lie inside a dragged folder.
+        /// </summary>
+        private static bool IsDropTargetValid(DragEventArgs e, string destFolder)
+        {
+            if (!Helpers.OutboundFileDragHelper.TryGetSourcePaths(e.DataView, out var srcPaths))
+                return true;
+            var dest = destFolder.TrimEnd('\\');
+            return !srcPaths.Any(p =>
+                p.TrimEnd('\\').Equals(dest, StringComparison.OrdinalIgnoreCase) ||
+                destFolder.StartsWith(p.TrimEnd('\\') + "\\", StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>All dragged items already live in destFolder, so a Move would be a no-op.</summary>
+        private static bool IsSameFolderDrop(DragEventArgs e, string destFolder)
+        {
+            if (!Helpers.OutboundFileDragHelper.TryGetSourcePaths(e.DataView, out var srcPaths) || srcPaths.Count == 0)
+                return false;
+            var dest = destFolder.TrimEnd('\\');
+            return srcPaths.All(p => string.Equals(
+                System.IO.Path.GetDirectoryName(p)?.TrimEnd('\\'), dest, StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>
+        /// Called from every DragOver handler. Detects a new drag session (gap since the last
+        /// DragOver) and keeps the poll timer alive for external drags — modifier changes and
+        /// auto-scroll need it.
+        /// </summary>
+        internal void TrackDragOver(DragEventArgs e)
+        {
+            long now = Environment.TickCount64;
+            bool newSession = now - _lastDragOverTicks > DragSessionGapMs;
+            _lastDragOverTicks = now;
+
+            if (newSession)
+            {
+                _driveDropAvailability.Clear();
+                _dragAutoScrollActive = false;
+            }
+
+            if (_modifierPollTimer == null)
+                StartModifierPollTimer();
+        }
+
+        /// <summary>
+        /// Explorer-like auto-scroll: while a drag hovers near the top/bottom (or left/right for
+        /// horizontally scrolling lists) edge of a list, scroll it one step. DragOver only fires
+        /// on pointer movement, so the poll timer keeps nudging the cursor while the zone is active.
+        /// </summary>
+        internal void UpdateDragAutoScroll(ListViewBase listView, Point pos)
+        {
+            try
+            {
+                var sv = GetDragScrollViewer(listView);
+                if (sv == null) { _dragAutoScrollActive = false; return; }
+
+                double w = listView.ActualWidth, h = listView.ActualHeight;
+                double dx = 0, dy = 0;
+                if (sv.ScrollableHeight > 0 && pos.X >= 0 && pos.X <= w)
+                {
+                    if (pos.Y >= 0 && pos.Y < DragAutoScrollEdge)
+                        dy = -DragAutoScrollMaxStep * (1 - pos.Y / DragAutoScrollEdge);
+                    else if (pos.Y <= h && pos.Y > h - DragAutoScrollEdge)
+                        dy = DragAutoScrollMaxStep * (1 - (h - pos.Y) / DragAutoScrollEdge);
+                }
+                if (sv.ScrollableWidth > 0 && pos.Y >= 0 && pos.Y <= h)
+                {
+                    if (pos.X >= 0 && pos.X < DragAutoScrollEdge)
+                        dx = -DragAutoScrollMaxStep * (1 - pos.X / DragAutoScrollEdge);
+                    else if (pos.X <= w && pos.X > w - DragAutoScrollEdge)
+                        dx = DragAutoScrollMaxStep * (1 - (w - pos.X) / DragAutoScrollEdge);
+                }
+
+                if (Math.Abs(dx) < 0.5 && Math.Abs(dy) < 0.5)
+                {
+                    _dragAutoScrollActive = false;
+                    return;
+                }
+
+                double? nx = Math.Abs(dx) >= 0.5 ? Math.Clamp(sv.HorizontalOffset + dx, 0, sv.ScrollableWidth) : null;
+                double? ny = Math.Abs(dy) >= 0.5 ? Math.Clamp(sv.VerticalOffset + dy, 0, sv.ScrollableHeight) : null;
+                sv.ChangeView(nx, ny, null, true);
+                _dragAutoScrollActive = true;
+            }
+            catch (Exception ex)
+            {
+                _dragAutoScrollActive = false;
+                Helpers.DebugLogger.Log($"[DragDrop] auto-scroll failed: {ex.Message}");
+            }
+        }
+
+        private ScrollViewer? GetDragScrollViewer(ListViewBase listView)
+        {
+            if (_dragScrollViewers.TryGetValue(listView, out var cached))
+                return cached;
+            var sv = VisualTreeHelpers.FindChild<ScrollViewer>(listView);
+            if (sv != null)
+                _dragScrollViewers.TryAdd(listView, sv);
+            return sv;
+        }
+
+        /// <summary>
+        /// Finishes a drop onto a folder: resolves the operation (modifier keys / same drive),
+        /// extracts the dragged paths, shows the Explorer right-button menu when the drag was
+        /// started with the right mouse button, and runs the file operation.
+        /// Callers set e.Handled before awaiting this.
+        /// </summary>
+        internal async Task CompleteDropAsync(DragEventArgs e, string destFolder)
+        {
+            _dragAutoScrollActive = false;
+            HideDragTooltip();
+            if (string.IsNullOrEmpty(destFolder)) return;
+
+            // Read everything that depends on the live DragEventArgs before the first await.
+            var mode = ResolveDragDropMode(e, destFolder);
+            bool rightDrag = Helpers.RightButtonDragHelper.IsRightButtonDrag(e.DataView);
+            Point menuPos = default;
+            if (rightDrag)
+            {
+                try { menuPos = e.GetPosition(Content as UIElement); } catch { }
+            }
+
+            try
+            {
+                var paths = await ExtractDropPaths(e);
+                if (paths.Count == 0) return;
+
+                if (rightDrag)
+                {
+                    var chosen = await ShowRightDragMenuAsync(mode, menuPos);
+                    if (chosen == null)
+                    {
+                        Helpers.DebugLogger.Log("[DragDrop] right-button drop cancelled");
+                        return;
+                    }
+                    mode = chosen.Value;
+                }
+
+                await HandleDropAsync(paths, destFolder, mode);
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[DragDrop] CompleteDropAsync error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Explorer's right-button drop menu: Copy here / Move here / Create shortcuts here / Cancel.
+        /// The entry a left-button drop would have performed is shown bold.
+        /// </summary>
+        private async Task<DragDropMode?> ShowRightDragMenuAsync(DragDropMode defaultMode, Point position)
+        {
+            if (Content is not UIElement root) return null;
+
+            // Let the OLE drop finish before opening a popup.
+            await Task.Delay(50);
+
+            var tcs = new TaskCompletionSource<DragDropMode?>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var flyout = new MenuFlyout();
+
+            MenuFlyoutItem MakeItem(string key, DragDropMode mode)
+            {
+                var item = new MenuFlyoutItem { Text = _loc.Get(key) };
+                if (mode == defaultMode)
+                    item.FontWeight = Microsoft.UI.Text.FontWeights.Bold;
+                item.Click += (_, _) => tcs.TrySetResult(mode);
+                return item;
+            }
+
+            flyout.Items.Add(MakeItem("DragMenu_CopyHere", DragDropMode.Copy));
+            flyout.Items.Add(MakeItem("DragMenu_MoveHere", DragDropMode.Move));
+            flyout.Items.Add(MakeItem("DragMenu_LinkHere", DragDropMode.Link));
+            flyout.Items.Add(new MenuFlyoutSeparator());
+            var cancel = new MenuFlyoutItem { Text = _loc.Get("Cancel") };
+            cancel.Click += (_, _) => tcs.TrySetResult(null);
+            flyout.Items.Add(cancel);
+
+            // Closed can fire before the item's Click is dispatched; defer so a Click wins.
+            flyout.Closed += (_, _) => DispatcherQueue.TryEnqueue(() => tcs.TrySetResult(null));
+
+            try
+            {
+                flyout.ShowAt(root, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
+                {
+                    Position = position,
+                    Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.BottomEdgeAlignedLeft,
+                });
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[DragDrop] right-drag menu failed: {ex.Message}");
+                return null;
+            }
+
+            return await tcs.Task;
         }
 
         /// <summary>드래그 캡션 문자열 (Move/Copy/Link).</summary>
@@ -1021,6 +1209,7 @@ namespace Span
         private void StartModifierPollTimer()
         {
             _lastModifierSnapshot = GetModifierSnapshot();
+            if (_modifierPollTimer != null) return;
             _modifierPollTimer = new System.Threading.Timer(
                 OnModifierPollTick, null, 50, 50);
         }
@@ -1036,7 +1225,14 @@ namespace Span
             // v1.4.15: ThreadPool Timer callback throw → AppDomain unhandled. outer try/catch로 봉인.
             try
             {
-                if (!IsDragInProgress) return;
+                bool internalDrag = IsDragInProgress;
+                if (!internalDrag && Environment.TickCount64 - _lastDragOverTicks > ExternalDragIdleMs)
+                {
+                    // External drag (Explorer → Span) ended or left the window: nothing left to poll.
+                    _dragAutoScrollActive = false;
+                    StopModifierPollTimer();
+                    return;
+                }
 
                 var snapshot = GetModifierSnapshot();
                 if (snapshot != _lastModifierSnapshot)
@@ -1044,6 +1240,11 @@ namespace Span
                     _lastModifierSnapshot = snapshot;
                     _nudgeCountdown = 3; // 변경 감지 → 3회 연속 nudge로 DragOver 확실히 트리거
                 }
+
+                // Auto-scroll keeps running while the pointer rests in the edge zone: each nudge
+                // re-fires DragOver, which scrolls one more step.
+                if (_dragAutoScrollActive && _nudgeCountdown == 0)
+                    _nudgeCountdown = 1;
 
                 if (_nudgeCountdown > 0)
                 {
@@ -1321,13 +1522,13 @@ namespace Span
         {
             // Yoink-style: 드래그 중 Shelf 패널 자동 표시
             ShowShelfForDrag();
+            TrackDragOver(e);
 
             if (sender is not FrameworkElement fe) return;
 
             // Determine source and target panes
             // External drags (Windows Explorer etc.) won't have "SourcePane" property
-            bool isInternalDrag = e.DataView.Properties.TryGetValue("SourcePane", out var sp) && sp is string s;
-            var sourcePane = isInternalDrag ? (string)sp! : "";
+            bool isInternalDrag = Helpers.OutboundFileDragHelper.TryGetSourcePane(e.DataView, out var sourcePane);
 
             bool isLeftTarget = fe.Name == "LeftPaneContainer";
             string targetPane = isLeftTarget ? "Left" : "Right";
@@ -1348,7 +1549,7 @@ namespace Span
             // Only applies to internal drags — external drops always allowed.
             bool isSameFolder = false;
             if (isInternalDrag && sourcePane == targetPane
-                && e.DataView.Properties.TryGetValue("SourcePaths", out var srcObj2) && srcObj2 is List<string> srcPaths2)
+                && Helpers.OutboundFileDragHelper.TryGetSourcePaths(e.DataView, out var srcPaths2))
             {
                 isSameFolder = srcPaths2.All(p =>
                     System.IO.Path.GetDirectoryName(p)?.Equals(destFolder, StringComparison.OrdinalIgnoreCase) == true);
@@ -1383,66 +1584,76 @@ namespace Span
             if (sender is not FrameworkElement fe) return;
             HideDragTooltip();
 
-            try
-            {
-                // External drags (Windows Explorer etc.) won't have "SourcePane" property
-                bool isInternalDrag = e.DataView.Properties.TryGetValue("SourcePane", out var sp) && sp is string s;
-                var sourcePane = isInternalDrag ? (string)sp! : "";
+            bool isLeftTarget = fe.Name == "LeftPaneContainer";
+            var overlay = isLeftTarget ? LeftDropOverlay : RightDropOverlay;
+            overlay.Opacity = 0;
 
-                bool isLeftTarget = fe.Name == "LeftPaneContainer";
-                string targetPane = isLeftTarget ? "Left" : "Right";
+            var targetExplorer = isLeftTarget ? ViewModel.Explorer : ViewModel.RightExplorer;
+            var destFolder = targetExplorer?.CurrentFolder?.Path ?? "";
+            if (string.IsNullOrEmpty(destFolder)) return;
+            if (Helpers.ArchivePathHelper.IsArchivePath(destFolder))
+                return;
 
-                var targetExplorer = isLeftTarget ? ViewModel.Explorer : ViewModel.RightExplorer;
-                var destFolder = targetExplorer?.CurrentFolder?.Path ?? "";
-                if (string.IsNullOrEmpty(destFolder)) return;
-                if (Helpers.ArchivePathHelper.IsArchivePath(destFolder))
-                    return;
+            // Same-folder Move is a no-op — only for internal drags from the same pane
+            // (external drags have no "SourcePane" property).
+            bool isInternalDrag = Helpers.OutboundFileDragHelper.TryGetSourcePane(e.DataView, out var sourcePane);
+            string targetPane = isLeftTarget ? "Left" : "Right";
+            if (isInternalDrag && sourcePane == targetPane
+                && ResolveDragDropMode(e, destFolder) == DragDropMode.Move
+                && IsSameFolderDrop(e, destFolder))
+                return;
 
-                var mode = ResolveDragDropMode(e, destFolder);
-
-                // Same-folder Move is blocked — only for internal drags
-                if (isInternalDrag && sourcePane == targetPane && mode == DragDropMode.Move)
-                {
-                    var paths2 = await ExtractDropPaths(e);
-                    bool isSameFolder = paths2.All(p =>
-                        System.IO.Path.GetDirectoryName(p)?.Equals(destFolder, StringComparison.OrdinalIgnoreCase) == true);
-                    if (isSameFolder) return;
-                }
-
-                // Hide overlay
-                var overlay = isLeftTarget ? LeftDropOverlay : RightDropOverlay;
-                overlay.Opacity = 0;
-
-                var paths = await ExtractDropPaths(e);
-                if (paths.Count == 0) return;
-
-                await HandleDropAsync(paths, destFolder, mode);
-                e.Handled = true;
-            }
-            catch (Exception ex)
-            {
-                Helpers.DebugLogger.Log($"[DragDrop] OnPaneDrop error: {ex.Message}");
-            }
+            e.Handled = true;
+            await CompleteDropAsync(e, destFolder);
         }
 
         /// <summary>
-        /// Miller 컬럼 ScrollViewer 빈 영역 드래그 — Handled 처리하여 PaneDragOver 버블링 차단.
-        /// 컬럼 뒤 빈 공간에서 DropOverlay가 뜨는 문제 방지.
+        /// Miller 컬럼 ScrollViewer 빈 영역 드래그 — Handled 처리하여 PaneDragOver 버블링 차단
+        /// (컬럼 뒤 빈 공간에서 DropOverlay가 뜨는 문제 방지).
+        /// Explorer: the empty area of a view belongs to the current folder — for Miller columns
+        /// that is the last (leaf) column, so drops there go into that folder.
         /// </summary>
         private void OnMillerEmptyAreaDragOver(object sender, DragEventArgs e)
         {
             // 컬럼 ListView가 이미 Handled 한 경우는 여기 안 옴
-            // 빈 영역이므로 드롭 불가로 표시하고 버블링만 차단 (DropOverlay 방지)
-            e.AcceptedOperation = DataPackageOperation.None;
+            TrackDragOver(e);
             e.Handled = true;
-            HideDragTooltip();
 
             // Shelf 자동 표시는 유지해야 함 (OnPaneDragOver 버블링 차단되므로 여기서 직접 호출)
             ShowShelfForDrag();
+
+            var leaf = GetMillerLeafFolder(sender as DependencyObject);
+            if (leaf == null || !HasDroppableData(e))
+            {
+                e.AcceptedOperation = DataPackageOperation.None;
+                HideDragTooltip();
+                return;
+            }
+
+            bool isRightPane = sender is DependencyObject d && IsDescendant(RightPaneContainer, d);
+            HandleViewDragOver(e, leaf.Path, leaf.Name, isRightPane, sender as UIElement ?? (UIElement)Content);
+            e.Handled = true;
+        }
+
+        private async void OnMillerEmptyAreaDrop(object sender, DragEventArgs e)
+        {
+            e.Handled = true;
+            var leaf = GetMillerLeafFolder(sender as DependencyObject);
+            if (leaf == null || Helpers.ArchivePathHelper.IsArchivePath(leaf.Path)) return;
+            await CompleteDropAsync(e, leaf.Path);
+        }
+
+        /// <summary>Folder shown in the last (leaf) Miller column of the pane that contains the element.</summary>
+        private FolderViewModel? GetMillerLeafFolder(DependencyObject? element)
+        {
+            if (element == null) return null;
+            var explorer = IsDescendant(RightPaneContainer, element) ? ViewModel.RightExplorer : ViewModel.Explorer;
+            return explorer?.CurrentFolder;
         }
 
         private void OnMillerEmptyAreaDragLeave(object sender, DragEventArgs e)
         {
+            _dragAutoScrollActive = false;
             HideDragTooltip();
             // Shelf 숨김 처리도 여기서 해야 함 (OnPaneDragLeave 버블링 차단)
             TryHideShelfAfterPaneDragLeave();
@@ -1516,9 +1727,129 @@ namespace Span
 
         private void OnRecycleBinDragOver(object sender, DragEventArgs e)
         {
+            TrackDragOver(e);
             e.AcceptedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Move;
             e.DragUIOverride.Caption = _loc.Get("DragDrop_MoveToRecycleBin");
             e.DragUIOverride.IsGlyphVisible = true;
+        }
+
+        #endregion
+
+        #region Drag & Drop: Sidebar drives (Explorer navigation pane style)
+
+        /// <summary>
+        /// Drive entry in the sidebar as a drop target: copy/move/link into the drive root,
+        /// exactly like dropping onto a drive in Explorer's navigation pane.
+        /// </summary>
+        private void OnDriveItemDragOver(object sender, DragEventArgs e)
+        {
+            if (sender is not Grid grid || grid.DataContext is not DriveItem drive) return;
+            TrackDragOver(e);
+            if (!HasDroppableData(e)) return;
+
+            e.Handled = true;
+            e.DragUIOverride.IsCaptionVisible = false;
+            e.DragUIOverride.IsGlyphVisible = false;
+
+            var mode = ResolveDragDropMode(e, drive.Path);
+            bool blocked = !IsDriveDropAvailable(drive)
+                || !IsDropTargetValid(e, drive.Path)
+                || (mode == DragDropMode.Move && IsSameFolderDrop(e, drive.Path));
+            if (blocked)
+            {
+                e.AcceptedOperation = DataPackageOperation.None;
+                HideDragTooltip();
+                return;
+            }
+
+            e.AcceptedOperation = ToAcceptedOperation(mode);
+            UpdateDragTooltip(GetDragCaption(mode, drive.Name), e, grid);
+            grid.Background = GetThemeBrush("SpanBgHoverBrush");
+        }
+
+        private async void OnDriveItemDrop(object sender, DragEventArgs e)
+        {
+            if (sender is not Grid grid || grid.DataContext is not DriveItem drive) return;
+            e.Handled = true;
+            grid.Background = _transparentBrush;
+            if (!IsDriveDropAvailable(drive)) return;
+            await CompleteDropAsync(e, drive.Path);
+        }
+
+        private void OnDriveItemDragLeave(object sender, DragEventArgs e)
+        {
+            if (sender is Grid grid)
+                grid.Background = _transparentBrush;
+            HideDragTooltip();
+        }
+
+        /// <summary>Drive root exists and is writable in principle. Cached per drag session.</summary>
+        private bool IsDriveDropAvailable(DriveItem drive)
+        {
+            var path = drive.Path;
+            if (string.IsNullOrEmpty(path)) return false;
+            if (_driveDropAvailability.TryGetValue(path, out var cached)) return cached;
+
+            bool available;
+            try
+            {
+                available = !Helpers.UncPathHelper.IsVirtualRoot(path)
+                    && !Helpers.ArchivePathHelper.IsArchivePath(path)
+                    && Directory.Exists(path);
+            }
+            catch
+            {
+                available = false;
+            }
+            _driveDropAvailability[path] = available;
+            return available;
+        }
+
+        #endregion
+
+        #region Drag & Drop: Address bar breadcrumb segments (Explorer address bar style)
+
+        private void OnAddressBarSegmentDragOver(object? sender, Span.Controls.BreadcrumbDragEventArgs args)
+        {
+            var e = args.DragArgs;
+            var path = args.FullPath;
+            TrackDragOver(e);
+            if (string.IsNullOrEmpty(path) || !HasDroppableData(e)) return;
+
+            e.Handled = true;
+            e.DragUIOverride.IsCaptionVisible = false;
+            e.DragUIOverride.IsGlyphVisible = false;
+
+            var mode = ResolveDragDropMode(e, path);
+            bool blocked = Helpers.ArchivePathHelper.IsArchivePath(path)
+                || Helpers.UncPathHelper.IsVirtualRoot(path)
+                || !IsDropTargetValid(e, path)
+                || (mode == DragDropMode.Move && IsSameFolderDrop(e, path));
+            if (blocked)
+            {
+                e.AcceptedOperation = DataPackageOperation.None;
+                HideDragTooltip();
+                return;
+            }
+
+            e.AcceptedOperation = ToAcceptedOperation(mode);
+            UpdateDragTooltip(GetDragCaption(mode, args.Name), e, args.SourceButton);
+            args.SourceButton.Background = GetThemeBrush("SpanBgHoverBrush");
+        }
+
+        private async void OnAddressBarSegmentDrop(object? sender, Span.Controls.BreadcrumbDragEventArgs args)
+        {
+            var e = args.DragArgs;
+            args.SourceButton.Background = _transparentBrush;
+            if (string.IsNullOrEmpty(args.FullPath)) return;
+            e.Handled = true;
+            await CompleteDropAsync(e, args.FullPath);
+        }
+
+        private void OnAddressBarSegmentDragLeave(object? sender, Span.Controls.BreadcrumbDragEventArgs args)
+        {
+            args.SourceButton.Background = _transparentBrush;
+            HideDragTooltip();
         }
 
         private async void OnRecycleBinDrop(object sender, DragEventArgs e)
@@ -1854,19 +2185,16 @@ namespace Span
         /// </summary>
         public void NotifyViewDragStarted(DragItemsStartingEventArgs e)
         {
-            var items = e.Items.OfType<ViewModels.FileSystemViewModel>().ToList();
+            NotifyViewDragStarted(e.Items.OfType<ViewModels.FileSystemViewModel>().ToList());
+        }
+
+        /// <summary>Same as above for drags the views start themselves (right mouse button).</summary>
+        public void NotifyViewDragStarted(IReadOnlyList<ViewModels.FileSystemViewModel> items)
+        {
             if (items.Count == 0) return;
 
-            IsDragInProgress = true;
-            StartModifierPollTimer();
-            _dragItemCount = items.Count;
-            _dragItemName = items.FirstOrDefault()?.Name ?? "";
-            var iconSvc = Services.IconService.Current;
-            _dragItemIcons = items.Take(3).Select(i =>
-            {
-                if (i is ViewModels.FolderViewModel) return iconSvc?.FolderGlyph ?? "\uED53";
-                return iconSvc?.GetIcon(System.IO.Path.GetExtension(i.Path)) ?? "\uECE0";
-            }).ToList();
+            BeginOutboundFileDrag();
+            CaptureDragOverlayInfo(items, useIconService: true);
         }
 
         /// <summary>
@@ -1874,11 +2202,7 @@ namespace Span
         /// </summary>
         public void NotifyViewDragCompleted()
         {
-            IsDragInProgress = false;
-            HideFavoriteDropFeedback();
-            StopModifierPollTimer();
-            HideDragTooltip();
-            _dragItemCount = 0;
+            EndOutboundFileDrag();
         }
 
         /// <summary>
@@ -1888,6 +2212,7 @@ namespace Span
         public void HandleViewDragOver(DragEventArgs e, string destFolderPath, string destFolderName, bool isRightPane, UIElement sender)
         {
             if (string.IsNullOrEmpty(destFolderPath)) return;
+            TrackDragOver(e);
             if (Helpers.ArchivePathHelper.IsArchivePath(destFolderPath))
             {
                 e.AcceptedOperation = DataPackageOperation.None;
@@ -1895,15 +2220,16 @@ namespace Span
                 return;
             }
 
-            if (!e.DataView.Contains(StandardDataFormats.Text) &&
-                !e.DataView.Properties.ContainsKey("SourcePaths") &&
-                !e.DataView.Contains(StandardDataFormats.StorageItems)) return;
+            if (!HasDroppableData(e)) return;
+
+            if (sender is ListViewBase listView)
+                UpdateDragAutoScroll(listView, e.GetPosition(listView));
 
             bool isSameFolder = false;
             bool isCrossPane = false;
-            if (e.DataView.Properties.TryGetValue("SourcePaths", out var srcObj) && srcObj is List<string> srcPaths)
+            if (Helpers.OutboundFileDragHelper.TryGetSourcePaths(e.DataView, out var srcPaths))
                 isSameFolder = srcPaths.All(p => System.IO.Path.GetDirectoryName(p)?.Equals(destFolderPath, StringComparison.OrdinalIgnoreCase) == true);
-            if (e.DataView.Properties.TryGetValue("SourcePane", out var spObj) && spObj is string srcPane)
+            if (Helpers.OutboundFileDragHelper.TryGetSourcePane(e.DataView, out var srcPane))
                 isCrossPane = srcPane != (isRightPane ? "Right" : "Left");
 
             var mode = ResolveDragDropMode(e, destFolderPath);
@@ -1927,27 +2253,15 @@ namespace Span
         /// <summary>
         /// Details/List/Icon 뷰의 현재 폴더 영역에 Drop 시 호출.
         /// </summary>
-        public async Task HandleViewDropAsync(DragEventArgs e, string destFolderPath)
-        {
-            HideDragTooltip();
-            try
-            {
-                var paths = await ExtractDropPaths(e);
-                if (paths.Count == 0) return;
-                var mode = ResolveDragDropMode(e, destFolderPath);
-                await HandleDropAsync(paths, destFolderPath, mode);
-            }
-            catch (Exception ex)
-            {
-                Helpers.DebugLogger.Log($"[DragDrop] HandleViewDropAsync error: {ex.Message}");
-            }
-        }
+        public Task HandleViewDropAsync(DragEventArgs e, string destFolderPath)
+            => CompleteDropAsync(e, destFolderPath);
 
         /// <summary>
         /// Details/List/Icon 뷰에서 DragLeave 시 호출.
         /// </summary>
         public void HandleViewDragLeave()
         {
+            _dragAutoScrollActive = false;
             HideDragTooltip();
         }
 
@@ -1957,6 +2271,7 @@ namespace Span
         /// </summary>
         public void HandleViewFolderItemDragOver(DragEventArgs e, ViewModels.FolderViewModel folderVm, bool isRightPane, Grid grid)
         {
+            TrackDragOver(e);
             if (Helpers.ArchivePathHelper.IsArchivePath(folderVm.Path))
             {
                 e.AcceptedOperation = DataPackageOperation.None;
@@ -1964,12 +2279,13 @@ namespace Span
                 return;
             }
 
-            if (!e.DataView.Contains(StandardDataFormats.Text) &&
-                !e.DataView.Properties.ContainsKey("SourcePaths") &&
-                !e.DataView.Contains(StandardDataFormats.StorageItems)) return;
+            if (!HasDroppableData(e)) return;
+
+            if (Helpers.ViewDragDropHelper.FindOwningListView(grid) is ListViewBase owner)
+                UpdateDragAutoScroll(owner, e.GetPosition(owner));
 
             // Self-drop check: 대상 폴더 자체를 대상으로 드롭 차단
-            if (e.DataView.Properties.TryGetValue("SourcePaths", out var srcObj) && srcObj is List<string> srcPaths)
+            if (Helpers.OutboundFileDragHelper.TryGetSourcePaths(e.DataView, out var srcPaths))
             {
                 if (srcPaths.Any(p => p.Equals(folderVm.Path, StringComparison.OrdinalIgnoreCase)))
                 {
@@ -2001,22 +2317,10 @@ namespace Span
         /// <summary>
         /// Details/List/Icon 뷰의 폴더 항목에 Drop 시 호출.
         /// </summary>
-        public async Task HandleViewFolderItemDropAsync(DragEventArgs e, ViewModels.FolderViewModel folderVm, Grid grid)
+        public Task HandleViewFolderItemDropAsync(DragEventArgs e, ViewModels.FolderViewModel folderVm, Grid grid)
         {
-            HideDragTooltip();
             grid.Background = _transparentBrush;
-
-            try
-            {
-                var paths = await ExtractDropPaths(e);
-                if (paths.Count == 0) return;
-                var mode = ResolveDragDropMode(e, folderVm.Path);
-                await HandleDropAsync(paths, folderVm.Path, mode);
-            }
-            catch (Exception ex)
-            {
-                Helpers.DebugLogger.Log($"[DragDrop] HandleViewFolderItemDropAsync error: {ex.Message}");
-            }
+            return CompleteDropAsync(e, folderVm.Path);
         }
 
         /// <summary>

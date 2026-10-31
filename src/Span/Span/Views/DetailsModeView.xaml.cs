@@ -101,6 +101,7 @@ namespace Span.Views
 
         // Rubber-band selection
         private Helpers.RubberBandSelectionHelper? _rubberBandHelper;
+        private Helpers.RightButtonDragHelper? _rightDragHelper;
         private bool _isSyncingSelection;
 
         // ── Feature #29: Group By ──
@@ -604,7 +605,7 @@ namespace Span.Views
             if (_rubberBandHelper?.IsActive == true)
             { e.Cancel = true; return; }
 
-            if (!Helpers.ViewDragDropHelper.SetupDragData(e, IsRightPane))
+            if (!Helpers.ViewDragDropHelper.SetupDragData(e, IsRightPane, sender as Microsoft.UI.Xaml.Controls.ListViewBase))
             { e.Cancel = true; return; }
 
             (ContextMenuHost as MainWindow)?.NotifyViewDragStarted(e);
@@ -615,44 +616,28 @@ namespace Span.Views
             (ContextMenuHost as MainWindow)?.NotifyViewDragCompleted();
         }
 
+        /// <summary>Right-button drag (Explorer): fill the package like a left-button drag.</summary>
+        private bool OnRightDragStarting(IReadOnlyList<ViewModels.FileSystemViewModel> items, Windows.ApplicationModel.DataTransfer.DataPackage data)
+        {
+            if (_rubberBandHelper?.IsActive == true) return false;
+            Helpers.ViewDragDropHelper.PopulateDragData(data, items, IsRightPane);
+            (ContextMenuHost as MainWindow)?.NotifyViewDragStarted(items);
+            return true;
+        }
+
+        private void OnRightDragCompleted()
+        {
+            (ContextMenuHost as MainWindow)?.NotifyViewDragCompleted();
+        }
+
         private void OnListViewDragOver(object sender, DragEventArgs e)
         {
             var mainWindow = ContextMenuHost as MainWindow;
             if (mainWindow == null || sender is not Microsoft.UI.Xaml.Controls.ListViewBase listView) return;
 
             var pos = e.GetPosition(listView);
-
-            // === 디버그: hit-test 결과 상세 로그 ===
-            var hitElements = Microsoft.UI.Xaml.Media.VisualTreeHelper.FindElementsInHostCoordinates(pos, listView);
-            int hitIdx = 0;
-            foreach (var elem in hitElements)
-            {
-                hitIdx++;
-                var typeName = elem.GetType().Name;
-                var dcType = (elem is FrameworkElement fe2) ? fe2.DataContext?.GetType().Name ?? "null" : "N/A";
-
-                // ListViewItem까지 워크업 시도
-                var cur = elem as Microsoft.UI.Xaml.DependencyObject;
-                bool foundLVI = false;
-                string lviItemType = "N/A";
-                while (cur != null && cur is not Microsoft.UI.Xaml.Controls.ListViewItem)
-                    cur = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(cur);
-                if (cur is Microsoft.UI.Xaml.Controls.ListViewItem lvi2)
-                {
-                    foundLVI = true;
-                    var item2 = listView.ItemFromContainer(lvi2);
-                    lviItemType = item2?.GetType().Name ?? "null";
-                }
-
-                if (hitIdx <= 5) // 처음 5개만 로그
-                    Helpers.DebugLogger.Log($"[DragOver HitTest] #{hitIdx}: elem={typeName} DC={dcType} foundLVI={foundLVI} itemType={lviItemType}");
-            }
-            Helpers.DebugLogger.Log($"[DragOver HitTest] Total hits: {hitIdx}, pos=({pos.X:F0},{pos.Y:F0})");
-            // === 디버그 끝 ===
-
             var targetFolder = Helpers.ViewDragDropHelper.FindFolderAtPoint(
                 listView, pos, ViewModel?.CurrentFolder);
-            Helpers.DebugLogger.Log($"[DragOver] targetFolder={targetFolder?.Path ?? "null"}, currentFolder={ViewModel?.CurrentFolder?.Path ?? "null"}");
 
             // 이전 하이라이트 해제
             if (_lastHighlightedGrid != null)
@@ -707,17 +692,7 @@ namespace Span.Views
             destPath ??= ViewModel?.CurrentFolder?.Path;
             if (string.IsNullOrEmpty(destPath)) return;
 
-            try
-            {
-                var paths = await mainWindow.ExtractDropPaths(e);
-                if (paths.Count == 0) return;
-                var mode = mainWindow.ResolveDragDropMode(e, destPath);
-                await mainWindow.HandleDropAsync(paths, destPath, mode);
-            }
-            catch (Exception ex)
-            {
-                Helpers.DebugLogger.Log($"[DetailsModeView] OnListViewDrop error: {ex.Message}");
-            }
+            await mainWindow.CompleteDropAsync(e, destPath);
         }
 
         private void OnListViewDragLeave(object sender, DragEventArgs e)
@@ -1903,12 +1878,17 @@ namespace Span.Views
                 val => _isSyncingSelection = val,
                 items => ViewModel?.CurrentFolder?.SyncSelectedItems(items),
                 () => (ContextMenuHost as MainWindow)?.ViewModel?.UpdateStatusBar());
+
+            _rightDragHelper ??= new Helpers.RightButtonDragHelper(
+                DetailsListView, selectDraggedItem: true, OnRightDragStarting, OnRightDragCompleted);
         }
 
         private void OnListViewWrapperUnloaded(object sender, RoutedEventArgs e)
         {
             _rubberBandHelper?.Detach();
             _rubberBandHelper = null;
+            _rightDragHelper?.Detach();
+            _rightDragHelper = null;
         }
 
         #endregion
@@ -1940,6 +1920,8 @@ namespace Span.Views
 
                 _rubberBandHelper?.Detach();
                 _rubberBandHelper = null;
+                _rightDragHelper?.Detach();
+                _rightDragHelper = null;
 
                 // Unregister column width callbacks (only if Loaded fired and registered them)
                 if (_isLoaded)
