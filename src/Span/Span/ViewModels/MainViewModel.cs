@@ -990,7 +990,7 @@ namespace Span.ViewModels
 
         #region Favorites
 
-        private bool EnsureFavoritesWritable()
+        internal bool EnsureFavoritesWritable()
         {
             if (_favoritesService.CanSaveFavorites) return true;
             ShowToast(_loc.Get("Favorites_Unavailable"), isError: true);

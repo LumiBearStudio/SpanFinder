@@ -4605,6 +4605,7 @@ namespace Span
         /// </summary>
         internal void AddCurrentFolderToFavorites(string? groupId = null)
         {
+            if (!ViewModel.EnsureFavoritesWritable()) return;
             var mode = (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
                 ? ViewModel.RightViewMode : ViewModel.CurrentViewMode;
             var path = mode is ViewMode.Home or ViewMode.RecycleBin or ViewMode.ActionLog
