@@ -4061,6 +4061,14 @@ namespace Span
             if (e.OriginalSource is FrameworkElement fe && fe.DataContext is DriveItem)
                 return;
 
+            // Favoriten-Bereich: eigenes Menü (Neue Gruppe), nicht Netzwerk-Menü
+            if (IsWithinSidebarFavorites(e.OriginalSource as DependencyObject))
+            {
+                ShowFavoritesSectionMenu(sender as FrameworkElement, e);
+                e.Handled = true;
+                return;
+            }
+
             var flyout = new MenuFlyout();
 
             var currentFontFamily = new Microsoft.UI.Xaml.Media.FontFamily(
@@ -4341,7 +4349,7 @@ namespace Span
             FavoritesTreeView.Visibility = showTree
                 ? Microsoft.UI.Xaml.Visibility.Visible
                 : Microsoft.UI.Xaml.Visibility.Collapsed;
-            FavoritesFlatList.Visibility = showTree
+            FavoritesFlatPanel.Visibility = showTree
                 ? Microsoft.UI.Xaml.Visibility.Collapsed
                 : Microsoft.UI.Xaml.Visibility.Visible;
         }
@@ -4357,14 +4365,28 @@ namespace Span
         }
 
         /// <summary>
+        /// Unified favorites sidebar click: navigate pins, toggle group headers.
+        /// </summary>
+        private void OnFavoritesSidebarItemClick(object sender, ItemClickEventArgs e)
+        {
+            if (e.ClickedItem is FavoriteGroupHeaderRow header)
+            {
+                ViewModel.ToggleFavoriteGroupExpanded(header.GroupId);
+                return;
+            }
+
+            if (e.ClickedItem is FavoriteItemRow row)
+                NavigateToFavorite(row.Item);
+            else if (e.ClickedItem is FavoriteItem fav)
+                NavigateToFavorite(fav);
+        }
+
+        /// <summary>
         /// 즐겨찾기 Flat 목록의 항목 클릭 이벤트.
         /// ItemClick 이벤트를 통해 해당 경로로 탐색한다.
         /// </summary>
         private void OnFavoritesFlatItemClick(object sender, ItemClickEventArgs e)
-        {
-            if (e.ClickedItem is FavoriteItem fav)
-                NavigateToFavorite(fav);
-        }
+            => OnFavoritesSidebarItemClick(sender, e);
 
         /// <summary>
         /// 즐겨찾기 경로로 탐색을 실행한다.
@@ -4377,7 +4399,19 @@ namespace Span
         {
             try
             {
-                if (!string.IsNullOrEmpty(fav.Path) && System.IO.Directory.Exists(fav.Path))
+                if (fav.IsFile)
+                {
+                    ViewModel.NavigateToFavorite(fav);
+                    return;
+                }
+
+                if (!string.IsNullOrEmpty(fav.Path) && !System.IO.Directory.Exists(fav.Path))
+                {
+                    ViewModel.ShowFavoriteNotFound(fav);
+                    return;
+                }
+
+                if (!string.IsNullOrEmpty(fav.Path))
                 {
                     var activeViewMode = (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
                         ? ViewModel.RightViewMode : ViewModel.CurrentViewMode;
@@ -4423,12 +4457,28 @@ namespace Span
         /// 즐겨찾기 Flat 목록 빈 영역 우클릭 이벤트.
         /// 폴더 추가 컨텍스트 메뉴를 표시한다.
         /// </summary>
-        private void OnFavoritesFlatListRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
+        private void OnFavoritesSidebarRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
         {
-            // ListView의 우클릭 → 클릭된 아이템에서 컨텍스트 메뉴 표시
             if (e.OriginalSource is FrameworkElement fe)
             {
-                var fav = FindParentDataContext<FavoriteItem>(fe);
+                var header = FindParentDataContext<FavoriteGroupHeaderRow>(fe);
+                if (header != null)
+                {
+                    var group = ViewModel.FavoriteGroups.FirstOrDefault(g => g.Id == header.GroupId);
+                    if (group != null)
+                    {
+                        var groupFlyout = _contextMenuService.BuildFavoriteGroupMenu(group, this);
+                        groupFlyout.ShowAt(fe, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
+                        {
+                            Position = e.GetPosition(fe)
+                        });
+                        e.Handled = true;
+                        return;
+                    }
+                }
+
+                var row = FindParentDataContext<FavoriteItemRow>(fe);
+                var fav = row?.Item ?? FindParentDataContext<FavoriteItem>(fe);
                 if (fav != null)
                 {
                     var flyout = _contextMenuService.BuildFavoriteMenu(fav, this);
@@ -4437,8 +4487,36 @@ namespace Span
                         Position = e.GetPosition(fe)
                     });
                     e.Handled = true;
+                    return;
                 }
             }
+
+            ShowFavoritesSectionMenu(sender as FrameworkElement, e);
+            e.Handled = true;
+        }
+
+        private void OnFavoritesFlatListRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
+            => OnFavoritesSidebarRightTapped(sender, e);
+
+        private void ShowFavoritesSectionMenu(FrameworkElement? target, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
+        {
+            if (target == null) return;
+            var flyout = _contextMenuService.BuildFavoritesSectionMenu(this);
+            flyout.ShowAt(target, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
+            {
+                Position = e.GetPosition(target)
+            });
+        }
+
+        private static bool IsWithinSidebarFavorites(DependencyObject? source)
+        {
+            while (source != null)
+            {
+                if (source is FrameworkElement { Name: "SidebarFavoritesSection" or "FavoritesFlatPanel" or "FavoritesTreeView" or "FavoritesSidebarList" or "UngroupedFavoritesList" })
+                    return true;
+                source = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(source);
+            }
+            return false;
         }
 
         private static T? FindParentDataContext<T>(FrameworkElement fe) where T : class
@@ -4452,13 +4530,213 @@ namespace Span
             return null;
         }
 
-        private void OnFavoritesDragCompleted(ListViewBase sender, DragItemsCompletedEventArgs args)
+        private void OnFavoritesSidebarDragCompleted(ListViewBase sender, DragItemsCompletedEventArgs args)
         {
-            // 드래그 리오더 완료 후 즐겨찾기 저장
-            var favService = App.Current.Services.GetService(typeof(Services.IFavoritesService)) as Services.IFavoritesService;
-            favService?.SaveFavorites(ViewModel.Favorites.ToList());
-            Helpers.DebugLogger.Log($"[Favorites] Reordered and saved ({ViewModel.Favorites.Count} items)");
+            ViewModel.SaveFavoritesSidebarOrder();
+            Helpers.DebugLogger.Log($"[Favorites] Sidebar reordered ({ViewModel.FavoritesSidebarRows.Count} rows)");
         }
+
+        private void OnUngroupedFavoritesDragCompleted(ListViewBase sender, DragItemsCompletedEventArgs args)
+            => OnFavoritesSidebarDragCompleted(sender, args);
+
+        private void OnGroupFavoritesDragCompleted(ListViewBase sender, DragItemsCompletedEventArgs args)
+            => OnFavoritesSidebarDragCompleted(sender, args);
+
+        private void OnFavoriteGroupHeaderTapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
+        {
+            if (sender is Grid grid && grid.Tag is string groupId)
+                ViewModel.ToggleFavoriteGroupExpanded(groupId);
+        }
+
+        private void OnFavoriteGroupHeaderRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
+        {
+            if (sender is not Grid grid || grid.Tag is not string groupId) return;
+
+            var group = ViewModel.FavoriteGroups.FirstOrDefault(g => g.Id == groupId);
+            if (group == null) return;
+
+            var flyout = _contextMenuService.BuildFavoriteGroupMenu(group, this);
+            flyout.ShowAt(grid, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
+            {
+                Position = e.GetPosition(grid)
+            });
+            e.Handled = true;
+        }
+
+        private void OnFavoritesSectionRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
+        {
+            if (e.OriginalSource is FrameworkElement fe &&
+                (FindParentDataContext<FavoriteItemRow>(fe) != null ||
+                 FindParentDataContext<FavoriteItem>(fe) != null ||
+                 FindParentDataContext<FavoriteGroupHeaderRow>(fe) != null))
+                return;
+
+            ShowFavoritesSectionMenu(sender as FrameworkElement, e);
+            e.Handled = true;
+        }
+
+        private async Task<string?> PromptFavoriteGroupNameAsync(string title, string defaultName)
+        {
+            var input = new TextBox
+            {
+                Text = defaultName,
+                SelectionStart = 0,
+                SelectionLength = defaultName.Length
+            };
+
+            var dialog = new ContentDialog
+            {
+                Title = title,
+                Content = input,
+                PrimaryButtonText = _loc.Get("OK"),
+                CloseButtonText = _loc.Get("Cancel"),
+                DefaultButton = ContentDialogButton.Primary,
+                XamlRoot = Content.XamlRoot
+            };
+
+            var result = await ShowContentDialogSafeAsync(dialog);
+            if (result != ContentDialogResult.Primary) return null;
+
+            var name = input.Text.Trim();
+            return string.IsNullOrEmpty(name) ? null : name;
+        }
+
+        /// <param name="addPath">Optional favorite (or new path) to put into the new group.</param>
+        internal async void CreateFavoriteGroup(string? addPath = null)
+        {
+            var name = await PromptFavoriteGroupNameAsync(
+                _loc.Get("Favorites_NewGroup"),
+                _loc.Get("Favorites_NewGroupDefault"));
+            if (name == null) return;
+
+            var group = ViewModel.CreateFavoriteGroup(name);
+            if (group == null) return;
+            if (!string.IsNullOrEmpty(addPath))
+                ViewModel.AddToFavorites(addPath, group.Id);
+        }
+
+        /// <summary>
+        /// "+" button / Ctrl+Shift+D: add the active pane's current folder to the favorites.
+        /// </summary>
+        internal void AddCurrentFolderToFavorites(string? groupId = null)
+        {
+            if (!ViewModel.EnsureFavoritesWritable()) return;
+            var mode = (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
+                ? ViewModel.RightViewMode : ViewModel.CurrentViewMode;
+            var path = mode is ViewMode.Home or ViewMode.RecycleBin or ViewMode.ActionLog
+                ? null
+                : ViewModel.ActiveExplorer?.CurrentPath;
+
+            if (string.IsNullOrEmpty(path)
+                || Helpers.ArchivePathHelper.IsArchivePath(path)
+                || FileSystemRouter.IsRemotePath(path)
+                || !System.IO.Directory.Exists(path))
+            {
+                ViewModel.ShowToast(_loc.Get("Favorites_CannotAdd"), isError: true);
+                return;
+            }
+
+            var name = Services.FavoritesService.GetDefaultName(path);
+            bool alreadyFavorite = ViewModel.IsFavorite(path);
+            ViewModel.AddToFavorites(path, groupId);
+            ViewModel.ShowToast(string.Format(
+                _loc.Get(alreadyFavorite && groupId == null ? "Favorites_AlreadyAdded" : "Favorites_Added"), name));
+        }
+
+        private void OnFavoritesAddButtonClick(object sender, RoutedEventArgs e)
+            => AddCurrentFolderToFavorites();
+
+        internal async void RenameFavorite(FavoriteItem fav)
+        {
+            var input = new TextBox
+            {
+                Text = fav.Name,
+                PlaceholderText = Services.FavoritesService.GetDefaultName(fav.Path),
+                SelectionStart = 0,
+                SelectionLength = fav.Name.Length
+            };
+
+            var dialog = new ContentDialog
+            {
+                Title = _loc.Get("Favorites_Rename"),
+                Content = new StackPanel
+                {
+                    Spacing = 8,
+                    Children =
+                    {
+                        input,
+                        new TextBlock
+                        {
+                            Text = _loc.Get("Favorites_RenameHint"),
+                            Style = (Style)Application.Current.Resources["CaptionTextBlockStyle"],
+                            Opacity = 0.7,
+                            TextWrapping = TextWrapping.Wrap
+                        }
+                    }
+                },
+                PrimaryButtonText = _loc.Get("OK"),
+                CloseButtonText = _loc.Get("Cancel"),
+                DefaultButton = ContentDialogButton.Primary,
+                XamlRoot = Content.XamlRoot
+            };
+
+            var result = await ShowContentDialogSafeAsync(dialog);
+            if (result != ContentDialogResult.Primary) return;
+
+            var name = input.Text.Trim();
+            // Unchanged (keeps localized known-folder names live)
+            if (fav.CustomName == null && string.Equals(name, fav.Name, StringComparison.Ordinal))
+                return;
+            // Same as the path-derived name → no custom name needed
+            if (string.Equals(name, Services.FavoritesService.GetDefaultName(fav.Path), StringComparison.Ordinal))
+                name = string.Empty;
+            ViewModel.RenameFavorite(fav.Path, name);
+        }
+
+        internal void RevealFavorite(FavoriteItem fav)
+        {
+            var parent = System.IO.Path.GetDirectoryName(fav.Path);
+            if (string.IsNullOrEmpty(parent) || !System.IO.Directory.Exists(parent))
+            {
+                ViewModel.ShowFavoriteNotFound(fav);
+                return;
+            }
+
+            var activeViewMode = (ViewModel.IsSplitViewEnabled && ViewModel.ActivePane == ActivePane.Right)
+                ? ViewModel.RightViewMode : ViewModel.CurrentViewMode;
+            if (activeViewMode == ViewMode.Home || activeViewMode == ViewMode.RecycleBin)
+                ViewModel.SwitchViewMode(ViewModel.ResolveViewModeFromHome());
+
+            var folder = new FolderItem
+            {
+                Name = System.IO.Path.GetFileName(parent) ?? parent,
+                Path = parent
+            };
+            _ = NavigateAndSelectFileAsync(folder, System.IO.Path.GetFileName(fav.Path));
+        }
+
+        internal async void RenameFavoriteGroup(string groupId)
+        {
+            var group = ViewModel.FavoriteGroups.FirstOrDefault(g => g.Id == groupId);
+            if (group == null) return;
+
+            var name = await PromptFavoriteGroupNameAsync(_loc.Get("Favorites_RenameGroup"), group.Name);
+            if (name != null)
+                ViewModel.RenameFavoriteGroup(groupId, name);
+        }
+
+        internal void DeleteFavoriteGroup(string groupId)
+        {
+            ViewModel.DeleteFavoriteGroup(groupId);
+        }
+
+        internal void MoveFavoriteToGroup(string path, string? groupId)
+        {
+            ViewModel.MoveFavoriteToGroup(path, groupId);
+        }
+
+        internal IReadOnlyList<ViewModels.FavoriteGroupViewModel> GetFavoriteGroups()
+            => ViewModel.FavoriteGroups.ToList();
 
         /// <summary>
         /// Populate the favorites TreeView from ViewModel.Favorites.
@@ -4487,6 +4765,8 @@ namespace Span
         {
             if (_isClosed) return;
             PopulateFavoritesTree();
+            if (!ViewModel.IsUpdatingFavoritesCollection)
+                ViewModel.RefreshFavoriteGroups();
         }
 
         /// <summary>
@@ -4575,6 +4855,14 @@ namespace Span
             else if (args.InvokedItem is SidebarFolderNode sfn)
             {
                 path = sfn.Path;
+            }
+
+            // File favorites open with the default app instead of navigating.
+            var invokedFav = (args.InvokedItem as TreeViewNode)?.Content as FavoriteItem ?? args.InvokedItem as FavoriteItem;
+            if (invokedFav is { IsFile: true })
+            {
+                ViewModel.NavigateToFavorite(invokedFav);
+                return;
             }
 
             if (!string.IsNullOrEmpty(path) && System.IO.Directory.Exists(path))
@@ -4759,7 +5047,9 @@ namespace Span
         {
             // Issue #39 a: 사이드바 즐겨찾기에 desktop.ini 커스텀 아이콘 lazy 로드 트리거.
             // FolderCustomIconsEnabled 설정 ON일 때만 실제 로드 (모델 내부에서 게이트).
-            if (args.Item is FavoriteItem favorite)
+            if (args.Item is FavoriteItemRow row)
+                row.Item.RequestCustomIconLoad();
+            else if (args.Item is FavoriteItem favorite)
                 favorite.RequestCustomIconLoad();
         }
 
@@ -6965,15 +7255,37 @@ namespace Span
             }
         }
 
-        void Services.IContextMenuHost.AddToFavorites(string path)
+        void Services.IContextMenuHost.AddToFavorites(string path, string? groupId)
         {
-            ViewModel.AddToFavorites(path);
+            ViewModel.AddToFavorites(path, groupId);
         }
+
+        void Services.IContextMenuHost.AddCurrentFolderToFavorites(string? groupId)
+            => AddCurrentFolderToFavorites(groupId);
+
+        void Services.IContextMenuHost.RenameFavorite(FavoriteItem fav) => RenameFavorite(fav);
+
+        void Services.IContextMenuHost.SetFavoriteColor(FavoriteItem fav, string? color)
+            => ViewModel.SetFavoriteColor(fav.Path, color);
+
+        void Services.IContextMenuHost.RevealFavorite(FavoriteItem fav) => RevealFavorite(fav);
 
         void Services.IContextMenuHost.RemoveFromFavorites(string path)
         {
             ViewModel.RemoveFromFavorites(path);
         }
+
+        void Services.IContextMenuHost.CreateFavoriteGroup(string? addPath) => CreateFavoriteGroup(addPath);
+
+        void Services.IContextMenuHost.RenameFavoriteGroup(string groupId) => RenameFavoriteGroup(groupId);
+
+        void Services.IContextMenuHost.DeleteFavoriteGroup(string groupId) => DeleteFavoriteGroup(groupId);
+
+        void Services.IContextMenuHost.MoveFavoriteToGroup(string path, string? groupId)
+            => MoveFavoriteToGroup(path, groupId);
+
+        IReadOnlyList<ViewModels.FavoriteGroupViewModel> Services.IContextMenuHost.GetFavoriteGroups()
+            => GetFavoriteGroups();
 
         async void Services.IContextMenuHost.RemoveRemoteConnection(string connectionId)
         {

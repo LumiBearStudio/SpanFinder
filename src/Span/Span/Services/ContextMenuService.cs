@@ -402,6 +402,9 @@ namespace Span.Services
                         catch (Exception ex) { Helpers.DebugLogger.Log($"[Rename] Menu Click EXCEPTION: {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}"); }
                     }, "M"));
                     menu.Items.Add(new MenuFlyoutSeparator());
+
+                    menu.Items.Add(BuildFavoriteToggleItem(file.Path, host));
+                    menu.Items.Add(new MenuFlyoutSeparator());
                 }
 
                 menu.Items.Add(CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => host.PerformCopyPath(file.Path), "H"));
@@ -477,11 +480,7 @@ namespace Span.Services
 
             if (!isRemote && !isArchive)
             {
-                bool isFav = host.IsFavorite(folder.Path);
-                if (isFav)
-                    menu.Items.Add(CreateItem(_loc.Get("RemoveFromFavorites"), "\uE735", () => host.RemoveFromFavorites(folder.Path), "I"));
-                else
-                    menu.Items.Add(CreateItem(_loc.Get("AddToFavorites"), "\uE734", () => host.AddToFavorites(folder.Path), "I"));
+                menu.Items.Add(BuildFavoriteToggleItem(folder.Path, host));
                 menu.Items.Add(new MenuFlyoutSeparator());
             }
 
@@ -589,11 +588,119 @@ namespace Span.Services
             return menu;
         }
 
+        /// <summary>
+        /// "Add to favorites" (with group submenu when groups exist) or "Remove from favorites".
+        /// </summary>
+        private MenuFlyoutItemBase BuildFavoriteToggleItem(string path, IContextMenuHost host)
+        {
+            if (host.IsFavorite(path))
+                return CreateItem(_loc.Get("RemoveFromFavorites"), "\uE735", () => host.RemoveFromFavorites(path), "I");
+
+            var groups = host.GetFavoriteGroups();
+            if (groups.Count == 0)
+                return CreateItem(_loc.Get("AddToFavorites"), "\uE734", () => host.AddToFavorites(path), "I");
+
+            var sub = new MenuFlyoutSubItem
+            {
+                Text = _loc.Get("AddToFavorites"),
+                Icon = new FontIcon { Glyph = "\uE734", FontSize = 14 }
+            };
+            ApplyCompact(sub);
+            AppendFavoriteGroupTargets(sub, groups,
+                groupId => host.AddToFavorites(path, groupId),
+                () => host.CreateFavoriteGroup(path));
+            return sub;
+        }
+
+        /// <summary>"No group", each group and "New group..." entries for add/move submenus.</summary>
+        private void AppendFavoriteGroupTargets(MenuFlyoutSubItem sub, IReadOnlyList<FavoriteGroupViewModel> groups,
+            Action<string?> onPick, Action onNewGroup, bool markCurrent = false, string? currentGroupId = null)
+        {
+            sub.Items.Add(CreateItem(CheckIf(_loc.Get("Favorites_NoGroup"), markCurrent && currentGroupId == null),
+                "\uE8B7", () => onPick(null)));
+            if (groups.Count > 0)
+                sub.Items.Add(new MenuFlyoutSeparator());
+            foreach (var group in groups)
+            {
+                var groupId = group.Id;
+                sub.Items.Add(CreateItem(CheckIf(group.Name, markCurrent && groupId == currentGroupId), "\uE8F1", () => onPick(groupId)));
+            }
+            sub.Items.Add(new MenuFlyoutSeparator());
+            sub.Items.Add(CreateItem(_loc.Get("Favorites_NewGroup") + "...", "\uE710", onNewGroup));
+        }
+
+        private static string CheckIf(string text, bool isCurrent) => isCurrent ? text + "  \u2713" : text;
+
+        /// <summary>Icon colors offered for favorites (same palette as folder tags).</summary>
+        private static readonly (string LabelKey, string Hex)[] FavoriteColorPalette =
+        {
+            ("Tag_Red", "#E84855"),
+            ("Tag_Orange", "#F5922A"),
+            ("Tag_Yellow", "#E2B714"),
+            ("Tag_Green", "#3DAA5A"),
+            ("Tag_Blue", "#2F8CE0"),
+            ("Tag_Purple", "#9B6CD8"),
+            ("Tag_Gray", "#8D949E"),
+        };
+
+        private MenuFlyoutSubItem BuildFavoriteColorSubmenu(FavoriteItem fav, IContextMenuHost host)
+        {
+            var sub = new MenuFlyoutSubItem
+            {
+                Text = _loc.Get("Favorites_Color"),
+                Icon = new FontIcon { Glyph = "\uE790", FontSize = 14 }
+            };
+            ApplyCompact(sub);
+
+            foreach (var (labelKey, hex) in FavoriteColorPalette)
+            {
+                var captured = hex;
+                var item = CreateItem(
+                    CheckIf(_loc.Get(labelKey), string.Equals(fav.CustomColor, hex, StringComparison.OrdinalIgnoreCase)),
+                    null, () => host.SetFavoriteColor(fav, captured));
+                item.Icon = new FontIcon
+                {
+                    Glyph = "\uE91F",
+                    FontSize = 12,
+                    Foreground = new FavoriteItem { IconColor = hex }.IconBrush,
+                };
+                sub.Items.Add(item);
+            }
+
+            sub.Items.Add(new MenuFlyoutSeparator());
+            sub.Items.Add(CreateItem(CheckIf(_loc.Get("Favorites_ColorDefault"), fav.CustomColor == null),
+                null, () => host.SetFavoriteColor(fav, null)));
+            return sub;
+        }
+
         public MenuFlyout BuildFavoriteMenu(FavoriteItem fav, IContextMenuHost host)
         {
             var menu = new MenuFlyout();
 
             menu.Items.Add(CreateItem(_loc.Get("Open"), "\uE8E5", () => host.PerformOpenFavorite(fav), "O"));
+            if (fav.IsFile)
+                menu.Items.Add(CreateItem(_loc.Get("Favorites_OpenLocation"), "\uE838", () => host.RevealFavorite(fav)));
+            else
+                menu.Items.Add(CreateItem(_loc.Get("OpenInNewTab"), "\uE8A7", () => host.PerformOpenInNewTab(fav.Path), "T"));
+            menu.Items.Add(new MenuFlyoutSeparator());
+
+            menu.Items.Add(CreateItem(_loc.Get("Favorites_Rename"), "\uE70F", () => host.RenameFavorite(fav), "M"));
+            menu.Items.Add(BuildFavoriteColorSubmenu(fav, host));
+
+            var moveSub = new MenuFlyoutSubItem
+            {
+                Text = _loc.Get("Favorites_MoveToGroup"),
+                Icon = new FontIcon { Glyph = "\uE8A5", FontSize = 14 }
+            };
+            ApplyCompact(moveSub);
+            var groups = host.GetFavoriteGroups();
+            var currentGroupId = groups.FirstOrDefault(g => g.Items.Any(i =>
+                string.Equals(i.Path, fav.Path, StringComparison.OrdinalIgnoreCase)))?.Id;
+            AppendFavoriteGroupTargets(moveSub, groups,
+                groupId => host.MoveFavoriteToGroup(fav.Path, groupId),
+                () => host.CreateFavoriteGroup(fav.Path),
+                markCurrent: true, currentGroupId);
+            menu.Items.Add(moveSub);
             menu.Items.Add(new MenuFlyoutSeparator());
 
             menu.Items.Add(CreateItem(_loc.Get("RemoveFromFavorites"), "\uE735", () => host.RemoveFromFavorites(fav.Path), "I"));
@@ -604,6 +711,35 @@ namespace Span.Services
             menu.Items.Add(new MenuFlyoutSeparator());
 
             menu.Items.Add(CreateItem(_loc.Get("Properties"), "\uE946", () => _shellService.ShowProperties(fav.Path), "R"));
+
+            TrackFlyout(menu);
+            return menu;
+        }
+
+        public MenuFlyout BuildFavoriteGroupMenu(FavoriteGroupViewModel group, IContextMenuHost host)
+        {
+            var menu = new MenuFlyout();
+            var groupId = group.Id;
+
+            menu.Items.Add(CreateItem(_loc.Get("Favorites_AddCurrentFolder"), "\uE710",
+                () => host.AddCurrentFolderToFavorites(groupId)));
+            menu.Items.Add(new MenuFlyoutSeparator());
+            menu.Items.Add(CreateItem(_loc.Get("Favorites_RenameGroup"), "\uE70F",
+                () => host.RenameFavoriteGroup(groupId)));
+            menu.Items.Add(CreateItem(_loc.Get("Favorites_DeleteGroup"), "\uE74D",
+                () => host.DeleteFavoriteGroup(groupId)));
+
+            TrackFlyout(menu);
+            return menu;
+        }
+
+        public MenuFlyout BuildFavoritesSectionMenu(IContextMenuHost host)
+        {
+            var menu = new MenuFlyout();
+            menu.Items.Add(CreateItem(_loc.Get("Favorites_AddCurrentFolder"), "\uE734",
+                () => host.AddCurrentFolderToFavorites()));
+            menu.Items.Add(CreateItem(_loc.Get("Favorites_NewGroup") + "...", "\uE710",
+                () => host.CreateFavoriteGroup()));
 
             TrackFlyout(menu);
             return menu;
