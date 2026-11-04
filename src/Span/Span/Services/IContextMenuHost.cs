@@ -1,5 +1,6 @@
 ﻿using Span.Models;
 using Span.ViewModels;
+using System.Collections.Generic;
 
 namespace Span.Services
 {
@@ -26,7 +27,9 @@ namespace Span.Services
         void PerformCompress(string[] paths);
         void PerformExtractHere(string zipPath);
         void PerformExtractTo(string zipPath);
-        void AddToFavorites(string path);
+        void AddToFavorites(string path, string? groupId = null);
+        /// <summary>Add the active pane's current folder (toast feedback).</summary>
+        void AddCurrentFolderToFavorites(string? groupId = null);
         void RemoveFromFavorites(string path);
         bool IsFavorite(string path);
         void RemoveRemoteConnection(string connectionId);
@@ -49,5 +52,16 @@ namespace Span.Services
         void PerformSetFolderTag(FolderViewModel folder, Models.FolderTagColor color);
         void PerformUndo();
         void PerformShowProperties(string path);
+
+        /// <summary>Prompt for a group name; <paramref name="addPath"/> is moved/added into the new group.</summary>
+        void CreateFavoriteGroup(string? addPath = null);
+        void RenameFavorite(FavoriteItem fav);
+        void SetFavoriteColor(FavoriteItem fav, string? color);
+        /// <summary>Navigate to the favorite's parent folder and select it (file favorites).</summary>
+        void RevealFavorite(FavoriteItem fav);
+        void RenameFavoriteGroup(string groupId);
+        void DeleteFavoriteGroup(string groupId);
+        void MoveFavoriteToGroup(string path, string? groupId);
+        IReadOnlyList<FavoriteGroupViewModel> GetFavoriteGroups();
     }
 }

@@ -29,6 +29,10 @@ namespace Span.ViewModels
         public ObservableCollection<DriveItem> NetworkDrives { get; } = new();
         public ObservableCollection<DriveItem> CloudDrives { get; } = new();
         public ObservableCollection<FavoriteItem> Favorites { get; } = new();
+        public ObservableCollection<FavoriteGroupViewModel> FavoriteGroups { get; } = new();
+        public ObservableCollection<FavoriteItem> UngroupedFavorites { get; } = new();
+        /// <summary>Single flat sidebar list: ungrouped items + section headers + group items.</summary>
+        public ObservableCollection<FavoriteSidebarRow> FavoritesSidebarRows { get; } = new();
         public ObservableCollection<FavoriteItem> RecentFolders { get; } = new();
         public ObservableCollection<Models.ConnectionInfo> SavedConnections { get; } = new();
 
@@ -173,7 +177,13 @@ namespace Span.ViewModels
 
         private readonly FileSystemService _fileService;
         private readonly FavoritesService _favoritesService;
+        private readonly IFavoritesLayoutService _favoritesLayoutService;
         private readonly ActionLogService _actionLogService;
+        private FavoritesLayout _favoritesLayout = new();
+        private int _favoritesCollectionUpdateDepth;
+
+        /// <summary>True while Favorites is being bulk-replaced (Clear+Add). Prevents layout wipe during CollectionChanged.</summary>
+        internal bool IsUpdatingFavoritesCollection => _favoritesCollectionUpdateDepth > 0;
         private readonly FileOperationHistory _operationHistory;
         private readonly FileOperationProgressViewModel _progressViewModel;
         private readonly FileOperationManager _fileOperationManager;
@@ -256,10 +266,12 @@ namespace Span.ViewModels
 
         private readonly LocalizationService _loc;
 
-        public MainViewModel(FileSystemService fileService, FavoritesService favoritesService, ActionLogService actionLogService)
+        public MainViewModel(FileSystemService fileService, FavoritesService favoritesService,
+            IFavoritesLayoutService favoritesLayoutService, ActionLogService actionLogService)
         {
             _fileService = fileService;
             _favoritesService = favoritesService;
+            _favoritesLayoutService = favoritesLayoutService;
             _actionLogService = actionLogService;
             _loc = App.Current.Services.GetRequiredService<LocalizationService>();
             _operationHistory = new FileOperationHistory();
@@ -978,17 +990,21 @@ namespace Span.ViewModels
 
         #region Favorites
 
+        internal bool EnsureFavoritesWritable()
+        {
+            if (_favoritesService.CanSaveFavorites) return true;
+            ShowToast(_loc.Get("Favorites_Unavailable"), isError: true);
+            return false;
+        }
+
         private void LoadFavorites()
         {
             try
             {
                 var items = _favoritesService.LoadFavorites();
-                Favorites.Clear();
-                foreach (var item in items)
-                {
-                    Favorites.Add(item);
-                }
+                ReplaceFavoritesCollection(items);
                 LocalizeFavoriteNames();
+                InitializeFavoriteGroups();
                 Helpers.DebugLogger.Log($"[MainViewModel] Loaded {items.Count} favorites");
             }
             catch (Exception ex)
@@ -1018,6 +1034,7 @@ namespace Span.ViewModels
             bool changed = false;
             foreach (var fav in Favorites)
             {
+                if (fav.CustomName != null) continue;
                 if (knownFolders.TryGetValue(fav.Path, out var localizedName) && fav.Name != localizedName)
                 {
                     fav.Name = localizedName;
@@ -1028,43 +1045,443 @@ namespace Span.ViewModels
             // FavoriteItem에 INotifyPropertyChanged가 없으므로 컬렉션 교체로 UI 갱신
             if (changed)
             {
-                var snapshot = Favorites.ToList();
-                Favorites.Clear();
-                foreach (var item in snapshot)
-                    Favorites.Add(item);
+                ReplaceFavoritesCollection(Favorites.ToList());
+                RefreshFavoriteGroups();
             }
         }
 
-        public void AddToFavorites(string path)
+        /// <summary>
+        /// Add a folder or file to the favorites. <paramref name="beforePath"/> places it in front of
+        /// that favorite (drop position); null appends to the end of the target group.
+        /// An existing favorite is moved to the given group/position instead.
+        /// Returns true when a new favorite was created.
+        /// </summary>
+        public bool AddToFavorites(string path, string? groupId = null, string? beforePath = null)
         {
-            if (Favorites.Any(f => f.Path.Equals(path, StringComparison.OrdinalIgnoreCase)))
-                return;
+            if (!EnsureFavoritesWritable()) return false;
+            if (string.IsNullOrWhiteSpace(path)) return false;
+            path = FavoritesService.CanonicalizePath(path);
+
+            if (IsFavorite(path))
+            {
+                // Already pinned: move to the drop target when one is provided.
+                if (!string.IsNullOrEmpty(groupId) || !string.IsNullOrEmpty(beforePath))
+                    MoveFavoriteToGroup(path, groupId, beforePath);
+                return false;
+            }
 
             var updated = _favoritesService.AddFavorite(path, Favorites.ToList());
-
-            Favorites.Clear();
-            foreach (var item in updated)
-            {
-                Favorites.Add(item);
-            }
-            Helpers.DebugLogger.Log($"[MainViewModel] Added to favorites (Quick Access): {path}");
+            ReplaceFavoritesCollection(updated);
+            LocalizeFavoriteNames();
+            EnsureFavoriteInLayout(path, groupId, beforePath);
+            RefreshFavoriteGroups();
+            Helpers.DebugLogger.Log($"[MainViewModel] Added to favorites: {path} group={groupId ?? "(ungrouped)"} before={beforePath ?? "(end)"}");
+            return true;
         }
 
         public void RemoveFromFavorites(string path)
         {
+            if (!EnsureFavoritesWritable()) return;
+            RemoveFavoriteFromLayout(path);
             var updated = _favoritesService.RemoveFavorite(path, Favorites.ToList());
-
-            Favorites.Clear();
-            foreach (var item in updated)
-            {
-                Favorites.Add(item);
-            }
-            Helpers.DebugLogger.Log($"[MainViewModel] Removed from favorites (Quick Access): {path}");
+            ReplaceFavoritesCollection(updated);
+            RefreshFavoriteGroups();
+            Helpers.DebugLogger.Log($"[MainViewModel] Removed from favorites: {path}");
         }
 
         public bool IsFavorite(string path)
         {
-            return Favorites.Any(f => f.Path.Equals(path, StringComparison.OrdinalIgnoreCase));
+            if (string.IsNullOrEmpty(path)) return false;
+            var key = NormalizeFavoritePath(path);
+            return Favorites.Any(f => NormalizeFavoritePath(f.Path).Equals(key, StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>Set (or reset with null/empty) the display name of a favorite.</summary>
+        public void RenameFavorite(string path, string? newName)
+        {
+            if (!EnsureFavoritesWritable()) return;
+            var fav = FindFavorite(path);
+            if (fav == null) return;
+
+            fav.CustomName = string.IsNullOrWhiteSpace(newName) ? null : newName.Trim();
+            fav.Name = fav.CustomName ?? FavoritesService.GetDefaultName(fav.Path);
+            _favoritesService.SaveFavorites(Favorites.ToList());
+            ReplaceFavoritesCollection(Favorites.ToList());
+            LocalizeFavoriteNames();
+            RefreshFavoriteGroups();
+        }
+
+        /// <summary>Set (or reset with null) the icon color of a favorite (HEX, e.g. "#E84855").</summary>
+        public void SetFavoriteColor(string path, string? color)
+        {
+            if (!EnsureFavoritesWritable()) return;
+            var fav = FindFavorite(path);
+            if (fav == null) return;
+
+            fav.CustomColor = string.IsNullOrWhiteSpace(color) ? null : color;
+            fav.IconColor = fav.CustomColor ?? _favoritesService.GetDefaultIconColor(fav);
+            _favoritesService.SaveFavorites(Favorites.ToList());
+            ReplaceFavoritesCollection(Favorites.ToList());
+            RefreshFavoriteGroups();
+        }
+
+        private FavoriteItem? FindFavorite(string path)
+        {
+            var key = NormalizeFavoritePath(path);
+            return Favorites.FirstOrDefault(f => NormalizeFavoritePath(f.Path).Equals(key, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static string NormalizeFavoritePath(string path)
+        {
+            try { return System.IO.Path.GetFullPath(path).TrimEnd('\\'); }
+            catch { return path.TrimEnd('\\'); }
+        }
+
+        private static bool IsSameFavoritePath(string a, string b)
+            => NormalizeFavoritePath(a).Equals(NormalizeFavoritePath(b), StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>Insert <paramref name="path"/> before <paramref name="beforePath"/> (append when not found).</summary>
+        private static void InsertFavoritePath(List<string> paths, string path, string? beforePath)
+        {
+            var index = string.IsNullOrEmpty(beforePath)
+                ? -1
+                : paths.FindIndex(p => IsSameFavoritePath(p, beforePath));
+            if (index < 0)
+                paths.Add(path);
+            else
+                paths.Insert(index, path);
+        }
+
+        private void InitializeFavoriteGroups()
+        {
+            _favoritesLayout = _favoritesLayoutService.Load();
+            RefreshFavoriteGroups();
+        }
+
+        internal void RefreshFavoriteGroups()
+        {
+            PruneMissingPathsFromLayout();
+
+            var lookup = Favorites.ToDictionary(
+                f => NormalizeFavoritePath(f.Path),
+                f => f,
+                StringComparer.OrdinalIgnoreCase);
+
+            var assigned = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var group in _favoritesLayout.Groups)
+            {
+                foreach (var groupPath in group.Paths)
+                    assigned.Add(NormalizeFavoritePath(groupPath));
+            }
+
+            UngroupedFavorites.Clear();
+            foreach (var path in _favoritesLayout.UngroupedPaths)
+            {
+                var key = NormalizeFavoritePath(path);
+                if (lookup.TryGetValue(key, out var fav) && !assigned.Contains(key))
+                    UngroupedFavorites.Add(fav);
+            }
+
+            foreach (var fav in Favorites)
+            {
+                var key = NormalizeFavoritePath(fav.Path);
+                if (assigned.Contains(key)) continue;
+                if (UngroupedFavorites.Any(f => f.Path.Equals(fav.Path, StringComparison.OrdinalIgnoreCase)))
+                    continue;
+
+                var inUngroupedList = _favoritesLayout.UngroupedPaths.Any(p =>
+                    NormalizeFavoritePath(p).Equals(key, StringComparison.OrdinalIgnoreCase));
+                var inAnyGroup = _favoritesLayout.Groups.Any(g =>
+                    g.Paths.Any(p => NormalizeFavoritePath(p).Equals(key, StringComparison.OrdinalIgnoreCase)));
+
+                if (inUngroupedList)
+                    UngroupedFavorites.Add(fav);
+                else if (!inAnyGroup)
+                {
+                    _favoritesLayout.UngroupedPaths.Add(fav.Path);
+                    UngroupedFavorites.Add(fav);
+                }
+            }
+
+            FavoriteGroups.Clear();
+            foreach (var group in _favoritesLayout.Groups.OrderBy(g => g.Order))
+            {
+                var vm = new FavoriteGroupViewModel(group) { Order = group.Order };
+                foreach (var groupPath in group.Paths)
+                {
+                    var key = NormalizeFavoritePath(groupPath);
+                    if (lookup.TryGetValue(key, out var fav))
+                        vm.Items.Add(fav);
+                }
+                FavoriteGroups.Add(vm);
+            }
+
+            RebuildFavoritesSidebarRows();
+
+            OnPropertyChanged(nameof(FavoriteGroups));
+            OnPropertyChanged(nameof(UngroupedFavorites));
+            OnPropertyChanged(nameof(FavoritesSidebarRows));
+        }
+
+        /// <summary>
+        /// Build one visual list: ungrouped pins, then each group header (+ items if expanded).
+        /// </summary>
+        private void RebuildFavoritesSidebarRows()
+        {
+            FavoritesSidebarRows.Clear();
+
+            foreach (var fav in UngroupedFavorites)
+                FavoritesSidebarRows.Add(new FavoriteItemRow(fav, groupId: null));
+
+            foreach (var groupVm in FavoriteGroups)
+            {
+                FavoritesSidebarRows.Add(new FavoriteGroupHeaderRow(groupVm.Id, groupVm.Name, groupVm.IsExpanded));
+                if (!groupVm.IsExpanded) continue;
+                foreach (var fav in groupVm.Items)
+                    FavoritesSidebarRows.Add(new FavoriteItemRow(fav, groupVm.Id));
+            }
+        }
+
+        private void ReplaceFavoritesCollection(IReadOnlyList<FavoriteItem> items)
+        {
+            _favoritesCollectionUpdateDepth++;
+            try
+            {
+                Favorites.Clear();
+                foreach (var item in items)
+                    Favorites.Add(item);
+            }
+            finally
+            {
+                _favoritesCollectionUpdateDepth--;
+            }
+        }
+
+        private void PruneMissingPathsFromLayout()
+        {
+            if (!_favoritesService.CanSaveFavorites) return;
+            if (Favorites.Count == 0)
+                return;
+
+            var existing = new HashSet<string>(
+                Favorites.Select(f => NormalizeFavoritePath(f.Path)),
+                StringComparer.OrdinalIgnoreCase);
+
+            _favoritesLayout.UngroupedPaths.RemoveAll(p => !existing.Contains(NormalizeFavoritePath(p)));
+            foreach (var group in _favoritesLayout.Groups)
+                group.Paths.RemoveAll(p => !existing.Contains(NormalizeFavoritePath(p)));
+        }
+
+        private void PersistFavoriteLayout()
+        {
+            PersistFavoriteLayoutFromSidebarRows();
+        }
+
+        /// <summary>
+        /// Derive UngroupedPaths + group Paths/Order/IsExpanded from the unified sidebar list.
+        /// Collapsed groups keep their previous Paths (items are not in the list while collapsed).
+        /// </summary>
+        private void PersistFavoriteLayoutFromSidebarRows()
+        {
+            var previousPaths = _favoritesLayout.Groups.ToDictionary(
+                g => g.Id,
+                g => g.Paths.ToList(),
+                StringComparer.Ordinal);
+
+            var newUngrouped = new List<string>();
+            var orderedGroups = new List<FavoriteGroup>();
+            FavoriteGroup? current = null;
+
+            foreach (var row in FavoritesSidebarRows)
+            {
+                if (row is FavoriteGroupHeaderRow header)
+                {
+                    var existing = _favoritesLayout.Groups.FirstOrDefault(g => g.Id == header.GroupId)
+                        ?? new FavoriteGroup { Id = header.GroupId, Name = header.Name };
+                    existing.Name = header.Name;
+                    existing.IsExpanded = header.IsExpanded;
+                    existing.Order = orderedGroups.Count;
+                    existing.Paths = header.IsExpanded
+                        ? new List<string>()
+                        : (previousPaths.TryGetValue(header.GroupId, out var kept) ? kept : new List<string>());
+                    orderedGroups.Add(existing);
+                    current = existing;
+                    continue;
+                }
+
+                if (row is FavoriteItemRow itemRow)
+                {
+                    // Membership is positional (GroupId on the row is stale after drag-reorder).
+                    if (current == null)
+                        newUngrouped.Add(itemRow.Item.Path);
+                    else
+                        current.Paths.Add(itemRow.Item.Path);
+                }
+            }
+
+            // Keep any layout groups that somehow vanished from the list (shouldn't happen)
+            foreach (var group in _favoritesLayout.Groups)
+            {
+                if (orderedGroups.Any(g => g.Id == group.Id)) continue;
+                group.Order = orderedGroups.Count;
+                orderedGroups.Add(group);
+            }
+
+            _favoritesLayout.UngroupedPaths = newUngrouped;
+            _favoritesLayout.Groups = orderedGroups;
+            SaveFavoriteLayout();
+        }
+
+        private void SaveFavoriteLayout()
+        {
+            if (!_favoritesService.CanSaveFavorites) return;
+            _favoritesLayoutService.Save(_favoritesLayout);
+        }
+
+        /// <summary>After drag-reorder in the unified favorites list.</summary>
+        public void SaveFavoritesSidebarOrder()
+        {
+            if (!EnsureFavoritesWritable())
+            {
+                RebuildFavoritesSidebarRows();
+                return;
+            }
+            PersistFavoriteLayoutFromSidebarRows();
+            RefreshFavoriteGroups();
+            _favoritesService.SaveFavorites(Favorites.ToList());
+        }
+
+        public void SaveUngroupedFavoriteOrder() => SaveFavoritesSidebarOrder();
+
+        public void SaveGroupFavoriteOrder(string groupId) => SaveFavoritesSidebarOrder();
+
+        public FavoriteGroupViewModel? CreateFavoriteGroup(string name)
+        {
+            if (!EnsureFavoritesWritable()) return null;
+            var group = new FavoriteGroup
+            {
+                Name = name,
+                Order = _favoritesLayout.Groups.Count,
+                IsExpanded = true
+            };
+            _favoritesLayout.Groups.Add(group);
+            SaveFavoriteLayout();
+            RefreshFavoriteGroups();
+            return FavoriteGroups.First(g => g.Id == group.Id);
+        }
+
+        public void RenameFavoriteGroup(string groupId, string newName)
+        {
+            if (!EnsureFavoritesWritable()) return;
+            var group = _favoritesLayout.Groups.FirstOrDefault(g => g.Id == groupId);
+            var vm = FavoriteGroups.FirstOrDefault(g => g.Id == groupId);
+            if (group == null || vm == null) return;
+            group.Name = newName;
+            vm.Name = newName;
+            SaveFavoriteLayout();
+            RebuildFavoritesSidebarRows();
+            OnPropertyChanged(nameof(FavoritesSidebarRows));
+        }
+
+        public void DeleteFavoriteGroup(string groupId)
+        {
+            if (!EnsureFavoritesWritable()) return;
+            var group = _favoritesLayout.Groups.FirstOrDefault(g => g.Id == groupId);
+            if (group == null) return;
+
+            foreach (var path in group.Paths)
+            {
+                var normalized = NormalizeFavoritePath(path);
+                if (!_favoritesLayout.UngroupedPaths.Any(p =>
+                        NormalizeFavoritePath(p).Equals(normalized, StringComparison.OrdinalIgnoreCase)))
+                {
+                    _favoritesLayout.UngroupedPaths.Add(path);
+                }
+            }
+
+            _favoritesLayout.Groups.Remove(group);
+            SaveFavoriteLayout();
+            RefreshFavoriteGroups();
+        }
+
+        public void ToggleFavoriteGroupExpanded(string groupId)
+        {
+            if (!EnsureFavoritesWritable()) return;
+            var group = _favoritesLayout.Groups.FirstOrDefault(g => g.Id == groupId);
+            var vm = FavoriteGroups.FirstOrDefault(g => g.Id == groupId);
+            if (group == null || vm == null) return;
+            group.IsExpanded = vm.IsExpanded = !vm.IsExpanded;
+            // Persist expand state only (don't rebuild Paths from a half-visible list)
+            SaveFavoriteLayout();
+            RebuildFavoritesSidebarRows();
+            OnPropertyChanged(nameof(FavoritesSidebarRows));
+        }
+
+        public void MoveFavoriteToGroup(string path, string? groupId, string? beforePath = null)
+        {
+            if (!EnsureFavoritesWritable()) return;
+            var normalized = NormalizeFavoritePath(path);
+            var fav = Favorites.FirstOrDefault(f => NormalizeFavoritePath(f.Path).Equals(normalized, StringComparison.OrdinalIgnoreCase));
+            if (fav == null) return;
+            // Dropped right in front of itself: position does not change.
+            if (!string.IsNullOrEmpty(beforePath) && IsSameFavoritePath(beforePath, path)) return;
+            if (!string.IsNullOrEmpty(groupId) && !_favoritesLayout.Groups.Any(g => g.Id == groupId)) return;
+
+            _favoritesLayout.UngroupedPaths.RemoveAll(p =>
+                NormalizeFavoritePath(p).Equals(normalized, StringComparison.OrdinalIgnoreCase));
+
+            foreach (var group in _favoritesLayout.Groups)
+                group.Paths.RemoveAll(p => NormalizeFavoritePath(p).Equals(normalized, StringComparison.OrdinalIgnoreCase));
+
+            if (string.IsNullOrEmpty(groupId))
+            {
+                InsertFavoritePath(_favoritesLayout.UngroupedPaths, fav.Path, beforePath);
+            }
+            else
+            {
+                var group = _favoritesLayout.Groups.First(g => g.Id == groupId);
+                group.IsExpanded = true;
+                InsertFavoritePath(group.Paths, fav.Path, beforePath);
+            }
+
+            SaveFavoriteLayout();
+            RefreshFavoriteGroups();
+        }
+
+        private void EnsureFavoriteInLayout(string path, string? groupId = null, string? beforePath = null)
+        {
+            var normalized = NormalizeFavoritePath(path);
+            var inGroup = _favoritesLayout.Groups.Any(g =>
+                g.Paths.Any(p => NormalizeFavoritePath(p).Equals(normalized, StringComparison.OrdinalIgnoreCase)));
+            var inUngrouped = _favoritesLayout.UngroupedPaths.Any(p =>
+                NormalizeFavoritePath(p).Equals(normalized, StringComparison.OrdinalIgnoreCase));
+            if (inGroup || inUngrouped)
+                return;
+
+            if (!string.IsNullOrEmpty(groupId))
+            {
+                var group = _favoritesLayout.Groups.FirstOrDefault(g => g.Id == groupId);
+                if (group != null)
+                {
+                    InsertFavoritePath(group.Paths, path, beforePath);
+                    group.IsExpanded = true;
+                    SaveFavoriteLayout();
+                    return;
+                }
+            }
+
+            InsertFavoritePath(_favoritesLayout.UngroupedPaths, path, beforePath);
+            SaveFavoriteLayout();
+        }
+
+        private void RemoveFavoriteFromLayout(string path)
+        {
+            var normalized = NormalizeFavoritePath(path);
+            _favoritesLayout.UngroupedPaths.RemoveAll(p =>
+                NormalizeFavoritePath(p).Equals(normalized, StringComparison.OrdinalIgnoreCase));
+            foreach (var group in _favoritesLayout.Groups)
+                group.Paths.RemoveAll(p => NormalizeFavoritePath(p).Equals(normalized, StringComparison.OrdinalIgnoreCase));
+            SaveFavoriteLayout();
         }
 
         /// <summary>
@@ -1074,9 +1491,18 @@ namespace Span.ViewModels
         /// </summary>
         public void NavigateToFavorite(FavoriteItem favorite)
         {
+            if (favorite.IsFile)
+            {
+                if (System.IO.File.Exists(favorite.Path))
+                    App.Current.Services.GetRequiredService<ShellService>().OpenFile(favorite.Path);
+                else
+                    ShowFavoriteNotFound(favorite);
+                return;
+            }
+
             if (!System.IO.Directory.Exists(favorite.Path))
             {
-                Helpers.DebugLogger.Log($"[MainViewModel] Favorite path not found: {favorite.Path}");
+                ShowFavoriteNotFound(favorite);
                 return;
             }
 
@@ -1092,6 +1518,12 @@ namespace Span.ViewModels
             var folder = new FolderItem { Name = favorite.Name, Path = favorite.Path };
             _ = ActiveExplorer?.NavigateTo(folder);
             Helpers.DebugLogger.Log($"[MainViewModel] Navigated to favorite: {favorite.Name}");
+        }
+
+        internal void ShowFavoriteNotFound(FavoriteItem favorite)
+        {
+            Helpers.DebugLogger.Log($"[MainViewModel] Favorite path not found: {favorite.Path}");
+            ShowToast(string.Format(_loc.Get("Favorites_NotFound"), favorite.Name), isError: true);
         }
 
         #endregion
@@ -1359,5 +1791,28 @@ namespace Span.ViewModels
 
         #endregion
 
+    }
+
+    public partial class FavoriteGroupViewModel : ObservableObject
+    {
+        public FavoriteGroupViewModel(FavoriteGroup group)
+        {
+            Id = group.Id;
+            Name = group.Name;
+            IsExpanded = group.IsExpanded;
+            Order = group.Order;
+        }
+
+        public string Id { get; }
+
+        [ObservableProperty]
+        private string _name;
+
+        [ObservableProperty]
+        private bool _isExpanded;
+
+        public int Order { get; set; }
+
+        public ObservableCollection<FavoriteItem> Items { get; } = new();
     }
 }

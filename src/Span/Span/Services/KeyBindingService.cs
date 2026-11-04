@@ -228,6 +228,7 @@ public class KeyBindingService
             ["span.navigate.addressBar"] = ["Ctrl+L", "Alt+D", "F4"],
             ["span.navigate.search"]     = ["Ctrl+F", "F3"],
             ["span.navigate.filterBar"]  = ["Ctrl+Shift+F"],
+            ["span.navigate.addFavorite"] = ["Ctrl+Shift+D"],
 
             // Edit
             ["span.edit.copy"]            = ["Ctrl+C"],
