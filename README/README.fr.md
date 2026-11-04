@@ -25,7 +25,9 @@
 ---
 
 <p align="center">
-  <strong>v1.3.1 NOUVEAU</strong> — <strong>File Shelf</strong> : Étagère de glisser-déposer style macOS <a href="https://www.yoink-app.com/">Yoink</a>. Stockez vos fichiers en naviguant, déposez-les où vous voulez. (Ctrl+Shift+S)
+  🚀 <strong>SPAN Finder 2.0 arrive sur Product Hunt le 10 novembre.</strong><br>
+  Des archives qui s'ouvrent comme des dossiers, un remplacement complet de l'Explorateur de fichiers et des dizaines de correctifs de stabilité.<br>
+  <a href="https://www.producthunt.com/products/span-finder">Suivez SPAN Finder sur Product Hunt</a> pour être averti du lancement. Vos retours sont toujours bienvenus !
 </p>
 
 ---

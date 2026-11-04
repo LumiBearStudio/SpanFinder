@@ -25,7 +25,9 @@
 ---
 
 <p align="center">
-  <strong>NEW in v1.3.1</strong> — <strong>File Shelf</strong>: macOS <a href="https://www.yoink-app.com/">Yoink</a>-style drag & drop shelf for Windows. Stash files while you navigate, drop them where you need. (Ctrl+Shift+S)
+  🚀 <strong>SPAN Finder 2.0 is coming to Product Hunt on November 10.</strong><br>
+  Archives that open like folders, a full File Explorer replacement, and dozens of stability fixes.<br>
+  <a href="https://www.producthunt.com/products/span-finder">Follow SPAN Finder on Product Hunt</a> to get notified when it goes live. Feedback is always welcome!
 </p>
 
 ---

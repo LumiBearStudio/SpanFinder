@@ -25,7 +25,9 @@
 ---
 
 <p align="center">
-  <strong>v1.3.1 NOVO</strong> — <strong>File Shelf</strong>: Prateleira de arrastar e soltar estilo macOS <a href="https://www.yoink-app.com/">Yoink</a>. Guarde arquivos enquanto navega, solte onde precisar. (Ctrl+Shift+S)
+  🚀 <strong>O SPAN Finder 2.0 chega ao Product Hunt em 10 de novembro.</strong><br>
+  Arquivos compactados que abrem como pastas, uma substituição completa do Explorador de Arquivos e dezenas de correções de estabilidade.<br>
+  <a href="https://www.producthunt.com/products/span-finder">Siga o SPAN Finder no Product Hunt</a> para ser avisado no lançamento. Comentários são sempre bem-vindos!
 </p>
 
 ---

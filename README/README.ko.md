@@ -25,7 +25,9 @@
 ---
 
 <p align="center">
-  <strong>v1.3.1 NEW</strong> — <strong>File Shelf</strong>: macOS <a href="https://www.yoink-app.com/">Yoink</a> 스타일의 임시 파일 보관함. 탐색 중 파일을 잠시 올려두고, 원하는 곳에 드롭하세요. (Ctrl+Shift+S)
+  🚀 <strong>SPAN Finder 2.0이 11월 10일 Product Hunt에 올라갑니다.</strong><br>
+  압축 파일을 폴더처럼 열기, Windows 탐색기 완전 대체, 수십 건의 안정성 개선.<br>
+  <a href="https://www.producthunt.com/products/span-finder">Product Hunt에서 SPAN Finder를 팔로우</a>하면 런칭 알림을 받을 수 있어요. 피드백은 언제나 환영합니다!
 </p>
 
 ---

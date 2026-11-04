@@ -25,7 +25,9 @@
 ---
 
 <p align="center">
-  <strong>v1.3.1 NEW</strong> — <strong>File Shelf</strong>: macOS <a href="https://www.yoink-app.com/">Yoink</a>スタイルのドラッグ＆ドロップシェルフ。ナビゲーション中にファイルを一時保管し、必要な場所にドロップ。(Ctrl+Shift+S)
+  🚀 <strong>SPAN Finder 2.0 が 11月10日に Product Hunt に登場します。</strong><br>
+  アーカイブをフォルダーのように開き、Windows エクスプローラーを完全に置き換え、数十件の安定性改善。<br>
+  <a href="https://www.producthunt.com/products/span-finder">Product Hunt で SPAN Finder をフォロー</a>すると公開時に通知が届きます。フィードバックはいつでも歓迎です！
 </p>
 
 ---

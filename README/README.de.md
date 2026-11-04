@@ -25,7 +25,9 @@
 ---
 
 <p align="center">
-  <strong>v1.3.1 NEU</strong> — <strong>File Shelf</strong>: Drag-&-Drop-Ablage im Stil von macOS <a href="https://www.yoink-app.com/">Yoink</a>. Dateien beim Navigieren zwischenlagern und am Zielort ablegen. (Ctrl+Shift+S)
+  🚀 <strong>SPAN Finder 2.0 kommt am 10. November zu Product Hunt.</strong><br>
+  Archive wie Ordner öffnen, ein vollständiger Ersatz für den Datei-Explorer und dutzende Stabilitätsverbesserungen.<br>
+  <a href="https://www.producthunt.com/products/span-finder">Folge SPAN Finder auf Product Hunt</a>, um zum Launch benachrichtigt zu werden. Feedback ist jederzeit willkommen!
 </p>
 
 ---

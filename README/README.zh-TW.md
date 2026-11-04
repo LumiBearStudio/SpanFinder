@@ -25,7 +25,9 @@
 ---
 
 <p align="center">
-  <strong>v1.3.1 NEW</strong> — <strong>File Shelf</strong>：macOS <a href="https://www.yoink-app.com/">Yoink</a> 風格的拖放暫存架。瀏覽時暫存檔案，在需要的位置釋放。(Ctrl+Shift+S)
+  🚀 <strong>SPAN Finder 2.0 將於 11 月 10 日登上 Product Hunt。</strong><br>
+  像資料夾一樣開啟壓縮檔、完整取代檔案總管，以及數十項穩定性改進。<br>
+  在 <a href="https://www.producthunt.com/products/span-finder">Product Hunt 上追蹤 SPAN Finder</a>，上線時即可收到通知。歡迎提供意見回饋！
 </p>
 
 ---
