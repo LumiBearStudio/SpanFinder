@@ -40,6 +40,13 @@ namespace Span.Helpers
         [DllImport("user32.dll")]
         internal static extern bool SetForegroundWindow(IntPtr hWnd);
 
+        // Used by the thread-local activation hook; no cross-thread input attachment.
+        [DllImport("user32.dll")]
+        internal static extern IntPtr GetForegroundWindow();
+
+        [DllImport("kernel32.dll")]
+        internal static extern uint GetCurrentThreadId();
+
         [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
         internal static extern bool IsIconic(IntPtr hWnd);
@@ -56,6 +63,7 @@ namespace Span.Helpers
         internal static extern short GetAsyncKeyState(int vKey);
 
         internal const int VK_LBUTTON = 0x01;
+        internal const int VK_RBUTTON = 0x02;
 
         // SetWindowPos — MoveAndResize의 DPI 이중적용 버그를 우회 (물리 픽셀 직접 사용)
         [DllImport("user32.dll")]
