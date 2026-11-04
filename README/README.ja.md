@@ -19,6 +19,11 @@
 </p>
 
 <p align="center">
+  <sub>または winget でインストール:</sub><br>
+  <code>winget install 9P7NJ351X9TL --source msstore</code>
+</p>
+
+<p align="center">
   <a href="../README.md">English</a> | <a href="README.ko.md">한국어</a> | 日本語 | <a href="README.zh-CN.md">中文(简体)</a> | <a href="README.zh-TW.md">中文(繁體)</a> | <a href="README.de.md">Deutsch</a> | <a href="README.es.md">Español</a> | <a href="README.fr.md">Français</a> | <a href="README.pt.md">Português</a>
 </p>
 
