@@ -462,7 +462,19 @@ public class ExtractOperationTests
     {
         // 반디집과 윈도우 탐색기 기본 압축이 실제로 만드는 형태: CP949 바이트 + EFS 비트 없음.
         // .NET Core는 Encoding.Default가 UTF-8이라 이 이름을 오디코딩한다(U+FFFD, 비가역).
+        //
+        // ZipEntryNameEncoding은 UTF-8이 아닌 이름을 이 PC의 시스템 코드페이지(GetACP)와 "형식" 설정의
+        // ANSI 코드페이지로 읽는다. 그래서 이 통합 테스트는 둘 중 하나가 949(한국어)일 때만 의미가 있다.
+        // 다른 로캘에서는 실패가 아니라 검증 불가로 처리한다(PR #74·#75 기여자 환경에서 실패로 보고됨).
+        // 코드페이지 조합별 판정은 ZipEntryNameEncodingTests가 PC 설정과 무관하게 검증한다.
+        // 테스트 안에서 컬처를 바꾸는 방식은 쓸 수 없다 — 디코더는 static 인스턴스라 프로세스에서
+        // 처음 쓰일 때 한 번만 코드페이지를 정하므로, 다른 테스트가 먼저 쓰면 효과가 없다.
         System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+        int systemCodePage = System.Text.Encoding.GetEncoding(0).CodePage;
+        int formatCodePage = System.Globalization.CultureInfo.CurrentCulture.TextInfo.ANSICodePage;
+        if (systemCodePage != 949 && formatCodePage != 949)
+            Assert.Inconclusive($"Needs the Korean code page (949); system uses {systemCodePage}, format uses {formatCodePage}.");
+
         var zipPath = Path.Combine(_tempDir, "cp949.zip");
         WriteRawZip(zipPath, System.Text.Encoding.GetEncoding(949).GetBytes(KoreanName), efs: false);
         var destPath = Path.Combine(_tempDir, "extracted");

@@ -28,9 +28,9 @@ namespace Span.Helpers;
 ///      사라져 열과 줄이 합쳐진다.
 ///
 /// 코드페이지는 Encoding.GetEncoding(0) = 시스템 로캘("유니코드를 지원하지 않는 프로그램용
-/// 언어")에서 가져온다. 레거시 앱은 이 코드페이지로 파일을 저장했다. ZipEntryNameEncoding의
-/// CultureInfo.CurrentCulture는 사용자의 "형식" 설정이라, 한국어 시스템에 영어(미국) 형식을
-/// 쓰면 1252가 돼 CP949 파일을 못 읽는다.
+/// 언어")에서 가져온다. 레거시 앱은 이 코드페이지로 파일을 저장했다. CultureInfo.CurrentCulture는
+/// 사용자의 "형식" 설정이라, 한국어 시스템에 영어(미국) 형식을 쓰면 1252가 돼 CP949 파일을 못
+/// 읽는다(ZipEntryNameEncoding이 이 문제를 겪어, 지금은 시스템과 형식 코드페이지를 둘 다 본다).
 /// </summary>
 internal static class TextEncodingDetector
 {
