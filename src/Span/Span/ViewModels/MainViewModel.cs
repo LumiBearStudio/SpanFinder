@@ -913,6 +913,7 @@ namespace Span.ViewModels
                             AvailableFreeSpace = d.AvailableFreeSpace,
                             DriveFormat = d.DriveFormat ?? "",
                             DriveType = d.DriveType ?? "",
+                            IsLocked = d.IsLocked,
                             IconGlyph = Services.IconService.Current?.DriveGlyph ?? "\uEDFA"
                         }).ToList();
                     }
@@ -947,6 +948,7 @@ namespace Span.ViewModels
                     AvailableFreeSpace = d.AvailableFreeSpace,
                     DriveFormat = d.DriveFormat,
                     DriveType = d.DriveType,
+                    IsLocked = d.IsLocked,
                     IconGlyph = d.IconGlyph
                 }).ToList();
 
@@ -973,6 +975,7 @@ namespace Span.ViewModels
             public long AvailableFreeSpace { get; init; }
             public string? DriveFormat { get; init; }
             public string? DriveType { get; init; }
+            public bool IsLocked { get; init; }
             public string? IconGlyph { get; init; }
         }
 
