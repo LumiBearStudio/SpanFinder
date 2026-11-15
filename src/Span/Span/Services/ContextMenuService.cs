@@ -506,6 +506,18 @@ namespace Span.Services
             return menu;
         }
 
+        /// <summary>
+        /// 사이드바 섹션 헤더(Local / Network) 우클릭 메뉴 (Issue #76).
+        /// 드라이브 없이 여는 "네트워크 드라이브 연결…" — 처음 연결하는 사용자의 진입점이다.
+        /// </summary>
+        public MenuFlyout BuildSidebarSectionMenu(IContextMenuHost host)
+        {
+            var menu = new MenuFlyout();
+            menu.Items.Add(CreateItem(_loc.Get("MapNetworkDrive"), "\uE8CE", () => host.PerformMapNetworkDrive(null), "K"));
+            TrackFlyout(menu);
+            return menu;
+        }
+
         public MenuFlyout BuildDriveMenu(DriveItem drive, IContextMenuHost host)
         {
             var menu = new MenuFlyout();
@@ -554,6 +566,14 @@ namespace Span.Services
                 if (isRemovableOrCdrom)
                 {
                     menu.Items.Add(CreateItem(_loc.Get("Eject"), "\uE7E7", () => host.PerformEjectDrive(drive), "J"));
+                    menu.Items.Add(new MenuFlyoutSeparator());
+                }
+
+                // 네트워크 드라이브 연결 (Issue #76)
+                // UNC 위치는 아직 드라이브 문자가 없다 — 매핑된 드라이브는 경로가 "Z:\" 형태다.
+                if (drive.Path.StartsWith(@"\\"))
+                {
+                    menu.Items.Add(CreateItem(_loc.Get("MapNetworkDrive"), "\uE8CE", () => host.PerformMapNetworkDrive(drive), "K"));
                     menu.Items.Add(new MenuFlyoutSeparator());
                 }
 

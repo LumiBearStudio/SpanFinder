@@ -258,6 +258,64 @@ namespace Span.Services
             }
         }
 
+        /// <summary>
+        /// Windows 기본 "네트워크 드라이브 연결" 대화상자를 연다 (Issue #76).
+        ///
+        /// 자체 대화상자를 만들지 않는 이유: 드라이브 문자 선택, 자격 증명 입력,
+        /// "로그인할 때 다시 연결"을 OS가 전부 처리하므로 앱이 자격 증명을 직접
+        /// 다루지 않아도 되고, 9개 언어 번역도 OS가 맡는다.
+        /// </summary>
+        /// <param name="hwnd">소유자 창 핸들.</param>
+        /// <param name="remotePath">미리 채울 UNC 경로. null이면 빈 대화상자를 연다.</param>
+        /// <returns>연결에 성공하면 true. 사용자가 취소했거나 실패하면 false.</returns>
+        public bool MapNetworkDrive(IntPtr hwnd, string? remotePath = null)
+        {
+            IntPtr resPtr = IntPtr.Zero;
+            try
+            {
+                var dlg = new CONNECTDLGSTRUCT
+                {
+                    cbStructure = Marshal.SizeOf<CONNECTDLGSTRUCT>(),
+                    hwndOwner = hwnd,
+                };
+
+                if (!string.IsNullOrWhiteSpace(remotePath))
+                {
+                    var res = new NETRESOURCE
+                    {
+                        dwType = RESOURCETYPE_DISK,
+                        lpRemoteName = remotePath.TrimEnd('\\'),
+                    };
+                    resPtr = Marshal.AllocHGlobal(Marshal.SizeOf<NETRESOURCE>());
+                    Marshal.StructureToPtr(res, resPtr, false);
+                    dlg.lpConnRes = resPtr;
+                    // 경로는 고정하고 드라이브 문자만 고르게 한다.
+                    dlg.dwFlags = CONNDLG_RO_PATH;
+                }
+
+                int result = WNetConnectionDialog1W(ref dlg);
+                if (result == NO_ERROR) return true;
+
+                // -1(0xFFFFFFFF)은 사용자가 취소한 것이므로 오류로 기록하지 않는다.
+                if (result != -1)
+                    Helpers.DebugLogger.Log($"[ShellService] MapNetworkDrive failed: 0x{result:X8}");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[ShellService] MapNetworkDrive error: {ex.Message}");
+                return false;
+            }
+            finally
+            {
+                if (resPtr != IntPtr.Zero)
+                {
+                    Marshal.DestroyStructure<NETRESOURCE>(resPtr);
+                    Marshal.FreeHGlobal(resPtr);
+                }
+            }
+        }
+
         #region Escape Helpers
 
         private static string EscapePowerShell(string s) => s.Replace("'", "''");
@@ -294,6 +352,38 @@ namespace Span.Services
 
         [DllImport("mpr.dll", CharSet = CharSet.Unicode)]
         private static extern int WNetCancelConnection2W(string lpName, int dwFlags, bool fForce);
+
+        // ── 네트워크 드라이브 연결 대화상자 (Issue #76) ──
+
+        private const int NO_ERROR = 0;
+        private const int RESOURCETYPE_DISK = 0x00000001;
+        private const int CONNDLG_RO_PATH = 0x00000001;
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        private struct NETRESOURCE
+        {
+            public int dwScope;
+            public int dwType;
+            public int dwDisplayType;
+            public int dwUsage;
+            [MarshalAs(UnmanagedType.LPWStr)] public string? lpLocalName;
+            [MarshalAs(UnmanagedType.LPWStr)] public string? lpRemoteName;
+            [MarshalAs(UnmanagedType.LPWStr)] public string? lpComment;
+            [MarshalAs(UnmanagedType.LPWStr)] public string? lpProvider;
+        }
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        private struct CONNECTDLGSTRUCT
+        {
+            public int cbStructure;
+            public IntPtr hwndOwner;
+            public IntPtr lpConnRes;
+            public int dwFlags;
+            public int dwDevNum;
+        }
+
+        [DllImport("mpr.dll", CharSet = CharSet.Unicode)]
+        private static extern int WNetConnectionDialog1W(ref CONNECTDLGSTRUCT lpConnDlgStruct);
 
         #endregion
     }

@@ -77,6 +77,7 @@ namespace Span.Services
                 ["ExtractTo"] = "Wypakuj do folderu…",
                 ["Eject"] = "Wysuń",
                 ["DisconnectDrive"] = "Odłącz",
+                ["MapNetworkDrive"] = "Mapuj dysk sieciowy…",
                 ["DriveCapacity"] = "{0} wolne z {1}",
                 ["Opening"] = "Otwieranie",
                 ["EditConnection"] = "Edytuj połączenie…",

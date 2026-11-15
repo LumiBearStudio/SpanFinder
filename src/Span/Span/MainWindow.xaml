@@ -518,7 +518,7 @@
                         <StackPanel x:Name="SidebarLocalDrivesSection">
                         <Rectangle Height="1" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="12,12"/>
                         <Grid Height="24" Padding="12,0" Background="Transparent"
-                              Tapped="OnSidebarSectionHeaderTapped" Tag="Local"
+                              Tapped="OnSidebarSectionHeaderTapped" RightTapped="OnSidebarSectionHeaderRightTapped" Tag="Local"
                               PointerEntered="OnSidebarItemPointerEntered" PointerExited="OnSidebarItemPointerExited" PointerPressed="OnSidebarItemPointerPressed" PointerReleased="OnSidebarItemPointerReleased">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
@@ -629,7 +629,7 @@
                         <StackPanel x:Name="SidebarNetworkSection" Visibility="Collapsed">
                             <Rectangle Height="1" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="12,12"/>
                             <Grid Height="24" Padding="12,0" Background="Transparent"
-                                  Tapped="OnSidebarSectionHeaderTapped" Tag="Network"
+                                  Tapped="OnSidebarSectionHeaderTapped" RightTapped="OnSidebarSectionHeaderRightTapped" Tag="Network"
                                   PointerEntered="OnSidebarItemPointerEntered" PointerExited="OnSidebarItemPointerExited" PointerPressed="OnSidebarItemPointerPressed" PointerReleased="OnSidebarItemPointerReleased">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>

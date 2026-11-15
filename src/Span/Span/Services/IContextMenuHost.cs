@@ -33,6 +33,7 @@ namespace Span.Services
         void EditRemoteConnection(string connectionId);
         void PerformEjectDrive(DriveItem drive);
         void PerformDisconnectDrive(DriveItem drive);
+        void PerformMapNetworkDrive(DriveItem? drive);
         void SwitchViewMode(ViewMode mode);
         void ApplySort(string field);
         void ApplySortDirection(bool ascending);

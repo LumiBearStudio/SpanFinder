@@ -92,6 +92,7 @@
             // ── Drive actions ───────────────────────────────────────────────
             ("Eject", "Eject", "꺼내기", "取り出す", "弹出", "退出", "Auswerfen", "Expulsar", "Éjecter", "Ejetar"),
             ("DisconnectDrive", "Disconnect", "연결 끊기", "切断", "断开连接", "中斷連線", "Trennen", "Desconectar", "Déconnecter", "Desconectar"),
+            ("MapNetworkDrive", "Map network drive…", "네트워크 드라이브 연결…", "ネットワーク ドライブの割り当て…", "映射网络驱动器…", "連線網路磁碟機…", "Netzlaufwerk verbinden…", "Conectar a unidad de red…", "Connecter un lecteur réseau…", "Mapear unidade de rede…"),
             ("DriveCapacity", "{0} free of {1}", "{1} 중 {0} 사용 가능", "{1}のうち{0}空き", "{1} 中 {0} 可用", "{1} 中 {0} 可用", "{0} frei von {1}", "{0} libres de {1}", "{0} libres sur {1}", "{0} livres de {1}"),
             ("Opening", "Opening", "여는 중", "開いています", "正在打开", "正在開啟", "Wird geöffnet", "Abriendo", "Ouverture en cours", "Abrindo"),
 

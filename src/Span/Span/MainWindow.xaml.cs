@@ -3211,6 +3211,25 @@ namespace Span
         }
 
         /// <summary>
+        /// 사이드바 섹션 헤더 우클릭 — Local / Network 헤더에서 "네트워크 드라이브 연결…" (Issue #76).
+        /// Network 섹션은 네트워크 드라이브가 하나라도 있어야 보이므로(ApplySidebarSectionVisibility),
+        /// 처음 연결하는 사용자는 항상 보이는 Local 헤더로 들어온다.
+        /// 탐색기의 "내 PC 우클릭 → 네트워크 드라이브 연결"과 같은 자리다.
+        /// </summary>
+        private void OnSidebarSectionHeaderRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
+        {
+            if (sender is Grid grid && grid.Tag is string tag && (tag == "Local" || tag == "Network"))
+            {
+                var flyout = _contextMenuService.BuildSidebarSectionMenu(this);
+                flyout.ShowAt(grid, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
+                {
+                    Position = e.GetPosition(grid)
+                });
+                e.Handled = true;
+            }
+        }
+
+        /// <summary>
         /// 하이브리드 사이드바 드라이브 항목 탭 이벤트.
         /// 원격 연결(FTP/SFTP)인 경우 비밀번호 확인 후 연결하고,
         /// 로컬 드라이브인 경우 OnDriveItemClick과 동일하게 뷰 모드를 보존하면서 탐색한다.
@@ -6547,6 +6566,23 @@ namespace Span
             var shellService = App.Current.Services.GetRequiredService<ShellService>();
             shellService.EjectDrive(drive.Path);
             // WM_DEVICECHANGE 이벤트가 자동으로 드라이브 목록 갱신
+        }
+
+        void Services.IContextMenuHost.PerformMapNetworkDrive(DriveItem? drive)
+        {
+            var shellService = App.Current.Services.GetRequiredService<ShellService>();
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+
+            // UNC 위치에서 왔으면 경로를 미리 채워 넣는다.
+            // 섹션 헤더에서 왔으면 drive가 null이라 빈 대화상자를 연다.
+            string? remote = drive != null && drive.Path.StartsWith(@"\\") ? drive.Path : null;
+
+            if (shellService.MapNetworkDrive(hwnd, remote))
+            {
+                // 드라이브 폴링은 5초 주기이고 문자 집합이 바뀔 때만 갱신하므로,
+                // 직접 부르지 않으면 새 드라이브가 최대 5초간 보이지 않는다.
+                ViewModel.RefreshDrives();
+            }
         }
 
         void Services.IContextMenuHost.PerformDisconnectDrive(DriveItem drive)
