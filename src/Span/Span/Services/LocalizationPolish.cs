@@ -362,6 +362,7 @@ namespace Span.Services
                 ["Settings_GitHub"] = "Repozytorium GitHub",
                 ["Settings_BugReport"] = "Zgłoś błąd",
                 ["Settings_Privacy"] = "Polityka prywatności",
+                ["Settings_Website"] = "Strona internetowa",
                 ["Settings_EvalCopy"] = "Wersja ewaluacyjna (niezarejestrowana)",
                 ["Settings_GitDetected"] = "Wykryto Git {0}",
                 ["Settings_GitNotInstalled"] = "Git nie jest zainstalowany",

@@ -402,6 +402,7 @@
             ("Settings_GitHub", "GitHub Repository", "GitHub 저장소", "GitHubリポジトリ", "GitHub 仓库", "GitHub 存放庫", "GitHub-Repository", "Repositorio de GitHub", "Dépôt GitHub", "Repositório do GitHub"),
             ("Settings_BugReport", "Report a Bug", "버그 제보", "バグ報告", "报告错误", "回報錯誤", "Fehler melden", "Reportar un error", "Signaler un bug", "Relatar um bug"),
             ("Settings_Privacy", "Privacy Policy", "개인정보 처리방침", "プライバシーポリシー", "隐私政策", "隱私權原則", "Datenschutzrichtlinie", "Política de privacidad", "Politique de confidentialité", "Política de privacidade"),
+            ("Settings_Website", "Website", "홈페이지", "ホームページ", "官方网站", "官方網站", "Website", "Sitio web", "Site web", "Site"),
             ("Settings_EvalCopy", "Evaluation Copy (Unregistered)", "Evaluation Copy (미등록)", "評価版（未登録）", "评估版 (未注册)", "評估版 (未註冊)", "Evaluierungsversion (nicht registriert)", "Copia de evaluación (sin registrar)", "Version d'évaluation (non enregistrée)", "Cópia de avaliação (não registrada)"),
             ("Settings_GitDetected", "Git {0} detected", "Git {0} 감지됨", "Git {0} 検出済み", "检测到 Git {0}", "偵測到 Git {0}", "Git {0} erkannt", "Git {0} detectado", "Git {0} détecté", "Git {0} detectado"),
             ("Settings_GitNotInstalled", "Git is not installed", "Git이 설치되지 않았습니다", "Gitがインストールされていません", "Git 未安装", "Git 未安裝", "Git ist nicht installiert", "Git no está instalado", "Git n'est pas installé", "Git não está instalado"),

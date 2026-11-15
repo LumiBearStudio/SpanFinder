@@ -2218,6 +2218,14 @@
                                         </Border>
                                         <TextBlock x:Name="LinksLabel" Text="관련 링크" Style="{StaticResource SettingsCardLabel}" VerticalAlignment="Center" />
                                     </StackPanel>
+                                    <!-- 공식 홈페이지 (사이트가 브라우저 언어에 맞춰 한국어판 등으로 넘겨 준다) -->
+                                    <HyperlinkButton Style="{StaticResource LinkButtonStyle}" Margin="48,0,0,0" NavigateUri="https://lumibear.dev/apps/span-finder/">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <FontIcon Glyph="&#xE80F;" FontSize="14" />
+                                            <TextBlock x:Name="WebsiteText" Text="홈페이지" />
+                                            <FontIcon Glyph="&#xE8A7;" FontSize="10" Foreground="{ThemeResource SpanTextSecondaryBrush}" />
+                                        </StackPanel>
+                                    </HyperlinkButton>
                                     <HyperlinkButton Style="{StaticResource LinkButtonStyle}" Margin="48,0,0,0" NavigateUri="https://lumibearstudio.github.io/docs">
                                         <StackPanel Orientation="Horizontal" Spacing="8">
                                             <FontIcon Glyph="&#xE897;" FontSize="14" />
@@ -2239,7 +2247,8 @@
                                             <FontIcon Glyph="&#xE8A7;" FontSize="10" Foreground="{ThemeResource SpanTextSecondaryBrush}" />
                                         </StackPanel>
                                     </HyperlinkButton>
-                                    <HyperlinkButton Style="{StaticResource LinkButtonStyle}" Margin="48,0,0,0" NavigateUri="https://github.com/LumiBearStudio/SpanFinder/blob/main/PRIVACY.md">
+                                    <!-- 공식 사이트의 SPAN Finder 개인정보 처리방침 (저장소 PRIVACY.md와 같은 문서) -->
+                                    <HyperlinkButton Style="{StaticResource LinkButtonStyle}" Margin="48,0,0,0" NavigateUri="https://lumibear.dev/legal/span-finder/privacy/">
                                         <StackPanel Orientation="Horizontal" Spacing="8">
                                             <FontIcon Glyph="&#xEA18;" FontSize="14" />
                                             <TextBlock x:Name="PrivacyText" Text="개인정보 처리방침" />
