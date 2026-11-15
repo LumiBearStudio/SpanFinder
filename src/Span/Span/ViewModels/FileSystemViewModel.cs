@@ -365,6 +365,16 @@ namespace Span.ViewModels
         /// </summary>
         public virtual string TruncatedDisplayName => DisplayName;
 
+        /// <summary>
+        /// 화면 낭독기가 읽는 UIA 이름.
+        ///
+        /// ListViewItem의 Content는 이 뷰모델 객체 그 자체다(ItemTemplate이 만드는 TextBlock은
+        /// 시각 자식일 뿐이다). 자동화 피어는 AutomationProperties.Name이 없으면
+        /// Content.ToString()으로 떨어지므로, 이걸 재정의하지 않으면 낭독기가 파일명 대신
+        /// "Span.ViewModels.FileViewModel"을 읽는다. 지우지 말 것.
+        /// </summary>
+        public override string ToString() => DisplayName;
+
         public virtual string IconGlyph => _model.IconGlyph;
         private static readonly Microsoft.UI.Xaml.Media.SolidColorBrush _whiteIconBrush = new(Microsoft.UI.Colors.White);
         public virtual Microsoft.UI.Xaml.Media.Brush IconBrush => _whiteIconBrush;
@@ -516,7 +526,9 @@ namespace Span.ViewModels
         /// </summary>
         partial void OnIsRenamingChanged(bool value)
         {
-            Helpers.DebugLogger.Log($"[Rename] IsRenaming changed to {value} for '{Name}' stack={Environment.StackTrace.Replace("\r\n", " | ").Replace("\n", " | ")}");
+            // Environment.StackTrace를 다시 넣지 말 것 — DebugLogger.Log는 Release에서도 그대로 돌고
+            // 인자가 먼저 평가되므로, 이름 변경 한 번마다 관리 스택을 통째로 걷고 수 KB를 로그에 쓴다.
+            Helpers.DebugLogger.Log($"[Rename] IsRenaming changed to {value} for '{Name}'");
         }
 
         public void BeginRename()
