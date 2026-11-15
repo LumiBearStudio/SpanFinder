@@ -29,14 +29,6 @@
 
 ---
 
-<p align="center">
-  🚀 <strong>SPAN Finder 2.0 kommt am 10. November zu Product Hunt.</strong><br>
-  Archive wie Ordner öffnen, ein vollständiger Ersatz für den Datei-Explorer und dutzende Stabilitätsverbesserungen.<br>
-  <a href="https://www.producthunt.com/products/span-finder">Folge SPAN Finder auf Product Hunt</a>, um zum Launch benachrichtigt zu werden. Feedback ist jederzeit willkommen!
-</p>
-
----
-
 ![SPAN Finder — Miller-Columns-Navigation](miller-columns.gif)
 
 > **So sollte Ordnernavigation funktionieren.**

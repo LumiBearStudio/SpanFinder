@@ -29,14 +29,6 @@
 
 ---
 
-<p align="center">
-  🚀 <strong>SPAN Finder 2.0 llega a Product Hunt el 10 de noviembre.</strong><br>
-  Archivos comprimidos que se abren como carpetas, un reemplazo completo del Explorador de archivos y decenas de mejoras de estabilidad.<br>
-  <a href="https://www.producthunt.com/products/span-finder">Sigue SPAN Finder en Product Hunt</a> para recibir un aviso cuando se publique. ¡Los comentarios siempre son bienvenidos!
-</p>
-
----
-
 ![SPAN Finder — Navegacion con Miller Columns](miller-columns.gif)
 
 > **Asi es como deberia ser la navegacion de carpetas.**

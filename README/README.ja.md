@@ -29,14 +29,6 @@
 
 ---
 
-<p align="center">
-  🚀 <strong>SPAN Finder 2.0 が 11月10日に Product Hunt に登場します。</strong><br>
-  アーカイブをフォルダーのように開き、Windows エクスプローラーを完全に置き換え、数十件の安定性改善。<br>
-  <a href="https://www.producthunt.com/products/span-finder">Product Hunt で SPAN Finder をフォロー</a>すると公開時に通知が届きます。フィードバックはいつでも歓迎です！
-</p>
-
----
-
 ![SPAN Finder — ミラーカラムナビゲーション](miller-columns.gif)
 
 > **フォルダ探索、本来こうあるべきです。**

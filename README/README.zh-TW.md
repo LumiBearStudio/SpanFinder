@@ -29,14 +29,6 @@
 
 ---
 
-<p align="center">
-  🚀 <strong>SPAN Finder 2.0 將於 11 月 10 日登上 Product Hunt。</strong><br>
-  像資料夾一樣開啟壓縮檔、完整取代檔案總管，以及數十項穩定性改進。<br>
-  在 <a href="https://www.producthunt.com/products/span-finder">Product Hunt 上追蹤 SPAN Finder</a>，上線時即可收到通知。歡迎提供意見回饋！
-</p>
-
----
-
 ![SPAN Finder — Miller Columns 瀏覽](miller-columns.gif)
 
 > **資料夾瀏覽，本來就該這樣。**
