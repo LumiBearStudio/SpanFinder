@@ -24,6 +24,57 @@ namespace Span.ViewModels
         public event EventHandler<string>? NetworkShortcutFtpRequested;
 
         /// <summary>
+        /// Issue #79: 잠긴 드라이브를 열려고 할 때의 처리. 잠금 해제 창을 띄웠으면 true.
+        /// IsLocked는 드라이브 목록을 읽은 시점의 값이라 그 사이 풀렸을 수 있다(탐색기에서 풀었거나,
+        /// 잠금 해제 창을 닫았는데 목록이 아직 안 바뀐 경우). 지금 다시 확인해서 풀려 있으면 목록을
+        /// 새로 읽게 하고 false를 돌려 평소처럼 연다 — 안 그러면 풀린 드라이브를 누를 때마다 잠금
+        /// 해제 창만 다시 뜬다.
+        /// </summary>
+        private bool HandleLockedDrive(DriveItem drive)
+        {
+            bool ready;
+            try { ready = new System.IO.DriveInfo(drive.Path).IsReady; }
+            catch { ready = false; }
+
+            if (ready)
+            {
+                Helpers.DebugLogger.Log($"[OpenDrive] {drive.Path} was locked but is ready now — refreshing drives");
+                RefreshDrives();
+                return false;
+            }
+
+            _ = UnlockDriveAsync(drive);
+            return true;
+        }
+
+        /// <summary>
+        /// 탐색기 "드라이브 잠금 해제"와 같은 bdeunlock.exe를 띄우고, 창이 닫히면 드라이브 목록을 새로 읽는다.
+        /// 잠금 해제는 드라이브 문자를 바꾸지 않아 드라이브 폴링(문자 집합 비교)이 알아채지 못한다.
+        /// </summary>
+        private async Task UnlockDriveAsync(DriveItem drive)
+        {
+            try
+            {
+                using var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = System.IO.Path.Combine(Environment.SystemDirectory, "bdeunlock.exe"),
+                    Arguments = drive.Path.TrimEnd('\\'),
+                    UseShellExecute = true
+                });
+                if (process == null) return;
+
+                // UI 스레드에서 시작했으므로 대기 후에도 UI 스레드로 돌아온다(드라이브 컬렉션 갱신에 필요).
+                await process.WaitForExitAsync();
+                Helpers.DebugLogger.Log($"[OpenDrive] bdeunlock exited for {drive.Path} — refreshing drives");
+                RefreshDrives();
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[OpenDrive] UnlockDrive error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
         /// 사이드바/Home 화면에서 드라이브 클릭 시 해당 드라이브로 탐색.
         /// Home/ActionLog 모드인 경우 이전 뷰모드(Details/List/Icon 등)를 복원하여
         /// 사용자가 Home 전환 전에 사용하던 뷰를 유지함.
@@ -38,6 +89,11 @@ namespace Span.ViewModels
                 NetworkShortcutFtpRequested?.Invoke(this, drive.Path);
                 return;
             }
+
+            // Issue #79: 잠긴 BitLocker 드라이브는 열지 않고 잠금 해제 창을 띄운다.
+            // 사이드바·홈 화면·우클릭 "열기"가 모두 여기를 거치므로 한 곳에서 처리한다.
+            if (drive.IsLocked && HandleLockedDrive(drive))
+                return;
 
             // Home/ActionLog/RecycleBin에서 벗어나되, 탐색기 뷰모드(Details/List/Icon)는 보존.
             // ResolveViewModeFromHome()이 _lastClosedViewMode → _viewModeBeforeHome → Miller 순으로 결정.

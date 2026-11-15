@@ -548,7 +548,11 @@
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        <Grid Grid.Column="0" Width="16" Height="16"
+                                        <!-- 아이콘 상자는 아이콘 글꼴 크기(16~21)를 따른다. 16 고정이면 아이콘 크기 설정을
+                                             올렸을 때 상자보다 아이콘이 커진다 (기본 단계에서는 16이라 이전과 같다). -->
+                                        <Grid Grid.Column="0"
+                                              Width="{Binding IconFontSize, Source={StaticResource FontScale}}"
+                                              Height="{Binding IconFontSize, Source={StaticResource FontScale}}"
                                               VerticalAlignment="Center" Margin="0,0,12,0">
                                             <TextBlock Text="{x:Bind IconGlyph}"
                                                        FontFamily="{StaticResource RemixIcons}" FontSize="{Binding IconFontSize, Source={StaticResource FontScale}}"

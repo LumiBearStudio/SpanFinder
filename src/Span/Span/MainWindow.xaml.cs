@@ -3179,11 +3179,7 @@ namespace Span
         /// </summary>
         private void OnDriveItemClick(object sender, ItemClickEventArgs e)
         {
-            if (e.ClickedItem is DriveItem { IsLocked: true } locked)
-            {
-                UnlockDrive(locked);
-                return;
-            }
+            // 잠긴 BitLocker 드라이브(Issue #79)는 OpenDrive가 잠금 해제 창으로 돌린다.
             if (e.ClickedItem is DriveItem drive)
             {
                 Helpers.DebugLogger.Log($"[OnDriveItemClick] BEFORE: CurrentViewMode={ViewModel.CurrentViewMode}");
@@ -3195,27 +3191,6 @@ namespace Span
                     FocusColumnAsync(0);
                 else
                     FocusActiveView();
-            }
-        }
-
-        /// <summary>
-        /// 잠긴 BitLocker 드라이브의 잠금 해제 창을 띄운다 (탐색기 "드라이브 잠금 해제"와 동일한 bdeunlock.exe).
-        /// 해제 후 사이드바 갱신은 기존 드라이브 변경 감지/새로고침에 맡긴다.
-        /// </summary>
-        private static void UnlockDrive(DriveItem drive)
-        {
-            try
-            {
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = System.IO.Path.Combine(Environment.SystemDirectory, "bdeunlock.exe"),
-                    Arguments = drive.Path.TrimEnd('\\'),
-                    UseShellExecute = true
-                });
-            }
-            catch (Exception ex)
-            {
-                Helpers.DebugLogger.Log($"[Sidebar] UnlockDrive error: {ex.Message}");
             }
         }
 
@@ -3250,10 +3225,6 @@ namespace Span
                     {
                         // 원격 연결: 비밀번호 확인 → 연결
                         await HandleRemoteConnectionTapped(drive.ConnectionId);
-                    }
-                    else if (drive.IsLocked)
-                    {
-                        UnlockDrive(drive);
                     }
                     else
                     {
