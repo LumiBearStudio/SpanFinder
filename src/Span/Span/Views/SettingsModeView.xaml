@@ -2002,6 +2002,18 @@
                                         </StackPanel>
                                         <ToggleSwitch x:Name="DefaultFileManagerToggle" Grid.Column="2" VerticalAlignment="Center" IsOn="False" OnContent="" OffContent="" />
                                     </Grid>
+                                    <!-- Win+E (Issue #78): 기본 파일 관리자가 켜져 있을 때만 바꿀 수 있다 -->
+                                    <Grid Padding="36,0,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Spacing="2" VerticalAlignment="Center">
+                                            <TextBlock x:Name="DefaultFMWinELabel" Text="Win+E로 SPAN Finder 열기" Style="{StaticResource SettingsCardLabel}" />
+                                            <TextBlock x:Name="DefaultFMWinEDesc" Text="Win+E를 누르면 파일 탐색기 대신 SPAN Finder가 열립니다. 켜고 끌 때 UAC 승인이 필요합니다." Style="{StaticResource SettingsCardDesc}" />
+                                        </StackPanel>
+                                        <ToggleSwitch x:Name="DefaultFMWinEToggle" Grid.Column="1" VerticalAlignment="Center" IsOn="False" OnContent="" OffContent="" />
+                                    </Grid>
                                     <!-- 안내 문구 -->
                                     <StackPanel x:Name="DefaultFMInfoPanel" Spacing="4" Padding="36,0,0,4">
                                         <TextBlock x:Name="DefaultFMInfo1" TextWrapping="Wrap" FontSize="11"

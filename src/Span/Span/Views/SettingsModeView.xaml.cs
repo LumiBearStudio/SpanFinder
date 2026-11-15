@@ -289,6 +289,7 @@ public sealed partial class SettingsModeView : UserControl
             if (dfmService != null)
             {
                 DefaultFileManagerToggle.IsOn = dfmService.IsDefault();
+                SyncWinEToggle(dfmService);
                 UpdateDefaultFMRepairPanel(dfmService);
             }
 
@@ -492,6 +493,7 @@ public sealed partial class SettingsModeView : UserControl
         CrashReportToggle.Toggled += (s, e) => { if (!_isLoading) _settings.EnableCrashReporting = CrashReportToggle.IsOn; };
         IsolatedThumbsToggle.Toggled += (s, e) => { if (!_isLoading) _settings.UseIsolatedThumbnails = IsolatedThumbsToggle.IsOn; };
         DefaultFileManagerToggle.Toggled += OnDefaultFileManagerToggled;
+        DefaultFMWinEToggle.Toggled += OnDefaultFMWinEToggled;
 
         // Hand cursor on all clickable card items
         foreach (var rb in new[] {
@@ -509,7 +511,7 @@ public sealed partial class SettingsModeView : UserControl
             ShellExtrasToggle, ShellExtensionsToggle, GitIntegrationToggle,
             HexPreviewToggle, FileHashToggle, CopilotMenuToggle, ContextMenuToggle, CrashReportToggle,
             IsolatedThumbsToggle, WasdNavToggle,
-            DefaultFileManagerToggle, DefaultPreviewToggle, PreviewFolderInfoToggle, ShelfSaveToggle, ShelfEnabledToggle })
+            DefaultFileManagerToggle, DefaultFMWinEToggle, DefaultPreviewToggle, PreviewFolderInfoToggle, ShelfSaveToggle, ShelfEnabledToggle })
             Helpers.CursorHelper.SetHandCursor(toggle);
 
         Helpers.CursorHelper.SetHandCursor(IconPackCombo);
@@ -828,6 +830,8 @@ public sealed partial class SettingsModeView : UserControl
             DefaultFMInfo1.Text = _loc.Get("Settings_DefaultFMInfo1") ?? "• 등록 시 UAC(관리자 권한) 승인이 필요합니다. 승인해야 정상 동작합니다.";
             DefaultFMInfo2.Text = _loc.Get("Settings_DefaultFMInfo2") ?? "• 해제 시에도 UAC 승인이 필요합니다. SPAN Finder를 제거하기 전에 반드시 이 설정을 먼저 해제하세요.";
             DefaultFMInfo3.Text = _loc.Get("Settings_DefaultFMInfo3") ?? "ℹ 이 설정을 해제하지 않고 앱을 삭제하면 폴더가 열리지 않을 수 있습니다. 그런 경우 SPAN Finder를 다시 설치해 이 설정을 해제하세요.";
+            DefaultFMWinELabel.Text = _loc.Get("Settings_DefaultFMWinE") ?? "Win+E로 SPAN Finder 열기";
+            DefaultFMWinEDesc.Text = _loc.Get("Settings_DefaultFMWinEDesc") ?? "Win+E를 누르면 파일 탐색기 대신 SPAN Finder가 열립니다. 켜고 끌 때 UAC 승인이 필요합니다.";
             DefaultFMRepairLabel.Text = _loc.Get("Settings_DefaultFMRepair") ?? "폴더 연결 복구";
             DefaultFMRepairDesc.Text = _loc.Get("Settings_DefaultFMRepairDesc") ?? "이전 기본 파일 관리자 설정이 남긴 항목 때문에 일부 앱에서 폴더 열기가 실패할 수 있습니다. UAC 승인이 필요합니다.";
             DefaultFMRepairBtn.Content = _loc.Get("Settings_DefaultFMRepairButton") ?? "복구";
@@ -1869,12 +1873,50 @@ public sealed partial class SettingsModeView : UserControl
                     ? (_loc?.Get("Settings_DefaultFMSet") ?? "기본 파일 관리자로 설정되었습니다")
                     : (_loc?.Get("Settings_DefaultFMUnset") ?? "기본 파일 관리자 설정이 해제되었습니다"));
             }
+            // 해제하면 Win+E도 같이 되돌려지므로(UnsetDefaultAsync) 하위 토글을 실제 상태에 맞춘다.
+            SyncWinEToggle(service);
             UpdateDefaultFMRepairPanel(service);
         }
         catch (Exception ex)
         {
             Helpers.DebugLogger.Log($"[Settings] DefaultFileManager toggle error: {ex.Message}");
             try { App.Current.Services.GetService<Services.CrashReportingService>()?.CaptureException(ex, "OnDefaultFileManagerToggled"); } catch { }
+        }
+    }
+
+    /// <summary>
+    /// Win+E 하위 토글을 레지스트리 상태에 맞춘다. 기본 파일 관리자가 꺼져 있으면 켤 수 없지만,
+    /// 이미 켜져 있는 경우(외부에서 기본 설정만 바뀐 경우)에는 끌 수 있게 열어 둔다.
+    /// </summary>
+    private void SyncWinEToggle(Services.DefaultFileManagerService service)
+    {
+        bool wasLoading = _isLoading;
+        _isLoading = true;
+        DefaultFMWinEToggle.IsOn = service.IsWinEEnabled();
+        DefaultFMWinEToggle.IsEnabled = DefaultFileManagerToggle.IsOn || DefaultFMWinEToggle.IsOn;
+        _isLoading = wasLoading;
+    }
+
+    private async void OnDefaultFMWinEToggled(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (_isLoading) return;
+
+            var service = App.Current.Services.GetService<Services.DefaultFileManagerService>();
+            if (service == null) return;
+
+            bool wantOn = DefaultFMWinEToggle.IsOn;
+            if (!await service.SetWinEAsync(wantOn))
+                ShowToastFromSettings(_loc?.Get("Settings_DefaultFMWinEFailed") ?? "Win+E 설정을 바꾸지 못했습니다. UAC 승인이 필요합니다.");
+
+            // 성공·실패(UAC 취소 포함) 모두 실제 상태로 맞춘다.
+            SyncWinEToggle(service);
+        }
+        catch (Exception ex)
+        {
+            Helpers.DebugLogger.Log($"[Settings] Win+E toggle error: {ex.Message}");
+            try { App.Current.Services.GetService<Services.CrashReportingService>()?.CaptureException(ex, "OnDefaultFMWinEToggled"); } catch { }
         }
     }
 

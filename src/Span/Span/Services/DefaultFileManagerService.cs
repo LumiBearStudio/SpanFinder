@@ -12,6 +12,14 @@ namespace Span.Services
         private const string FolderOpenCommandKey = @"Software\Classes\Folder\shell\open\command";
         private const string DriveOpenCommandKey = @"Software\Classes\Drive\shell\open\command";
 
+        // ── Win+E (Issue #78) ──
+        // Win+E는 폴더 열기 동사가 아니라 이 CLSID(파일 탐색기)의 OpenNewWindow 동사를 부른다(HKLM에 등록됨).
+        // HKCU에 같은 동사의 command를 두면 그쪽이 우선한다 — Files 앱과 같은 방식.
+        // HKCU에는 원래 이 CLSID 키가 없으므로, 끌 때는 우리가 만든 키를 지워 HKLM 동작으로 되돌린다.
+        private const string WinEClsid = "{52205fd8-5dfb-447d-801a-d0b52f2e83e1}";
+        private const string WinEClsidKey = @"Software\Classes\CLSID\" + WinEClsid;
+        private const string WinECommandKey = WinEClsidKey + @"\shell\opennewwindow\command";
+
         // ── SHChangeNotify: 셸에게 파일 association 변경됨을 알림 (explorer 재시작 없이 즉시 반영) ──
         [DllImport("shell32.dll", CharSet = CharSet.Auto)]
         private static extern void SHChangeNotify(int wEventId, uint uFlags, IntPtr dwItem1, IntPtr dwItem2);
@@ -184,6 +192,118 @@ namespace Span.Services
             }
         }
 
+        /// <summary>Win+E가 SPAN을 열도록 등록돼 있는지 (HKCU의 OpenNewWindow command가 spanfinder.exe인지).</summary>
+        public bool IsWinEEnabled()
+        {
+            try
+            {
+                using var key = Registry.CurrentUser.OpenSubKey(WinECommandKey);
+                var command = key?.GetValue("")?.ToString();
+                return !string.IsNullOrEmpty(command)
+                    && command.Contains("spanfinder.exe", StringComparison.OrdinalIgnoreCase);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Win+E로 SPAN을 열지 켜고 끈다. 등록·해제와 같은 방식(regedit /s + runas, UAC)이다 —
+        /// 패키지 앱의 HKCU\Software\Classes 쓰기는 가상화되어 셸이 보지 못한다.
+        /// </summary>
+        public async Task<bool> SetWinEAsync(bool enable)
+        {
+            if (IsWinEEnabled() == enable) return true;
+            try
+            {
+                var regContent = "Windows Registry Editor Version 5.00\r\n\r\n"
+                    + (enable ? GenerateSetWinELines() : GenerateRemoveWinELines());
+                var tempPath = Path.Combine(Path.GetTempPath(), "SpanWinE.reg");
+                await File.WriteAllTextAsync(tempPath, regContent);
+
+                var process = Process.Start(new ProcessStartInfo
+                {
+                    FileName = "regedit.exe",
+                    Arguments = $"/s \"{tempPath}\"",
+                    UseShellExecute = true,
+                    Verb = "runas"
+                });
+
+                if (process != null)
+                    await process.WaitForExitAsync();
+
+                try { File.Delete(tempPath); } catch { }
+
+                NotifyShellAssocChanged();
+
+                var now = IsWinEEnabled();
+                Helpers.DebugLogger.Log($"[DefaultFM] Win+E {(enable ? "enable" : "disable")} → enabled={now}");
+                return now == enable;
+            }
+            catch (System.ComponentModel.Win32Exception)
+            {
+                // 사용자가 UAC를 취소한 경우
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[DefaultFM] Win+E toggle failed: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Win+E 등록 줄. 탐색기의 Win+E처럼 항상 새 창을 연다(--new-window).
+        /// DelegateExecute=""는 폴더 열기와 같은 이유 — HKLM의 COM 핸들러가 우리 명령줄을 가리지 않게 한다.
+        /// </summary>
+        private static string GenerateSetWinELines()
+        {
+            var exePath = AliasPath.Replace("\\", "\\\\");
+            return $"[HKEY_CURRENT_USER\\{WinECommandKey}]\r\n"
+                 + $"@=\"\\\"{exePath}\\\" --new-window\"\r\n"
+                 + "\"DelegateExecute\"=\"\"\r\n";
+        }
+
+        /// <summary>
+        /// Win+E 해제 줄. SPAN이 등록한 게 아니면 건드리지 않는다(다른 앱의 설정일 수 있음).
+        /// 빈 opennewwindow 키가 남으면 HKLM 동사를 가려 Win+E가 깨질 수 있으므로(폴더 열기에서 겪은 문제),
+        /// command가 아니라 키째 지운다. CLSID 키에 우리가 만든 것만 있으면 CLSID 키를 통째로 지운다.
+        /// </summary>
+        private string GenerateRemoveWinELines()
+        {
+            if (!IsWinEEnabled()) return string.Empty;
+            return WinEKeyHoldsOnlySpan()
+                ? $"[-HKEY_CURRENT_USER\\{WinEClsidKey}]\r\n"
+                : $"[-HKEY_CURRENT_USER\\{WinEClsidKey}\\shell\\opennewwindow]\r\n";
+        }
+
+        /// <summary>HKCU CLSID 키가 shell\opennewwindow\command 한 줄기만 담고 있는지(값·다른 하위 키 없음).</summary>
+        private static bool WinEKeyHoldsOnlySpan()
+        {
+            try
+            {
+                using var clsid = Registry.CurrentUser.OpenSubKey(WinEClsidKey);
+                if (clsid == null) return true;
+                if (!HoldsOnly(clsid, "shell")) return false;
+                using var shell = clsid.OpenSubKey("shell");
+                if (shell == null || !HoldsOnly(shell, "opennewwindow")) return false;
+                using var verb = shell.OpenSubKey("opennewwindow");
+                return verb != null && HoldsOnly(verb, "command");
+            }
+            catch
+            {
+                return false; // 판단할 수 없으면 보수적으로 동사 키만 지운다
+            }
+
+            static bool HoldsOnly(RegistryKey key, string child)
+            {
+                if (key.ValueCount != 0) return false;
+                var subKeys = key.GetSubKeyNames();
+                return subKeys.Length == 1 && subKeys[0].Equals(child, StringComparison.OrdinalIgnoreCase);
+            }
+        }
+
         /// <summary>
         /// 등록용 .reg 파일을 사용자 지정 경로에 내보내기 (fallback용).
         /// </summary>
@@ -249,6 +369,8 @@ Windows Registry Editor Version 5.00
                     ? $"[-{openKey}]\r\n"
                     : $"[-{openKey}\\command]\r\n");
             }
+            // 기본 파일 관리자를 끄면 Win+E도 같이 되돌린다 — 앱을 지우기 전에 이 설정만 끄면 되도록.
+            sb.Append(GenerateRemoveWinELines());
             return sb.ToString();
         }
 
