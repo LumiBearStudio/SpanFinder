@@ -80,9 +80,10 @@ namespace Span.Services
             try
             {
                 // Network drives may be disconnected but should still appear in sidebar.
-                // Only skip non-network drives that aren't ready.
+                // Locked BitLocker volumes are Fixed but report IsReady=false, so keep Fixed too.
+                // Only skip other non-network drives that aren't ready (empty CD/card reader).
                 bool isNetwork = drive.DriveType == DriveType.Network;
-                if (!drive.IsReady && !isNetwork)
+                if (!drive.IsReady && !isNetwork && drive.DriveType != DriveType.Fixed)
                 {
                     return null;
                 }
@@ -90,7 +91,8 @@ namespace Span.Services
                 var driveItem = new DriveItem
                 {
                     Path = drive.Name,
-                    DriveType = drive.DriveType.ToString()
+                    DriveType = drive.DriveType.ToString(),
+                    IsLocked = !drive.IsReady && !isNetwork
                 };
 
                 // Try to get volume/size info (may fail for disconnected network drives)

@@ -55,6 +55,9 @@ namespace Span.Models
         /// </summary>
         public bool NeedsAuth { get; set; }
 
+        /// <summary>BitLocker 등으로 잠긴 로컬 볼륨 (IsReady=false인 Fixed 드라이브). 클릭 시 잠금 해제 창을 띄운다.</summary>
+        public bool IsLocked { get; set; }
+
         // AuthBadgeVisibility는 WinUI 의존성이 있어 DriveItem.WinUI.cs(partial)에 분리되어 있음.
         // 단위 테스트 프로젝트(Span.Tests)는 이 파일만 링크하므로 여기에는 WinUI 타입을 두지 않는다.
 
