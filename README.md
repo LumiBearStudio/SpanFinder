@@ -8,6 +8,7 @@
 </p>
 
 <p align="center">
+  <a href="https://lumibear.dev/apps/span-finder/"><img src="https://img.shields.io/badge/lumibear.dev-f5b041?style=for-the-badge&logo=googlechrome&logoColor=white" alt="lumibear.dev"></a>
   <a href="https://apps.microsoft.com/detail/9P7NJ351X9TL"><img src="https://img.shields.io/badge/Microsoft_Store-Download-blue?style=for-the-badge&logo=microsoft" alt="Microsoft Store"></a>
   <a href="https://github.com/LumiBearStudio/SpanFinder/releases/latest"><img src="https://img.shields.io/github/v/release/LumiBearStudio/SpanFinder?style=for-the-badge&label=Latest" alt="Latest Release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/LumiBearStudio/SpanFinder?style=for-the-badge" alt="License"></a>
@@ -291,6 +292,14 @@ See [Privacy Policy](PRIVACY.md) for full details.
 
 ---
 
+## More from LumiBear Studio
+
+- **[OtterZip](https://lumibear.dev/apps/otterzip/)** — a quiet archive tool for Windows: right-click to compress or extract. [Source](https://github.com/LumiBearStudio/OtterZip)
+- **[OtterGIF](https://lumibear.dev/apps/ottergif/)** — turn videos into GIFs. Offline, no fuss.
+- **[Free web tools](https://lumibear.dev/tools/)** — compress PDFs, images and videos, make GIFs and more, right in your browser. Nothing is uploaded.
+
+---
+
 ## License
 
 This project is licensed under the [GNU General Public License v3.0](LICENSE).
@@ -302,6 +311,7 @@ This project is licensed under the [GNU General Public License v3.0](LICENSE).
 ---
 
 <p align="center">
+  <a href="https://lumibear.dev/apps/span-finder/">lumibear.dev</a> ·
   <a href="https://apps.microsoft.com/detail/9P7NJ351X9TL">Microsoft Store</a> ·
   <a href="https://github.com/sponsors/LumiBearStudio">Sponsor</a> ·
   <a href="PRIVACY.md">Privacy Policy</a> ·

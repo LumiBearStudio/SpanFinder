@@ -8,6 +8,7 @@
 </p>
 
 <p align="center">
+  <a href="https://lumibear.dev/apps/span-finder/"><img src="https://img.shields.io/badge/lumibear.dev-f5b041?style=for-the-badge&logo=googlechrome&logoColor=white" alt="lumibear.dev"></a>
   <a href="https://apps.microsoft.com/detail/9P7NJ351X9TL"><img src="https://img.shields.io/badge/Microsoft_Store-Download-blue?style=for-the-badge&logo=microsoft" alt="Microsoft Store"></a>
   <a href="https://github.com/LumiBearStudio/SpanFinder/releases/latest"><img src="https://img.shields.io/github/v/release/LumiBearStudio/SpanFinder?style=for-the-badge&label=Latest" alt="Latest Release"></a>
   <a href="../LICENSE"><img src="https://img.shields.io/github/license/LumiBearStudio/SpanFinder?style=for-the-badge" alt="License"></a>
@@ -277,6 +278,7 @@ Dieses Projekt steht unter der [GNU General Public License v3.0](../LICENSE).
 ---
 
 <p align="center">
+  <a href="https://lumibear.dev/apps/span-finder/">lumibear.dev</a> ·
   <a href="https://apps.microsoft.com/detail/9P7NJ351X9TL">Microsoft Store</a> ·
   <a href="../PRIVACY.md">Datenschutzerklaerung</a> ·
   <a href="../OpenSourceLicenses.md">Open-Source-Lizenzen</a> ·
