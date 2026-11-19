@@ -8,6 +8,7 @@
 </p>
 
 <p align="center">
+  <a href="https://lumibear.dev/ko/apps/span-finder/"><img src="https://img.shields.io/badge/lumibear.dev-f5b041?style=for-the-badge&logo=googlechrome&logoColor=white" alt="lumibear.dev"></a>
   <a href="https://apps.microsoft.com/detail/9P7NJ351X9TL"><img src="https://img.shields.io/badge/Microsoft_Store-%EB%8B%A4%EC%9A%B4%EB%A1%9C%EB%93%9C-blue?style=for-the-badge&logo=microsoft" alt="Microsoft Store"></a>
   <a href="https://github.com/LumiBearStudio/SpanFinder/releases/latest"><img src="https://img.shields.io/github/v/release/LumiBearStudio/SpanFinder?style=for-the-badge&label=Latest" alt="Latest Release"></a>
   <a href="../LICENSE"><img src="https://img.shields.io/github/license/LumiBearStudio/SpanFinder?style=for-the-badge" alt="License"></a>
@@ -265,6 +266,14 @@ SPAN Finder는 [Sentry](https://sentry.io)를 **크래시 리포팅 용도로만
 
 ---
 
+## LumiBear Studio의 다른 앱
+
+- **[OtterZip](https://lumibear.dev/ko/apps/otterzip/)** — 조용한 Windows 압축 프로그램. 우클릭 한 번으로 압축·해제. [소스](https://github.com/LumiBearStudio/OtterZip)
+- **[OtterGIF](https://lumibear.dev/ko/apps/ottergif/)** — 동영상을 GIF로. 오프라인에서 간단하게.
+- **[무료 웹 도구](https://lumibear.dev/ko/tools/)** — PDF·사진·동영상 용량 줄이기, GIF 만들기 등을 브라우저에서 바로. 파일은 업로드되지 않아요.
+
+---
+
 ## 라이선스
 
 이 프로젝트는 [GNU General Public License v3.0](../LICENSE)에 따라 라이선스됩니다.
@@ -276,6 +285,7 @@ SPAN Finder는 [Sentry](https://sentry.io)를 **크래시 리포팅 용도로만
 ---
 
 <p align="center">
+  <a href="https://lumibear.dev/ko/apps/span-finder/">lumibear.dev</a> ·
   <a href="https://apps.microsoft.com/detail/9P7NJ351X9TL">Microsoft Store</a> ·
   <a href="../PRIVACY.md">개인정보처리방침</a> ·
   <a href="../OpenSourceLicenses.md">오픈소스 라이선스</a> ·
