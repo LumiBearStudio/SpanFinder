@@ -150,6 +150,8 @@ namespace Span
         /// </summary>
         private void BeginOutboundFileDrag()
         {
+            _suppressDragActivation = _activationDeferred;
+            _activationDeferred = false;
             IsDragInProgress = true;
             StartModifierPollTimer();
         }
@@ -160,12 +162,111 @@ namespace Span
         private void EndOutboundFileDrag()
         {
             IsDragInProgress = false;
+            _suppressDragActivation = false;
             _dragAutoScrollActive = false;
             StopModifierPollTimer();
             HideDragTooltip();
             _dragItemCount = 0;
         }
 
+
+        /// <summary>
+        /// Set while a press on an item of the inactive window keeps the window from activating:
+        /// the release activates it, a drag start hands over to <see cref="_suppressDragActivation"/>.
+        /// </summary>
+        private bool _activationDeferred;
+
+        /// <summary>
+        /// True for an outbound drag that began in the inactive window. WinUI re-activates the drag
+        /// source on every pointer move; that would push the window the user drags into behind us.
+        /// </summary>
+        private bool _suppressDragActivation;
+
+        /// <summary>
+        /// HCBT_ACTIVATE for this window. Explorer semantics: pressing an item of an inactive window
+        /// does not raise it, so the item can be dragged straight into the app in front. A plain
+        /// click activates the window on release instead.
+        /// </summary>
+        private bool ShouldBlockActivation()
+        {
+            if (_isClosed || _hwnd == IntPtr.Zero)
+                return false;
+            if (_suppressDragActivation && IsDragInProgress)
+                return true;
+
+            bool buttonDown = Helpers.NativeMethods.GetAsyncKeyState(Helpers.NativeMethods.VK_LBUTTON) < 0
+                || Helpers.NativeMethods.GetAsyncKeyState(Helpers.NativeMethods.VK_RBUTTON) < 0;
+            if (_activationDeferred)
+            {
+                if (buttonDown)
+                    return true;
+                _activationDeferred = false; // release never reached us; do not block for good
+            }
+
+            if (!buttonDown || Helpers.NativeMethods.GetForegroundWindow() == _hwnd)
+                return false;
+            if (!IsDraggableItemAtCursor())
+                return false;
+
+            _activationDeferred = true;
+            Helpers.DebugLogger.Log("[DragDrop] press on item of inactive window, activation deferred");
+            return true;
+        }
+
+        private void OnGlobalPointerReleased(object sender, PointerRoutedEventArgs e)
+        {
+            CompleteDeferredActivation();
+        }
+
+        /// <summary>
+        /// Capture is lost when a drag takes over (button still down: leave the flags to the drag
+        /// start) or when the release went elsewhere (button up: activate like a click).
+        /// </summary>
+        private void OnGlobalPointerCaptureLost(object sender, PointerRoutedEventArgs e)
+        {
+            if (!_activationDeferred) return;
+            bool buttonDown = Helpers.NativeMethods.GetAsyncKeyState(Helpers.NativeMethods.VK_LBUTTON) < 0
+                || Helpers.NativeMethods.GetAsyncKeyState(Helpers.NativeMethods.VK_RBUTTON) < 0;
+            if (!buttonDown)
+                CompleteDeferredActivation();
+        }
+
+        /// <summary>Button released without a drag: activate now, like a normal click would have.</summary>
+        private void CompleteDeferredActivation()
+        {
+            if (!_activationDeferred) return;
+            _activationDeferred = false;
+            if (Helpers.NativeMethods.GetForegroundWindow() != _hwnd)
+            {
+                Helpers.DebugLogger.Log("[DragDrop] deferred activation on release");
+                Helpers.NativeMethods.SetForegroundWindow(_hwnd);
+            }
+        }
+
+        /// <summary>True when the cursor is over an item of a list whose items can be dragged.</summary>
+        private bool IsDraggableItemAtCursor()
+        {
+            if (_isClosed || Content is not UIElement root || root.XamlRoot == null)
+                return false;
+            try
+            {
+                Helpers.NativeMethods.GetCursorPos(out var pt);
+                if (!Helpers.NativeMethods.ScreenToClient(_hwnd, ref pt))
+                    return false;
+                double scale = root.XamlRoot.RasterizationScale;
+                var hit = VisualTreeHelper.FindElementsInHostCoordinates(new Point(pt.X / scale, pt.Y / scale), root).FirstOrDefault();
+                for (DependencyObject? d = hit; d != null; d = VisualTreeHelper.GetParent(d))
+                {
+                    if (d is Microsoft.UI.Xaml.Controls.Primitives.SelectorItem container)
+                        return ItemsControl.ItemsControlFromItemContainer(container) is ListViewBase list && list.CanDragItems;
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[DragDrop] item hit test failed: {ex.Message}");
+            }
+            return false;
+        }
 
         /// <summary>
         /// 이벤트 발신자(ListView)가 좌측/우측 탐색기 중 어느 패널에 속하는지 판단한다.

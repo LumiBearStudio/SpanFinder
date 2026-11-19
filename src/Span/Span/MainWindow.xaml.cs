@@ -745,6 +745,18 @@ namespace Span
                 true
             );
 
+            // Deferred activation (press in the inactive window) is completed on release
+            this.Content.AddHandler(
+                UIElement.PointerReleasedEvent,
+                new PointerEventHandler(OnGlobalPointerReleased),
+                true
+            );
+            this.Content.AddHandler(
+                UIElement.PointerCaptureLostEvent,
+                new PointerEventHandler(OnGlobalPointerCaptureLost),
+                true
+            );
+
             // ★ Ctrl+Mouse Wheel view mode cycling (global — works in ALL views)
             this.Content.AddHandler(
                 UIElement.PointerWheelChangedEvent,
@@ -766,6 +778,7 @@ namespace Span
             // WM_DEVICECHANGE: detect USB drive plug/unplug
             _subclassProc = new SUBCLASSPROC(WndProc);
             SetWindowSubclass(_hwnd, _subclassProc, IntPtr.Zero, IntPtr.Zero);
+            InstallActivationHook();
 
 
             _deviceChangeDebounceTimer = new DispatcherTimer();
@@ -1550,6 +1563,8 @@ namespace Span
                     {
                         this.Content.RemoveHandler(UIElement.KeyDownEvent, (KeyEventHandler)OnGlobalKeyDown);
                         this.Content.RemoveHandler(UIElement.PointerPressedEvent, (PointerEventHandler)OnGlobalPointerPressed);
+                        this.Content.RemoveHandler(UIElement.PointerReleasedEvent, (PointerEventHandler)OnGlobalPointerReleased);
+                        this.Content.RemoveHandler(UIElement.PointerCaptureLostEvent, (PointerEventHandler)OnGlobalPointerCaptureLost);
                         this.Content.RemoveHandler(UIElement.PointerWheelChangedEvent, (PointerEventHandler)OnGlobalPointerWheelChanged);
                     }
                     if (MillerColumnsControl != null)
@@ -1575,6 +1590,11 @@ namespace Span
                 {
                     if (_subclassProc != null)
                     {
+                        if (_cbtHook != IntPtr.Zero)
+                        {
+                            UnhookWindowsHookEx(_cbtHook);
+                            _cbtHook = IntPtr.Zero;
+                        }
                         RemoveWindowSubclass(_hwnd, _subclassProc, IntPtr.Zero);
                     }
                     if (_deviceChangeDebounceTimer != null)
@@ -1615,6 +1635,41 @@ namespace Span
         /// <summary>
         /// Win32 subclass procedure to intercept WM_DEVICECHANGE for USB hotplug detection.
         /// </summary>
+        // ---- Activation hook: press on an item of the inactive window (Explorer behaviour) ----
+        // WinUI does not route mouse/pointer messages through the window procedure and activates the
+        // window itself (SetForegroundWindow) on press. The CBT hook is the only common interception point.
+        private delegate IntPtr HOOKPROC(int nCode, IntPtr wParam, IntPtr lParam);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern IntPtr SetWindowsHookEx(int idHook, HOOKPROC lpfn, IntPtr hMod, uint dwThreadId);
+
+        [DllImport("user32.dll")]
+        private static extern bool UnhookWindowsHookEx(IntPtr hhk);
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr CallNextHookEx(IntPtr hhk, int nCode, IntPtr wParam, IntPtr lParam);
+
+        private const int WH_CBT = 5;
+        private const int HCBT_ACTIVATE = 5;
+
+        private IntPtr _cbtHook;
+        private HOOKPROC? _cbtProc; // prevent GC collection
+
+        private void InstallActivationHook()
+        {
+            _cbtProc = CbtProc;
+            _cbtHook = SetWindowsHookEx(WH_CBT, _cbtProc, IntPtr.Zero, Helpers.NativeMethods.GetCurrentThreadId());
+            if (_cbtHook == IntPtr.Zero)
+                Helpers.DebugLogger.Log($"[MainWindow] CBT hook failed: {Marshal.GetLastWin32Error()}");
+        }
+
+        private IntPtr CbtProc(int nCode, IntPtr wParam, IntPtr lParam)
+        {
+            if (nCode == HCBT_ACTIVATE && wParam == _hwnd && ShouldBlockActivation())
+                return (IntPtr)1;
+            return CallNextHookEx(_cbtHook, nCode, wParam, lParam);
+        }
+
         private IntPtr WndProc(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam, IntPtr uIdSubclass, IntPtr dwRefData)
         {
             if (uMsg == WM_DEVICECHANGE && wParam == (IntPtr)DBT_DEVNODES_CHANGED)
