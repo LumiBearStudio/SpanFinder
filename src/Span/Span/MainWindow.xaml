@@ -400,24 +400,47 @@
                         <!-- Section 2: 즐겨찾기 (Drop Target) -->
                         <StackPanel x:Name="SidebarFavoritesSection" AllowDrop="True"
                                     DragOver="OnFavoritesDragOver"
-                                    Drop="OnFavoritesDrop">
-                        <TextBlock x:Name="SidebarFavoritesText" Text="즐겨찾기"
-                                   Style="{StaticResource CaptionTextBlockStyle}"
-                                   Foreground="{ThemeResource SpanTextTertiaryBrush}"
-                                   FontWeight="SemiBold"
-                                   Margin="16,0,16,8"/>
+                                    DragLeave="OnFavoritesDragLeave"
+                                    Drop="OnFavoritesDrop"
+                                    RightTapped="OnFavoritesSectionRightTapped">
+                        <Grid Margin="16,0,8,8" Background="Transparent"
+                              RightTapped="OnFavoritesSectionRightTapped">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Name="SidebarFavoritesText" Text="즐겨찾기"
+                                       Style="{StaticResource CaptionTextBlockStyle}"
+                                       Foreground="{ThemeResource SpanTextTertiaryBrush}"
+                                       FontWeight="SemiBold"
+                                       VerticalAlignment="Center"/>
+                            <!-- Add current folder (Ctrl+Shift+D) -->
+                            <Button x:Name="SidebarFavoritesAddButton" Grid.Column="1"
+                                    Width="22" Height="22" Padding="0"
+                                    Background="Transparent" BorderThickness="0"
+                                    Click="OnFavoritesAddButtonClick">
+                                <FontIcon Glyph="&#xE710;" FontSize="11"
+                                          Foreground="{ThemeResource SpanTextTertiaryBrush}"/>
+                            </Button>
+                        </Grid>
 
-                        <!-- Flat Favorites List (default, no tree expansion) -->
-                        <ListView x:Name="FavoritesFlatList"
-                                  ItemsSource="{x:Bind ViewModel.Favorites, Mode=OneWay}"
+                        <!-- Flat Favorites: one list (ungrouped + group headers + group items) -->
+                        <StackPanel x:Name="FavoritesFlatPanel"
+                                    RightTapped="OnFavoritesSectionRightTapped">
+                        <Grid>
+                        <ListView x:Name="FavoritesSidebarList"
+                                  ItemsSource="{x:Bind ViewModel.FavoritesSidebarRows, Mode=OneWay}"
                                   SelectionMode="None"
                                   IsItemClickEnabled="True"
-                                  ItemClick="OnFavoritesFlatItemClick"
+                                  ItemClick="OnFavoritesSidebarItemClick"
                                   CanDragItems="True"
                                   CanReorderItems="True"
                                   AllowDrop="True"
-                                  DragItemsCompleted="OnFavoritesDragCompleted"
-                                  RightTapped="OnFavoritesFlatListRightTapped"
+                                  DragOver="OnFavoritesDragOver"
+                                  DragLeave="OnFavoritesDragLeave"
+                                  Drop="OnFavoritesDrop"
+                                  DragItemsCompleted="OnFavoritesSidebarDragCompleted"
+                                  RightTapped="OnFavoritesSidebarRightTapped"
                                   ContainerContentChanging="OnSidebarContainerContentChanging">
                             <ListView.Resources>
                                 <!-- 커스텀 Grid 호버 사용: ListViewItem 자체 hover 배경 투명화 -->
@@ -432,42 +455,81 @@
                                     <Setter Property="helpers:CursorHelper.IsHandCursor" Value="True"/>
                                 </Style>
                             </ListView.ItemContainerStyle>
-                            <ListView.ItemTemplate>
-                                <DataTemplate x:DataType="models:FavoriteItem">
-                                    <Grid Height="26" Padding="12,0,8,0"
-                                          Background="Transparent"
-                                          ToolTipService.ToolTip="{x:Bind Path}"
-                                          PointerEntered="OnSidebarItemPointerEntered"
-                                          PointerExited="OnSidebarItemPointerExited" PointerPressed="OnSidebarItemPointerPressed" PointerReleased="OnSidebarItemPointerReleased">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <!-- desktop.ini 커스텀 아이콘 (있을 때만, Issue #39 a) -->
-                                        <Image Grid.Column="0"
-                                               Source="{x:Bind CustomIcon, Mode=OneWay}"
-                                               Visibility="{x:Bind CustomIconVisibility, Mode=OneWay}"
-                                               Width="16" Height="16"
-                                               VerticalAlignment="Center"
-                                               Margin="0,0,12,0"/>
-                                        <!-- 기본 글리프 (CustomIcon 없을 때) -->
-                                        <TextBlock Grid.Column="0"
-                                                   Text="{x:Bind IconGlyph}"
-                                                   FontFamily="{StaticResource RemixIcons}"
-                                                   FontSize="{Binding IconFontSize, Source={StaticResource FontScale}}"
-                                                   Foreground="{x:Bind IconBrush, Mode=OneWay}"
-                                                   Visibility="{x:Bind GlyphVisibility, Mode=OneWay}"
-                                                   VerticalAlignment="Center"
-                                                   Margin="0,0,12,0"/>
-                                        <TextBlock Grid.Column="1"
-                                                   Text="{x:Bind Name}"
-                                                   FontSize="{Binding ItemFontSize, Source={StaticResource FontScale}}"
-                                                   VerticalAlignment="Center"
-                                                   TextTrimming="CharacterEllipsis"/>
-                                    </Grid>
-                                </DataTemplate>
-                            </ListView.ItemTemplate>
+                            <ListView.ItemTemplateSelector>
+                                <helpers:FavoriteSidebarTemplateSelector>
+                                    <helpers:FavoriteSidebarTemplateSelector.HeaderTemplate>
+                                        <DataTemplate x:DataType="models:FavoriteGroupHeaderRow">
+                                            <Grid Height="24" Padding="12,0,8,0" Background="Transparent"
+                                                  Tag="{x:Bind GroupId}"
+                                                  PointerEntered="OnSidebarItemPointerEntered"
+                                                  PointerExited="OnSidebarItemPointerExited">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <FontIcon Glyph="&#xE70D;" FontSize="10" Margin="0,0,6,0"
+                                                          VerticalAlignment="Center"
+                                                          RenderTransformOrigin="0.5,0.5">
+                                                    <FontIcon.RenderTransform>
+                                                        <RotateTransform Angle="{x:Bind helpers:ConverterHelpers.ChevronAngle(IsExpanded), Mode=OneWay}"/>
+                                                    </FontIcon.RenderTransform>
+                                                </FontIcon>
+                                                <TextBlock Grid.Column="1" Text="{x:Bind Name, Mode=OneWay}"
+                                                           Style="{StaticResource CaptionTextBlockStyle}"
+                                                           Foreground="{ThemeResource SpanTextTertiaryBrush}"
+                                                           FontWeight="SemiBold"
+                                                           VerticalAlignment="Center"
+                                                           TextTrimming="CharacterEllipsis"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </helpers:FavoriteSidebarTemplateSelector.HeaderTemplate>
+                                    <helpers:FavoriteSidebarTemplateSelector.ItemTemplate>
+                                        <DataTemplate x:DataType="models:FavoriteItemRow">
+                                            <Grid Height="26" Padding="12,0,8,0"
+                                                  Background="Transparent"
+                                                  ToolTipService.ToolTip="{x:Bind Item.Path}"
+                                                  PointerEntered="OnSidebarItemPointerEntered"
+                                                  PointerExited="OnSidebarItemPointerExited" PointerPressed="OnSidebarItemPointerPressed" PointerReleased="OnSidebarItemPointerReleased">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <!-- desktop.ini 커스텀 아이콘 (있을 때만, Issue #39 a) -->
+                                                <Image Grid.Column="0"
+                                                       Source="{x:Bind Item.CustomIcon, Mode=OneWay}"
+                                                       Visibility="{x:Bind Item.CustomIconVisibility, Mode=OneWay}"
+                                                       Width="16" Height="16"
+                                                       VerticalAlignment="Center"
+                                                       Margin="0,0,12,0"/>
+                                                <!-- 기본 글리프 (CustomIcon 없을 때) -->
+                                                <TextBlock Grid.Column="0"
+                                                           Text="{x:Bind Item.IconGlyph}"
+                                                           FontFamily="{StaticResource RemixIcons}"
+                                                           FontSize="{Binding IconFontSize, Source={StaticResource FontScale}}"
+                                                           Foreground="{x:Bind Item.IconBrush}"
+                                                           Visibility="{x:Bind Item.GlyphVisibility, Mode=OneWay}"
+                                                           VerticalAlignment="Center"
+                                                           Margin="0,0,12,0"/>
+                                                <TextBlock Grid.Column="1"
+                                                           Text="{x:Bind Item.Name}"
+                                                           FontSize="{Binding ItemFontSize, Source={StaticResource FontScale}}"
+                                                           VerticalAlignment="Center"
+                                                           TextTrimming="CharacterEllipsis"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </helpers:FavoriteSidebarTemplateSelector.ItemTemplate>
+                                </helpers:FavoriteSidebarTemplateSelector>
+                            </ListView.ItemTemplateSelector>
                         </ListView>
+                        <!-- Drop insertion line (positioned in OnFavoritesDragOver) -->
+                        <Canvas IsHitTestVisible="False">
+                            <Border x:Name="FavoritesDropIndicator"
+                                    Height="2" CornerRadius="1"
+                                    Background="{ThemeResource SpanAccentBrush}"
+                                    Visibility="Collapsed"/>
+                        </Canvas>
+                        </Grid>
+                        </StackPanel>
 
                         <!-- Favorites Tree (expandable sidebar tree with lazy-loaded subfolders) -->
                         <TreeView x:Name="FavoritesTreeView"

@@ -48,6 +48,9 @@
     <Compile Include="..\Span\Models\CloudState.cs" Link="Sources\Models\CloudState.cs" />
     <Compile Include="..\Span\Models\SearchQuery.cs" Link="Sources\Models\SearchQuery.cs" />
     <Compile Include="..\Span\Models\ActionLogEntry.cs" Link="Sources\Models\ActionLogEntry.cs" />
+    <Compile Include="..\Span\Models\FavoriteData.cs" Link="Sources\Models\FavoriteData.cs" />
+    <Compile Include="..\Span\Services\IFavoritesService.cs" Link="Sources\Services\IFavoritesService.cs" />
+    <Compile Include="..\Span\Services\FavoritesService.cs" Link="Sources\Services\FavoritesService.cs" />
     <!-- Helpers (pure C#) -->
     <Compile Include="..\Span\Helpers\NaturalStringComparer.cs" Link="Sources\Helpers\NaturalStringComparer.cs" />
     <Compile Include="..\Span\Helpers\ViewModeExtensions.cs" Link="Sources\Helpers\ViewModeExtensions.cs" />

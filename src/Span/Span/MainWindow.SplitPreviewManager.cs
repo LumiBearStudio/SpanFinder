@@ -282,6 +282,11 @@ namespace Span
             // --- Sidebar section labels ---
             SidebarHomeText.Text = _loc.Get("Home");
             SidebarFavoritesText.Text = _loc.Get("Favorites");
+            var addFavoriteKeys = App.Current.Services.GetService<KeyBindingService>()?.CloneCurrentBindings()
+                .GetValueOrDefault(ShortcutCommands.AddFavorite);
+            ToolTipService.SetToolTip(SidebarFavoritesAddButton, addFavoriteKeys is { Count: > 0 }
+                ? $"{_loc.Get("Favorites_AddCurrentFolder")} ({addFavoriteKeys[0]})"
+                : _loc.Get("Favorites_AddCurrentFolder"));
             SidebarLocalDrivesText.Text = _loc.Get("LocalDrives");
             SidebarCloudText.Text = _loc.Get("Cloud");
             SidebarNetworkText.Text = _loc.Get("Network");
